@@ -6,6 +6,7 @@ import '../app_rtl.dart';
 import '../baxerhatn_login/login.dart';
 import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
+import 'my_appointments_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -16,6 +17,9 @@ class PatientHomeScreen extends StatefulWidget {
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+
+  /// Bottom nav: 0 = home (doctors), 1 = نۆرەکانم
+  int _bottomNavIndex = 0;
 
   String _selectedCategory = kPatientSpecialtyAllLabel;
 
@@ -69,8 +73,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
     return Directionality(
       textDirection: kRtlTextDirection,
       child: Scaffold(
@@ -79,9 +81,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           backgroundColor: const Color(0xFF243B53),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
-          title: const Text(
-            'سەرەتا',
-            style: TextStyle(
+          title: Text(
+            _bottomNavIndex == 0 ? 'سەرەتا' : 'نۆرەکانم',
+            style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
             ),
@@ -95,7 +97,53 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           ],
         ),
         body: SafeArea(
-          child: Column(
+          child: IndexedStack(
+            index: _bottomNavIndex,
+            children: [
+              PatientHomeContent._(this),
+              const PatientAppointmentsScreen(embedded: true),
+            ],
+          ),
+        ),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: const Color(0xFF829AB1).withValues(alpha: 0.35),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _bottomNavIndex,
+            onTap: (index) => setState(() => _bottomNavIndex = index),
+            backgroundColor: const Color(0xFF243B53),
+            selectedItemColor: const Color(0xFF2CB1BC),
+            unselectedItemColor: const Color(0xFF829AB1),
+            showUnselectedLabels: true,
+            type: BottomNavigationBarType.fixed,
+            selectedLabelStyle: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_filled),
+                label: 'سەرەتا',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.calendar_month),
+                label: 'نۆرەکانم',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Doctor list tab (search, categories, list).
+  Widget _buildHomeContent() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (uid != null)
@@ -327,11 +375,18 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
     );
   }
+}
+
+/// First tab body for [PatientHomeScreen] (doctors search & list).
+class PatientHomeContent extends StatelessWidget {
+  const PatientHomeContent._(this._state);
+
+  final _PatientHomeScreenState _state;
+
+  @override
+  Widget build(BuildContext context) => _state._buildHomeContent();
 }
 
 class _DoctorCard extends StatelessWidget {

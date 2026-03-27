@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../app_rtl.dart';
+import 'my_appointments_screen.dart';
 
 /// One day entry from [weekly_schedule] on the doctor's user document.
 class _ScheduleDayEntry {
@@ -36,10 +38,12 @@ class DoctorDetailsScreen extends StatefulWidget {
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
+
   String? _selectedDayId;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _saving = false;
+  bool _hasAutoSelectedDay = false;
 
   static const List<String> _dayIds = [
     'saturday',
@@ -50,6 +54,23 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     'thursday',
     'friday',
   ];
+
+  @override
+  void didUpdateWidget(covariant DoctorDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.doctorId != widget.doctorId) {
+      _hasAutoSelectedDay = false;
+      _selectedDayId = null;
+      _selectedDate = null;
+      _selectedTime = null;
+    }
+  }
+
+  int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return 0;
+  }
 
   int _weekdayFromKey(String id) {
     switch (id) {
@@ -72,6 +93,28 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
   }
 
+  /// Short Kurdish label when schedule has no custom [day] string.
+  String _fallbackDayLabelKu(String id) {
+    switch (id) {
+      case 'saturday':
+        return 'شەممە';
+      case 'sunday':
+        return 'یەکشەممە';
+      case 'monday':
+        return 'دووشەممە';
+      case 'tuesday':
+        return 'سێشەممە';
+      case 'wednesday':
+        return 'چوارشەممە';
+      case 'thursday':
+        return 'پێنجشەممە';
+      case 'friday':
+        return 'هەینی';
+      default:
+        return id;
+    }
+  }
+
   TimeOfDay _timeFromMinutes(int m) {
     return TimeOfDay(hour: m ~/ 60, minute: m % 60);
   }
@@ -91,14 +134,14 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       final raw = weekly[id];
       if (raw is! Map) continue;
       if (raw['enabled'] != true) continue;
-      final sm = raw['startMinutes'];
-      final em = raw['endMinutes'];
-      if (sm is! int || em is! int) continue;
-      final label = (raw['day'] ?? id).toString();
+      final sm = _asInt(raw['startMinutes']);
+      final em = _asInt(raw['endMinutes']);
+      if (em <= sm) continue;
+      final label = (raw['day'] ?? '').toString().trim();
       out.add(
         _ScheduleDayEntry(
           id: id,
-          labelKu: label,
+          labelKu: label.isNotEmpty ? label : _fallbackDayLabelKu(id),
           startMinutes: sm,
           endMinutes: em,
         ),
@@ -107,82 +150,52 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return out;
   }
 
-  _ScheduleDayEntry? _selectedEntry(List<_ScheduleDayEntry> days) {
-    if (_selectedDayId == null) return null;
+  _ScheduleDayEntry? _entryFor(List<_ScheduleDayEntry> days, String id) {
     for (final d in days) {
-      if (d.id == _selectedDayId) return d;
+      if (d.id == id) return d;
     }
     return null;
   }
 
-  Future<void> _pickDateForDay(_ScheduleDayEntry day) async {
-    final targetWeekday = _weekdayFromKey(day.id);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _nextDateMatchingWeekday(today, targetWeekday),
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 120)),
-      selectableDayPredicate: (d) {
-        final normalized = DateTime(d.year, d.month, d.day);
-        return normalized.weekday == targetWeekday && !normalized.isBefore(today);
-      },
-      builder: (context, child) {
-        return Directionality(
-          textDirection: kRtlTextDirection,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = DateTime(picked.year, picked.month, picked.day);
-      });
-    }
+  _ScheduleDayEntry? _selectedEntry(List<_ScheduleDayEntry> days) {
+    if (_selectedDayId == null) return null;
+    return _entryFor(days, _selectedDayId!);
   }
 
-  DateTime _nextDateMatchingWeekday(DateTime from, int weekday) {
-    var d = from;
-    for (var i = 0; i < 14; i++) {
-      if (d.weekday == weekday) return d;
+  /// Next [count] calendar dates matching [targetWeekday] (starting today).
+  List<DateTime> _upcomingDatesForWeekday(int targetWeekday, int count) {
+    final out = <DateTime>[];
+    final now = DateTime.now();
+    var d = DateTime(now.year, now.month, now.day);
+    final end = d.add(const Duration(days: 120));
+    while (!d.isAfter(end) && out.length < count) {
+      if (d.weekday == targetWeekday) {
+        out.add(d);
+      }
       d = d.add(const Duration(days: 1));
     }
-    return from;
+    return out;
   }
 
-  Future<void> _pickTimeInRange(_ScheduleDayEntry day) async {
-    final initial = _selectedTime ?? _timeFromMinutes(day.startMinutes);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (context, child) {
-        return Directionality(
-          textDirection: kRtlTextDirection,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-    );
-    if (picked == null) return;
-    final pm = _toMinutes(picked);
-    if (pm < day.startMinutes || pm > day.endMinutes) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'کات دەبێت لە نێوان کاتەکانی کاردا بێت',
-            style: TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-      return;
+  /// Start times every 30 minutes within the doctor's window.
+  List<int> _slotStartMinutes(_ScheduleDayEntry day) {
+    final list = <int>[];
+    for (var m = day.startMinutes; m < day.endMinutes; m += 30) {
+      list.add(m);
     }
-    setState(() => _selectedTime = picked);
+    return list;
+  }
+
+  void _primeSelectionForDay(_ScheduleDayEntry day) {
+    final dates = _upcomingDatesForWeekday(_weekdayFromKey(day.id), 8);
+    _selectedDate = dates.isNotEmpty ? dates.first : null;
+    final slots = _slotStartMinutes(day);
+    _selectedTime = slots.isNotEmpty ? _timeFromMinutes(slots.first) : null;
   }
 
   Future<void> _confirmAppointment(
     String patientName,
+    String doctorDisplayName,
     _ScheduleDayEntry? day,
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -204,9 +217,28 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       final timeStr =
           '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
+      // Always persist the doctor's display name from Firestore (users.fullName), not only UI cache.
+      var doctorNameToSave = doctorDisplayName.trim();
+      try {
+        final doctorDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.doctorId)
+            .get();
+        final fromServer = (doctorDoc.data()?['fullName'] ?? '').toString().trim();
+        if (fromServer.isNotEmpty) {
+          doctorNameToSave = fromServer;
+        }
+      } catch (_) {
+        /* use doctorDisplayName */
+      }
+      if (doctorNameToSave.isEmpty) {
+        doctorNameToSave = 'پزیشک';
+      }
+
       await FirebaseFirestore.instance.collection('appointments').add({
         'patientId': uid,
         'doctorId': widget.doctorId,
+        'doctorName': doctorNameToSave,
         'patientName': patientName,
         'date': Timestamp.fromDate(_selectedDate!),
         'time': timeStr,
@@ -215,24 +247,77 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'نۆرەکە دوپاتکرایەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Directionality(
+          textDirection: kRtlTextDirection,
+          child: AlertDialog(
+            backgroundColor: const Color(0xFF1D1E33),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text(
+              'سەرکەوتوو',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: 'KurdishFont',
+                color: Color(0xFFD9E2EC),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: const Text(
+              'نۆرەکەت بە سەرکەوتوویی تۆمارکرا',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: 'KurdishFont',
+                color: Color(0xFF829AB1),
+                height: 1.4,
+              ),
+            ),
+            actionsAlignment: MainAxisAlignment.start,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text(
+                  'باشە',
+                  style: TextStyle(
+                    color: Color(0xFF2CB1BC),
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
-      Navigator.pop(context);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => const MyAppointmentsScreen(),
+        ),
+      );
     } on FirebaseException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('هەڵە (${e.code})')),
+        SnackBar(
+          content: Text(
+            'هەڵە (${e.code})',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵە لە پاشەکەوتکردن')),
+        SnackBar(
+          content: Text(
+            'هەڵە لە پاشەکەوتکردن: $e',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -279,11 +364,24 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               if (snap.data?.data() != null) ...snap.data!.data()!,
             };
             final mergedSpecialty = (merged['specialty'] ?? specialty).toString();
+            final doctorDisplayName = (merged['fullName'] ?? doctorName).toString();
             final profileImageUrl = (merged['profileImageUrl'] ?? '').toString().trim();
             final weekly = merged['weekly_schedule'];
             final scheduleDays = _parseSchedule(
               weekly is Map<String, dynamic> ? weekly : null,
             );
+
+            if (!_hasAutoSelectedDay && scheduleDays.isNotEmpty) {
+              _hasAutoSelectedDay = true;
+              final first = scheduleDays.first;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _selectedDayId = first.id;
+                  _primeSelectionForDay(first);
+                });
+              });
+            }
 
             return uid == null
                 ? const Center(
@@ -356,14 +454,24 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 22),
                             const Text(
-                              'ڕۆژە بەردەستەکان',
+                              'نۆرەگرتن',
                               textAlign: TextAlign.right,
                               style: TextStyle(
                                 color: Color(0xFFD9E2EC),
-                                fontSize: 17,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
+                                fontFamily: 'KurdishFont',
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'ڕۆژەکانی کار (تەنها ئەوانەی پزیشک چالاکی کردووە)',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                color: Color(0xFF829AB1),
+                                fontSize: 12,
                                 fontFamily: 'KurdishFont',
                               ),
                             ),
@@ -387,130 +495,245 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 ),
                               )
                             else ...[
-                              Wrap(
-                                alignment: WrapAlignment.end,
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: scheduleDays.map((d) {
-                                  final selected = _selectedDayId == d.id;
-                                  return ChoiceChip(
-                                    label: Text(
-                                      d.labelKu,
-                                      style: TextStyle(
-                                        fontFamily: 'KurdishFont',
-                                        fontWeight:
-                                            selected ? FontWeight.w700 : FontWeight.w500,
-                                        color: selected
-                                            ? const Color(0xFF102A43)
-                                            : const Color(0xFFD9E2EC),
+                              SizedBox(
+                                height: 48,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  reverse: true,
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _dayIds.length,
+                                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                                  itemBuilder: (context, index) {
+                                    final id = _dayIds[index];
+                                    final entry = _entryFor(scheduleDays, id);
+                                    final available = entry != null;
+                                    final selected =
+                                        available && _selectedDayId == id;
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: switch (entry) {
+                                          null => null,
+                                          final e => () => setState(() {
+                                                _selectedDayId = id;
+                                                _primeSelectionForDay(e);
+                                              }),
+                                        },
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: !available
+                                                ? const Color(0xFF1D1E33)
+                                                    .withValues(alpha: 0.5)
+                                                : selected
+                                                    ? const Color(0xFF2CB1BC)
+                                                        .withValues(alpha: 0.28)
+                                                    : const Color(0xFF1D1E33),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: !available
+                                                  ? Colors.white12
+                                                  : selected
+                                                      ? const Color(0xFF2CB1BC)
+                                                      : Colors.white24,
+                                              width: selected ? 2 : 1,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              switch (entry) {
+                                                null => _fallbackDayLabelKu(id),
+                                                final e => e.labelKu,
+                                              },
+                                              style: TextStyle(
+                                                fontFamily: 'KurdishFont',
+                                                fontWeight: selected
+                                                    ? FontWeight.w800
+                                                    : FontWeight.w500,
+                                                fontSize: 13,
+                                                color: !available
+                                                    ? const Color(0xFF829AB1)
+                                                        .withValues(alpha: 0.45)
+                                                    : selected
+                                                        ? const Color(0xFFD9E2EC)
+                                                        : const Color(0xFF829AB1),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    selected: selected,
-                                    onSelected: (_) {
-                                      setState(() {
-                                        _selectedDayId = d.id;
-                                        _selectedDate = null;
-                                        _selectedTime = _timeFromMinutes(d.startMinutes);
-                                      });
-                                    },
-                                    selectedColor: const Color(0xFF2CB1BC),
-                                    backgroundColor: const Color(0xFF1D1E33),
-                                    side: BorderSide(
-                                      color: selected
-                                          ? const Color(0xFF2CB1BC)
-                                          : Colors.white24,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  );
-                                }).toList(),
+                                    );
+                                  },
+                                ),
                               ),
                               if (_selectedEntry(scheduleDays) != null) ...[
                                 const SizedBox(height: 18),
                                 Builder(
                                   builder: (context) {
                                     final day = _selectedEntry(scheduleDays)!;
-                                    return Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1D1E33),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: Colors.white10),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
+                                    final dates =
+                                        _upcomingDatesForWeekday(_weekdayFromKey(day.id), 8);
+                                    final slots = _slotStartMinutes(day);
+
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        const Text(
+                                          'بەروار',
+                                          textAlign: TextAlign.right,
+                                          style: TextStyle(
+                                            color: Color(0xFF829AB1),
+                                            fontSize: 13,
+                                            fontFamily: 'KurdishFont',
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        if (dates.isEmpty)
                                           const Text(
-                                            'کاتەکانی کار',
+                                            'بەروارێکی بەردەست نییە',
                                             textAlign: TextAlign.right,
                                             style: TextStyle(
                                               color: Color(0xFF829AB1),
-                                              fontSize: 13,
                                               fontFamily: 'KurdishFont',
-                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          )
+                                        else
+                                          SizedBox(
+                                            height: 42,
+                                            child: ListView.separated(
+                                              scrollDirection: Axis.horizontal,
+                                              reverse: true,
+                                              itemCount: dates.length,
+                                              separatorBuilder: (_, _) =>
+                                                  const SizedBox(width: 8),
+                                              itemBuilder: (context, i) {
+                                                final dt = dates[i];
+                                                final sel = _selectedDate != null &&
+                                                    _selectedDate!.year == dt.year &&
+                                                    _selectedDate!.month == dt.month &&
+                                                    _selectedDate!.day == dt.day;
+                                                return FilterChip(
+                                                  label: Text(
+                                                    DateFormat.yMMMd().format(dt),
+                                                    style: TextStyle(
+                                                      fontFamily: 'KurdishFont',
+                                                      fontWeight: sel
+                                                          ? FontWeight.w700
+                                                          : FontWeight.w500,
+                                                      color: sel
+                                                          ? const Color(0xFF102A43)
+                                                          : const Color(0xFFD9E2EC),
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                  selected: sel,
+                                                  onSelected: (_) {
+                                                    setState(() => _selectedDate = dt);
+                                                  },
+                                                  selectedColor: const Color(0xFF2CB1BC),
+                                                  backgroundColor: const Color(0xFF1D1E33),
+                                                  checkmarkColor: const Color(0xFF102A43),
+                                                  side: BorderSide(
+                                                    color: sel
+                                                        ? const Color(0xFF2CB1BC)
+                                                        : Colors.white24,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'دەستپێک: ${_formatMinutes(day.startMinutes)}  —  کۆتایی: ${_formatMinutes(day.endMinutes)}',
+                                        const SizedBox(height: 18),
+                                        const Text(
+                                          'کاتەکان',
+                                          textAlign: TextAlign.right,
+                                          style: TextStyle(
+                                            color: Color(0xFF829AB1),
+                                            fontSize: 13,
+                                            fontFamily: 'KurdishFont',
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'ناوچە: ${_formatMinutes(day.startMinutes)} — ${_formatMinutes(day.endMinutes)}',
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            color: Color(0xFF829AB1),
+                                            fontSize: 12,
+                                            fontFamily: 'KurdishFont',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        if (slots.isEmpty)
+                                          const Text(
+                                            'کاتێک دیاری نەکراوە',
                                             textAlign: TextAlign.right,
-                                            style: const TextStyle(
-                                              color: Color(0xFFD9E2EC),
-                                              fontSize: 16,
+                                            style: TextStyle(
+                                              color: Color(0xFF829AB1),
                                               fontFamily: 'KurdishFont',
-                                              fontWeight: FontWeight.w600,
                                             ),
+                                          )
+                                        else
+                                          Wrap(
+                                            alignment: WrapAlignment.end,
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: slots.map((m) {
+                                              final t = _timeFromMinutes(m);
+                                              final sel = _selectedTime != null &&
+                                                  _toMinutes(_selectedTime!) == m;
+                                              return FilterChip(
+                                                label: Text(
+                                                  _formatMinutes(m),
+                                                  style: TextStyle(
+                                                    fontFamily: 'KurdishFont',
+                                                    fontWeight: sel
+                                                        ? FontWeight.w700
+                                                        : FontWeight.w500,
+                                                    color: sel
+                                                        ? const Color(0xFF102A43)
+                                                        : const Color(0xFFD9E2EC),
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                selected: sel,
+                                                onSelected: (_) {
+                                                  setState(() => _selectedTime = t);
+                                                },
+                                                selectedColor: const Color(0xFF2CB1BC),
+                                                backgroundColor: const Color(0xFF1D1E33),
+                                                checkmarkColor: const Color(0xFF102A43),
+                                                side: BorderSide(
+                                                  color: sel
+                                                      ? const Color(0xFF2CB1BC)
+                                                      : Colors.white24,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                              );
+                                            }).toList(),
                                           ),
-                                          const SizedBox(height: 16),
-                                          OutlinedButton.icon(
-                                            onPressed: () => _pickDateForDay(day),
-                                            icon: const Icon(Icons.calendar_month_rounded,
-                                                color: Color(0xFF2CB1BC)),
-                                            label: Text(
-                                              _selectedDate == null
-                                                  ? 'هەڵبژاردنی ڕۆژ'
-                                                  : '${_selectedDate!.year}/${_selectedDate!.month}/${_selectedDate!.day}',
-                                              style: const TextStyle(
-                                                fontFamily: 'KurdishFont',
-                                                color: Color(0xFFD9E2EC),
-                                              ),
-                                            ),
-                                            style: OutlinedButton.styleFrom(
-                                              side: const BorderSide(color: Colors.white24),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          OutlinedButton.icon(
-                                            onPressed: () => _pickTimeInRange(day),
-                                            icon: const Icon(Icons.schedule_rounded,
-                                                color: Color(0xFF2CB1BC)),
-                                            label: Text(
-                                              _selectedTime == null
-                                                  ? 'هەڵبژاردنی کات'
-                                                  : _formatMinutes(_toMinutes(_selectedTime!)),
-                                              style: const TextStyle(
-                                                fontFamily: 'KurdishFont',
-                                                color: Color(0xFFD9E2EC),
-                                              ),
-                                            ),
-                                            style: OutlinedButton.styleFrom(
-                                              side: const BorderSide(color: Colors.white24),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      ],
                                     );
                                   },
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 22),
                                 ElevatedButton(
                                   onPressed: _saving
                                       ? null
                                       : () => _confirmAppointment(
                                             patientName,
+                                            doctorDisplayName,
                                             _selectedEntry(scheduleDays),
                                           ),
                                   style: ElevatedButton.styleFrom(
