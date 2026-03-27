@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_rtl.dart';
 import '../auth/app_logout.dart';
 import '../specialty_categories.dart';
+import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
 import 'my_appointments_screen.dart';
 
@@ -83,6 +84,18 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             ),
           ),
           actions: [
+            IconButton(
+              tooltip: 'بۆچوون',
+              onPressed: () {
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const ContactSupportScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_outlined),
+            ),
             IconButton(
               tooltip: 'چوونەدەرەوە',
               onPressed: _logout,

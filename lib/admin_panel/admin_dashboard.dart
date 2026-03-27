@@ -4,6 +4,7 @@ import '../app_rtl.dart';
 import '../auth/app_logout.dart';
 import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
+import 'admin_feedback_screen.dart';
 import 'doctor_management_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -35,6 +36,20 @@ class AdminDashboard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Column(
             children: [
+              _DashboardCard(
+                title: 'بۆچوونەکان',
+                subtitle: 'بۆچوون و پێشنیارەکانی نەخۆشەکان',
+                icon: Icons.feedback_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminFeedbackScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
               _DashboardCard(
                 title: 'داواکارییەکان',
                 subtitle: 'پزیشکەکان کە چاوەڕێی قبوڵکردنن',
