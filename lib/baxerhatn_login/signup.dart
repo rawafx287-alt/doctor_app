@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'otp_verification.dart';
 
@@ -18,6 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _specialtyController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _verificationCodeController =
       TextEditingController();
@@ -25,12 +28,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   UserRole _selectedRole = UserRole.patient;
   bool _isObscured = true;
   String? _doctorCodeError;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _specialtyController.dispose();
     _passwordController.dispose();
     _verificationCodeController.dispose();
     super.dispose();
@@ -38,7 +43,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   bool get _isDoctor => _selectedRole == UserRole.doctor;
 
-  void _onSignUpPressed() async {
+  Future<void> _onSignUpPressed() async {
     final isFormValid = _formKey.currentState?.validate() ?? false;
     if (!isFormValid) return;
 
@@ -53,47 +58,87 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _doctorCodeError = null;
     });
 
-    if (_isDoctor) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1D1E33),
-            title: const Text(
-              'داواکاری نێردرا',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: const Text(
-              'داواکارییەکەت نێردرا. تکایە چاوەڕێ بکە تا لەلایەن بەڕێوەبەرەوە ئەکاونتەکەت قبوڵ دەکرێت',
-              style: TextStyle(color: Colors.grey),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'باشە',
-                  style: TextStyle(color: Colors.blueAccent),
-                ),
-              ),
-            ],
-          );
-        },
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-      return;
-    }
+      final uid = userCredential.user?.uid;
+      if (uid == null) throw FirebaseAuthException(code: 'user-null');
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const OtpVerificationScreen(),
-      ),
-    );
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'fullName': _fullNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'role': _isDoctor ? 'Doctor' : 'Patient',
+        'specialty': _isDoctor ? _specialtyController.text.trim() : '',
+        'isApproved': _isDoctor ? false : true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      if (_isDoctor) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: const Color(0xFF1D1E33),
+                title: const Text(
+                  'داواکاری نێردرا',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: const Text(
+                  'داواکارییەکەت نێردرا. تکایە چاوەڕێ بکە تا لەلایەن بەڕێوەبەرەوە ئەکاونتەکەت قبوڵ دەکرێت',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'باشە',
+                      style: TextStyle(color: Colors.blueAccent),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const OtpVerificationScreen(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final msg = switch (e.code) {
+        'email-already-in-use' => 'ئیمەیڵەکە پێشتر بەکارهاتووە',
+        'invalid-email' => 'ئیمەیڵەکە دروست نییە',
+        'weak-password' => 'وشەی نهێنی لاوازە',
+        _ => 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -200,6 +245,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 14),
                 _buildTextField(
+                  controller: _specialtyController,
+                  hint: _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (هەڵبژاردەیی)',
+                  icon: Icons.local_hospital_outlined,
+                  validator: (value) {
+                    if (_isDoctor && (value == null || value.trim().isEmpty)) {
+                      return 'تکایە پسپۆڕی بنووسە';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
                   controller: _passwordController,
                   hint: 'وشەی نهێنی',
                   icon: Icons.lock_outline_rounded,
@@ -247,7 +304,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: _onSignUpPressed,
+                  onPressed: _isLoading ? null : _onSignUpPressed,
                   child: const Text(
                     'تۆماربوون',
                     style: TextStyle(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ApprovalListScreen extends StatefulWidget {
   const ApprovalListScreen({super.key});
@@ -8,30 +9,22 @@ class ApprovalListScreen extends StatefulWidget {
 }
 
 class _ApprovalListScreenState extends State<ApprovalListScreen> {
-  final List<_DoctorRequest> _requests = [
-    const _DoctorRequest(name: 'د. ئارام عوسمان', specialty: 'دڵ'),
-    const _DoctorRequest(name: 'د. شیرین حەمە', specialty: 'منداڵان'),
-    const _DoctorRequest(name: 'د. سامان عەلی', specialty: 'پێست'),
-  ];
-
-  void _approve(int index) {
-    final item = _requests[index];
-    setState(() {
-      _requests.removeAt(index);
+  Future<void> _approve(String uid, String name) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'isApproved': true,
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('قبوڵکرا: ${item.name}')),
-    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('قبوڵکرا: $name')));
   }
 
-  void _reject(int index) {
-    final item = _requests[index];
-    setState(() {
-      _requests.removeAt(index);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('ڕەتکرایەوە: ${item.name}')),
-    );
+  Future<void> _reject(String uid, String name) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('ڕەتکرایەوە: $name')));
   }
 
   @override
@@ -52,102 +45,126 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
       ),
       body: Directionality(
         textDirection: TextDirection.rtl,
-        child: _requests.isEmpty
-            ? const Center(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'Doctor')
+              .where('isApproved', isEqualTo: false)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.blueAccent),
+              );
+            }
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text(
+                  'هەڵەیەک لە هێنانی داواکارییەکان ڕوویدا',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              );
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return const Center(
                 child: Text(
                   'هیچ داواکارییەک نییە',
                   style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.all(18),
-                itemBuilder: (context, index) {
-                  final item = _requests[index];
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1D1E33),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(18),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final data = doc.data();
+                final name = (data['fullName'] ?? 'بێ ناو').toString();
+                final specialty = (data['specialty'] ?? 'دیارینەکراو').toString();
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D1E33),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'پسپۆڕی: $specialty',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                minimumSize: const Size(double.infinity, 46),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              onPressed: () => _approve(doc.id, name),
+                              child: const Text(
+                                '✅ قبوڵکردن',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'پسپۆڕی: ${item.specialty}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blueAccent,
-                                  minimumSize: const Size(double.infinity, 46),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: Colors.redAccent,
+                                  width: 1.2,
                                 ),
-                                onPressed: () => _approve(index),
-                                child: const Text(
-                                  '✅ قبوڵکردن',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                minimumSize: const Size(double.infinity, 46),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              onPressed: () => _reject(doc.id, name),
+                              child: const Text(
+                                '❌ ڕەتکردنەوە',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: Colors.redAccent,
-                                    width: 1.2,
-                                  ),
-                                  minimumSize: const Size(double.infinity, 46),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                onPressed: () => _reject(index),
-                                child: const Text(
-                                  '❌ ڕەتکردنەوە',
-                                  style: TextStyle(
-                                    color: Colors.redAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemCount: _requests.length,
-              ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemCount: docs.length,
+            );
+          },
+        ),
       ),
     );
   }
-}
-
-class _DoctorRequest {
-  const _DoctorRequest({required this.name, required this.specialty});
-  final String name;
-  final String specialty;
 }
 

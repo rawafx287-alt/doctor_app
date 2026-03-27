@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 // هاوردەکردنی لاپەڕە نوێیەکان لە فۆڵدەری baxerhatn_login
 import 'baxerhatn_login/welcome.dart';
 // هاوردەکردنی لاپەڕەکانی ناو فۆڵدەری nawarok
@@ -7,7 +8,9 @@ import 'nawarok/norakanimn.dart';
 import 'nawarok/notifications.dart';
 import 'nawarok/profile.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const DoctorApp());
 }
 

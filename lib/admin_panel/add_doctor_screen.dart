@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddDoctorScreen extends StatefulWidget {
   const AddDoctorScreen({super.key});
@@ -25,11 +26,41 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
     super.dispose();
   }
 
-  void _save() {
+  bool _isSaving = false;
+
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('پاشەکەوت کرا بە سەرکەوتوویی')),
-    );
+    setState(() => _isSaving = true);
+    try {
+      await FirebaseFirestore.instance.collection('users').add({
+        'fullName': _name.text.trim(),
+        'specialty': _specialty.text.trim(),
+        'clinicLocation': _clinicLocation.text.trim(),
+        'phone': _phone.text.trim(),
+        'workingHours': _hours.text.trim(),
+        'role': 'Doctor',
+        'isApproved': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdByAdmin': true,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('پاشەکەوت کرا بە سەرکەوتوویی')),
+      );
+      _formKey.currentState?.reset();
+      _name.clear();
+      _specialty.clear();
+      _clinicLocation.clear();
+      _phone.clear();
+      _hours.clear();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -95,7 +126,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: _save,
+                  onPressed: _isSaving ? null : _save,
                   child: const Text(
                     'پاشەکەوتکردن',
                     style: TextStyle(
