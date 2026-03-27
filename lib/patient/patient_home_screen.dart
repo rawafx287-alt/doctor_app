@@ -162,7 +162,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
                   itemCount: _categories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     final cat = _categories[index];
                     final selected = _selectedCategory == cat;
@@ -262,7 +262,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     return ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final doc = filtered[index];
                         final data = doc.data();

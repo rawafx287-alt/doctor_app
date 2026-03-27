@@ -82,7 +82,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final data = doc.data();
       final weekly = data?['weekly_schedule'];
 
@@ -129,7 +132,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<void> _pickTime(int index, {required bool isStart}) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: isStart ? _schedules[index].startTime : _schedules[index].endTime,
+      initialTime: isStart
+          ? _schedules[index].startTime
+          : _schedules[index].endTime,
       builder: (context, child) {
         return Directionality(
           textDirection: kRtlTextDirection,
@@ -164,30 +169,27 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('بەکارهێنەر نەدۆزرایەوە')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('بەکارهێنەر نەدۆزرایەوە')));
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set(
-        {
-          'weekly_schedule': _weeklyScheduleMap(),
-          'scheduleUpdatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'weekly_schedule': _weeklyScheduleMap(),
+        'scheduleUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('پاشکەوتکردن بە سەرکەوتوویی تەواوبوو')),
       );
     } on FirebaseException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('هەڵە ڕوویدا (${e.code})')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('هەڵە ڕوویدا (${e.code})')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,11 +230,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 itemCount: _schedules.length,
-<<<<<<< HEAD
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-=======
+
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
->>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
                 itemBuilder: (context, index) {
                   final item = _schedules[index];
                   return Container(
@@ -273,14 +272,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             Switch(
                               value: item.isAvailable,
                               activeThumbColor: const Color(0xFF2CB1BC),
-<<<<<<< HEAD
-                              onChanged: (value) async {
-=======
+
                               onChanged: (value) {
->>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
                                 setState(() {
-                                  _schedules[index] =
-                                      _schedules[index].copyWith(isAvailable: value);
+                                  _schedules[index] = _schedules[index]
+                                      .copyWith(isAvailable: value);
                                 });
                               },
                             ),
@@ -292,11 +288,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             children: [
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () => _pickTime(index, isStart: true),
+                                  onPressed: () =>
+                                      _pickTime(index, isStart: true),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: const Color(0xFFD9E2EC),
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    side: const BorderSide(
+                                      color: Colors.white24,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -314,7 +315,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        _formatTime(_schedules[index].startTime),
+                                        _formatTime(
+                                          _schedules[index].startTime,
+                                        ),
                                         style: const TextStyle(
                                           fontFamily: 'KurdishFont',
                                           fontWeight: FontWeight.w700,
@@ -328,11 +331,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () => _pickTime(index, isStart: false),
+                                  onPressed: () =>
+                                      _pickTime(index, isStart: false),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: const Color(0xFFD9E2EC),
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    side: const BorderSide(
+                                      color: Colors.white24,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -377,7 +385,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               backgroundColor: const Color(0xFF2CB1BC),
               foregroundColor: const Color(0xFF102A43),
               minimumSize: const Size(double.infinity, 54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             child: _isSaving
                 ? const SizedBox(

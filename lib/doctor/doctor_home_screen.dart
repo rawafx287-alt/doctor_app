@@ -143,102 +143,26 @@ class DoctorHomeScreen extends StatelessWidget {
                               fontFamily: 'KurdishFont',
                             ),
                           ),
-<<<<<<< HEAD
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: crossAxisCount == 1 ? 0.92 : 0.88,
-                      children: [
-                        _DashboardCard(
-                          title: 'نۆرەکانی من',
-                          subtitle: 'بینین و ڕێکخستن',
-                          icon: Icons.calendar_month_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AppointmentsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _DashboardCard(
-                          title: 'لیستی نەخۆشەکان',
-                          subtitle: 'گەڕان بەناو نەخۆشەکاندا',
-                          icon: Icons.groups_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PatientListScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _DashboardCard(
-                          title: 'خشتەی کاتەکان',
-                          subtitle: 'دیاریکردنی کاتی دەوام',
-                          icon: Icons.schedule_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ScheduleScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-=======
+
                         ],
                       ),
                     );
                   },
->>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
                 ),
-                const SizedBox(height: 16),
-                _DashboardCard(
-                  title: 'نۆرەکانی من',
-                  subtitle: 'بینین و ڕێکخستن',
-                  icon: Icons.calendar_month_rounded,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AppointmentsScreen(),
-                      ),
-                    );
-                  },
+                const void SizedBox(height = 16),
+                void _DashboardCard(
+                  subtitle = 'بینین و ڕێکخستن',
                 ),
-                const SizedBox(height: 16),
-                _DashboardCard(
-                  title: 'لیستی نەخۆشەکان',
-                  subtitle: 'گەڕان بەناو نەخۆشەکاندا',
-                  icon: Icons.groups_rounded,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PatientListScreen(),
-                      ),
-                    );
-                  },
+                const void SizedBox(height = 16),
+                void _DashboardCard(
+                  subtitle = 'گەڕان بەناو نەخۆشەکاندا',
                 ),
-                const SizedBox(height: 16),
-                _DashboardCard(
-                  title: 'خشتەی کاتەکان',
-                  subtitle: 'دیاریکردنی کاتی دەوام',
-                  icon: Icons.schedule_rounded,
-                  onTap: () {
+                const void SizedBox(height = 16),
+                void _DashboardCard(
+                  title = 'خشتەی کاتەکان',
+                  subtitle = 'دیاریکردنی کاتی دەوام',
+                  icon = Icons.schedule_rounded,
+                  onTap = () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -264,12 +188,8 @@ class _DashboardCard extends StatelessWidget {
     required this.onTap,
   });
 
-<<<<<<< HEAD
-  static const Color _surface = Color(0xFF1D1E33);
-  static const Color _accent = Color(0xFF2CB1BC);
-=======
+
   static const double _cardHeight = 128;
->>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
 
   final String title;
   final String subtitle;
@@ -278,67 +198,7 @@ class _DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.28),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _accent.withValues(alpha: 0.2),
-                ),
-                child: Icon(icon, color: _accent, size: 56),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFD9E2EC),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 22,
-                  fontFamily: 'KurdishFont',
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                  fontFamily: 'KurdishFont',
-                ),
-=======
+
     return SizedBox(
       width: double.infinity,
       height: _cardHeight,
@@ -406,7 +266,6 @@ class _DashboardCard extends StatelessWidget {
                     ),
                   ),
                 ],
->>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
               ),
             ),
           ),
