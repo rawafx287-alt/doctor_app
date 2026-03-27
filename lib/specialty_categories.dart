@@ -1,4 +1,4 @@
-git import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 /// Filter label for “all doctors” in patient home — not stored as `specialty` in Firestore.
 const String kPatientSpecialtyAllLabel = 'هەمووی';

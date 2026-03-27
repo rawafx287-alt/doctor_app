@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
+import 'package:flutter_application_1/nawarok/norakanimn.dart';
+import 'package:flutter_application_1/nawarok/notifications.dart';
+import 'package:flutter_application_1/nawarok/profile.dart';
+
 import 'splash_screen.dart';
 import 'theme/hr_nora_colors.dart';
-// هاوردەکردنی لاپەڕەکانی ناو فۆڵدەری nawarok
-import 'nawarok/listidoctorakan.dart';
-import 'nawarok/norakanimn.dart';
-import 'nawarok/notifications.dart';
-import 'nawarok/profile.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
