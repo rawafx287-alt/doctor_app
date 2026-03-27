@@ -8,6 +8,7 @@ import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
 import 'my_appointments_screen.dart';
+import 'patient_profile_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -19,7 +20,7 @@ class PatientHomeScreen extends StatefulWidget {
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  /// Bottom nav: 0 = home (doctors), 1 = نۆرەکانم
+  /// Bottom nav: 0 = home, 1 = appointments, 2 = profile
   int _bottomNavIndex = 0;
 
   String _selectedCategory = kPatientSpecialtyAllLabel;
@@ -77,7 +78,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           title: Text(
-            _bottomNavIndex == 0 ? 'سەرەتا' : 'نۆرەکانم',
+            _bottomNavIndex == 0
+                ? 'سەرەتا'
+                : _bottomNavIndex == 1
+                    ? 'نۆرەکانم'
+                    : 'پڕۆفایل',
             style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
@@ -96,11 +101,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               },
               icon: const Icon(Icons.chat_outlined),
             ),
-            IconButton(
-              tooltip: 'چوونەدەرەوە',
-              onPressed: _logout,
-              icon: const Icon(Icons.logout_rounded),
-            ),
+            if (_bottomNavIndex != 2)
+              IconButton(
+                tooltip: 'چوونەدەرەوە',
+                onPressed: _logout,
+                icon: const Icon(Icons.logout_rounded),
+              ),
           ],
         ),
         body: SafeArea(
@@ -109,6 +115,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             children: [
               PatientHomeContent._(this),
               const PatientAppointmentsScreen(embedded: true),
+              const PatientProfileScreen(),
             ],
           ),
         ),
@@ -139,6 +146,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.calendar_month),
                 label: 'نۆرەکانم',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'پڕۆفایل',
               ),
             ],
           ),

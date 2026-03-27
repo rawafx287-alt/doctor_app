@@ -6,7 +6,10 @@ import 'package:intl/intl.dart';
 import '../app_rtl.dart';
 
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key});
+  const ScheduleScreen({super.key, this.embedded = false});
+
+  /// When true, used inside [IndexedStack] without an [AppBar].
+  final bool embedded;
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -204,23 +207,25 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       textDirection: kRtlTextDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'گەڕانەوە',
-          ),
-          title: const Text(
-            'خشتەی کاتەکان',
-            style: TextStyle(
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          backgroundColor: const Color(0xFF243B53),
-          foregroundColor: const Color(0xFFD9E2EC),
-          elevation: 0,
-        ),
+        appBar: widget.embedded
+            ? null
+            : AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: 'گەڕانەوە',
+                ),
+                title: const Text(
+                  'خشتەی کاتەکان',
+                  style: TextStyle(
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                backgroundColor: const Color(0xFF243B53),
+                foregroundColor: const Color(0xFFD9E2EC),
+                elevation: 0,
+              ),
         body: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),

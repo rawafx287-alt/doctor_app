@@ -6,7 +6,10 @@ import 'package:intl/intl.dart';
 import '../app_rtl.dart';
 
 class AppointmentsScreen extends StatelessWidget {
-  const AppointmentsScreen({super.key});
+  const AppointmentsScreen({super.key, this.embedded = false});
+
+  /// When true, used inside [IndexedStack] without an [AppBar] (parent supplies title).
+  final bool embedded;
 
   static String _statusKey(dynamic raw) {
     return (raw ?? 'pending').toString().trim().toLowerCase();
@@ -65,28 +68,7 @@ class AppointmentsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    return Directionality(
-      textDirection: kRtlTextDirection,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'گەڕانەوە',
-          ),
-          title: const Text(
-            'نۆرەکانی داواکراو',
-            style: TextStyle(
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          backgroundColor: const Color(0xFF243B53),
-          foregroundColor: const Color(0xFFD9E2EC),
-          elevation: 0,
-        ),
-        body: uid == null
+    final body = uid == null
             ? const Center(
                 child: Text(
                   'چوونەژوورەوە پێویستە',
@@ -159,7 +141,32 @@ class AppointmentsScreen extends StatelessWidget {
                     },
                   );
                 },
+              );
+
+    return Directionality(
+      textDirection: kRtlTextDirection,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0A0E21),
+        appBar: embedded
+            ? null
+            : AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: 'گەڕانەوە',
+                ),
+                title: const Text(
+                  'نۆرەکانی داواکراو',
+                  style: TextStyle(
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                backgroundColor: const Color(0xFF243B53),
+                foregroundColor: const Color(0xFFD9E2EC),
+                elevation: 0,
               ),
+        body: body,
       ),
     );
   }
