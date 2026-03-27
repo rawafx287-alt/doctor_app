@@ -97,113 +97,100 @@ class DoctorHomeScreen extends StatelessWidget {
           ),
         ),
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth < 380 ? 1 : 2;
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                      future: user == null
-                          ? null
-                          : FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
-                      builder: (context, snapshot) {
-                        final data = snapshot.data?.data();
-                        final doctorName = (data?['fullName'] ?? 'پزیشک').toString();
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  future: user == null
+                      ? null
+                      : FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.data();
+                    final doctorName = (data?['fullName'] ?? 'پزیشک').toString();
 
-                        return Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1D1E33),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.white10),
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1D1E33),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'بەخێربێیتەوە،',
+                            style: TextStyle(
+                              color: Color(0xFF829AB1),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'KurdishFont',
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'بەخێربێیتەوە،',
-                                style: TextStyle(
-                                  color: Color(0xFF829AB1),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'KurdishFont',
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                doctorName,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFD9E2EC),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 26,
-                                  fontFamily: 'KurdishFont',
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 4),
+                          Text(
+                            doctorName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFD9E2EC),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 22,
+                              fontFamily: 'KurdishFont',
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.28,
-                      children: [
-                        _DashboardCard(
-                          title: 'نۆرەکانی من',
-                          subtitle: 'بینین و ڕێکخستن',
-                          icon: Icons.calendar_month_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AppointmentsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _DashboardCard(
-                          title: 'لیستی نەخۆشەکان',
-                          subtitle: 'گەڕان بەناو نەخۆشەکاندا',
-                          icon: Icons.groups_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PatientListScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _DashboardCard(
-                          title: 'خشتەی کاتەکان',
-                          subtitle: 'دیاریکردنی کاتی دەوام',
-                          icon: Icons.schedule_rounded,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ScheduleScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+                const SizedBox(height: 16),
+                _DashboardCard(
+                  title: 'نۆرەکانی من',
+                  subtitle: 'بینین و ڕێکخستن',
+                  icon: Icons.calendar_month_rounded,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AppointmentsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                _DashboardCard(
+                  title: 'لیستی نەخۆشەکان',
+                  subtitle: 'گەڕان بەناو نەخۆشەکاندا',
+                  icon: Icons.groups_rounded,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PatientListScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                _DashboardCard(
+                  title: 'خشتەی کاتەکان',
+                  subtitle: 'دیاریکردنی کاتی دەوام',
+                  icon: Icons.schedule_rounded,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ScheduleScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -219,6 +206,8 @@ class _DashboardCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static const double _cardHeight = 128;
+
   final String title;
   final String subtitle;
   final IconData icon;
@@ -226,62 +215,75 @@ class _DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1D1E33),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2CB1BC).withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: const Color(0xFF2CB1BC)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFD9E2EC),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                        fontFamily: 'KurdishFont',
-                      ),
+    return SizedBox(
+      width: double.infinity,
+      height: _cardHeight,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1D1E33),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2CB1BC).withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF829AB1),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'KurdishFont',
-                      ),
+                    child: Icon(icon, color: const Color(0xFF2CB1BC), size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFFD9E2EC),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            height: 1.3,
+                            fontFamily: 'KurdishFont',
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF829AB1),
+                            fontSize: 14,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'KurdishFont',
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
