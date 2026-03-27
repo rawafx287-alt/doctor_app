@@ -6,6 +6,8 @@ import 'forgot_password.dart';
 import 'signup.dart';
 import '../admin_panel/admin_dashboard.dart';
 import '../doctor/doctor_home_screen.dart';
+import '../patient/patient_home_screen.dart';
+import '../app_rtl.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
@@ -198,6 +200,12 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+          (route) => false,
+        );
+      } else if (role == 'Patient') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const PatientHomeScreen()),
           (route) => false,
         );
       } else {

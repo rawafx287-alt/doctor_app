@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'otp_verification.dart';
 
+import '../app_rtl.dart';
+
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -41,7 +43,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: Form(
           key: _formKey,
           child: Padding(

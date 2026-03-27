@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 class NorekaniMinScreen extends StatelessWidget {
   const NorekaniMinScreen({super.key});
 
@@ -15,7 +17,7 @@ class NorekaniMinScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: Column(
           children: [
             const SizedBox(height: 10),

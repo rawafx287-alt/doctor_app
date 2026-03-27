@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
@@ -14,7 +16,7 @@ class NotificationsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: ListView.builder(
           padding: const EdgeInsets.all(20),
           itemCount: 3, // ژمارەی ئاگادارکردنەوەکان

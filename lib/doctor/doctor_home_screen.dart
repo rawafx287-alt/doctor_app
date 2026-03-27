@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
 import '../baxerhatn_login/login.dart';
 import 'appointments_screen.dart';
 import 'patient_list_screen.dart';
@@ -26,7 +27,7 @@ class DoctorHomeScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: kRtlTextDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
@@ -232,7 +233,7 @@ class _DashboardCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
-                textDirection: TextDirection.rtl,
+                textDirection: kRtlTextDirection,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../app_rtl.dart';
+
 class ApprovalListScreen extends StatefulWidget {
   const ApprovalListScreen({super.key});
 
@@ -44,7 +46,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 class PatientListScreen extends StatefulWidget {
   const PatientListScreen({super.key});
 
@@ -33,7 +35,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
     }).toList();
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: kRtlTextDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
