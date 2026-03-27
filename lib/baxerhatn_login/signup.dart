@@ -22,8 +22,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _specialtyController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _verificationCodeController =
-      TextEditingController();
+  final TextEditingController _verificationCodeController = TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
   bool _isObscured = true;
@@ -56,17 +55,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() {
       _doctorCodeError = null;
+      _isLoading = true;
     });
 
-    setState(() => _isLoading = true);
     try {
+      // 1. دروستکردنی ئەکاونت لە Authentication
       final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      final uid = userCredential.user?.uid;
-      if (uid == null) throw FirebaseAuthException(code: 'user-null');
 
+      final uid = userCredential.user?.uid;
+      if (uid == null) throw Exception('User ID is null');
+
+      // 2. خەزنکردنی زانیارییەکان لە Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'fullName': _fullNameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -78,270 +80,120 @@ class _SignUpScreenState extends State<SignUpScreen> {
       });
 
       if (!mounted) return;
+
       if (_isDoctor) {
-        await showDialog<void>(
-          context: context,
-          builder: (context) {
-            return Directionality(
-              textDirection: TextDirection.rtl,
-              child: AlertDialog(
-                backgroundColor: const Color(0xFF1D1E33),
-                title: const Text(
-                  'داواکاری نێردرا',
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: const Text(
-                  'داواکارییەکەت نێردرا. تکایە چاوەڕێ بکە تا لەلایەن بەڕێوەبەرەوە ئەکاونتەکەت قبوڵ دەکرێت',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'باشە',
-                      style: TextStyle(color: Colors.blueAccent),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+        _showSuccessDialog();
         await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
       } else {
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OtpVerificationScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const OtpVerificationScreen()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      final msg = switch (e.code) {
-        'email-already-in-use' => 'ئیمەیڵەکە پێشتر بەکارهاتووە',
-        'invalid-email' => 'ئیمەیڵەکە دروست نییە',
-        'weak-password' => 'وشەی نهێنی لاوازە',
-        _ => 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە')),
-      );
+      debugPrint('FIREBASE AUTH ERROR: ${e.code}');
+      String msg = 'هەڵەیەک ڕوویدا';
+      if (e.code == 'email-already-in-use') msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
+      if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە هەڵەیە';
+      if (e.code == 'weak-password') msg = 'وشەی نهێنی لاوازە (لانیکەم ٦ پیت)';
+      if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
+      
+      _showSnackBar(msg + " (${e.code})");
+    } catch (e) {
+      debugPrint('GENERAL ERROR: $e');
+      _showSnackBar('هەڵەیەک ڕوویدا: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'KurdishFont'))),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1D1E33),
+          title: const Text('سەرکەوتوو بوو', style: TextStyle(color: Colors.white)),
+          content: const Text('داواکارییەکەت نێردرا. چاوەڕێی قبوڵکردنی بەڕێوەبەر بە.', style: TextStyle(color: Colors.grey)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('باشە'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 12),
-                const Text(
-                  'دروستکردنی هەژمار',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'زانیارییەکانی خوارەوە پڕ بکەرەوە بۆ دروستکردنی هەژمارێکی نوێ.',
-                  style: TextStyle(color: Colors.grey, fontSize: 15),
-                ),
-                const SizedBox(height: 22),
-                const Text(
-                  'ڕۆڵ هەڵبژێرە',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
+                const Text('دروستکردنی هەژمار', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 30),
+                
+                // Role Selection
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildRoleTile(
-                        label: 'نەخۆش',
-                        role: UserRole.patient,
-                        icon: Icons.person_outline,
-                      ),
-                    ),
+                    Expanded(child: _buildRoleTile('نەخۆش', UserRole.patient, Icons.person)),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildRoleTile(
-                        label: 'پزیشک',
-                        role: UserRole.doctor,
-                        icon: Icons.medical_services_outlined,
-                      ),
-                    ),
+                    Expanded(child: _buildRoleTile('پزیشک', UserRole.doctor, Icons.medical_services)),
                   ],
                 ),
-                const SizedBox(height: 18),
-                _buildTextField(
-                  controller: _fullNameController,
-                  hint: 'ناوی تەواو',
-                  icon: Icons.person_outline_rounded,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'تکایە ناوی تەواو بنووسە';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _emailController,
-                  hint: 'ئیمەیڵ',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'تکایە ئیمەیڵ بنووسە';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _phoneController,
-                  hint: 'ژمارەی تەلەفۆن',
-                  icon: Icons.phone_android_rounded,
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'تکایە ژمارەی تەلەفۆن بنووسە';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _specialtyController,
-                  hint: _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (هەڵبژاردەیی)',
-                  icon: Icons.local_hospital_outlined,
-                  validator: (value) {
-                    if (_isDoctor && (value == null || value.trim().isEmpty)) {
-                      return 'تکایە پسپۆڕی بنووسە';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _passwordController,
-                  hint: 'وشەی نهێنی',
-                  icon: Icons.lock_outline_rounded,
-                  isPassword: true,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'تکایە وشەی نهێنی بنووسە';
-                    }
-                    if (value.length < 6) {
-                      return 'وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت';
-                    }
-                    return null;
-                  },
-                ),
+                
+                const SizedBox(height: 20),
+                _buildTextField(_fullNameController, 'ناوی تەواو', Icons.person_outline),
+                const SizedBox(height: 15),
+                _buildTextField(_emailController, 'ئیمەیڵ', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 15),
+                _buildTextField(_phoneController, 'ژمارەی تەلەفۆن', Icons.phone_android, keyboardType: TextInputType.phone),
+                const SizedBox(height: 15),
+                _buildTextField(_specialtyController, _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (ئارەزوومەندانە)', Icons.local_hospital),
+                const SizedBox(height: 15),
+                _buildTextField(_passwordController, 'وشەی نهێنی', Icons.lock_outline, isPassword: true),
+                
                 if (_isDoctor) ...[
-                  const SizedBox(height: 14),
-                  _buildTextField(
-                    controller: _verificationCodeController,
-                    hint: 'کۆدی چالاککردن',
-                    icon: Icons.verified_user_outlined,
-                    validator: (value) {
-                      if (_isDoctor && (value == null || value.trim().isEmpty)) {
-                        return 'تکایە کۆدی چالاککردن بنووسە';
-                      }
-                      return null;
-                    },
-                  ),
-                  if (_doctorCodeError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _doctorCodeError!,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 15),
+                  _buildTextField(_verificationCodeController, 'کۆدی چالاککردن', Icons.verified_user),
+                  if (_doctorCodeError != null) Text(_doctorCodeError!, style: const TextStyle(color: Colors.red)),
                 ],
+
                 const SizedBox(height: 30),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    minimumSize: const Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   ),
                   onPressed: _isLoading ? null : _onSignUpPressed,
-                  child: const Text(
-                    'تۆماربوون',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('تۆماربوون', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'هەژمارت هەیە؟ ',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'بچۆ ژوورەوە',
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -350,90 +202,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildRoleTile({
-    required String label,
-    required UserRole role,
-    required IconData icon,
-  }) {
-    final isSelected = _selectedRole == role;
+  Widget _buildRoleTile(String label, UserRole role, IconData icon) {
+    bool isSelected = _selectedRole == role;
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () {
-        setState(() {
-          _selectedRole = role;
-          _doctorCodeError = null;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      onTap: () => setState(() => _selectedRole = role),
+      child: Container(
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: const Color(0xFF1D1E33),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? Colors.blueAccent : Colors.white10,
-            width: isSelected ? 1.4 : 1,
-          ),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: isSelected ? Colors.blueAccent : Colors.grey),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.blueAccent : Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text(label, style: TextStyle(color: isSelected ? Colors.blueAccent : Colors.white)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool isPassword = false,
-    String? Function(String?)? validator,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1D1E33),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword && _isObscured,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey),
+        prefixIcon: Icon(icon, color: Colors.blueAccent),
+        filled: true,
+        fillColor: const Color(0xFF1D1E33),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        suffixIcon: isPassword ? IconButton(
+          icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+          onPressed: () => setState(() => _isObscured = !_isObscured),
+        ) : null,
       ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: isPassword ? _isObscured : false,
-        style: const TextStyle(color: Colors.white),
-        validator: validator,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 18),
-          prefixIcon: Icon(icon, color: Colors.blueAccent),
-          suffixIcon: isPassword
-              ? IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isObscured = !_isObscured;
-                    });
-                  },
-                  icon: Icon(
-                    _isObscured ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
-                  ),
-                )
-              : null,
-        ),
-      ),
+      validator: (value) => value == null || value.isEmpty ? 'ئەم خانەیە پڕ بکەرەوە' : null,
     );
   }
 }
