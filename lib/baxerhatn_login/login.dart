@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../main.dart'; // بۆ ئەوەی دوای لۆگین بچێت بۆ شاشەی سەرەکی
 import 'forgot_password.dart';
 import 'signup.dart';
+import '../admin_panel/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +13,18 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isObscured = true; // بۆ شاردنەوە و پیشاندانی وشەی نهێنی
+  static const String _adminEmail = 'admin@nur.com';
+  static const String _adminPassword = 'admin123';
+
+  final TextEditingController _contactController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _contactController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,14 +63,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // خانەی ژمارەی مۆبایل
               _buildTextField(
-                hint: 'ژمارەی مۆبایل',
-                icon: Icons.phone_android_rounded,
-                isNumber: true,
+                controller: _contactController,
+                hint: 'ئیمەیڵ یان ژمارەی مۆبایل',
+                icon: Icons.alternate_email,
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20),
 
               // خانەی وشەی نهێنی
               _buildTextField(
+                controller: _passwordController,
                 hint: 'وشەی نهێنی',
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
@@ -93,6 +108,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   elevation: 5,
                 ),
                 onPressed: () {
+                  final contact = _contactController.text.trim();
+                  final password = _passwordController.text;
+                  if (contact == _adminEmail && password == _adminPassword) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AdminDashboard()),
+                      (route) => false,
+                    );
+                    return;
+                  }
                   // گواستنەوە بۆ شاشەی سەرەکی و سڕینەوەی لاپەڕەکانی پێشوو
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -138,10 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ویجێتێکی یاریدەدەر بۆ دروستکردنی TextField بە شێوەیەکی ڕێک
   Widget _buildTextField({
+    TextEditingController? controller,
     required String hint,
     required IconData icon,
     bool isPassword = false,
-    bool isNumber = false,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -150,8 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
         border: Border.all(color: Colors.white10),
       ),
       child: TextField(
+        controller: controller,
         obscureText: isPassword ? _isObscured : false,
-        keyboardType: isNumber ? TextInputType.phone : TextInputType.text,
+        keyboardType: keyboardType,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,

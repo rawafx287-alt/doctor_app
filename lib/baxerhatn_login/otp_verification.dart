@@ -13,15 +13,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   static const int _initialSeconds = 59;
   int _secondsLeft = _initialSeconds;
   Timer? _timer;
+  late final List<TextEditingController> _otpControllers;
+  late final List<FocusNode> _focusNodes;
 
   @override
   void initState() {
     super.initState();
+    _otpControllers = List.generate(4, (_) => TextEditingController());
+    _focusNodes = List.generate(4, (_) => FocusNode());
     _startTimer();
   }
 
   @override
   void dispose() {
+    for (final controller in _otpControllers) {
+      controller.dispose();
+    }
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
     _timer?.cancel();
     super.dispose();
   }
@@ -40,6 +50,29 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         });
       }
     });
+  }
+
+  String get _otpCode {
+    return _otpControllers.map((controller) => controller.text.trim()).join();
+  }
+
+  void _onVerifyPressed() {
+    if (_otpCode.length < 4 || _otpCode.contains(RegExp(r'[^0-9]'))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تکایە کۆدی ٤ ژمارەیی بە تەواوی بنووسە'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MainNavigationScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -78,7 +111,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(4, (index) => _buildOtpField(context)),
+                children: List.generate(4, (index) => _buildOtpField(index)),
               ),
               const SizedBox(height: 22),
               Row(
@@ -108,15 +141,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MainNavigationScreen(),
-                    ),
-                    (route) => false,
-                  );
-                },
+                onPressed: _onVerifyPressed,
                 child: const Text(
                   'دڵنیابوونەوە',
                   style: TextStyle(
@@ -133,7 +158,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     );
   }
 
-  Widget _buildOtpField(BuildContext context) {
+  Widget _buildOtpField(int index) {
     return Container(
       width: 64,
       height: 64,
@@ -143,6 +168,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         border: Border.all(color: Colors.white10),
       ),
       child: TextField(
+        controller: _otpControllers[index],
+        focusNode: _focusNodes[index],
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         textInputAction: TextInputAction.next,
@@ -158,7 +185,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         ),
         onChanged: (value) {
           if (value.isNotEmpty) {
-            FocusScope.of(context).nextFocus();
+            if (index < _focusNodes.length - 1) {
+              FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+            } else {
+              FocusScope.of(context).unfocus();
+            }
+          } else if (index > 0) {
+            FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
           }
         },
       ),
