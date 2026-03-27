@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart'; // بۆ ئەوەی دوای لۆگین بچێت بۆ شاشەی سەرەکی
+import 'forgot_password.dart';
+import 'signup.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,7 +66,14 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
                   child: const Text(
                     'وشەی نهێنیت لەبیرچووە؟',
                     style: TextStyle(color: Colors.blueAccent),
@@ -105,7 +114,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text('هەژمارت نییە؟ ', style: TextStyle(color: Colors.grey)),
                   GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SignUpScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'هەژمار دروست بکە',
                       style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
