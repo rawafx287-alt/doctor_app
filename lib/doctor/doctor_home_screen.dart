@@ -43,7 +43,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           title: Text(
@@ -98,8 +98,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           child: BottomNavigationBar(
             currentIndex: _bottomNavIndex,
             onTap: (index) => setState(() => _bottomNavIndex = index),
-            backgroundColor: const Color(0xFF243B53),
-            selectedItemColor: const Color(0xFF2CB1BC),
+            backgroundColor: const Color(0xFF1A237E),
+            selectedItemColor: const Color(0xFF42A5F5),
             unselectedItemColor: const Color(0xFF829AB1),
             showUnselectedLabels: true,
             type: BottomNavigationBarType.fixed,

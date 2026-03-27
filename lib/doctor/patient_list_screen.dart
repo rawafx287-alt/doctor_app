@@ -51,7 +51,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
         ),
@@ -127,7 +127,7 @@ class _SearchField extends StatelessWidget {
             fontFamily: 'KurdishFont',
           ),
           border: InputBorder.none,
-          prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF2CB1BC)),
+          prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
           contentPadding: EdgeInsets.symmetric(vertical: 16),
         ),
       ),
@@ -159,10 +159,10 @@ class _PatientCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFF2CB1BC).withOpacity(0.15),
+              color: const Color(0xFF42A5F5).withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.person_rounded, color: Color(0xFF2CB1BC)),
+            child: const Icon(Icons.person_rounded, color: Color(0xFF42A5F5)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -196,7 +196,7 @@ class _PatientCard extends StatelessWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2CB1BC),
+              backgroundColor: const Color(0xFF42A5F5),
               foregroundColor: const Color(0xFF102A43),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),

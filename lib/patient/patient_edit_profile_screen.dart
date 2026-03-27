@@ -95,7 +95,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           title: const Text(
@@ -108,7 +108,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         ),
         body: _loading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
               )
             : SafeArea(
                 child: SingleChildScrollView(
@@ -155,7 +155,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                           height: 52,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2CB1BC),
+                              backgroundColor: const Color(0xFF42A5F5),
                               foregroundColor: const Color(0xFF102A43),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -200,7 +200,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         color: Color(0xFF829AB1),
         fontFamily: 'KurdishFont',
       ),
-      prefixIcon: Icon(icon, color: const Color(0xFF2CB1BC)),
+      prefixIcon: Icon(icon, color: const Color(0xFF42A5F5)),
       filled: true,
       fillColor: const Color(0xFF1D1E33),
       border: OutlineInputBorder(
@@ -213,7 +213,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2CB1BC), width: 1.4),
+        borderSide: const BorderSide(color: Color(0xFF42A5F5), width: 1.4),
       ),
     );
   }

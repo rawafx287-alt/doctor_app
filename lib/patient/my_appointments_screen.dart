@@ -60,7 +60,7 @@ class _DaysRemainingStyle {
     if (diff == 0) {
       return const _DaysRemainingStyle(
         label: 'ئەمڕۆ',
-        foreground: Color(0xFF2CB1BC),
+        foreground: Color(0xFF42A5F5),
         background: Color(0x332CB1BC),
       );
     }
@@ -88,7 +88,7 @@ class PatientAppointmentsScreen extends StatelessWidget {
 
   static const Color _bg = Color(0xFF0A0E21);
   static const Color _card = Color(0xFF1D1E33);
-  static const Color _teal = Color(0xFF2CB1BC);
+  static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
 
@@ -306,7 +306,7 @@ class PatientAppointmentsScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: _text,
           elevation: 0,
           leading: IconButton(

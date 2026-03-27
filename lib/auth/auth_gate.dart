@@ -67,7 +67,7 @@ class _AuthLoadingScaffold extends StatelessWidget {
     return const Scaffold(
       backgroundColor: Color(0xFF0A0E21),
       body: Center(
-        child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+        child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
       ),
     );
   }
@@ -119,7 +119,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.hourglass_top_rounded, size: 72, color: Color(0xFF2CB1BC)),
+                const Icon(Icons.hourglass_top_rounded, size: 72, color: Color(0xFF42A5F5)),
                 const SizedBox(height: 24),
                 const Text(
                   'هەژمارەکەت چاوەڕێی قبوڵکردنی بەڕێوەبەرە',
@@ -145,7 +145,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                 const SizedBox(height: 32),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2CB1BC),
+                    backgroundColor: const Color(0xFF42A5F5),
                     foregroundColor: const Color(0xFF102A43),
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -195,7 +195,7 @@ class UnknownRoleScreen extends StatelessWidget {
                 const SizedBox(height: 28),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2CB1BC),
+                    backgroundColor: const Color(0xFF42A5F5),
                     foregroundColor: const Color(0xFF102A43),
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

@@ -281,7 +281,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 child: const Text(
                   'باشە',
                   style: TextStyle(
-                    color: Color(0xFF2CB1BC),
+                    color: Color(0xFF42A5F5),
                     fontFamily: 'KurdishFont',
                     fontWeight: FontWeight.w700,
                   ),
@@ -335,7 +335,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           leading: IconButton(
@@ -417,7 +417,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: const Color(0xFF2CB1BC),
+                                        color: const Color(0xFF42A5F5),
                                         width: 1.5,
                                       ),
                                     ),
@@ -432,7 +432,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                           alignment: Alignment.center,
                                           child: const Icon(
                                             Icons.medical_services_rounded,
-                                            color: Color(0xFF2CB1BC),
+                                            color: Color(0xFF42A5F5),
                                             size: 28,
                                           ),
                                         ),
@@ -531,7 +531,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 ? const Color(0xFF1D1E33)
                                                     .withValues(alpha: 0.5)
                                                 : selected
-                                                    ? const Color(0xFF2CB1BC)
+                                                    ? const Color(0xFF42A5F5)
                                                         .withValues(alpha: 0.28)
                                                     : const Color(0xFF1D1E33),
                                             borderRadius: BorderRadius.circular(12),
@@ -539,7 +539,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                               color: !available
                                                   ? Colors.white12
                                                   : selected
-                                                      ? const Color(0xFF2CB1BC)
+                                                      ? const Color(0xFF42A5F5)
                                                       : Colors.white24,
                                               width: selected ? 2 : 1,
                                             ),
@@ -636,12 +636,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                   onSelected: (_) {
                                                     setState(() => _selectedDate = dt);
                                                   },
-                                                  selectedColor: const Color(0xFF2CB1BC),
+                                                  selectedColor: const Color(0xFF42A5F5),
                                                   backgroundColor: const Color(0xFF1D1E33),
                                                   checkmarkColor: const Color(0xFF102A43),
                                                   side: BorderSide(
                                                     color: sel
-                                                        ? const Color(0xFF2CB1BC)
+                                                        ? const Color(0xFF42A5F5)
                                                         : Colors.white24,
                                                   ),
                                                   shape: RoundedRectangleBorder(
@@ -709,12 +709,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 onSelected: (_) {
                                                   setState(() => _selectedTime = t);
                                                 },
-                                                selectedColor: const Color(0xFF2CB1BC),
+                                                selectedColor: const Color(0xFF42A5F5),
                                                 backgroundColor: const Color(0xFF1D1E33),
                                                 checkmarkColor: const Color(0xFF102A43),
                                                 side: BorderSide(
                                                   color: sel
-                                                      ? const Color(0xFF2CB1BC)
+                                                      ? const Color(0xFF42A5F5)
                                                       : Colors.white24,
                                                 ),
                                                 shape: RoundedRectangleBorder(
@@ -737,7 +737,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                             _selectedEntry(scheduleDays),
                                           ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2CB1BC),
+                                    backgroundColor: const Color(0xFF42A5F5),
                                     foregroundColor: const Color(0xFF102A43),
                                     minimumSize: const Size(double.infinity, 54),
                                     shape: RoundedRectangleBorder(

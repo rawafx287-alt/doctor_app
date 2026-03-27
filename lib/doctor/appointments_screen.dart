@@ -83,7 +83,7 @@ class AppointmentsScreen extends StatelessWidget {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                      child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
                     );
                   }
                   if (snapshot.hasError) {
@@ -162,7 +162,7 @@ class AppointmentsScreen extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                backgroundColor: const Color(0xFF243B53),
+                backgroundColor: const Color(0xFF1A237E),
                 foregroundColor: const Color(0xFFD9E2EC),
                 elevation: 0,
               ),

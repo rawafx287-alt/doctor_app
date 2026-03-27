@@ -61,7 +61,7 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.validator,
-    this.accentColor = const Color(0xFF2CB1BC),
+    this.accentColor = const Color(0xFF42A5F5),
     this.fillColor = const Color(0xFF1D1E33),
     this.useKurdishFont = true,
     this.dense = false,

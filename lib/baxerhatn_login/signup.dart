@@ -30,7 +30,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   static const Color _bg = Color(0xFF0A0E21);
   static const Color _surface = Color(0xFF1D1E33);
-  static const Color _teal = Color(0xFF2CB1BC);
+  static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
 

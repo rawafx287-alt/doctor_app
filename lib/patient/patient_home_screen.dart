@@ -74,7 +74,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           title: Text(
@@ -131,8 +131,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           child: BottomNavigationBar(
             currentIndex: _bottomNavIndex,
             onTap: (index) => setState(() => _bottomNavIndex = index),
-            backgroundColor: const Color(0xFF243B53),
-            selectedItemColor: const Color(0xFF2CB1BC),
+            backgroundColor: const Color(0xFF1A237E),
+            selectedItemColor: const Color(0xFF42A5F5),
             unselectedItemColor: const Color(0xFF829AB1),
             showUnselectedLabels: true,
             type: BottomNavigationBarType.fixed,
@@ -217,7 +217,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         color: Color(0xFF829AB1),
                         fontFamily: 'KurdishFont',
                       ),
-                      prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF2CB1BC)),
+                      prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -246,11 +246,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: selected
-                                ? const Color(0xFF2CB1BC).withOpacity(0.22)
+                                ? const Color(0xFF42A5F5).withOpacity(0.22)
                                 : const Color(0xFF1D1E33),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: selected ? const Color(0xFF2CB1BC) : Colors.white24,
+                              color: selected ? const Color(0xFF42A5F5) : Colors.white24,
                               width: selected ? 2 : 1,
                             ),
                           ),
@@ -262,7 +262,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                                 iconForSpecialtyCategory(cat),
                                 size: 20,
                                 color: selected
-                                    ? const Color(0xFF2CB1BC)
+                                    ? const Color(0xFF42A5F5)
                                     : const Color(0xFF829AB1),
                               ),
                               const SizedBox(width: 8),
@@ -326,7 +326,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
-                          child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                          child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
                         );
                       }
                       if (snapshot.hasError) {
@@ -462,7 +462,7 @@ class _DoctorCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF2CB1BC), width: 1.5),
+                    border: Border.all(color: const Color(0xFF42A5F5), width: 1.5),
                   ),
                   child: ClipOval(
                     child: Image.network(
@@ -473,7 +473,7 @@ class _DoctorCard extends StatelessWidget {
                         alignment: Alignment.center,
                         child: const Icon(
                           Icons.medical_services_rounded,
-                          color: Color(0xFF2CB1BC),
+                          color: Color(0xFF42A5F5),
                           size: 24,
                         ),
                       ),
@@ -538,7 +538,7 @@ class _DoctorCard extends StatelessWidget {
                   Icon(
                     Icons.arrow_back_ios_new_rounded,
                     size: 14,
-                    color: const Color(0xFF2CB1BC).withOpacity(0.9),
+                    color: const Color(0xFF42A5F5).withOpacity(0.9),
                   ),
                 ],
               ),

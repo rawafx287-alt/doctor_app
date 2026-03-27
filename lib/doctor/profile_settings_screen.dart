@@ -199,7 +199,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF2CB1BC)),
+                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF42A5F5)),
                 title: const Text(
                   'گەلەری',
                   style: TextStyle(
@@ -214,7 +214,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2CB1BC)),
+                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF42A5F5)),
                 title: const Text(
                   'کامێرا',
                   style: TextStyle(
@@ -242,7 +242,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           leading: IconButton(
@@ -259,7 +259,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF2CB1BC)))
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF42A5F5)))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Form(
@@ -286,7 +286,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                               child: _profileImageUrl.isEmpty
                                   ? const Icon(
                                       Icons.medical_services_rounded,
-                                      color: Color(0xFF2CB1BC),
+                                      color: Color(0xFF42A5F5),
                                       size: 30,
                                     )
                                   : null,
@@ -300,7 +300,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                   ),
                                   child: const Center(
                                     child: CircularProgressIndicator(
-                                      color: Color(0xFF2CB1BC),
+                                      color: Color(0xFF42A5F5),
                                     ),
                                   ),
                                 ),
@@ -309,7 +309,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                               bottom: -2,
                               end: -2,
                               child: Material(
-                                color: const Color(0xFF2CB1BC),
+                                color: const Color(0xFF42A5F5),
                                 shape: const CircleBorder(),
                                 elevation: 2,
                                 child: InkWell(
@@ -377,7 +377,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     ElevatedButton(
                       onPressed: _isSaving ? null : _saveChanges,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2CB1BC),
+                        backgroundColor: const Color(0xFF42A5F5),
                         foregroundColor: const Color(0xFF102A43),
                         minimumSize: const Size(double.infinity, 56),
                         shape: RoundedRectangleBorder(
@@ -436,7 +436,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             color: Color(0xFF829AB1),
             fontFamily: 'KurdishFont',
           ),
-          prefixIcon: Icon(icon, color: const Color(0xFF2CB1BC)),
+          prefixIcon: Icon(icon, color: const Color(0xFF42A5F5)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         ),

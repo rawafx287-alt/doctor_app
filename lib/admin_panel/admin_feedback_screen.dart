@@ -7,7 +7,7 @@ import '../app_rtl.dart';
 class AdminFeedbackScreen extends StatelessWidget {
   const AdminFeedbackScreen({super.key});
 
-  static const Color _accent = Color(0xFF2CB1BC);
+  static const Color _accent = Color(0xFF42A5F5);
 
   String _formatTime(dynamic raw) {
     if (raw is Timestamp) {

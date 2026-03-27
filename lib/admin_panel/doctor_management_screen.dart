@@ -128,7 +128,7 @@ class DoctorManagementScreen extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData) {
               return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
               );
             }
 

@@ -22,12 +22,12 @@ class DoctorProfileScreen extends StatelessWidget {
       applicationIcon: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF2CB1BC).withValues(alpha: 0.2),
+          color: const Color(0xFF42A5F5).withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(
           Icons.medical_services_rounded,
-          color: Color(0xFF2CB1BC),
+          color: Color(0xFF42A5F5),
           size: 32,
         ),
       ),
@@ -102,13 +102,13 @@ class DoctorProfileScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF2CB1BC)
+                                    color: const Color(0xFF42A5F5)
                                         .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: const Icon(
                                     Icons.medical_services_rounded,
-                                    color: Color(0xFF2CB1BC),
+                                    color: Color(0xFF42A5F5),
                                     size: 36,
                                   ),
                                 ),
@@ -255,7 +255,7 @@ class _DoctorProfileTile extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(
         icon,
-        color: iconColor ?? const Color(0xFF2CB1BC),
+        color: iconColor ?? const Color(0xFF42A5F5),
         size: 26,
       ),
       title: Text(

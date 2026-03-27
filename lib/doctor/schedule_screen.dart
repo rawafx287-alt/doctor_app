@@ -222,13 +222,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                backgroundColor: const Color(0xFF243B53),
+                backgroundColor: const Color(0xFF1A237E),
                 foregroundColor: const Color(0xFFD9E2EC),
                 elevation: 0,
               ),
         body: _isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -263,7 +263,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               item.isAvailable ? 'چالاک' : 'ناچالاک',
                               style: TextStyle(
                                 color: item.isAvailable
-                                    ? const Color(0xFF2CB1BC)
+                                    ? const Color(0xFF42A5F5)
                                     : const Color(0xFF829AB1),
                                 fontFamily: 'KurdishFont',
                                 fontWeight: FontWeight.w600,
@@ -273,7 +273,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             const SizedBox(width: 8),
                             Switch(
                               value: item.isAvailable,
-                              activeThumbColor: const Color(0xFF2CB1BC),
+                              activeThumbColor: const Color(0xFF42A5F5),
                               onChanged: (value) {
                                 setState(() {
                                   _schedules[index] =
@@ -371,7 +371,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           child: ElevatedButton(
             onPressed: _isSaving ? null : _saveSchedule,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2CB1BC),
+              backgroundColor: const Color(0xFF42A5F5),
               foregroundColor: const Color(0xFF102A43),
               minimumSize: const Size(double.infinity, 54),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

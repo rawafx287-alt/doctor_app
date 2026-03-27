@@ -106,7 +106,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF243B53),
+          backgroundColor: const Color(0xFF1A237E),
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           leading: IconButton(
@@ -173,7 +173,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(
-                          color: Color(0xFF2CB1BC),
+                          color: Color(0xFF42A5F5),
                           width: 1.5,
                         ),
                       ),
@@ -185,7 +185,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                   height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2CB1BC),
+                      backgroundColor: const Color(0xFF42A5F5),
                       foregroundColor: const Color(0xFF102A43),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
