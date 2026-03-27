@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 class BarwarScreen extends StatefulWidget {
   const BarwarScreen({super.key});
 
@@ -29,7 +31,7 @@ class _BarwarScreenState extends State<BarwarScreen> {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: SingleChildScrollView( // بۆ ئەوەی ئەگەر شاشەکە بچووک بوو ئیرۆر نەدات
           child: Padding(
             padding: const EdgeInsets.all(20.0),

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../app_rtl.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -61,6 +64,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       endTime: const TimeOfDay(hour: 17, minute: 0),
     ),
   ];
+
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -78,29 +82,26 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('availability')
-          .get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final data = doc.data();
+      final weekly = data?['weekly_schedule'];
 
-      final loaded = <String, Map<String, dynamic>>{};
-      for (final doc in snapshot.docs) {
-        loaded[doc.id] = doc.data();
-      }
+      if (weekly is Map) {
+        for (var i = 0; i < _schedules.length; i++) {
+          final id = _schedules[i].id;
+          final dayData = weekly[id];
+          if (dayData is! Map) continue;
 
-      for (var i = 0; i < _schedules.length; i++) {
-        final current = _schedules[i];
-        final data = loaded[current.id];
-        if (data == null) continue;
+          final start = _fromMinutes(dayData['startMinutes']);
+          final end = _fromMinutes(dayData['endMinutes']);
+          final enabled = dayData['enabled'] == true;
 
-        final start = _fromMinutes(data['startMinutes']);
-        final end = _fromMinutes(data['endMinutes']);
-        _schedules[i] = current.copyWith(
-          isAvailable: data['isAvailable'] == true,
-          startTime: start ?? current.startTime,
-          endTime: end ?? current.endTime,
-        );
+          _schedules[i] = _schedules[i].copyWith(
+            isAvailable: enabled,
+            startTime: start ?? _schedules[i].startTime,
+            endTime: end ?? _schedules[i].endTime,
+          );
+        }
       }
     } catch (_) {
       if (!mounted) return;
@@ -119,28 +120,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   int _toMinutes(TimeOfDay time) => time.hour * 60 + time.minute;
 
-  Future<void> _updateDayInFirestore(_DaySchedule day) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('availability')
-          .doc(day.id)
-          .set({
-        'day': day.day,
-        'isAvailable': day.isAvailable,
-        'startMinutes': _toMinutes(day.startTime),
-        'endMinutes': _toMinutes(day.endTime),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵە لە نوێکردنەوەی ڕۆژ')),
-      );
-    }
+  String _formatTime(TimeOfDay t) {
+    final now = DateTime.now();
+    final dt = DateTime(now.year, now.month, now.day, t.hour, t.minute);
+    return DateFormat.jm().format(dt);
   }
 
   Future<void> _pickTime(int index, {required bool isStart}) async {
@@ -149,7 +132,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       initialTime: isStart ? _schedules[index].startTime : _schedules[index].endTime,
       builder: (context, child) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: kRtlTextDirection,
           child: child ?? const SizedBox.shrink(),
         );
       },
@@ -162,39 +145,53 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         endTime: isStart ? _schedules[index].endTime : picked,
       );
     });
-    await _updateDayInFirestore(_schedules[index]);
+  }
+
+  Map<String, dynamic> _weeklyScheduleMap() {
+    final map = <String, dynamic>{};
+    for (final day in _schedules) {
+      map[day.id] = {
+        'day': day.day,
+        'enabled': day.isAvailable,
+        'startMinutes': _toMinutes(day.startTime),
+        'endMinutes': _toMinutes(day.endTime),
+      };
+    }
+    return map;
   }
 
   Future<void> _saveSchedule() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('بەکارهێنەر نەدۆزرایەوە')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {
-      final batch = FirebaseFirestore.instance.batch();
-      for (final day in _schedules) {
-        final ref = FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('availability')
-            .doc(day.id);
-        batch.set(ref, {
-          'day': day.day,
-          'isAvailable': day.isAvailable,
-          'startMinutes': _toMinutes(day.startTime),
-          'endMinutes': _toMinutes(day.endTime),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-      await batch.commit();
+      await FirebaseFirestore.instance.collection('users').doc(uid).set(
+        {
+          'weekly_schedule': _weeklyScheduleMap(),
+          'scheduleUpdatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('پاشەکەوتکردنی خشتە تەواوبوو')),
+        const SnackBar(content: Text('پاشکەوتکردن بە سەرکەوتوویی تەواوبوو')),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('هەڵە ڕوویدا (${e.code})')),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵە لە پاشەکەوتکردنی خشتە')),
+        const SnackBar(content: Text('هەڵە لە پاشکەوتکردنی خشتە')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -204,7 +201,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: kRtlTextDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
@@ -229,19 +226,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
               )
             : ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 itemCount: _schedules.length,
+<<<<<<< HEAD
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
+=======
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+>>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
                 itemBuilder: (context, index) {
                   final item = _schedules[index];
                   return Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1D1E33),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white10),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
                           children: [
@@ -250,7 +252,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 item.day,
                                 style: const TextStyle(
                                   color: Color(0xFFD9E2EC),
-                                  fontSize: 17,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   fontFamily: 'KurdishFont',
                                 ),
@@ -263,57 +265,105 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                     ? const Color(0xFF2CB1BC)
                                     : const Color(0xFF829AB1),
                                 fontFamily: 'KurdishFont',
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Switch(
                               value: item.isAvailable,
                               activeThumbColor: const Color(0xFF2CB1BC),
+<<<<<<< HEAD
                               onChanged: (value) async {
+=======
+                              onChanged: (value) {
+>>>>>>> 19b5e8db7f46545d607efa3593b4bf4f10a921fc
                                 setState(() {
                                   _schedules[index] =
                                       _schedules[index].copyWith(isAvailable: value);
                                 });
-                                await _updateDayInFirestore(_schedules[index]);
                               },
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _pickTime(index, isStart: true),
-                                icon: const Icon(Icons.play_arrow_rounded),
-                                label: Text(
-                                  'دەستپێک: ${_schedules[index].startTime.format(context)}',
-                                  style: const TextStyle(fontFamily: 'KurdishFont'),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFD9E2EC),
-                                  side: const BorderSide(color: Colors.white24),
+                        if (item.isAvailable) ...[
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => _pickTime(index, isStart: true),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFD9E2EC),
+                                    side: const BorderSide(color: Colors.white24),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'دەستپێک',
+                                        style: TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontSize: 12,
+                                          color: Color(0xFF829AB1),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatTime(_schedules[index].startTime),
+                                        style: const TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _pickTime(index, isStart: false),
-                                icon: const Icon(Icons.stop_rounded),
-                                label: Text(
-                                  'کۆتایی: ${_schedules[index].endTime.format(context)}',
-                                  style: const TextStyle(fontFamily: 'KurdishFont'),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFD9E2EC),
-                                  side: const BorderSide(color: Colors.white24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => _pickTime(index, isStart: false),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFD9E2EC),
+                                    side: const BorderSide(color: Colors.white24),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'کۆتایی',
+                                        style: TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontSize: 12,
+                                          color: Color(0xFF829AB1),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatTime(_schedules[index].endTime),
+                                        style: const TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   );
@@ -336,7 +386,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2.2),
                   )
                 : const Text(
-                    'پاشەکەوتکردنی خشتە',
+                    'پاشکەوتکردن',
                     style: TextStyle(
                       fontFamily: 'KurdishFont',
                       fontWeight: FontWeight.w700,

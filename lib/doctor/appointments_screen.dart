@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 enum AppointmentStatus { pending, completed, cancelled }
 
 class AppointmentsScreen extends StatelessWidget {
@@ -31,7 +33,7 @@ class AppointmentsScreen extends StatelessWidget {
     ];
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: kRtlTextDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(

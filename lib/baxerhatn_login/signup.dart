@@ -5,6 +5,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'login.dart';
 import 'otp_verification.dart';
 
+import '../app_rtl.dart';
+
 enum UserRole { patient, doctor }
 
 class SignUpScreen extends StatefulWidget {
@@ -144,7 +146,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1D1E33),
           title: const Text(
@@ -179,7 +181,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       backgroundColor: const Color(0xFF0A0E21),
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(

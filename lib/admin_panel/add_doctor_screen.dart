@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../app_rtl.dart';
+
 class AddDoctorScreen extends StatefulWidget {
   const AddDoctorScreen({super.key});
 
@@ -80,7 +82,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(18),
           child: Form(

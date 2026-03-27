@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../app_rtl.dart';
 import '../main.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -88,7 +90,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Column(

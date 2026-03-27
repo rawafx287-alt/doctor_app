@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_rtl.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -14,7 +16,7 @@ class ProfileScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: SingleChildScrollView(
           child: Column(
             children: [

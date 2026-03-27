@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../app_rtl.dart';
 import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
 
@@ -22,7 +24,7 @@ class AdminDashboard extends StatelessWidget {
         ),
       ),
       body: Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: kRtlTextDirection,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
