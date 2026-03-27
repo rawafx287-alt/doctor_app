@@ -90,17 +90,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
           MaterialPageRoute(builder: (context) => const OtpVerificationScreen()),
         );
       }
-    } on FirebaseAuthException catch (e) {
-      debugPrint('FIREBASE AUTH ERROR: ${e.code}');
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('SIGNUP FirebaseAuthException code: ${e.code}');
+      debugPrint('SIGNUP FirebaseAuthException message: ${e.message}');
+      debugPrint('SIGNUP FirebaseAuthException stack: $st');
+
       String msg = 'هەڵەیەک ڕوویدا';
       if (e.code == 'email-already-in-use') msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
       if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە هەڵەیە';
       if (e.code == 'weak-password') msg = 'وشەی نهێنی لاوازە (لانیکەم ٦ پیت)';
       if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
-      
-      _showSnackBar(msg + " (${e.code})");
-    } catch (e) {
-      debugPrint('GENERAL ERROR: $e');
+      if (e.code == 'operation-not-allowed') msg = 'ئەم جۆرە چوونەژوورەوە چالاک نییە (لە Firebase Console چالاکی بکە)';
+      if (e.code == 'too-many-requests') msg = 'زۆر هەوڵت داوە، دوای کەمێک دووبارە هەوڵ بدەرەوە';
+
+      final extra = (e.message == null || e.message!.isEmpty) ? '' : ' - ${e.message}';
+      _showSnackBar('$msg (${e.code})$extra');
+    } on FirebaseException catch (e, st) {
+      debugPrint('SIGNUP FirebaseException plugin: ${e.plugin}');
+      debugPrint('SIGNUP FirebaseException code: ${e.code}');
+      debugPrint('SIGNUP FirebaseException message: ${e.message}');
+      debugPrint('SIGNUP FirebaseException stack: $st');
+
+      final extra = (e.message == null || e.message!.isEmpty) ? '' : ' - ${e.message}';
+      _showSnackBar('هەڵەیەکی فایەربەیس ڕوویدا (${e.code})$extra');
+    } catch (e, st) {
+      debugPrint('SIGNUP GENERAL ERROR: $e');
+      debugPrint('SIGNUP GENERAL STACK: $st');
       _showSnackBar('هەڵەیەک ڕوویدا: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
