@@ -1,3 +1,5 @@
+import java.io.File
+
 allprojects {
     repositories {
         google()
@@ -5,15 +7,29 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+// Keep main Flutter APK output at <project>/build/app (Flutter tooling expects this).
+// Move *plugin* module intermediates to LOCALAPPDATA so OneDrive does not lock
+// build/firebase_auth, build/cloud_firestore, etc. during Gradle deletes.
+val androidDir: File = rootProject.layout.projectDirectory.asFile
+val flutterProjectBuild: File = File(androidDir.parentFile, "build").apply { mkdirs() }
+val pluginBuildRoot: File =
+    File(
+        System.getenv("LOCALAPPDATA")
+            ?: File(System.getProperty("user.home"), "AppData${File.separator}Local").absolutePath,
+        "doctor_app_flutter_plugins_build",
+    ).apply { mkdirs() }
+
+rootProject.layout.buildDirectory.set(flutterProjectBuild)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    val target: File =
+        if (project.name == "app") {
+            File(flutterProjectBuild, "app")
+        } else {
+            File(pluginBuildRoot, project.name)
+        }
+    target.mkdirs()
+    project.layout.buildDirectory.set(target)
 }
 subprojects {
     project.evaluationDependsOn(":app")
@@ -21,4 +37,5 @@ subprojects {
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
+    delete(pluginBuildRoot)
 }

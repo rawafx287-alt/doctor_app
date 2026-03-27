@@ -157,7 +157,7 @@ class DoctorHomeScreen extends StatelessWidget {
                       mainAxisSpacing: 12,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.28,
+                      childAspectRatio: crossAxisCount == 1 ? 0.92 : 0.88,
                       children: [
                         _DashboardCard(
                           title: 'نۆرەکانی من',
@@ -219,6 +219,9 @@ class _DashboardCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Color _surface = Color(0xFF1D1E33);
+  static const Color _accent = Color(0xFF2CB1BC);
+
   final String title;
   final String subtitle;
   final IconData icon;
@@ -230,55 +233,60 @@ class _DashboardCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1D1E33),
-            borderRadius: BorderRadius.circular(18),
+            color: _surface,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 80,
+                height: 80,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2CB1BC).withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(12),
+                  shape: BoxShape.circle,
+                  color: _accent.withValues(alpha: 0.2),
                 ),
-                child: Icon(icon, color: const Color(0xFF2CB1BC)),
+                child: Icon(icon, color: _accent, size: 56),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFD9E2EC),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                        fontFamily: 'KurdishFont',
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF829AB1),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'KurdishFont',
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFD9E2EC),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  fontFamily: 'KurdishFont',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                  fontFamily: 'KurdishFont',
                 ),
               ),
             ],
