@@ -14,6 +14,12 @@ void main() {
 class DoctorApp extends StatelessWidget {
   const DoctorApp({super.key});
 
+  static const Color _deepNavy = Color(0xFF102A43);
+  static const Color _slateBlue = Color(0xFF243B53);
+  static const Color _clinicalTeal = Color(0xFF2CB1BC);
+  static const Color _coolGray = Color(0xFF829AB1);
+  static const Color _softText = Color(0xFFD9E2EC);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -21,11 +27,32 @@ class DoctorApp extends StatelessWidget {
       title: 'نور بۆ پزیشکان',
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0A0E21),
-        primaryColor: Colors.blueAccent,
+        scaffoldBackgroundColor: _deepNavy,
+        primaryColor: _clinicalTeal,
+        colorScheme: const ColorScheme.dark(
+          primary: _clinicalTeal,
+          secondary: Color(0xFF55DDE0),
+          surface: _slateBlue,
+          onPrimary: _softText,
+          onSecondary: _softText,
+          onSurface: _softText,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: _slateBlue,
+          foregroundColor: _softText,
+          elevation: 0,
+        ),
+        cardColor: _slateBlue,
+        dividerColor: Color(0xFF334E68),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: _softText),
+          bodyMedium: TextStyle(color: _softText),
+          titleLarge: TextStyle(color: _softText, fontWeight: FontWeight.w600),
+          labelLarge: TextStyle(color: _softText),
+        ),
       ),
       // ئەپەکە لێرەوە دەستپێدەکات
-      home: const WelcomeScreen(), 
+      home: const WelcomeScreen(),
     );
   }
 }
@@ -51,13 +78,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.white10, width: 0.5)),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: DoctorApp._coolGray.withOpacity(0.35),
+              width: 0.5,
+            ),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -66,15 +95,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               _currentIndex = index;
             });
           },
-          backgroundColor: const Color(0xFF1D1E33),
-          selectedItemColor: Colors.blueAccent,
-          unselectedItemColor: Colors.grey,
+          backgroundColor: DoctorApp._slateBlue,
+          selectedItemColor: DoctorApp._clinicalTeal,
+          unselectedItemColor: DoctorApp._coolGray,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'سەرەتا'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'نۆرەکانم'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'ئاگاداری'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_filled),
+              label: 'سەرەتا',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_month),
+              label: 'نۆرەکانم',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications),
+              label: 'ئاگاداری',
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'پڕۆفایل'),
           ],
         ),
