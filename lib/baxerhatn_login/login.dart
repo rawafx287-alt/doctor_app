@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../main.dart'; // بۆ ئەوەی دوای لۆگین بچێت بۆ شاشەی سەرەکی
+import '../auth/auth_navigation.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
-import '../admin_panel/admin_dashboard.dart';
-import '../doctor/doctor_home_screen.dart';
-import '../patient/patient_home_screen.dart';
 import '../app_rtl.dart';
 
+String _kurdishAuthErrorMessage(String code) {
+  switch (code) {
+    case 'invalid-email':
+      return 'ئیمەیڵەکە دروست نییە';
+    case 'invalid-credential':
+    case 'wrong-password':
+    case 'user-not-found':
+      return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە، تکایە دووبارە هەوڵ بدەرەوە';
+    case 'user-disabled':
+      return 'ئەم هەژمارە ناچالاک کراوە';
+    case 'too-many-requests':
+      return 'هەوڵی زۆر، دواتر تاقی بکەرەوە';
+    case 'network-request-failed':
+      return 'پەیوەندی ئینتەرنێتەکەت تاقیکەرەوە';
+    default:
+      return 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە';
+  }
+}
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.showBackButton = true});
+
+  /// When false (e.g. root [AuthGate]), hides back — nothing to pop.
+  final bool showBackButton;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -36,10 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
       ),
       body: Directionality(
         textDirection: kRtlTextDirection,
@@ -153,7 +175,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     if (emailOrPhone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تکایە زانیارییەکان پڕ بکەرەوە')),
+        const SnackBar(
+          content: Text(
+            'تکایە زانیارییەکان پڕ بکەرەوە',
+            style: TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
       return;
     }
@@ -171,64 +198,33 @@ class _LoginScreenState extends State<LoginScreen> {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('هەژمار نەدۆزرایەوە')),
+          const SnackBar(
+            content: Text('هەژمار نەدۆزرایەوە', style: TextStyle(fontFamily: 'KurdishFont')),
+          ),
         );
         return;
       }
 
       final data = doc.data() ?? {};
-      final role = (data['role'] ?? '').toString();
-      final isApproved = data['isApproved'] == true;
-
-      if (role == 'Doctor' && !isApproved) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account pending approval')),
-        );
-        return;
-      }
-
       if (!mounted) return;
-      if (role == 'Admin') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminDashboard()),
-          (route) => false,
-        );
-      } else if (role == 'Doctor') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-          (route) => false,
-        );
-      } else if (role == 'Patient') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const PatientHomeScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-          (route) => false,
-        );
-      }
+      await navigateAfterLogin(context, data);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final msg = switch (e.code) {
-        'invalid-email' => 'ئیمەیڵەکە دروست نییە',
-        'invalid-credential' => 'ئیمەیڵ یان وشەی نهێنی هەڵەیە',
-        'user-not-found' => 'هەژمار نەدۆزرایەوە',
-        'wrong-password' => 'وشەی نهێنی هەڵەیە',
-        _ => 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final msg = _kurdishAuthErrorMessage(e.code);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg, style: const TextStyle(fontFamily: 'KurdishFont')),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە')),
+        const SnackBar(
+          content: Text(
+            'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
+            style: TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

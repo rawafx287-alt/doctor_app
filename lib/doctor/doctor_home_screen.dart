@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
-import '../baxerhatn_login/login.dart';
+import '../auth/app_logout.dart';
 import 'appointments_screen.dart';
 import 'patient_list_screen.dart';
 import 'profile_settings_screen.dart';
@@ -15,13 +15,7 @@ class DoctorHomeScreen extends StatelessWidget {
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+    await performAppLogout(context);
   }
 
   @override

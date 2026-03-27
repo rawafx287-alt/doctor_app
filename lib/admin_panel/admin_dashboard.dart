@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
+import '../auth/app_logout.dart';
 import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
+import 'doctor_management_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -14,14 +16,18 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'پەڕەی ئەدمین',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'چوونەدەرەوە',
+            onPressed: () async => performAppLogout(context),
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+          ),
+        ],
       ),
       body: Directionality(
         textDirection: kRtlTextDirection,
@@ -38,6 +44,20 @@ class AdminDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const ApprovalListScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              _DashboardCard(
+                title: 'لیستی پزیشکان',
+                subtitle: 'پزیشکە قبوڵکراوەکان و سڕینەوە',
+                icon: Icons.groups_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DoctorManagementScreen(),
                     ),
                   );
                 },

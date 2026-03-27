@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
-import '../baxerhatn_login/login.dart';
+import '../auth/app_logout.dart';
 import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
 import 'my_appointments_screen.dart';
@@ -62,13 +62,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+    await performAppLogout(context);
   }
 
   @override

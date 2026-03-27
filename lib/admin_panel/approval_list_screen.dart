@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
 
+/// Pending doctor registrations: [role] Doctor, [isApproved] false.
 class ApprovalListScreen extends StatefulWidget {
   const ApprovalListScreen({super.key});
 
@@ -11,22 +12,35 @@ class ApprovalListScreen extends StatefulWidget {
 }
 
 class _ApprovalListScreenState extends State<ApprovalListScreen> {
+  static const Color _approveGreen = Color(0xFF22C55E);
+  static const Color _rejectRed = Color(0xFFEF4444);
+
   Future<void> _approve(String uid, String name) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'isApproved': true,
     });
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('قبوڵکرا: $name')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'قبوڵکرا: $name',
+          style: const TextStyle(fontFamily: 'KurdishFont'),
+        ),
+      ),
+    );
   }
 
   Future<void> _reject(String uid, String name) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).delete();
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('ڕەتکرایەوە: $name')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'ڕەتکرایەوە: $name',
+          style: const TextStyle(fontFamily: 'KurdishFont'),
+        ),
+      ),
+    );
   }
 
   @override
@@ -42,7 +56,11 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
         ),
         title: const Text(
           'داواکارییەکان',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'KurdishFont',
+          ),
         ),
       ),
       body: Directionality(
@@ -54,26 +72,38 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
               .where('isApproved', isEqualTo: false)
               .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: Colors.blueAccent),
-              );
-            }
             if (snapshot.hasError) {
               return const Center(
                 child: Text(
                   'هەڵەیەک لە هێنانی داواکارییەکان ڕوویدا',
-                  style: TextStyle(color: Colors.redAccent),
+                  style: TextStyle(
+                    color: _rejectRed,
+                    fontFamily: 'KurdishFont',
+                  ),
                 ),
+              );
+            }
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
               );
             }
 
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {
               return const Center(
-                child: Text(
-                  'هیچ داواکارییەک نییە',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'هیچ داواکارییەکی نوێ نییە',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF829AB1),
+                      fontSize: 16,
+                      fontFamily: 'KurdishFont',
+                    ),
+                  ),
                 ),
               );
             }
@@ -84,7 +114,8 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                 final doc = docs[index];
                 final data = doc.data();
                 final name = (data['fullName'] ?? 'بێ ناو').toString();
-                final specialty = (data['specialty'] ?? 'دیارینەکراو').toString();
+                final specialty =
+                    (data['specialty'] ?? 'دیارینەکراو').toString();
 
                 return Container(
                   padding: const EdgeInsets.all(16),
@@ -99,15 +130,19 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                       Text(
                         name,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFFD9E2EC),
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
+                          fontFamily: 'KurdishFont',
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'پسپۆڕی: $specialty',
-                        style: const TextStyle(color: Colors.grey),
+                        style: const TextStyle(
+                          color: Color(0xFF829AB1),
+                          fontFamily: 'KurdishFont',
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Row(
@@ -115,7 +150,8 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blueAccent,
+                                backgroundColor: _approveGreen,
+                                foregroundColor: Colors.white,
                                 minimumSize: const Size(double.infinity, 46),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
@@ -123,10 +159,10 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                               ),
                               onPressed: () => _approve(doc.id, name),
                               child: const Text(
-                                '✅ قبوڵکردن',
+                                'قبوڵکردن',
                                 style: TextStyle(
-                                  color: Colors.white,
                                   fontWeight: FontWeight.bold,
+                                  fontFamily: 'KurdishFont',
                                 ),
                               ),
                             ),
@@ -135,9 +171,10 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                           Expanded(
                             child: OutlinedButton(
                               style: OutlinedButton.styleFrom(
+                                foregroundColor: _rejectRed,
                                 side: const BorderSide(
-                                  color: Colors.redAccent,
-                                  width: 1.2,
+                                  color: _rejectRed,
+                                  width: 1.4,
                                 ),
                                 minimumSize: const Size(double.infinity, 46),
                                 shape: RoundedRectangleBorder(
@@ -146,10 +183,10 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                               ),
                               onPressed: () => _reject(doc.id, name),
                               child: const Text(
-                                '❌ ڕەتکردنەوە',
+                                'ڕەتکردنەوە',
                                 style: TextStyle(
-                                  color: Colors.redAccent,
                                   fontWeight: FontWeight.bold,
+                                  fontFamily: 'KurdishFont',
                                 ),
                               ),
                             ),
@@ -169,4 +206,3 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
     );
   }
 }
-
