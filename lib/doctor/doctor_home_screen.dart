@@ -11,6 +11,8 @@ import 'schedule_screen.dart';
 
 class DoctorHomeScreen extends StatelessWidget {
   const DoctorHomeScreen({super.key});
+  static const String _placeholderImageUrl =
+      'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -111,6 +113,8 @@ class DoctorHomeScreen extends StatelessWidget {
                   builder: (context, snapshot) {
                     final data = snapshot.data?.data();
                     final doctorName = (data?['fullName'] ?? 'پزیشک').toString();
+                    final profileImageUrl =
+                        (data?['profileImageUrl'] ?? '').toString().trim();
 
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -119,7 +123,37 @@ class DoctorHomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white10),
                       ),
-                      child: Column(
+                      child: Row(
+                        textDirection: kRtlTextDirection,
+                        children: [
+                          Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF2CB1BC), width: 1.5),
+                            ),
+                            child: ClipOval(
+                              child: Image.network(
+                                profileImageUrl.isNotEmpty
+                                    ? profileImageUrl
+                                    : _placeholderImageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: const Color(0xFF1D1E33),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.medical_services_rounded,
+                                    color: Color(0xFF2CB1BC),
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
@@ -141,6 +175,9 @@ class DoctorHomeScreen extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               fontSize: 22,
                               fontFamily: 'KurdishFont',
+                            ),
+                          ),
+                        ],
                             ),
                           ),
                         ],

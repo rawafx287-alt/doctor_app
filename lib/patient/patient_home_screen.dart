@@ -19,31 +19,27 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   String _selectedCategory = kPatientSpecialtyAllLabel;
 
-  /// Firestore: approved doctors; optional exact [specialty] when not “all”.
-  Stream<QuerySnapshot<Map<String, dynamic>>> _doctorsStream() {
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'Doctor')
-        .where('isApproved', isEqualTo: true);
+  /// Single subscription: all approved doctors (filter locally for category + search).
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _approvedDoctorsStream =
+      FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'Doctor')
+          .where('isApproved', isEqualTo: true)
+          .snapshots();
 
-    if (_selectedCategory != kPatientSpecialtyAllLabel) {
-      q = q.where('specialty', isEqualTo: _selectedCategory);
-    }
-
-    return q.snapshots();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  /// Search only (category is handled by [_doctorsStream]).
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterDocs(
+  /// Local filter: specialty chip, then name/specialty search.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyLocalFilters(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     var list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
+
+    if (_selectedCategory != kPatientSpecialtyAllLabel) {
+      list = list.where((d) {
+        final spec = (d.data()['specialty'] ?? '').toString().trim();
+        return spec == _selectedCategory;
+      }).toList();
+    }
+
     final q = _searchController.text.trim();
     if (q.isEmpty) return list;
     final lower = q.toLowerCase();
@@ -53,6 +49,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       final spec = (data['specialty'] ?? '').toString().toLowerCase();
       return name.contains(lower) || spec.contains(lower);
     }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _logout() async {
@@ -163,7 +165,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
                   itemCount: patientSpecialtyFilterCategories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     final cat = patientSpecialtyFilterCategories[index];
                     final selected = _selectedCategory == cat;
@@ -254,8 +256,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    key: ValueKey<String>(_selectedCategory),
-                    stream: _doctorsStream(),
+                    stream: _approvedDoctorsStream,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
@@ -278,15 +279,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         );
                       }
                       final docs = snapshot.data?.docs ?? [];
-                      final filtered = _filterDocs(docs);
+                      final filtered = _applyLocalFilters(docs);
                       if (filtered.isEmpty) {
                         return const Center(
-                          child: Text(
-                            'هیچ پزیشکێک نەدۆزرایەوە',
-                            style: TextStyle(
-                              color: Color(0xFF829AB1),
-                              fontFamily: 'KurdishFont',
-                              fontSize: 16,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              'هیچ پزیشکێک بەم ناوە نەدۆزرایەوە',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF829AB1),
+                                fontFamily: 'KurdishFont',
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         );
@@ -294,7 +299,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final doc = filtered[index];
                           final data = doc.data();
@@ -340,6 +345,10 @@ class _DoctorCard extends StatelessWidget {
   final String specialty;
   final VoidCallback onOpenDetails;
 
+  /// Standard doctor avatar (no Firebase Storage).
+  static const String _placeholderImageUrl =
+      'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
+
   static const TextStyle _labelStyle = TextStyle(
     color: Color(0xFF829AB1),
     fontSize: 12,
@@ -379,13 +388,23 @@ class _DoctorCard extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2CB1BC).withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(14),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF2CB1BC), width: 1.5),
                   ),
-                  child: const Icon(
-                    Icons.medical_services_rounded,
-                    color: Color(0xFF2CB1BC),
-                    size: 26,
+                  child: ClipOval(
+                    child: Image.network(
+                      _placeholderImageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: const Color(0xFF1D1E33),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.medical_services_rounded,
+                          color: Color(0xFF2CB1BC),
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),

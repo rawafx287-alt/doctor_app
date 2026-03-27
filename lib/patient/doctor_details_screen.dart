@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
@@ -35,6 +34,8 @@ class DoctorDetailsScreen extends StatefulWidget {
 }
 
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
+  static const String _placeholderImageUrl =
+      'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
   String? _selectedDayId;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -277,6 +278,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               ...widget.doctorData,
               if (snap.data?.data() != null) ...snap.data!.data()!,
             };
+            final mergedSpecialty = (merged['specialty'] ?? specialty).toString();
+            final profileImageUrl = (merged['profileImageUrl'] ?? '').toString().trim();
             final weekly = merged['weekly_schedule'];
             final scheduleDays = _parseSchedule(
               weekly is Map<String, dynamic> ? weekly : null,
@@ -307,16 +310,47 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.white10),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              child: Row(
+                                textDirection: kRtlTextDirection,
                                 children: [
-                                  Text(
-                                    'پسپۆڕی: $specialty',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      color: Color(0xFF829AB1),
-                                      fontSize: 15,
-                                      fontFamily: 'KurdishFont',
+                                  Container(
+                                    width: 62,
+                                    height: 62,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF2CB1BC),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: ClipOval(
+                                      child: Image.network(
+                                        profileImageUrl.isNotEmpty
+                                            ? profileImageUrl
+                                            : _placeholderImageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          color: const Color(0xFF1D1E33),
+                                          alignment: Alignment.center,
+                                          child: const Icon(
+                                            Icons.medical_services_rounded,
+                                            color: Color(0xFF2CB1BC),
+                                            size: 28,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      'پسپۆڕی: $mergedSpecialty',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        color: Color(0xFF829AB1),
+                                        fontSize: 15,
+                                        fontFamily: 'KurdishFont',
+                                      ),
                                     ),
                                   ),
                                 ],

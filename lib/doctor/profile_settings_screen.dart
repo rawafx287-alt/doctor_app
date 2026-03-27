@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../app_rtl.dart';
 import '../specialty_categories.dart';
@@ -22,7 +24,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isUploadingImage = false;
   String? _selectedSpecialty;
+  String _profileImageUrl = '';
+  static const String _placeholderImageUrl =
+      'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
   @override
   void initState() {
@@ -55,6 +61,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _fullNameController.text = (data['fullName'] ?? '').toString();
       final spec = (data['specialty'] ?? '').toString().trim();
       _selectedSpecialty = kDoctorSpecialtyOptions.contains(spec) ? spec : null;
+      _profileImageUrl = (data['profileImageUrl'] ?? '').toString().trim();
       _clinicAddressController.text = (data['clinicAddress'] ?? '').toString();
       _consultationFeeController.text = (data['consultationFee'] ?? '').toString();
       _phoneController.text = (data['phone'] ?? '').toString();
@@ -106,6 +113,128 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  /// Uploads to [profile_pictures/${uid}.jpg] and writes [profileImageUrl] in Firestore.
+  Future<void> _uploadProfileImageToFirebase(XFile file) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('بەکارهێنەر نەدۆزرایەوە')),
+      );
+      return;
+    }
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('${user.uid}.jpg');
+
+      await storageRef.putData(await file.readAsBytes());
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        {'profileImageUrl': downloadUrl},
+        SetOptions(merge: true),
+      );
+
+      if (!mounted) return;
+      setState(() => _profileImageUrl = downloadUrl);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'وێنەی پڕۆفایل بە سەرکەوتوویی بارکرا',
+            style: TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'هەڵە لە بارکردنی وێنە (${e.code})',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'هەڵە لە بارکردنی وێنە: $e',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1200,
+    );
+    if (picked == null) return;
+    await _uploadProfileImageToFirebase(picked);
+  }
+
+  Future<void> _showImageSourceSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1D1E33),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Directionality(
+          textDirection: kRtlTextDirection,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF2CB1BC)),
+                title: const Text(
+                  'گەلەری',
+                  style: TextStyle(
+                    fontFamily: 'KurdishFont',
+                    color: Color(0xFFD9E2EC),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2CB1BC)),
+                title: const Text(
+                  'کامێرا',
+                  style: TextStyle(
+                    fontFamily: 'KurdishFont',
+                    color: Color(0xFFD9E2EC),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -137,6 +266,73 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   key: _formKey,
                   child: Column(
                   children: [
+                    const SizedBox(height: 6),
+                    Center(
+                      child: SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: const Color(0xFF1D1E33),
+                              backgroundImage: NetworkImage(
+                                _profileImageUrl.isNotEmpty
+                                    ? _profileImageUrl
+                                    : _placeholderImageUrl,
+                              ),
+                              child: _profileImageUrl.isEmpty
+                                  ? const Icon(
+                                      Icons.medical_services_rounded,
+                                      color: Color(0xFF2CB1BC),
+                                      size: 30,
+                                    )
+                                  : null,
+                            ),
+                            if (_isUploadingImage)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(48),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF2CB1BC),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            PositionedDirectional(
+                              bottom: -2,
+                              end: -2,
+                              child: Material(
+                                color: const Color(0xFF2CB1BC),
+                                shape: const CircleBorder(),
+                                elevation: 2,
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: _isUploadingImage ? null : _showImageSourceSheet,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Icon(
+                                      _profileImageUrl.isEmpty
+                                          ? Icons.camera_alt_rounded
+                                          : Icons.edit_rounded,
+                                      color: const Color(0xFF102A43),
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     _field(
                       controller: _fullNameController,
                       label: 'ناو',
