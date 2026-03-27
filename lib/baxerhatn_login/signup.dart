@@ -105,13 +105,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'FIREBASE AUTH ERROR -> code: ${e.code}, message: ${e.message}, email: ${e.email}, credential: ${e.credential}',
       );
       String msg = 'هەڵەیەک ڕوویدا';
-      if (e.code == 'email-already-in-use')
+      if (e.code == 'email-already-in-use') {
         msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
+      }
       if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە هەڵەیە';
       if (e.code == 'weak-password') msg = 'وشەی نهێنی لاوازە (لانیکەم ٦ پیت)';
       if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
 
-      _showSnackBar(msg + " (${e.code})");
+      _showSnackBar("$msg (${e.code})");
     } on FirebaseException catch (e, stackTrace) {
       debugPrint(
         'FIREBASE GENERAL ERROR -> plugin: ${e.plugin}, code: ${e.code}, message: ${e.message}',

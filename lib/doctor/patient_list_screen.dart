@@ -76,7 +76,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       )
                     : ListView.separated(
                         itemCount: filteredPatients.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final patient = filteredPatients[index];
                           return _PatientCard(

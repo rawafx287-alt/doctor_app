@@ -231,7 +231,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _schedules.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final item = _schedules[index];
                   return Container(
@@ -269,7 +269,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             const SizedBox(width: 8),
                             Switch(
                               value: item.isAvailable,
-                              activeColor: const Color(0xFF2CB1BC),
+                              activeThumbColor: const Color(0xFF2CB1BC),
                               onChanged: (value) async {
                                 setState(() {
                                   _schedules[index] =
