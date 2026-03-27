@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'login.dart';
 import 'otp_verification.dart';
 
@@ -59,6 +60,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+
       // 1. دروستکردنی ئەکاونت لە Authentication
       final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -91,7 +96,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint('FIREBASE AUTH ERROR: ${e.code}');
+      debugPrint(
+        'FIREBASE AUTH ERROR -> code: ${e.code}, message: ${e.message}, email: ${e.email}, credential: ${e.credential}',
+      );
       String msg = 'هەڵەیەک ڕوویدا';
       if (e.code == 'email-already-in-use') msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
       if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە هەڵەیە';
@@ -99,8 +106,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
       
       _showSnackBar(msg + " (${e.code})");
+    } on FirebaseException catch (e, stackTrace) {
+      debugPrint(
+        'FIREBASE GENERAL ERROR -> plugin: ${e.plugin}, code: ${e.code}, message: ${e.message}',
+      );
+      debugPrint('FIREBASE STACKTRACE -> $stackTrace');
+      _showSnackBar('هەڵەی Firebase ڕوویدا (${e.code})');
     } catch (e) {
-      debugPrint('GENERAL ERROR: $e');
+      debugPrint('GENERAL ERROR TYPE: ${e.runtimeType}');
+      debugPrint('GENERAL ERROR VALUE: $e');
       _showSnackBar('هەڵەیەک ڕوویدا: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);

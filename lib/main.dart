@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-// هاوردەکردنی لاپەڕە نوێیەکان لە فۆڵدەری baxerhatn_login
-import 'baxerhatn_login/welcome.dart';
+import 'baxerhatn_login/login.dart';
 // هاوردەکردنی لاپەڕەکانی ناو فۆڵدەری nawarok
 import 'nawarok/listidoctorakan.dart';
 import 'nawarok/norakanimn.dart';
@@ -55,7 +54,7 @@ class DoctorApp extends StatelessWidget {
         ),
       ),
       // ئەپەکە لێرەوە دەستپێدەکات
-      home: const WelcomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }

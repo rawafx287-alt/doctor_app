@@ -5,6 +5,7 @@ import '../main.dart'; // بۆ ئەوەی دوای لۆگین بچێت بۆ شا
 import 'forgot_password.dart';
 import 'signup.dart';
 import '../admin_panel/admin_dashboard.dart';
+import '../doctor/doctor_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -175,38 +176,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final data = doc.data() ?? {};
       final role = (data['role'] ?? '').toString();
-      final isApproved = (data['isApproved'] ?? false) as bool;
+      final isApproved = data['isApproved'] == true;
 
       if (role == 'Doctor' && !isApproved) {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
-        await showDialog<void>(
-          context: context,
-          builder: (context) {
-            return Directionality(
-              textDirection: TextDirection.rtl,
-              child: AlertDialog(
-                backgroundColor: const Color(0xFF1D1E33),
-                title: const Text(
-                  'Account Pending Approval',
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: const Text(
-                  'ئەکاونتەکەت هێشتا لەلایەن بەڕێوەبەرەوە قبوڵ نەکراوە',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'باشە',
-                      style: TextStyle(color: Colors.blueAccent),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account pending approval')),
         );
         return;
       }
@@ -216,6 +192,12 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const AdminDashboard()),
+          (route) => false,
+        );
+      } else if (role == 'Doctor') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
           (route) => false,
         );
       } else {
