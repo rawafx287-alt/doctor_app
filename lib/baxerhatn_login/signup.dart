@@ -6,6 +6,7 @@ import 'login.dart';
 import 'otp_verification.dart';
 
 import '../app_rtl.dart';
+import '../specialty_categories.dart';
 
 enum UserRole { patient, doctor }
 
@@ -23,7 +24,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _specialtyController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _verificationCodeController = TextEditingController();
 
@@ -31,13 +31,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isObscured = true;
   String? _doctorCodeError;
   bool _isLoading = false;
+  /// Doctor specialty — must be one of [kDoctorSpecialtyOptions].
+  String? _doctorSpecialty;
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _specialtyController.dispose();
     _passwordController.dispose();
     _verificationCodeController.dispose();
     super.dispose();
@@ -81,7 +82,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'role': _isDoctor ? 'Doctor' : 'Patient',
-        'specialty': _isDoctor ? _specialtyController.text.trim() : '',
+        'specialty': _isDoctor ? (_doctorSpecialty ?? '').trim() : '',
         'isApproved': _isDoctor ? false : true,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -188,7 +189,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 15),
                 _buildTextField(_phoneController, 'ژمارەی تەلەفۆن', Icons.phone_android, keyboardType: TextInputType.phone),
                 const SizedBox(height: 15),
-                _buildTextField(_specialtyController, _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (ئارەزوومەندانە)', Icons.local_hospital),
+                if (_isDoctor) ...[
+                  KurdishDoctorSpecialtyDropdown(
+                    value: _doctorSpecialty,
+                    accentColor: Colors.blueAccent,
+                    onChanged: (v) => setState(() => _doctorSpecialty = v),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'پسپۆڕی هەڵبژێرە لە لیستەکە' : null,
+                  ),
+                ],
                 const SizedBox(height: 15),
                 _buildTextField(_passwordController, 'وشەی نهێنی', Icons.lock_outline, isPassword: true),
                 
@@ -221,7 +230,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildRoleTile(String label, UserRole role, IconData icon) {
     bool isSelected = _selectedRole == role;
     return InkWell(
-      onTap: () => setState(() => _selectedRole = role),
+      onTap: () => setState(() {
+        _selectedRole = role;
+        if (role == UserRole.patient) _doctorSpecialty = null;
+      }),
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../app_rtl.dart';
+import '../specialty_categories.dart';
 
 class AddDoctorScreen extends StatefulWidget {
   const AddDoctorScreen({super.key});
@@ -13,7 +14,7 @@ class AddDoctorScreen extends StatefulWidget {
 class _AddDoctorScreenState extends State<AddDoctorScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
-  final _specialty = TextEditingController();
+  String? _selectedSpecialty;
   final _clinicLocation = TextEditingController();
   final _phone = TextEditingController();
   final _hours = TextEditingController();
@@ -21,7 +22,6 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
   @override
   void dispose() {
     _name.dispose();
-    _specialty.dispose();
     _clinicLocation.dispose();
     _phone.dispose();
     _hours.dispose();
@@ -36,7 +36,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
     try {
       await FirebaseFirestore.instance.collection('users').add({
         'fullName': _name.text.trim(),
-        'specialty': _specialty.text.trim(),
+        'specialty': (_selectedSpecialty ?? '').trim(),
         'clinicLocation': _clinicLocation.text.trim(),
         'phone': _phone.text.trim(),
         'workingHours': _hours.text.trim(),
@@ -51,7 +51,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
       );
       _formKey.currentState?.reset();
       _name.clear();
-      _specialty.clear();
+      setState(() => _selectedSpecialty = null);
       _clinicLocation.clear();
       _phone.clear();
       _hours.clear();
@@ -95,10 +95,12 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
                   icon: Icons.person_outline_rounded,
                 ),
                 const SizedBox(height: 12),
-                _field(
-                  controller: _specialty,
-                  label: 'پسپۆڕی (وەک: دڵ، منداڵان)',
-                  icon: Icons.local_hospital_outlined,
+                KurdishDoctorSpecialtyDropdown(
+                  value: _selectedSpecialty,
+                  accentColor: Colors.blueAccent,
+                  onChanged: (v) => setState(() => _selectedSpecialty = v),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'پسپۆڕی هەڵبژێرە لە لیستەکە' : null,
                 ),
                 const SizedBox(height: 12),
                 _field(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
 import '../baxerhatn_login/login.dart';
+import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
@@ -15,15 +16,22 @@ class PatientHomeScreen extends StatefulWidget {
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'هەموو';
 
-  static const List<String> _categories = [
-    'هەموو',
-    'دڵ',
-    'چاو',
-    'ددان',
-    'منداڵان',
-  ];
+  String _selectedCategory = kPatientSpecialtyAllLabel;
+
+  /// Firestore: approved doctors; optional exact [specialty] when not “all”.
+  Stream<QuerySnapshot<Map<String, dynamic>>> _doctorsStream() {
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'Doctor')
+        .where('isApproved', isEqualTo: true);
+
+    if (_selectedCategory != kPatientSpecialtyAllLabel) {
+      q = q.where('specialty', isEqualTo: _selectedCategory);
+    }
+
+    return q.snapshots();
+  }
 
   @override
   void dispose() {
@@ -31,27 +39,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     super.dispose();
   }
 
+  /// Search only (category is handled by [_doctorsStream]).
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     var list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
     final q = _searchController.text.trim();
-    if (q.isNotEmpty) {
-      final lower = q.toLowerCase();
-      list = list.where((d) {
-        final data = d.data();
-        final name = (data['fullName'] ?? '').toString().toLowerCase();
-        final spec = (data['specialty'] ?? '').toString().toLowerCase();
-        return name.contains(lower) || spec.contains(lower);
-      }).toList();
-    }
-    if (_selectedCategory != 'هەموو') {
-      list = list.where((d) {
-        final spec = (d.data()['specialty'] ?? '').toString();
-        return spec.contains(_selectedCategory);
-      }).toList();
-    }
-    return list;
+    if (q.isEmpty) return list;
+    final lower = q.toLowerCase();
+    return list.where((d) {
+      final data = d.data();
+      final name = (data['fullName'] ?? '').toString().toLowerCase();
+      final spec = (data['specialty'] ?? '').toString().toLowerCase();
+      return name.contains(lower) || spec.contains(lower);
+    }).toList();
   }
 
   Future<void> _logout() async {
@@ -157,30 +158,61 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               ),
               const SizedBox(height: 14),
               SizedBox(
-                height: 44,
+                height: 48,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  itemCount: _categories.length,
+                  itemCount: patientSpecialtyFilterCategories.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
-                    final cat = _categories[index];
+                    final cat = patientSpecialtyFilterCategories[index];
                     final selected = _selectedCategory == cat;
-                    return ChoiceChip(
-                      label: Text(
-                        cat,
-                        style: TextStyle(
-                          fontFamily: 'KurdishFont',
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                          color: selected ? const Color(0xFF102A43) : const Color(0xFFD9E2EC),
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedCategory = cat),
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF2CB1BC).withOpacity(0.22)
+                                : const Color(0xFF1D1E33),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected ? const Color(0xFF2CB1BC) : Colors.white24,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            textDirection: kRtlTextDirection,
+                            children: [
+                              Icon(
+                                iconForSpecialtyCategory(cat),
+                                size: 20,
+                                color: selected
+                                    ? const Color(0xFF2CB1BC)
+                                    : const Color(0xFF829AB1),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                cat,
+                                style: TextStyle(
+                                  fontFamily: 'KurdishFont',
+                                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                                  fontSize: 14,
+                                  color: selected
+                                      ? const Color(0xFFD9E2EC)
+                                      : const Color(0xFF829AB1),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
-                      selectedColor: const Color(0xFF2CB1BC),
-                      backgroundColor: const Color(0xFF1D1E33),
-                      side: BorderSide(color: selected ? const Color(0xFF2CB1BC) : Colors.white24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     );
                   },
                 ),
@@ -217,75 +249,76 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               ),
               const SizedBox(height: 8),
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      // تەنها پزیشکە ڕەسەنەکراوەکان (قبوڵکراون لەلایەن بەڕێوەبەر)
-                      .where('role', isEqualTo: 'Doctor')
-                      .where('isApproved', isEqualTo: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
-                      );
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'هەڵە لە بارکردنی لیست (${snapshot.error})',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontFamily: 'KurdishFont',
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    key: ValueKey<String>(_selectedCategory),
+                    stream: _doctorsStream(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Color(0xFF2CB1BC)),
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'هەڵە لە بارکردنی لیست (${snapshot.error})',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontFamily: 'KurdishFont',
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }
-                    final docs = snapshot.data?.docs ?? [];
-                    final filtered = _filterDocs(docs);
-                    if (filtered.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'هیچ پزیشکێک نەدۆزرایەوە',
-                          style: TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
-                            fontSize: 16,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final doc = filtered[index];
-                        final data = doc.data();
-                        final name = (data['fullName'] ?? '—').toString();
-                        final specialty = (data['specialty'] ?? '—').toString();
-                        return _DoctorCard(
-                          name: name,
-                          specialty: specialty,
-                          onOpenDetails: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DoctorDetailsScreen(
-                                  doctorId: doc.id,
-                                  doctorData: Map<String, dynamic>.from(data),
-                                ),
-                              ),
-                            );
-                          },
                         );
-                      },
-                    );
-                  },
+                      }
+                      final docs = snapshot.data?.docs ?? [];
+                      final filtered = _filterDocs(docs);
+                      if (filtered.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'هیچ پزیشکێک نەدۆزرایەوە',
+                            style: TextStyle(
+                              color: Color(0xFF829AB1),
+                              fontFamily: 'KurdishFont',
+                              fontSize: 16,
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final doc = filtered[index];
+                          final data = doc.data();
+                          final name = (data['fullName'] ?? '—').toString();
+                          final specialty = (data['specialty'] ?? '—').toString();
+                          return _DoctorCard(
+                            name: name,
+                            specialty: specialty,
+                            onOpenDetails: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DoctorDetailsScreen(
+                                    doctorId: doc.id,
+                                    doctorData: Map<String, dynamic>.from(data),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

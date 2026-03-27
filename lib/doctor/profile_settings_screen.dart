@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../app_rtl.dart';
+import '../specialty_categories.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -12,6 +13,7 @@ class ProfileSettingsScreen extends StatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _clinicAddressController = TextEditingController();
   final TextEditingController _consultationFeeController = TextEditingController();
@@ -20,6 +22,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _selectedSpecialty;
 
   @override
   void initState() {
@@ -50,6 +53,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       final data = doc.data() ?? <String, dynamic>{};
 
       _fullNameController.text = (data['fullName'] ?? '').toString();
+      final spec = (data['specialty'] ?? '').toString().trim();
+      _selectedSpecialty = kDoctorSpecialtyOptions.contains(spec) ? spec : null;
       _clinicAddressController.text = (data['clinicAddress'] ?? '').toString();
       _consultationFeeController.text = (data['consultationFee'] ?? '').toString();
       _phoneController.text = (data['phone'] ?? '').toString();
@@ -74,10 +79,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       return;
     }
 
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
     setState(() => _isSaving = true);
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'fullName': _fullNameController.text.trim(),
+        'specialty': (_selectedSpecialty ?? '').trim(),
         'clinicAddress': _clinicAddressController.text.trim(),
         'consultationFee': _consultationFeeController.text.trim(),
         'phone': _phoneController.text.trim(),
@@ -125,12 +133,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             ? const Center(child: CircularProgressIndicator(color: Color(0xFF2CB1BC)))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: Column(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
                   children: [
                     _field(
                       controller: _fullNameController,
                       label: 'ناو',
                       icon: Icons.person_rounded,
+                    ),
+                    const SizedBox(height: 12),
+                    KurdishDoctorSpecialtyDropdown(
+                      dense: true,
+                      value: _selectedSpecialty,
+                      onChanged: (v) => setState(() => _selectedSpecialty = v),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'پسپۆڕی هەڵبژێرە لە لیستەکە' : null,
                     ),
                     const SizedBox(height: 12),
                     _field(
@@ -186,6 +204,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             ),
                     ),
                   ],
+                ),
                 ),
               ),
       ),
