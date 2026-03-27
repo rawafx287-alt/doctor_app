@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 // هاوردەکردنی لاپەڕە نوێیەکان لە فۆڵدەری baxerhatn_login
 import 'baxerhatn_login/welcome.dart';
-import 'baxerhatn_login/login.dart';
 // هاوردەکردنی لاپەڕەکانی ناو فۆڵدەری nawarok
 import 'nawarok/listidoctorakan.dart';
 import 'nawarok/norakanimn.dart';
