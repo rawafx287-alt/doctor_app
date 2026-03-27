@@ -1,6 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
 import 'package:intl/intl.dart';
 
 import '../app_rtl.dart';
@@ -60,8 +64,8 @@ class _DaysRemainingStyle {
     if (diff == 0) {
       return const _DaysRemainingStyle(
         label: 'ئەمڕۆ',
-        foreground: Color(0xFF42A5F5),
-        background: Color(0x332CB1BC),
+        foreground: Color(0xFF1565C0),
+        background: Color(0x331565C0),
       );
     }
     if (diff == 1) {
@@ -73,8 +77,423 @@ class _DaysRemainingStyle {
     }
     return _DaysRemainingStyle(
       label: '$diff ڕۆژی ماوە',
-      foreground: const Color(0xFF4FC3F7),
-      background: const Color(0x334FC3F7),
+      foreground: const Color(0xFF1976D2),
+      background: const Color(0x331976D2),
+    );
+  }
+}
+
+/// Horizontal dashed line with side "punch" holes (ticket perforation).
+class _TicketTearRow extends StatelessWidget {
+  const _TicketTearRow({required this.holeColor});
+
+  final Color holeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 22,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(double.infinity, 22),
+            painter: _DashedLinePainter(color: const Color(0xFFB0BEC5)),
+          ),
+          PositionedDirectional(
+            start: -11,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: holeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          PositionedDirectional(
+            end: -11,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: holeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  _DashedLinePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    const dash = 5.0;
+    const gap = 4.0;
+    double x = 16;
+    final y = size.height / 2;
+    while (x < size.width - 16) {
+      canvas.drawLine(Offset(x, y), Offset(x + dash, y), paint);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Digital ticket card with save-to-gallery.
+class _DigitalTicketCard extends StatefulWidget {
+  const _DigitalTicketCard({
+    required this.doctorName,
+    required this.patientName,
+    required this.dateStr,
+    required this.timeStr,
+    required this.status,
+    required this.queueLabel,
+    required this.daysStyle,
+    required this.holeColor,
+  });
+
+  final String doctorName;
+  final String patientName;
+  final String dateStr;
+  final String timeStr;
+  final String status;
+  final String queueLabel;
+  final _DaysRemainingStyle? daysStyle;
+  final Color holeColor;
+
+  @override
+  State<_DigitalTicketCard> createState() => _DigitalTicketCardState();
+}
+
+class _DigitalTicketCardState extends State<_DigitalTicketCard> {
+  final GlobalKey _repaintKey = GlobalKey();
+
+  static const Color _ticketBg = Color(0xFFF5F7FA);
+  static const Color _ticketBorder = Color(0xFFE2E8F0);
+
+  (Color bg, Color fg, String label) get _badge {
+    final s = widget.status.toLowerCase();
+    if (s == 'completed') {
+      return (
+        const Color(0xFFE8F5E9),
+        const Color(0xFF2E7D32),
+        'تەواو',
+      );
+    }
+    if (s == 'cancelled' || s == 'canceled') {
+      return (
+        const Color(0xFFFFEBEE),
+        const Color(0xFFC62828),
+        'هەڵوەشاوە',
+      );
+    }
+    return (
+      const Color(0xFFFFF8E1),
+      const Color(0xFFF57F17),
+      'چاوەڕوان',
+    );
+  }
+
+  Future<void> _saveImage() async {
+    final boundary =
+        _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null || !boundary.hasSize) return;
+
+    final dpr = MediaQuery.devicePixelRatioOf(context).clamp(2.0, 3.5);
+
+    try {
+      final allowed = await Gal.hasAccess();
+      if (!allowed) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'پێویستە مۆڵەتی گەلەری بدەیت',
+                style: TextStyle(fontFamily: 'KurdishFont'),
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      final image = await boundary.toImage(pixelRatio: dpr);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      await Gal.putImageBytes(
+        byteData.buffer.asUint8List(),
+        name: 'HR_Nora_ticket_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'پاشەکەوت کرا لە گەلەری',
+            style: TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    } on GalException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'هەڵە: ${e.type}',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'هەڵە لە پاشەکەوتکردن',
+            style: TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = _badge;
+
+    return RepaintBoundary(
+      key: _repaintKey,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: _ticketBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _ticketBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 44, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          textDirection: kRtlTextDirection,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'HR Nora',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      color: Colors.blueGrey.shade700,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    widget.doctorName,
+                                    textAlign: TextAlign.right,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1A237E),
+                                      fontFamily: 'KurdishFont',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 17,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badge.$1,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: badge.$2.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Text(
+                                badge.$3,
+                                style: TextStyle(
+                                  color: badge.$2,
+                                  fontFamily: 'KurdishFont',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _TicketTearRow(holeColor: widget.holeColor),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    child: Center(
+                      child: Text(
+                        widget.queueLabel,
+                        style: TextStyle(
+                          color: Colors.blueGrey.shade900,
+                          fontSize: 44,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _TicketTearRow(holeColor: widget.holeColor),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'بەروار: ${widget.dateStr}',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.blueGrey.shade800,
+                            fontFamily: 'KurdishFont',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'کات: ${widget.timeStr}',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.blueGrey.shade800,
+                            fontFamily: 'KurdishFont',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'نەخۆش: ${widget.patientName}',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF0D47A1),
+                            fontFamily: 'KurdishFont',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (widget.daysStyle != null) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: widget.daysStyle!.background,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: widget.daysStyle!.foreground
+                                      .withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Text(
+                                widget.daysStyle!.label,
+                                style: TextStyle(
+                                  color: widget.daysStyle!.foreground,
+                                  fontFamily: 'KurdishFont',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              PositionedDirectional(
+                top: 6,
+                end: 4,
+                child: Material(
+                  color: Colors.transparent,
+                  child: IconButton(
+                    tooltip: 'پاشەکەوت وەک وێنە',
+                    onPressed: _saveImage,
+                    icon: Icon(
+                      Icons.download_rounded,
+                      color: Colors.blueGrey.shade600,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -87,10 +506,21 @@ class PatientAppointmentsScreen extends StatelessWidget {
   final bool embedded;
 
   static const Color _bg = Color(0xFF0A0E21);
-  static const Color _card = Color(0xFF1D1E33);
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
+
+  String _queueLabel(Map<String, dynamic> data, int fallbackIndex) {
+    final q = data['queueNumber'];
+    if (q is int && q > 0) {
+      return '#${q.toString().padLeft(2, '0')}';
+    }
+    if (q is num && q > 0) {
+      return '#${q.toInt().toString().padLeft(2, '0')}';
+    }
+    final h = (fallbackIndex + 1).toString().padLeft(2, '0');
+    return '#$h';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +551,10 @@ class PatientAppointmentsScreen extends StatelessWidget {
                     child: Text(
                       'هەڵە (${snapshot.error})',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.redAccent, fontFamily: 'KurdishFont'),
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontFamily: 'KurdishFont',
+                      ),
                     ),
                   ),
                 );
@@ -163,12 +596,15 @@ class PatientAppointmentsScreen extends StatelessWidget {
               }
 
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
                 itemCount: sorted.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final data = sorted[index].data();
-                  final doctorName = (data['doctorName'] ?? data['doctorId'] ?? '—').toString();
+                  final doctorName =
+                      (data['doctorName'] ?? data['doctorId'] ?? '—').toString();
+                  final patientName =
+                      (data['patientName'] ?? '—').toString();
                   final status = (data['status'] ?? 'pending').toString();
                   final timeStr = (data['time'] ?? '—').toString();
                   final rawDate = data['date'];
@@ -182,112 +618,16 @@ class PatientAppointmentsScreen extends StatelessWidget {
                   final daysStyle = parsedDay != null
                       ? _DaysRemainingStyle.fromAppointmentDay(parsedDay)
                       : null;
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          textDirection: kRtlTextDirection,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _teal.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                status == 'pending'
-                                    ? 'چاوەڕوان'
-                                    : status == 'completed'
-                                        ? 'تەواو'
-                                        : status,
-                                style: const TextStyle(
-                                  color: _teal,
-                                  fontFamily: 'KurdishFont',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            const Icon(Icons.medical_services_rounded, color: _teal, size: 22),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          doctorName,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: _text,
-                            fontFamily: 'KurdishFont',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          textDirection: kRtlTextDirection,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    'بەروار: $dateStr',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      color: _muted,
-                                      fontFamily: 'KurdishFont',
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Text(
-                                    'کات: $timeStr',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      color: _muted,
-                                      fontFamily: 'KurdishFont',
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (daysStyle != null) ...[
-                              const SizedBox(width: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: daysStyle.background,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: daysStyle.foreground.withValues(alpha: 0.45),
-                                  ),
-                                ),
-                                child: Text(
-                                  daysStyle.label,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: daysStyle.foreground,
-                                    fontFamily: 'KurdishFont',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
+
+                  return _DigitalTicketCard(
+                    doctorName: doctorName,
+                    patientName: patientName,
+                    dateStr: dateStr,
+                    timeStr: timeStr,
+                    status: status,
+                    queueLabel: _queueLabel(data, index),
+                    daysStyle: daysStyle,
+                    holeColor: _bg,
                   );
                 },
               );

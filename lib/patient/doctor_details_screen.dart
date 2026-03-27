@@ -235,6 +235,23 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         doctorNameToSave = 'پزیشک';
       }
 
+      var queueNumber = 1;
+      try {
+        final d = _selectedDate!;
+        final start = DateTime(d.year, d.month, d.day);
+        final end = start.add(const Duration(days: 1));
+        final countAgg = await FirebaseFirestore.instance
+            .collection('appointments')
+            .where('doctorId', isEqualTo: widget.doctorId)
+            .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+            .where('date', isLessThan: Timestamp.fromDate(end))
+            .count()
+            .get();
+        queueNumber = (countAgg.count ?? 0) + 1;
+      } catch (_) {
+        queueNumber = (DateTime.now().millisecondsSinceEpoch % 90) + 10;
+      }
+
       await FirebaseFirestore.instance.collection('appointments').add({
         'patientId': uid,
         'doctorId': widget.doctorId,
@@ -243,6 +260,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         'date': Timestamp.fromDate(_selectedDate!),
         'time': timeStr,
         'status': 'pending',
+        'queueNumber': queueNumber,
         'createdAt': FieldValue.serverTimestamp(),
       });
 

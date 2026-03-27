@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ئەم بەرنامەیە پێویستی بە دەستیگەیشتن بە گەلەری هەیە بۆ بارکردنی وێنەی پڕۆفایل.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>پاشەکەوتی تیکەتی نۆرە و وێنەکان بۆ گەلەری.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>ئەم بەرنامەیە پێویستی بە کامێرایە بۆ وەرگرتنی وێنەی پڕۆفایل.</string>
 	<key>UIApplicationSceneManifest</key>
