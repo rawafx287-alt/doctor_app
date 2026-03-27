@@ -23,7 +23,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _specialtyController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _verificationCodeController = TextEditingController();
+  final TextEditingController _verificationCodeController =
+      TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
   bool _isObscured = true;
@@ -47,7 +48,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final isFormValid = _formKey.currentState?.validate() ?? false;
     if (!isFormValid) return;
 
-    if (_isDoctor && _verificationCodeController.text.trim() != _doctorActivationCode) {
+    if (_isDoctor &&
+        _verificationCodeController.text.trim() != _doctorActivationCode) {
       setState(() {
         _doctorCodeError = 'کۆدەکە هەڵەیە، پەیوەندی بە بەڕێوەبەر بکە';
       });
@@ -65,10 +67,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
 
       // 1. دروستکردنی ئەکاونت لە Authentication
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
       final uid = userCredential.user?.uid;
       if (uid == null) throw Exception('User ID is null');
@@ -92,45 +95,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const OtpVerificationScreen()),
+          MaterialPageRoute(
+            builder: (context) => const OtpVerificationScreen(),
+          ),
         );
       }
-<<<<<<< HEAD
-    } on FirebaseAuthException catch (e, st) {
-      debugPrint('SIGNUP FirebaseAuthException code: ${e.code}');
-      debugPrint('SIGNUP FirebaseAuthException message: ${e.message}');
-      debugPrint('SIGNUP FirebaseAuthException stack: $st');
-
-=======
     } on FirebaseAuthException catch (e) {
       debugPrint(
         'FIREBASE AUTH ERROR -> code: ${e.code}, message: ${e.message}, email: ${e.email}, credential: ${e.credential}',
       );
->>>>>>> a43deba0fdfd23f80b58dcf9207d160d9c6f9173
       String msg = 'هەڵەیەک ڕوویدا';
-      if (e.code == 'email-already-in-use') msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
+      if (e.code == 'email-already-in-use')
+        msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
       if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە هەڵەیە';
       if (e.code == 'weak-password') msg = 'وشەی نهێنی لاوازە (لانیکەم ٦ پیت)';
       if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
-<<<<<<< HEAD
-      if (e.code == 'operation-not-allowed') msg = 'ئەم جۆرە چوونەژوورەوە چالاک نییە (لە Firebase Console چالاکی بکە)';
-      if (e.code == 'too-many-requests') msg = 'زۆر هەوڵت داوە، دوای کەمێک دووبارە هەوڵ بدەرەوە';
 
-      final extra = (e.message == null || e.message!.isEmpty) ? '' : ' - ${e.message}';
-      _showSnackBar('$msg (${e.code})$extra');
-    } on FirebaseException catch (e, st) {
-      debugPrint('SIGNUP FirebaseException plugin: ${e.plugin}');
-      debugPrint('SIGNUP FirebaseException code: ${e.code}');
-      debugPrint('SIGNUP FirebaseException message: ${e.message}');
-      debugPrint('SIGNUP FirebaseException stack: $st');
-
-      final extra = (e.message == null || e.message!.isEmpty) ? '' : ' - ${e.message}';
-      _showSnackBar('هەڵەیەکی فایەربەیس ڕوویدا (${e.code})$extra');
-    } catch (e, st) {
-      debugPrint('SIGNUP GENERAL ERROR: $e');
-      debugPrint('SIGNUP GENERAL STACK: $st');
-=======
-      
       _showSnackBar(msg + " (${e.code})");
     } on FirebaseException catch (e, stackTrace) {
       debugPrint(
@@ -141,7 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       debugPrint('GENERAL ERROR TYPE: ${e.runtimeType}');
       debugPrint('GENERAL ERROR VALUE: $e');
->>>>>>> a43deba0fdfd23f80b58dcf9207d160d9c6f9173
+
       _showSnackBar('هەڵەیەک ڕوویدا: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -150,7 +130,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(fontFamily: 'KurdishFont'))),
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: 'KurdishFont'),
+        ),
+      ),
     );
   }
 
@@ -161,8 +146,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1D1E33),
-          title: const Text('سەرکەوتوو بوو', style: TextStyle(color: Colors.white)),
-          content: const Text('داواکارییەکەت نێردرا. چاوەڕێی قبوڵکردنی بەڕێوەبەر بە.', style: TextStyle(color: Colors.grey)),
+          title: const Text(
+            'سەرکەوتوو بوو',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'داواکارییەکەت نێردرا. چاوەڕێی قبوڵکردنی بەڕێوەبەر بە.',
+            style: TextStyle(color: Colors.grey),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -194,33 +185,83 @@ class _SignUpScreenState extends State<SignUpScreen> {
             key: _formKey,
             child: Column(
               children: [
-                const Text('دروستکردنی هەژمار', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text(
+                  'دروستکردنی هەژمار',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 30),
-                
+
                 // Role Selection
                 Row(
                   children: [
-                    Expanded(child: _buildRoleTile('نەخۆش', UserRole.patient, Icons.person)),
+                    Expanded(
+                      child: _buildRoleTile(
+                        'نەخۆش',
+                        UserRole.patient,
+                        Icons.person,
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildRoleTile('پزیشک', UserRole.doctor, Icons.medical_services)),
+                    Expanded(
+                      child: _buildRoleTile(
+                        'پزیشک',
+                        UserRole.doctor,
+                        Icons.medical_services,
+                      ),
+                    ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                _buildTextField(_fullNameController, 'ناوی تەواو', Icons.person_outline),
+                _buildTextField(
+                  _fullNameController,
+                  'ناوی تەواو',
+                  Icons.person_outline,
+                ),
                 const SizedBox(height: 15),
-                _buildTextField(_emailController, 'ئیمەیڵ', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                _buildTextField(
+                  _emailController,
+                  'ئیمەیڵ',
+                  Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
                 const SizedBox(height: 15),
-                _buildTextField(_phoneController, 'ژمارەی تەلەفۆن', Icons.phone_android, keyboardType: TextInputType.phone),
+                _buildTextField(
+                  _phoneController,
+                  'ژمارەی تەلەفۆن',
+                  Icons.phone_android,
+                  keyboardType: TextInputType.phone,
+                ),
                 const SizedBox(height: 15),
-                _buildTextField(_specialtyController, _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (ئارەزوومەندانە)', Icons.local_hospital),
+                _buildTextField(
+                  _specialtyController,
+                  _isDoctor ? 'پسپۆڕی' : 'پسپۆڕی (ئارەزوومەندانە)',
+                  Icons.local_hospital,
+                ),
                 const SizedBox(height: 15),
-                _buildTextField(_passwordController, 'وشەی نهێنی', Icons.lock_outline, isPassword: true),
-                
+                _buildTextField(
+                  _passwordController,
+                  'وشەی نهێنی',
+                  Icons.lock_outline,
+                  isPassword: true,
+                ),
+
                 if (_isDoctor) ...[
                   const SizedBox(height: 15),
-                  _buildTextField(_verificationCodeController, 'کۆدی چالاککردن', Icons.verified_user),
-                  if (_doctorCodeError != null) Text(_doctorCodeError!, style: const TextStyle(color: Colors.red)),
+                  _buildTextField(
+                    _verificationCodeController,
+                    'کۆدی چالاککردن',
+                    Icons.verified_user,
+                  ),
+                  if (_doctorCodeError != null)
+                    Text(
+                      _doctorCodeError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                 ],
 
                 const SizedBox(height: 30),
@@ -228,12 +269,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     minimumSize: const Size(double.infinity, 55),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                   ),
                   onPressed: _isLoading ? null : _onSignUpPressed,
-                  child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('تۆماربوون', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'تۆماربوون',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                 ),
               ],
             ),
@@ -252,21 +298,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF1D1E33),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : Colors.white10,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: isSelected ? Colors.blueAccent : Colors.grey),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: isSelected ? Colors.blueAccent : Colors.white)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.blueAccent : Colors.white,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && _isObscured,
@@ -278,13 +337,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
         prefixIcon: Icon(icon, color: Colors.blueAccent),
         filled: true,
         fillColor: const Color(0xFF1D1E33),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        suffixIcon: isPassword ? IconButton(
-          icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-          onPressed: () => setState(() => _isObscured = !_isObscured),
-        ) : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _isObscured ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey,
+                ),
+                onPressed: () => setState(() => _isObscured = !_isObscured),
+              )
+            : null,
       ),
-      validator: (value) => value == null || value.isEmpty ? 'ئەم خانەیە پڕ بکەرەوە' : null,
+      validator: (value) =>
+          value == null || value.isEmpty ? 'ئەم خانەیە پڕ بکەرەوە' : null,
     );
   }
 }
