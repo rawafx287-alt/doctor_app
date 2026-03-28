@@ -24,6 +24,20 @@ String _dayCountKey(DateTime d) =>
     scheduleDateOverrideKey(DateTime(d.year, d.month, d.day));
 
 /// Active (non-cancelled) appointment counts per calendar day for the doctor.
+List<QueryDocumentSnapshot<Map<String, dynamic>>> _activeAppointmentsSortedForDay(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final active = docs.where((d) {
+    final st =
+        (d.data()[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+    return st != 'cancelled';
+  }).toList()
+    ..sort(
+      (a, b) => _appointmentSortMinutes(a.data()).compareTo(_appointmentSortMinutes(b.data())),
+    );
+  return active;
+}
+
 Map<String, int> _appointmentCountsByDay(
   Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
 ) {
@@ -300,34 +314,58 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Material(
-                  color: Colors.transparent,
-                  child: TabBar(
-                    labelColor: const Color(0xFF42A5F5),
-                    unselectedLabelColor: const Color(0xFF829AB1),
-                    indicatorColor: const Color(0xFF42A5F5),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.white12,
-                    labelStyle: const TextStyle(
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    tabs: [
-                      Tab(text: s.translate('schedule_sheet_tab_settings')),
-                      Tab(text: s.translate('schedule_sheet_tab_patients')),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: tabBodyHeight,
-                  child: TabBarView(
-                    children: [
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: appointmentsForDoctorDateRange(
+                    doctorUserId: uid,
+                    rangeStartInclusiveLocal:
+                        DateTime(day.year, day.month, day.day),
+                    rangeEndExclusiveLocal:
+                        DateTime(day.year, day.month, day.day)
+                            .add(const Duration(days: 1)),
+                  ).snapshots(),
+                  builder: (ctx, apptSnap) {
+                    final patientsLabel = s.translate('schedule_sheet_tab_patients');
+                    final String patientsTabText;
+                    if (apptSnap.hasData) {
+                      final n = _activeAppointmentsSortedForDay(apptSnap.data!.docs).length;
+                      patientsTabText = '$patientsLabel ($n)';
+                    } else if (apptSnap.connectionState == ConnectionState.waiting) {
+                      patientsTabText = patientsLabel;
+                    } else {
+                      patientsTabText = '$patientsLabel (0)';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Material(
+                          color: Colors.transparent,
+                          child: TabBar(
+                            labelColor: const Color(0xFF42A5F5),
+                            unselectedLabelColor: const Color(0xFF829AB1),
+                            indicatorColor: const Color(0xFF42A5F5),
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.white12,
+                            labelStyle: const TextStyle(
+                              fontFamily: 'KurdishFont',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                            unselectedLabelStyle: const TextStyle(
+                              fontFamily: 'KurdishFont',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                            tabs: [
+                              Tab(text: s.translate('schedule_sheet_tab_settings')),
+                              Tab(text: patientsTabText),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          height: tabBodyHeight,
+                          child: TabBarView(
+                            children: [
                       StatefulBuilder(
                         builder: (context, setModal) {
                           return SingleChildScrollView(
@@ -546,9 +584,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           );
                         },
                       ),
-                      _ScheduleSheetPatientsTab(doctorId: uid, day: day),
-                    ],
-                  ),
+                      _ScheduleSheetPatientsTab(
+                        appointmentsSnapshot: apptSnap,
+                      ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -938,109 +982,90 @@ String _patientFullNameFromProfile(
 }
 
 /// Patient appointments for a single day (Schedule Management bottom sheet — tab 2).
+/// Uses [appointmentsSnapshot] from the parent [StreamBuilder] so the tab label and list share one stream.
 class _ScheduleSheetPatientsTab extends StatelessWidget {
   const _ScheduleSheetPatientsTab({
-    required this.doctorId,
-    required this.day,
+    required this.appointmentsSnapshot,
   });
 
-  final String doctorId;
-  final DateTime day;
+  final AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> appointmentsSnapshot;
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final dayStart = DateTime(day.year, day.month, day.day);
-    final dayEnd = dayStart.add(const Duration(days: 1));
+    final snapshot = appointmentsSnapshot;
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: appointmentsForDoctorDateRange(
-        doctorUserId: doctorId,
-        rangeStartInclusiveLocal: dayStart,
-        rangeEndExclusiveLocal: dayEnd,
-      ).snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '${snapshot.error}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.redAccent,
-                  fontFamily: 'KurdishFont',
-                  fontSize: 12,
-                ),
-              ),
+    if (snapshot.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            '${snapshot.error}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontFamily: 'KurdishFont',
+              fontSize: 12,
             ),
-          );
-        }
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          ),
+        ),
+      );
+    }
+    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+      );
+    }
+
+    final docs = snapshot.data?.docs ?? [];
+    final active = _activeAppointmentsSortedForDay(docs);
+
+    if (active.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            s.translate('schedule_sheet_no_appointments_day'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF829AB1),
+              fontFamily: 'KurdishFont',
+              fontSize: 14,
+              height: 1.35,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final patientIds = active
+        .map((e) => (e.data()[AppointmentFields.patientId] ?? '').toString().trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    return FutureBuilder<Map<String, Map<String, dynamic>>>(
+      key: ValueKey('${active.map((e) => e.id).join('|')}|$patientIds'),
+      future: _fetchPatientUserMaps(patientIds),
+      builder: (context, profileSnap) {
+        if (profileSnap.connectionState == ConnectionState.waiting && !profileSnap.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
           );
         }
+        final profiles = profileSnap.data ?? {};
 
-        final docs = snapshot.data?.docs ?? [];
-        final active = docs.where((d) {
-          final st =
-              (d.data()[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-          return st != 'cancelled';
-        }).toList()
-          ..sort(
-            (a, b) => _appointmentSortMinutes(a.data()).compareTo(_appointmentSortMinutes(b.data())),
-          );
-
-        if (active.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                s.translate('schedule_sheet_no_appointments_day'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF829AB1),
-                  fontFamily: 'KurdishFont',
-                  fontSize: 14,
-                  height: 1.35,
-                ),
-              ),
-            ),
-          );
-        }
-
-        final patientIds = active
-            .map((e) => (e.data()[AppointmentFields.patientId] ?? '').toString().trim())
-            .where((id) => id.isNotEmpty)
-            .toSet()
-            .toList();
-
-        return FutureBuilder<Map<String, Map<String, dynamic>>>(
-          key: ValueKey('${active.map((e) => e.id).join('|')}|$patientIds'),
-          future: _fetchPatientUserMaps(patientIds),
-          builder: (context, profileSnap) {
-            if (profileSnap.connectionState == ConnectionState.waiting &&
-                !profileSnap.hasData) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-              );
-            }
-            final profiles = profileSnap.data ?? {};
-
-            return ListView.separated(
-              padding: const EdgeInsets.only(top: 4, bottom: 12),
-              itemCount: active.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final appt = active[i].data();
-                final pid = (appt[AppointmentFields.patientId] ?? '').toString().trim();
-                final profile = pid.isNotEmpty ? profiles[pid] : null;
-                return _PatientAppointmentDetailCard(
-                  appointment: appt,
-                  patientProfile: profile,
-                );
-              },
+        return ListView.separated(
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          itemCount: active.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 10),
+          itemBuilder: (context, i) {
+            final appt = active[i].data();
+            final pid = (appt[AppointmentFields.patientId] ?? '').toString().trim();
+            final profile = pid.isNotEmpty ? profiles[pid] : null;
+            return _PatientAppointmentDetailCard(
+              appointment: appt,
+              patientProfile: profile,
             );
           },
         );
