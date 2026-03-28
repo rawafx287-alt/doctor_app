@@ -1,5 +1,47 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Firestore field on doctor `users/{id}` — slot length in minutes (e.g. 15, 20, 30).
+const String kAppointmentSlotMinutesField = 'appointmentSlotMinutes';
+
+/// Reads [kAppointmentSlotMinutesField] from doctor profile; clamps to \[5, 120\], default **30**.
+int appointmentSlotMinutesFromUserData(Map<String, dynamic>? data) {
+  final raw = data?[kAppointmentSlotMinutesField];
+  if (raw is int) {
+    return raw.clamp(5, 120);
+  }
+  if (raw is num) {
+    return raw.toInt().clamp(5, 120);
+  }
+  return 30;
+}
+
+/// Slot length for [dateOnly]: override in [schedule_date_overrides] for that date
+/// (field [kAppointmentSlotMinutesField]), else doctor profile [doctorUserData].
+int effectiveAppointmentSlotMinutes({
+  required DateTime dateOnly,
+  Map<String, dynamic>? weeklySchedule,
+  Map<String, dynamic>? dateOverrides,
+  Map<String, dynamic>? doctorUserData,
+}) {
+  final key = scheduleDateOverrideKey(
+    DateTime(dateOnly.year, dateOnly.month, dateOnly.day),
+  );
+  if (dateOverrides != null && dateOverrides.containsKey(key)) {
+    final raw = dateOverrides[key];
+    if (raw is Map) {
+      final m = Map<String, dynamic>.from(
+        raw.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      if (m['blocked'] != true && m.containsKey(kAppointmentSlotMinutesField)) {
+        final local = m[kAppointmentSlotMinutesField];
+        if (local is int) return local.clamp(5, 120);
+        if (local is num) return local.toInt().clamp(5, 120);
+      }
+    }
+  }
+  return appointmentSlotMinutesFromUserData(doctorUserData);
+}
+
 /// Stable `yyyy-MM-dd` key for [schedule_date_overrides] on the doctor user doc.
 String scheduleDateOverrideKey(DateTime dateOnly) {
   final y = dateOnly.year;
@@ -49,7 +91,9 @@ String? weekdayScheduleKeyForDate(DateTime d) {
 
 /// Per-date window from [dateOverrides] (doctor `schedule_date_overrides` map), else [weekly].
 ///
-/// Override value: `{ 'blocked': true }` or `{ 'startMinutes': int, 'endMinutes': int }`.
+/// Override value: `{ 'blocked': true }`, or custom window
+/// `{ 'startMinutes': int, 'endMinutes': int, optional 'appointmentSlotMinutes': int }`,
+/// or slot-only `{ 'appointmentSlotMinutes': int }` (uses weekly hours for that weekday).
 ({int startMinutes, int endMinutes})? workingWindowForDateWithOverrides(
   DateTime date,
   Map<String, dynamic>? weekly,

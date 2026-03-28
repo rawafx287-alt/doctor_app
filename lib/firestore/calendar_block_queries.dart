@@ -46,6 +46,12 @@ Query<Map<String, dynamic>> calendarBlocksForDoctorDateRange({
 /// Collection id for read/write — same string the doctor management screen uses.
 abstract final class CalendarBlockFields {
   static const collection = 'calendar_blocks';
+
+  /// Optional reason for manual blocks: [kindOff] or [kindEmergency].
+  static const String blockKind = 'blockKind';
+
+  static const String kindOff = 'off';
+  static const String kindEmergency = 'emergency';
 }
 
 /// Debug hint when [calendarBlocksForDoctorDateRange] fails with a missing index.

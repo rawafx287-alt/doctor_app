@@ -70,6 +70,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _defaultsExpanded = false;
+  /// Default from profile; used when a date has no per-day [kAppointmentSlotMinutesField].
+  int _profileAppointmentSlotMinutes = 30;
+
+  static const List<int> _daySlotDurationChoices = [15, 20, 30, 45, 60];
+
+  int _coerceDaySlotMinutes(int? value, int fallback) {
+    if (value == null) return fallback;
+    if (_daySlotDurationChoices.contains(value)) return value;
+    return fallback;
+  }
 
   Map<String, dynamic> _weeklyFirestoreMap() {
     final map = <String, dynamic>{};
@@ -128,6 +138,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       } else {
         _dateOverrides = {};
       }
+
+      _profileAppointmentSlotMinutes =
+          appointmentSlotMinutesFromUserData(data);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,6 +233,17 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     var sbCustom = custom;
     var sbStart = startT;
     var sbEnd = endT;
+
+    final slotRaw =
+        raw is Map ? raw[kAppointmentSlotMinutesField] : null;
+    var sbSlot = _coerceDaySlotMinutes(
+      slotRaw is int
+          ? slotRaw
+          : slotRaw is num
+              ? slotRaw.toInt()
+              : null,
+      _profileAppointmentSlotMinutes,
+    );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -338,6 +362,73 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       ),
                     ],
                   ],
+                  if (!sbBlocked) ...[
+                    const SizedBox(height: 18),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        s.translate('schedule_day_appointment_duration'),
+                        style: const TextStyle(
+                          color: Color(0xFF829AB1),
+                          fontSize: 13,
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF12152A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            isExpanded: true,
+                            value: sbSlot,
+                            dropdownColor: const Color(0xFF252640),
+                            iconEnabledColor: const Color(0xFF42A5F5),
+                            style: const TextStyle(
+                              color: Color(0xFFD9E2EC),
+                              fontFamily: 'KurdishFont',
+                              fontSize: 15,
+                            ),
+                            items: _daySlotDurationChoices
+                                .map(
+                                  (m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(
+                                      s.translate(
+                                        'schedule_day_slot_minutes_option',
+                                        params: {'minutes': '$m'},
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) setModal(() => sbSlot = v);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        s.translate('schedule_day_appointment_duration_hint'),
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                          fontFamily: 'KurdishFont',
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: () {
@@ -345,11 +436,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         if (sbBlocked) {
                           _dateOverrides[key] = {'blocked': true};
                         } else if (!sbCustom) {
-                          _dateOverrides.remove(key);
+                          if (sbSlot == _profileAppointmentSlotMinutes) {
+                            _dateOverrides.remove(key);
+                          } else {
+                            _dateOverrides[key] = {
+                              kAppointmentSlotMinutesField: sbSlot,
+                            };
+                          }
                         } else {
                           _dateOverrides[key] = {
                             'startMinutes': _toMinutes(sbStart),
                             'endMinutes': _toMinutes(sbEnd),
+                            kAppointmentSlotMinutesField: sbSlot,
                           };
                         }
                       });

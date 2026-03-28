@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../calendar/calendar_slot_logic.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../specialty_categories.dart';
@@ -43,6 +44,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isUploadingImage = false;
+  int _appointmentSlotMinutes = 30;
   String? _selectedSpecialty;
   String _profileImageUrl = '';
   static const String _placeholderImageUrl =
@@ -132,6 +134,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       } else {
         _yearsExperienceController.text = '';
       }
+
+      _appointmentSlotMinutes =
+          appointmentSlotMinutesFromUserData(data);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -200,6 +205,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       } else {
         payload['yearsExperience'] = 0;
       }
+
+      payload[kAppointmentSlotMinutesField] = _appointmentSlotMinutes;
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
             payload,
@@ -494,6 +501,72 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         label: s.translate('doctor_phone_label'),
                         icon: Icons.phone_rounded,
                         keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          s.translate('profile_appointment_duration_label'),
+                          style: const TextStyle(
+                            color: Color(0xFF829AB1),
+                            fontSize: 12,
+                            fontFamily: 'KurdishFont',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<int>(
+                        value: _appointmentSlotMinutes,
+                        dropdownColor: const Color(0xFF1D1E33),
+                        style: const TextStyle(
+                          color: Color(0xFFD9E2EC),
+                          fontFamily: 'KurdishFont',
+                        ),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.schedule_rounded,
+                            color: Color(0xFF42A5F5),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF1D1E33),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.white24),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF42A5F5)),
+                          ),
+                        ),
+                        items: [15, 20, 30]
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m,
+                                child: Text(
+                                  '$m ${s.translate('profile_appointment_duration_unit')}',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setState(() => _appointmentSlotMinutes = v);
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          s.translate('profile_appointment_duration_hint'),
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 11,
+                            fontFamily: 'KurdishFont',
+                            height: 1.35,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _sectionTitle('editor_section_kurdish'),

@@ -838,6 +838,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'عطّل لاستخدام جدول أيام الأسبوع الافتراضي.',
     'en': 'Turn off to use your default weekday pattern below.',
   },
+  'schedule_day_appointment_duration': {
+    'ckb': 'ماوەی نێوان نۆرەکان (ئەم ڕۆژە)',
+    'ar': 'مدة الموعد لهذا اليوم',
+    'en': 'Appointment duration (this day)',
+  },
+  'schedule_day_appointment_duration_hint': {
+    'ckb':
+        'کاتەکانی بەردەست لەسەر ئەم ژمارەیە دابەش دەکرێن. ئەگەر هەمان ڕێکخستنی پرۆفایل بێت، تەنها پاشکەوتکردنی گشتی بەکاربهێنە.',
+    'ar':
+        'تُقسَّم الفترات حسب هذه القيمة. إذا طابقت إعداد الملف الشخصي، لا حاجة لتغييرها هنا.',
+    'en':
+        'Patient slots use this step for this date. If it matches your profile default, leave it or clear the day override when saving.',
+  },
+  'schedule_day_slot_minutes_option': {
+    'ckb': '{minutes} خولەک',
+    'ar': '{minutes} دقيقة',
+    'en': '{minutes} min',
+  },
   'schedule_apply_day': {
     'ckb': 'پاشکەوتکردنی ئەم ڕۆژە',
     'ar': 'تطبيق على هذا اليوم',
@@ -1044,14 +1062,19 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Book appointment',
   },
   'booking_date_closed': {
-    'ckb': 'ئەم بەروارە داخراوە',
-    'ar': 'هذا التاريخ غير متاح',
-    'en': 'This date is closed or fully booked.',
+    'ckb': 'ئەم بەروارە داخراوە (پشوو یان لە خشتەدا نییە)',
+    'ar': 'هذا التاريخ غير متاح (عطلة أو خارج الجدول)',
+    'en': 'This date is not available (off schedule or closed).',
+  },
+  'booking_date_fully_booked': {
+    'ckb': 'ئەم ڕۆژە هەموو کاتەکان گیراون. ڕۆژێکی تر هەڵبژێرە.',
+    'ar': 'هذا اليوم ممتلئ. اختر يوماً آخر.',
+    'en': 'This day is fully booked. Please pick another date.',
   },
   'booking_calendar_legend_patient': {
-    'ckb': 'سوور = داخراو/پڕ · سەوز = کات هەیە · خۆڵەمێش = کارناکات',
-    'ar': 'أحمر = مغلق/ممتلئ · أخضر = يوجد موعد · رمادي = لا يعمل',
-    'en': 'Red = closed/full · Green = open · Grey = off',
+    'ckb': 'سەوز = ڕۆژی کار · نارەنجی = هەموو کاتەکان گیراون · سوور = پشوو/داخراو',
+    'ar': 'أخضر = يوم عمل · برتقالي = ممتلئ · أحمر = عطلة/مغلق',
+    'en': 'Green = working day · Orange = fully booked · Red = off / closed',
   },
   'working_days_title': {
     'ckb': 'ڕۆژەکانی کار (تەنها ئەوانەی پزیشک چالاکی کردووە)',
@@ -1090,9 +1113,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'No time set',
   },
   'booking_slot_legend': {
-    'ckb': 'سوور = گیراوە (ئەم کاتە پێشتر نۆدراوە)',
-    'ar': 'الأحمر = محجوز (هذا الوقت مأخوذ مسبقاً)',
-    'en': 'Red = already booked',
+    'ckb': 'سەوز = بەردەست · خۆڵەمێشی = گیراوە (ناتوانیت هەڵیبژێریت)',
+    'ar': 'أخضر = متاح · رمادي = محجوز',
+    'en': 'Green = available · Gray = booked (disabled)',
   },
   'booking_slot_just_taken': {
     'ckb': 'ئەم کاتە ئێستا کەسێک وەرگرت. تکایە کاتێکی تر هەڵبژێرە.',
@@ -1139,15 +1162,60 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'أخضر = يوجد وقت متاح',
     'en': 'Green = slots open',
   },
-  'master_calendar_legend_red': {
-    'ckb': 'سوور = پڕ (هەموو کاتەکان گیراون)',
-    'ar': 'أحمر = ممتلئ',
-    'en': 'Red = fully booked',
+  'master_calendar_legend_amber': {
+    'ckb': 'نارەنجی = هەموو کاتەکان گیراون',
+    'ar': 'برتقالي = ممتلئ بالكامل',
+    'en': 'Orange = fully booked',
   },
-  'master_calendar_legend_grey': {
-    'ckb': 'خۆڵەمێشی = ڕۆژی کار نییە',
-    'ar': 'رمادي = غير يوم عمل',
-    'en': 'Grey = not a working day',
+  'master_calendar_legend_red_off': {
+    'ckb': 'سوور = پشوو / کارناکات',
+    'ar': 'أحمر = عطلة / لا يعمل',
+    'en': 'Red = day off / not working',
+  },
+  'master_calendar_block_day_off': {
+    'ckb': 'پشووی تەواوی ڕۆژ (داخراو)',
+    'ar': 'إغلاق يوم كامل (عطلة)',
+    'en': 'Close whole day (off)',
+  },
+  'master_calendar_block_day_emergency': {
+    'ckb': 'داخستنی ناگەهی (فریاکەوتن)',
+    'ar': 'إغلاق طارئ',
+    'en': 'Emergency closure (whole day)',
+  },
+  'master_calendar_blocked_off': {
+    'ckb': 'داخراو — پشوو',
+    'ar': 'مغلق — عطلة',
+    'en': 'Blocked — off',
+  },
+  'master_calendar_blocked_emergency': {
+    'ckb': 'داخراو — فریاکەوتن',
+    'ar': 'مغلق — طوارئ',
+    'en': 'Blocked — emergency',
+  },
+  'master_calendar_block_slot_off': {
+    'ckb': 'داخستنی ئەم کاتە (پشوو)',
+    'ar': 'حظر هذا الوقت (عطلة)',
+    'en': 'Block this slot (off)',
+  },
+  'master_calendar_block_slot_emergency': {
+    'ckb': 'داخستنی ئەم کاتە (فریاکەوتن)',
+    'ar': 'حظر هذا الوقت (طوارئ)',
+    'en': 'Block this slot (emergency)',
+  },
+  'profile_appointment_duration_label': {
+    'ckb': 'ماوەی نۆرە (خولەک)',
+    'ar': 'مدة الموعد (دقائق)',
+    'en': 'Appointment duration (minutes)',
+  },
+  'profile_appointment_duration_unit': {
+    'ckb': 'خولەک',
+    'ar': 'دقيقة',
+    'en': 'min',
+  },
+  'profile_appointment_duration_hint': {
+    'ckb': 'کاتەکانی نۆرە لەسەر ئەم ژمارەیە دروست دەکرێن (١٥، ٢٠ یان ٣٠).',
+    'ar': 'تُبنى الفترات الزمنية على هذه القيمة (15 أو 20 أو 30).',
+    'en': 'Time slots are generated using this step (15, 20, or 30 minutes).',
   },
   'master_calendar_day_off': {
     'ckb': 'ئەم ڕۆژە لە خشتەی کاردا نییە',

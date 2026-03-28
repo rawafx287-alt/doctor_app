@@ -75,8 +75,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   static const Color _pcGreenBorder = Color(0xFF22C55E);
   static const Color _pcRedFill = Color(0xFF3D1418);
   static const Color _pcRedBorder = Color(0xFFEF4444);
-  static const Color _pcNeutralFill = Color(0xFF1A1D2E);
-  static const Color _pcNeutralBorder = Color(0xFF3D4556);
+  static const Color _pcAmberFill = Color(0xFF3D2A0F);
+  static const Color _pcAmberBorder = Color(0xFFF59E0B);
 
   @override
   void didUpdateWidget(covariant DoctorDetailsScreen oldWidget) {
@@ -163,6 +163,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     required Map<String, dynamic>? overrides,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
+    required Map<String, dynamic>? doctorProfile,
   }) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final year = focusedMonth.year;
@@ -183,6 +184,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         dateOverrides: overrides,
         bookedTimeKeys: booked,
         dayBlocks: dayBlocks,
+        slotStepMinutes: effectiveAppointmentSlotMinutes(
+          dateOnly: key,
+          dateOverrides: overrides,
+          doctorUserData: doctorProfile,
+        ),
       );
     }
     return map;
@@ -193,6 +199,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     Map<String, dynamic>? overrides,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
+    Map<String, dynamic>? doctorProfile,
   ) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final now = DateTime.now();
@@ -206,6 +213,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         dateOverrides: overrides,
         bookedTimeKeys: booked,
         dayBlocks: dayBlocks,
+        slotStepMinutes: effectiveAppointmentSlotMinutes(
+          dateOnly: d,
+          dateOverrides: overrides,
+          doctorUserData: doctorProfile,
+        ),
       );
       if (v == MasterDayVisual.hasAvailability) return d;
       d = d.add(const Duration(days: 1));
@@ -216,14 +228,24 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   void _setSelectedDateSlots(
     DateTime date,
     Map<String, dynamic>? weekly,
-    Map<String, dynamic>? overrides,
-  ) {
+    Map<String, dynamic>? overrides, {
+    Map<String, dynamic>? doctorProfile,
+  }) {
     final win = workingWindowForDateWithOverrides(date, weekly, overrides);
     if (win == null) {
       _selectedTime = null;
       return;
     }
-    final slots = slotStartMinutesForWindow(win.startMinutes, win.endMinutes);
+    final step = effectiveAppointmentSlotMinutes(
+      dateOnly: date,
+      dateOverrides: overrides,
+      doctorUserData: doctorProfile,
+    );
+    final slots = slotStartMinutesForWindow(
+      win.startMinutes,
+      win.endMinutes,
+      step: step,
+    );
     _selectedTime = slots.isNotEmpty ? _timeFromMinutes(slots.first) : null;
   }
 
@@ -242,12 +264,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         fill = _pcGreenFill;
         edgeColor = _pcGreenBorder;
       case MasterDayVisual.fullyBooked:
-        fill = _pcRedFill;
-        edgeColor = _pcRedBorder;
+        fill = _pcAmberFill;
+        edgeColor = _pcAmberBorder;
       case MasterDayVisual.nonWorking:
       default:
-        fill = _pcNeutralFill;
-        edgeColor = _pcNeutralBorder;
+        fill = _pcRedFill;
+        edgeColor = _pcRedBorder;
     }
     if (isOutside) {
       fill = fill.withValues(alpha: 0.45);
@@ -266,7 +288,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     } else {
       cellBorder = Border.all(
         color: edgeColor,
-        width: visual == MasterDayVisual.nonWorking ? 1 : 1.4,
+        width: visual == MasterDayVisual.hasAvailability ? 1.4 : 1.2,
       );
     }
 
@@ -532,7 +554,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 weeklyRaw is Map<String, dynamic> ? weeklyRaw : null;
             final overrides = _scheduleOverridesMap(merged['schedule_date_overrides']);
             final hasSchedule = _hasAnyBookableWindow(weeklyMap, overrides);
-
             return uid == null
                 ? Center(
                     child: Text(
@@ -1031,6 +1052,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                       overrides: overrides,
                                                       apptDocs: appts,
                                                       blockDocs: blocks,
+                                                      doctorProfile: merged,
                                                     );
 
                                                     if (!_patientCalendarPrimed &&
@@ -1052,6 +1074,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                           overrides,
                                                           appts,
                                                           blocks,
+                                                          merged,
                                                         );
                                                         if (!mounted) return;
                                                         setState(() {
@@ -1068,6 +1091,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                               first,
                                                               weeklyMap,
                                                               overrides,
+                                                              doctorProfile:
+                                                                  merged,
                                                             );
                                                           }
                                                         });
@@ -1099,6 +1124,17 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     .day,
                                                               )]
                                                             : null;
+                                                    final slotForSelected =
+                                                        _selectedDate != null
+                                                            ? effectiveAppointmentSlotMinutes(
+                                                                dateOnly:
+                                                                    _selectedDate!,
+                                                                dateOverrides:
+                                                                    overrides,
+                                                                doctorUserData:
+                                                                    merged,
+                                                              )
+                                                            : 30;
                                                     final slots = selectedWin !=
                                                             null
                                                         ? slotStartMinutesForWindow(
@@ -1106,6 +1142,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                 .startMinutes,
                                                             selectedWin
                                                                 .endMinutes,
+                                                            step:
+                                                                slotForSelected,
                                                           )
                                                         : <int>[];
                                                     final showSlots =
@@ -1339,11 +1377,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     visuals[
                                                                         key];
                                                                 if (v ==
-                                                                        MasterDayVisual
-                                                                            .nonWorking ||
-                                                                    v ==
-                                                                        MasterDayVisual
-                                                                            .fullyBooked) {
+                                                                    MasterDayVisual
+                                                                        .nonWorking) {
                                                                   ScaffoldMessenger
                                                                           .of(
                                                                               context)
@@ -1353,6 +1388,26 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                           Text(
                                                                         s.translate(
                                                                             'booking_date_closed'),
+                                                                        style: const TextStyle(
+                                                                            fontFamily:
+                                                                                'KurdishFont'),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                if (v ==
+                                                                    MasterDayVisual
+                                                                        .fullyBooked) {
+                                                                  ScaffoldMessenger
+                                                                          .of(
+                                                                              context)
+                                                                      .showSnackBar(
+                                                                    SnackBar(
+                                                                      content:
+                                                                          Text(
+                                                                        s.translate(
+                                                                            'booking_date_fully_booked'),
                                                                         style: const TextStyle(
                                                                             fontFamily:
                                                                                 'KurdishFont'),
@@ -1374,6 +1429,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                       sel,
                                                                       weeklyMap,
                                                                       overrides,
+                                                                      doctorProfile:
+                                                                          merged,
                                                                     );
                                                                   });
                                                                 }
@@ -1771,9 +1828,12 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
         const blueFill = Color(0xFF1565C0);
         const blueBorder = Color(0xFF42A5F5);
         const blueLabel = Color(0xFFE3F2FD);
-        const redFill = Color(0xFF4A1518);
-        const redBorder = Color(0xFFE53935);
-        const redLabel = Color(0xFFFFCDD2);
+        const bookedFill = Color(0xFF2A2D35);
+        const bookedBorder = Color(0xFF6B7280);
+        const bookedLabel = Color(0xFF9CA3AF);
+        const availFill = Color(0xFF0F3D28);
+        const availBorder = Color(0xFF22C55E);
+        const availLabel = Color(0xFFBBF7D0);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1797,17 +1857,17 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isBooked
-                            ? redFill
+                            ? bookedFill
                             : isSelected
                                 ? blueFill
-                                : const Color(0xFF1D1E33),
+                                : availFill,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isBooked
-                              ? redBorder
+                              ? bookedBorder
                               : isSelected
                                   ? blueBorder
-                                  : Colors.white24,
+                                  : availBorder,
                           width: isBooked || isSelected ? 2 : 1,
                         ),
                       ),
@@ -1818,10 +1878,10 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                           fontSize: 14,
                           color: isBooked
-                              ? redLabel
+                              ? bookedLabel
                               : isSelected
                                   ? blueLabel
-                                  : const Color(0xFFD9E2EC),
+                                  : availLabel,
                         ),
                       ),
                     ),

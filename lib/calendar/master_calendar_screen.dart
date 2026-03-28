@@ -20,8 +20,9 @@ const Color _kCalGreenFill = Color(0xFF0F3D28);
 const Color _kCalGreenBorder = Color(0xFF22C55E);
 const Color _kCalRedFill = Color(0xFF3D1418);
 const Color _kCalRedBorder = Color(0xFFEF4444);
-const Color _kCalNeutralFill = Color(0xFF1A1D2E);
-const Color _kCalNeutralBorder = Color(0xFF3D4556);
+/// Day has hours but every slot is booked / blocked.
+const Color _kCalAmberFill = Color(0xFF3D2A0F);
+const Color _kCalAmberBorder = Color(0xFFF59E0B);
 
 /// Month master calendar: availability (green/red) and per-day slot sheet.
 class MasterCalendarScreen extends StatefulWidget {
@@ -97,6 +98,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     Map<String, dynamic>? dateOverrides,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
+    Map<String, dynamic>? doctorProfileData,
   }) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final year = focusedMonth.year;
@@ -111,12 +113,18 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       final key = DateTime(d.year, d.month, d.day);
       final dayBlocks = blocksForCalendarDay(key, blockMaps);
       final booked = _bookedKeysForDay(key, apptDocs);
+      final step = effectiveAppointmentSlotMinutes(
+        dateOnly: key,
+        dateOverrides: dateOverrides,
+        doctorUserData: doctorProfileData,
+      );
       map[key] = classifyDay(
         dateOnly: key,
         weeklySchedule: weekly,
         dateOverrides: dateOverrides,
         bookedTimeKeys: booked,
         dayBlocks: dayBlocks,
+        slotStepMinutes: step,
       );
     }
     return map;
@@ -137,12 +145,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
         fill = _kCalGreenFill;
         edgeColor = _kCalGreenBorder;
       case MasterDayVisual.fullyBooked:
-        fill = _kCalRedFill;
-        edgeColor = _kCalRedBorder;
+        fill = _kCalAmberFill;
+        edgeColor = _kCalAmberBorder;
       case MasterDayVisual.nonWorking:
       default:
-        fill = _kCalNeutralFill;
-        edgeColor = _kCalNeutralBorder;
+        fill = _kCalRedFill;
+        edgeColor = _kCalRedBorder;
     }
     if (isOutside) {
       fill = fill.withValues(alpha: 0.45);
@@ -161,7 +169,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     } else {
       cellBorder = Border.all(
         color: edgeColor,
-        width: visual == MasterDayVisual.nonWorking ? 1 : 1.4,
+        width: visual == MasterDayVisual.hasAvailability ? 1.4 : 1.2,
       );
     }
 
@@ -181,7 +189,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
             ),
           if (!isOutside && visual == MasterDayVisual.fullyBooked)
             BoxShadow(
-              color: _kCalRedBorder.withValues(alpha: 0.12),
+              color: _kCalAmberBorder.withValues(alpha: 0.14),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -206,6 +214,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     Map<String, dynamic>? dateOverrides,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> monthAppointments,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> monthBlocks,
+    required int slotDurationMinutes,
   }) async {
     final doctorId = _effectiveDoctorId;
     if (doctorId == null) return;
@@ -234,6 +243,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                 dateOverrides: dateOverrides,
                 monthAppointments: monthAppointments,
                 monthBlocks: monthBlocks,
+                slotDurationMinutes: slotDurationMinutes,
                 canManage: widget.canManage,
                 onChanged: () => setState(() {}),
               );
@@ -405,7 +415,6 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                   ovRaw.map((k, v) => MapEntry(k.toString(), v)),
                                 )
                               : null;
-
                           final monthStart = _monthStart(_focusedDay);
                           final monthEnd = _monthEndExclusive(_focusedDay);
 
@@ -452,6 +461,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                     dateOverrides: dateOverrides,
                                     apptDocs: appts,
                                     blockDocs: blocks,
+                                    doctorProfileData: snapData,
                                   );
 
                                   return SingleChildScrollView(
@@ -573,6 +583,17 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                     dateOverrides: dateOverrides,
                                                     monthAppointments: appts,
                                                     monthBlocks: blocks,
+                                                    slotDurationMinutes:
+                                                        effectiveAppointmentSlotMinutes(
+                                                      dateOnly: DateTime(
+                                                        sel.year,
+                                                        sel.month,
+                                                        sel.day,
+                                                      ),
+                                                      dateOverrides:
+                                                          dateOverrides,
+                                                      doctorUserData: snapData,
+                                                    ),
                                                   );
                                                 },
                                                 calendarBuilders: CalendarBuilders(
@@ -693,6 +714,44 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     DateTime day,
   ) async {
     final s = S.of(context);
+    final kind = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1D1E33),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.event_busy_rounded, color: Color(0xFFFF8A80)),
+              title: Text(
+                s.translate('master_calendar_block_day_off'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFD9E2EC),
+                ),
+              ),
+              onTap: () => Navigator.pop(ctx, CalendarBlockFields.kindOff),
+            ),
+            ListTile(
+              leading: const Icon(Icons.emergency_rounded, color: Color(0xFFFF7043)),
+              title: Text(
+                s.translate('master_calendar_block_day_emergency'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFD9E2EC),
+                ),
+              ),
+              onTap: () => Navigator.pop(ctx, CalendarBlockFields.kindEmergency),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (kind == null || !context.mounted) return;
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final start = DateTime(day.year, day.month, day.day);
@@ -703,6 +762,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
         AppointmentFields.doctorId: doctorId,
         AppointmentFields.date: Timestamp.fromDate(start),
         'wholeDay': true,
+        CalendarBlockFields.blockKind: kind,
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': uid,
       });
@@ -780,16 +840,28 @@ class _LegendRow extends StatelessWidget {
           loc.translate('master_calendar_legend_green'),
         ),
         item(
-          dot(_kCalRedFill, _kCalRedBorder),
-          loc.translate('master_calendar_legend_red'),
+          dot(_kCalAmberFill, _kCalAmberBorder),
+          loc.translate('master_calendar_legend_amber'),
         ),
         item(
-          dot(_kCalNeutralFill, _kCalNeutralBorder),
-          loc.translate('master_calendar_legend_grey'),
+          dot(_kCalRedFill, _kCalRedBorder),
+          loc.translate('master_calendar_legend_red_off'),
         ),
       ],
     );
   }
+}
+
+String _blockSubtitleForData(BuildContext context, Map<String, dynamic> data) {
+  final s = S.of(context);
+  final k = (data[CalendarBlockFields.blockKind] ?? '').toString();
+  if (k == CalendarBlockFields.kindEmergency) {
+    return s.translate('master_calendar_blocked_emergency');
+  }
+  if (k == CalendarBlockFields.kindOff) {
+    return s.translate('master_calendar_blocked_off');
+  }
+  return s.translate('master_calendar_slot_blocked');
 }
 
 class _DayAgendaPanel extends StatelessWidget {
@@ -801,6 +873,7 @@ class _DayAgendaPanel extends StatelessWidget {
     this.dateOverrides,
     required this.monthAppointments,
     required this.monthBlocks,
+    required this.slotDurationMinutes,
     required this.canManage,
     required this.onChanged,
   });
@@ -812,6 +885,7 @@ class _DayAgendaPanel extends StatelessWidget {
   final Map<String, dynamic>? dateOverrides;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> monthAppointments;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> monthBlocks;
+  final int slotDurationMinutes;
   final bool canManage;
   final VoidCallback onChanged;
 
@@ -843,7 +917,11 @@ class _DayAgendaPanel extends StatelessWidget {
 
     final slots = win == null
         ? <int>[]
-        : slotStartMinutesForWindow(win.startMinutes, win.endMinutes);
+        : slotStartMinutesForWindow(
+            win.startMinutes,
+            win.endMinutes,
+            step: slotDurationMinutes,
+          );
 
     return ListView(
       controller: scrollController,
@@ -870,9 +948,10 @@ class _DayAgendaPanel extends StatelessWidget {
         else
           ...slots.map((m) {
             final label = formatSlotMinutesKey(m);
-            final end = m + 30;
+            final end = m + slotDurationMinutes;
 
             String? blockId;
+            Map<String, dynamic>? blockData;
             for (final doc in monthBlocks) {
               final data = doc.data();
               final ts = data[AppointmentFields.date];
@@ -885,6 +964,7 @@ class _DayAgendaPanel extends StatelessWidget {
               }
               if (_slotOverlapsBlockPublic(m, end, data)) {
                 blockId = doc.id;
+                blockData = data;
                 break;
               }
             }
@@ -898,10 +978,10 @@ class _DayAgendaPanel extends StatelessWidget {
             final isCancelled = st == 'cancelled';
             final booked = appt != null && !isCancelled;
 
-            if (blockId != null) {
+            if (blockId != null && blockData != null) {
               return _SlotTile(
                 timeLabel: label,
-                subtitle: s.translate('master_calendar_slot_blocked'),
+                subtitle: _blockSubtitleForData(context, blockData),
                 statusStripColor: const Color(0xFF94A3B8),
                 trailing: canManage
                     ? TextButton(
@@ -983,6 +1063,7 @@ class _DayAgendaPanel extends StatelessWidget {
                         doctorId,
                         key,
                         m,
+                        slotDurationMinutes,
                         onChanged,
                       )
                   : () => _patientBookSlot(context, doctorId, key, m),
@@ -1088,6 +1169,7 @@ Future<void> _staffFreeActionsSheet(
   String doctorId,
   DateTime day,
   int slotMinutes,
+  int slotDurationMinutes,
   VoidCallback onChanged,
 ) async {
   final s = S.of(context);
@@ -1183,9 +1265,9 @@ Future<void> _staffFreeActionsSheet(
               },
             ),
             ListTile(
-              leading: const Icon(Icons.block_rounded, color: Color(0xFFFF8A80)),
+              leading: const Icon(Icons.event_busy_rounded, color: Color(0xFFFF8A80)),
               title: Text(
-                s.translate('master_calendar_block_slot'),
+                s.translate('master_calendar_block_slot_off'),
                 style: const TextStyle(
                   fontFamily: 'KurdishFont',
                   color: Color(0xFFD9E2EC),
@@ -1205,7 +1287,56 @@ Future<void> _staffFreeActionsSheet(
                     ),
                     'wholeDay': false,
                     'startMinutes': slotMinutes,
-                    'endMinutes': slotMinutes + 30,
+                    'endMinutes': slotMinutes + slotDurationMinutes,
+                    CalendarBlockFields.blockKind: CalendarBlockFields.kindOff,
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'createdBy': uid,
+                  });
+                  if (outerCtx.mounted) {
+                    ScaffoldMessenger.of(outerCtx).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          s.translate('master_calendar_block_saved'),
+                          style: const TextStyle(fontFamily: 'KurdishFont'),
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (outerCtx.mounted) {
+                    ScaffoldMessenger.of(outerCtx).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                }
+                onChanged();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emergency_rounded, color: Color(0xFFFF7043)),
+              title: Text(
+                s.translate('master_calendar_block_slot_emergency'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFD9E2EC),
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final uid = FirebaseAuth.instance.currentUser?.uid;
+                if (uid == null) return;
+                try {
+                  await FirebaseFirestore.instance
+                      .collection(CalendarBlockFields.collection)
+                      .add({
+                    AppointmentFields.doctorId: doctorId,
+                    AppointmentFields.date: Timestamp.fromDate(
+                      DateTime(day.year, day.month, day.day),
+                    ),
+                    'wholeDay': false,
+                    'startMinutes': slotMinutes,
+                    'endMinutes': slotMinutes + slotDurationMinutes,
+                    CalendarBlockFields.blockKind: CalendarBlockFields.kindEmergency,
                     'createdAt': FieldValue.serverTimestamp(),
                     'createdBy': uid,
                   });
@@ -1241,9 +1372,17 @@ void _staffFreeSlotActions(
   String doctorId,
   DateTime day,
   int slotMinutes,
+  int slotDurationMinutes,
   VoidCallback onChanged,
 ) {
-  _staffFreeActionsSheet(context, doctorId, day, slotMinutes, onChanged);
+  _staffFreeActionsSheet(
+    context,
+    doctorId,
+    day,
+    slotMinutes,
+    slotDurationMinutes,
+    onChanged,
+  );
 }
 
 Future<void> _patientBookSlot(
