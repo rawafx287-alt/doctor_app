@@ -9,6 +9,7 @@ import '../firestore/appointment_queries.dart';
 import '../firestore/calendar_block_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/patient_profile_read.dart';
 
 int _appointmentSortMinutes(Map<String, dynamic> data) {
   final t = (data[AppointmentFields.time] ?? '').toString();
@@ -17,6 +18,55 @@ int _appointmentSortMinutes(Map<String, dynamic> data) {
   final h = int.tryParse(parts[0].trim()) ?? 0;
   final m = int.tryParse(parts[1].trim()) ?? 0;
   return h * 60 + m;
+}
+
+String _dayCountKey(DateTime d) =>
+    scheduleDateOverrideKey(DateTime(d.year, d.month, d.day));
+
+/// Active (non-cancelled) appointment counts per calendar day for the doctor.
+Map<String, int> _appointmentCountsByDay(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final map = <String, int>{};
+  for (final d in docs) {
+    final data = d.data();
+    final st =
+        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+    if (st == 'cancelled') continue;
+    final ts = data[AppointmentFields.date];
+    if (ts is! Timestamp) continue;
+    final dt = ts.toDate();
+    final key = scheduleDateOverrideKey(DateTime(dt.year, dt.month, dt.day));
+    map[key] = (map[key] ?? 0) + 1;
+  }
+  return map;
+}
+
+String _scheduleLocalizedGender(BuildContext context, String raw) {
+  if (raw.isEmpty) return S.of(context).translate('doctor_appt_not_available');
+  final n = raw.toLowerCase().trim();
+  final s = S.of(context);
+  const maleHints = {'male', 'm', 'man', 'ذكر', 'رجل', 'نێر'};
+  const femaleHints = {'female', 'f', 'woman', 'أنثى', 'انثى', 'مێ'};
+  if (maleHints.contains(n)) return s.translate('doctor_appt_gender_male');
+  if (femaleHints.contains(n)) return s.translate('doctor_appt_gender_female');
+  return raw;
+}
+
+Future<Map<String, Map<String, dynamic>>> _fetchPatientUserMaps(
+  Iterable<String> patientIds,
+) async {
+  final unique = patientIds.where((id) => id.isNotEmpty).toSet();
+  final out = <String, Map<String, dynamic>>{};
+  await Future.wait(unique.map((id) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(id).get();
+      if (doc.exists && doc.data() != null) {
+        out[id] = doc.data()!;
+      }
+    } catch (_) {}
+  }));
+  return out;
 }
 
 class ScheduleScreen extends StatefulWidget {
@@ -577,6 +627,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final savePaddingBottom = widget.embedded ? 12.0 + bottomInset : 16.0 + bottomInset;
 
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     final bodyContent = _isLoading
         ? const Center(child: CircularProgressIndicator(color: Color(0xFF42A5F5)))
         : Column(
@@ -593,84 +644,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   ),
                 ),
               ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF12152A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white10),
+              if (uid == null)
+                _buildCalendarCard(context, const {})
+              else
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: appointmentsForDoctorDateRange(
+                    doctorUserId: uid,
+                    rangeStartInclusiveLocal:
+                        DateTime(_focusedDay.year, _focusedDay.month, 1),
+                    rangeEndExclusiveLocal:
+                        DateTime(_focusedDay.year, _focusedDay.month + 1, 1),
+                  ).snapshots(),
+                  builder: (context, apptSnap) {
+                    final counts = apptSnap.hasData
+                        ? _appointmentCountsByDay(apptSnap.data!.docs)
+                        : <String, int>{};
+                    return _buildCalendarCard(context, counts);
+                  },
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
-                  child: TableCalendar<void>(
-                    firstDay: DateTime.utc(2024, 1, 1),
-                    lastDay: DateTime.utc(2035, 12, 31),
-                    focusedDay: _focusedDay,
-                    rowHeight: 46,
-                    daysOfWeekHeight: 34,
-                    selectedDayPredicate: (d) =>
-                        _selectedCalendarDay != null && isSameDay(_selectedCalendarDay!, d),
-                    calendarFormat: CalendarFormat.month,
-                    availableCalendarFormats: const {CalendarFormat.month: 'Month'},
-                    startingDayOfWeek: StartingDayOfWeek.saturday,
-                    locale: Localizations.localeOf(context).toLanguageTag(),
-                    daysOfWeekStyle: DaysOfWeekStyle(
-                      weekdayStyle: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontFamily: 'KurdishFont',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      weekendStyle: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontFamily: 'KurdishFont',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    headerStyle: HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: true,
-                      titleTextStyle: const TextStyle(
-                        color: Color(0xFFE8EEF4),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'KurdishFont',
-                      ),
-                      leftChevronIcon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF42A5F5)),
-                      rightChevronIcon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF42A5F5)),
-                    ),
-                    calendarStyle: const CalendarStyle(
-                      outsideDaysVisible: true,
-                      markersMaxCount: 0,
-                      cellMargin: EdgeInsets.zero,
-                      defaultDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                      weekendDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                      outsideDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                      todayDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                      selectedDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                      defaultTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
-                      weekendTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
-                      outsideTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
-                      todayTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
-                      selectedTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
-                    ),
-                    onPageChanged: (f) => setState(() => _focusedDay = f),
-                    onDaySelected: (sel, foc) {
-                      setState(() {
-                        _selectedCalendarDay = sel;
-                        _focusedDay = foc;
-                      });
-                      _openDayEditor(sel);
-                    },
-                    calendarBuilders: CalendarBuilders(
-                      defaultBuilder: (context, d, fd) => _calendarCell(d, fd),
-                      todayBuilder: (context, d, fd) => _calendarCell(d, fd, isToday: true),
-                      selectedBuilder: (context, d, fd) => _calendarCell(d, fd, isSelected: true),
-                      outsideBuilder: (context, d, fd) => _calendarCell(d, fd, isOutside: true),
-                    ),
-                  ),
-                ),
-              ),
             ],
           );
 
@@ -739,12 +730,118 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
+  Widget _buildCalendarCard(BuildContext context, Map<String, int> countsPerDay) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF12152A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
+        child: TableCalendar<void>(
+          firstDay: DateTime.utc(2024, 1, 1),
+          lastDay: DateTime.utc(2035, 12, 31),
+          focusedDay: _focusedDay,
+          rowHeight: 46,
+          daysOfWeekHeight: 34,
+          selectedDayPredicate: (d) =>
+              _selectedCalendarDay != null && isSameDay(_selectedCalendarDay!, d),
+          calendarFormat: CalendarFormat.month,
+          availableCalendarFormats: const {CalendarFormat.month: 'Month'},
+          startingDayOfWeek: StartingDayOfWeek.saturday,
+          locale: Localizations.localeOf(context).toLanguageTag(),
+          daysOfWeekStyle: DaysOfWeekStyle(
+            weekdayStyle: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontFamily: 'KurdishFont',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+            weekendStyle: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontFamily: 'KurdishFont',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          headerStyle: HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle: const TextStyle(
+              color: Color(0xFFE8EEF4),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'KurdishFont',
+            ),
+            leftChevronIcon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF42A5F5)),
+            rightChevronIcon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF42A5F5)),
+          ),
+          calendarStyle: const CalendarStyle(
+            outsideDaysVisible: true,
+            markersMaxCount: 0,
+            cellMargin: EdgeInsets.zero,
+            defaultDecoration: BoxDecoration(shape: BoxShape.rectangle),
+            weekendDecoration: BoxDecoration(shape: BoxShape.rectangle),
+            outsideDecoration: BoxDecoration(shape: BoxShape.rectangle),
+            todayDecoration: BoxDecoration(shape: BoxShape.rectangle),
+            selectedDecoration: BoxDecoration(shape: BoxShape.rectangle),
+            defaultTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+            weekendTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+            outsideTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+            todayTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+            selectedTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+          ),
+          onPageChanged: (f) => setState(() => _focusedDay = f),
+          onDaySelected: (sel, foc) {
+            setState(() {
+              _selectedCalendarDay = sel;
+              _focusedDay = foc;
+            });
+            _openDayEditor(sel);
+          },
+          calendarBuilders: CalendarBuilders(
+            defaultBuilder: (context, d, fd) => _calendarCell(
+              context,
+              d,
+              fd,
+              appointmentCount: countsPerDay[_dayCountKey(d)] ?? 0,
+            ),
+            todayBuilder: (context, d, fd) => _calendarCell(
+              context,
+              d,
+              fd,
+              isToday: true,
+              appointmentCount: countsPerDay[_dayCountKey(d)] ?? 0,
+            ),
+            selectedBuilder: (context, d, fd) => _calendarCell(
+              context,
+              d,
+              fd,
+              isSelected: true,
+              appointmentCount: countsPerDay[_dayCountKey(d)] ?? 0,
+            ),
+            outsideBuilder: (context, d, fd) => _calendarCell(
+              context,
+              d,
+              fd,
+              isOutside: true,
+              appointmentCount: countsPerDay[_dayCountKey(d)] ?? 0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _calendarCell(
+    BuildContext context,
     DateTime day,
     DateTime focusedMonth, {
     bool isToday = false,
     bool isSelected = false,
     bool isOutside = false,
+    int appointmentCount = 0,
   }) {
     final win = _resolvedWindow(day);
     final blocked = _isBlockedOverride(day);
@@ -770,27 +867,74 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       border = const Color(0xFF6366F1);
     }
 
+    final textDir = Directionality.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: border, width: isToday || isSelected ? 2 : 1.2),
-      ),
-      child: Text(
-        '${day.day}',
-        style: TextStyle(
-          fontFamily: 'KurdishFont',
-          fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-          fontSize: 14,
-          color: isOutside
-              ? const Color(0xFF829AB1).withValues(alpha: 0.5)
-              : const Color(0xFFE8EEF4),
-        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: border, width: isToday || isSelected ? 2 : 1.2),
+            ),
+            child: Text(
+              '${day.day}',
+              style: TextStyle(
+                fontFamily: 'KurdishFont',
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                fontSize: 14,
+                color: isOutside
+                    ? const Color(0xFF829AB1).withValues(alpha: 0.5)
+                    : const Color(0xFFE8EEF4),
+              ),
+            ),
+          ),
+          if (appointmentCount > 0)
+            Positioned.directional(
+              textDirection: textDir,
+              top: 1,
+              end: 1,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE53935),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  appointmentCount > 99 ? '99+' : '$appointmentCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
+}
+
+String _patientFullNameFromProfile(
+  Map<String, dynamic>? profile,
+  String appointmentFallback,
+) {
+  if (profile != null) {
+    for (final k in ['fullName', 'fullName_ku', 'fullName_en', 'fullName_ar']) {
+      final t = (profile[k] ?? '').toString().trim();
+      if (t.isNotEmpty) return t;
+    }
+  }
+  final f = appointmentFallback.trim();
+  return f.isEmpty ? '' : f;
 }
 
 /// Patient appointments for a single day (Schedule Management bottom sheet — tab 2).
@@ -866,46 +1010,189 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          itemCount: active.length,
-          separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
-          itemBuilder: (context, i) {
-            final data = active[i].data();
-            final name = (data[AppointmentFields.patientName] ?? '').toString().trim();
-            final timeRaw = (data[AppointmentFields.time] ?? '').toString().trim();
-            return ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-              title: Text(
-                name.isEmpty ? '—' : name,
-                style: const TextStyle(
-                  color: Color(0xFFD9E2EC),
-                  fontFamily: 'KurdishFont',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF42A5F5)),
-                    const SizedBox(width: 6),
-                    Text(
-                      timeRaw.isEmpty ? '—' : timeRaw,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontFamily: 'KurdishFont',
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+        final patientIds = active
+            .map((e) => (e.data()[AppointmentFields.patientId] ?? '').toString().trim())
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList();
+
+        return FutureBuilder<Map<String, Map<String, dynamic>>>(
+          key: ValueKey('${active.map((e) => e.id).join('|')}|$patientIds'),
+          future: _fetchPatientUserMaps(patientIds),
+          builder: (context, profileSnap) {
+            if (profileSnap.connectionState == ConnectionState.waiting &&
+                !profileSnap.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              );
+            }
+            final profiles = profileSnap.data ?? {};
+
+            return ListView.separated(
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
+              itemCount: active.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (context, i) {
+                final appt = active[i].data();
+                final pid = (appt[AppointmentFields.patientId] ?? '').toString().trim();
+                final profile = pid.isNotEmpty ? profiles[pid] : null;
+                return _PatientAppointmentDetailCard(
+                  appointment: appt,
+                  patientProfile: profile,
+                );
+              },
             );
           },
         );
       },
+    );
+  }
+}
+
+class _PatientAppointmentDetailCard extends StatelessWidget {
+  const _PatientAppointmentDetailCard({
+    required this.appointment,
+    required this.patientProfile,
+  });
+
+  final Map<String, dynamic> appointment;
+  final Map<String, dynamic>? patientProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final apptName =
+        (appointment[AppointmentFields.patientName] ?? '').toString().trim();
+    final displayName = _patientFullNameFromProfile(patientProfile, apptName);
+    final nameShown = displayName.isEmpty
+        ? s.translate('doctor_appt_not_available')
+        : displayName;
+
+    final phone = patientPhoneFromUserData(patientProfile);
+    final email = patientEmailFromUserData(patientProfile);
+    final age = patientAgeYearsFromUserData(patientProfile);
+    final genderRaw = patientGenderRawFromUserData(patientProfile);
+
+    final timeRaw = (appointment[AppointmentFields.time] ?? '').toString().trim();
+    final timeShown = timeRaw.isEmpty ? '—' : timeRaw;
+
+    String dash(String v) =>
+        v.trim().isEmpty ? s.translate('doctor_appt_not_available') : v.trim();
+    final ageStr =
+        age != null ? '$age' : s.translate('doctor_appt_not_available');
+    final genderStr = genderRaw.isEmpty
+        ? s.translate('doctor_appt_not_available')
+        : _scheduleLocalizedGender(context, genderRaw);
+
+    return Card(
+      color: const Color(0xFF12152A),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Colors.white12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.schedule_rounded, color: Color(0xFF42A5F5), size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  timeShown,
+                  style: const TextStyle(
+                    color: Color(0xFFD9E2EC),
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 22, color: Colors.white12),
+            _SchedulePatientInfoRow(
+              icon: Icons.person_outline_rounded,
+              label: s.translate('doctor_appt_patient_name_label'),
+              value: nameShown,
+            ),
+            _SchedulePatientInfoRow(
+              icon: Icons.phone_android_rounded,
+              label: s.translate('doctor_appt_label_phone'),
+              value: dash(phone),
+            ),
+            _SchedulePatientInfoRow(
+              icon: Icons.email_outlined,
+              label: s.translate('doctor_appt_label_email'),
+              value: dash(email),
+            ),
+            _SchedulePatientInfoRow(
+              icon: Icons.cake_outlined,
+              label: s.translate('doctor_appt_label_age'),
+              value: ageStr,
+            ),
+            _SchedulePatientInfoRow(
+              icon: Icons.wc_rounded,
+              label: s.translate('doctor_appt_label_gender'),
+              value: genderStr,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SchedulePatientInfoRow extends StatelessWidget {
+  const _SchedulePatientInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF42A5F5)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF829AB1),
+                    fontFamily: 'KurdishFont',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFFD9E2EC),
+                    fontFamily: 'KurdishFont',
+                    fontSize: 14,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
