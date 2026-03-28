@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 
 class PatientListScreen extends StatefulWidget {
   const PatientListScreen({super.key});
@@ -28,6 +29,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final query = _searchController.text.trim();
     final filteredPatients = _patients.where((patient) {
       if (query.isEmpty) return true;
@@ -42,11 +44,11 @@ class _PatientListScreenState extends State<PatientListScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_forward_ios_rounded),
             onPressed: () => Navigator.pop(context),
-            tooltip: 'گەڕانەوە',
+            tooltip: s.translate('tooltip_back'),
           ),
-          title: const Text(
-            'لیستی نەخۆشەکان',
-            style: TextStyle(
+          title: Text(
+            s.translate('doctor_patients_title'),
+            style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
             ),
@@ -61,15 +63,16 @@ class _PatientListScreenState extends State<PatientListScreen> {
             children: [
               _SearchField(
                 controller: _searchController,
+                hint: s.translate('doctor_patients_search_hint'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
               Expanded(
                 child: filteredPatients.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'هیچ نەخۆشێک نەدۆزرایەوە',
-                          style: TextStyle(
+                          s.translate('doctor_patients_empty'),
+                          style: const TextStyle(
                             color: Color(0xFF829AB1),
                             fontFamily: 'KurdishFont',
                             fontSize: 16,
@@ -78,12 +81,16 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       )
                     : ListView.separated(
                         itemCount: filteredPatients.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final patient = filteredPatients[index];
                           return _PatientCard(
                             name: patient['name'].toString(),
-                            age: patient['age'] as int,
+                            ageLine: s.translate(
+                              'doctor_patient_age_line',
+                              params: {'age': '${patient['age']}'},
+                            ),
+                            historyLabel: s.translate('doctor_patient_history_placeholder'),
                           );
                         },
                       ),
@@ -99,10 +106,12 @@ class _PatientListScreenState extends State<PatientListScreen> {
 class _SearchField extends StatelessWidget {
   const _SearchField({
     required this.controller,
+    required this.hint,
     required this.onChanged,
   });
 
   final TextEditingController controller;
+  final String hint;
   final ValueChanged<String> onChanged;
 
   @override
@@ -120,15 +129,15 @@ class _SearchField extends StatelessWidget {
           color: Color(0xFFD9E2EC),
           fontFamily: 'KurdishFont',
         ),
-        decoration: const InputDecoration(
-          hintText: 'گەڕان بە ناوی نەخۆش...',
-          hintStyle: TextStyle(
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
             color: Color(0xFF829AB1),
             fontFamily: 'KurdishFont',
           ),
           border: InputBorder.none,
-          prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
-          contentPadding: EdgeInsets.symmetric(vertical: 16),
+          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
         ),
       ),
     );
@@ -138,11 +147,13 @@ class _SearchField extends StatelessWidget {
 class _PatientCard extends StatelessWidget {
   const _PatientCard({
     required this.name,
-    required this.age,
+    required this.ageLine,
+    required this.historyLabel,
   });
 
   final String name;
-  final int age;
+  final String ageLine;
+  final String historyLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +170,7 @@ class _PatientCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFF42A5F5).withOpacity(0.15),
+              color: const Color(0xFF42A5F5).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.person_rounded, color: Color(0xFF42A5F5)),
@@ -180,7 +191,7 @@ class _PatientCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'تەمەن: $age ساڵ',
+                  ageLine,
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
                     fontFamily: 'KurdishFont',
@@ -192,19 +203,28 @@ class _PatientCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('بەزوویی: مێژووی نەخۆش')),
+                SnackBar(
+                  content: Text(
+                    historyLabel,
+                    style: const TextStyle(fontFamily: 'KurdishFont'),
+                  ),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF42A5F5),
               foregroundColor: const Color(0xFF102A43),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text(
-              'بینینی مێژوو',
-              style: TextStyle(
+            child: Text(
+              S.of(context).translate('doctor_patient_view_button'),
+              style: const TextStyle(
                 fontFamily: 'KurdishFont',
                 fontWeight: FontWeight.w700,
+                fontSize: 12,
               ),
             ),
           ),

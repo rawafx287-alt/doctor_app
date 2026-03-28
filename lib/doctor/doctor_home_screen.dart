@@ -1,11 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import '../auth/app_logout.dart';
 import 'appointments_screen.dart';
 import 'doctor_profile_screen.dart';
 import 'patient_list_screen.dart';
 import 'schedule_screen.dart';
+import '../calendar/master_calendar_screen.dart';
 
 /// Doctor shell: 3 tabs (appointments, schedule, profile) with [IndexedStack].
 class DoctorHomeScreen extends StatefulWidget {
@@ -23,14 +26,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     await performAppLogout(context);
   }
 
-  String _appBarTitle() {
+  String _appBarTitle(BuildContext context) {
+    final s = S.of(context);
     switch (_bottomNavIndex) {
       case 0:
-        return 'نۆرەکان';
+        return s.translate('doctor_nav_appointments');
       case 1:
-        return 'خشتەی کات';
+        return s.translate('schedule_screen_title');
       case 2:
-        return 'پڕۆفایل';
+        return s.translate('doctor_nav_profile');
       default:
         return '';
     }
@@ -38,6 +42,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
@@ -47,7 +52,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           title: Text(
-            _appBarTitle(),
+            _appBarTitle(context),
             style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
@@ -57,7 +62,24 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           actions: [
             if (_bottomNavIndex != 2) ...[
               IconButton(
-                tooltip: 'لیستی نەخۆشەکان',
+                tooltip: s.translate('master_calendar_tooltip'),
+                onPressed: () {
+                  final uid = FirebaseAuth.instance.currentUser?.uid;
+                  if (uid == null) return;
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => MasterCalendarScreen(
+                        doctorId: uid,
+                        canManage: true,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.calendar_view_month_rounded),
+              ),
+              IconButton(
+                tooltip: s.translate('doctor_tooltip_patient_list'),
                 onPressed: () {
                   Navigator.push<void>(
                     context,
@@ -69,7 +91,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 icon: const Icon(Icons.groups_rounded),
               ),
               IconButton(
-                tooltip: 'چوونەدەرەوە',
+                tooltip: s.translate('tooltip_logout'),
                 onPressed: _logout,
                 icon: const Icon(Icons.logout_rounded),
               ),
@@ -107,18 +129,18 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
             unselectedLabelStyle:
                 const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
-            items: const [
+            items: [
               BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_month),
-                label: 'نۆرەکان',
+                icon: const Icon(Icons.calendar_month),
+                label: s.translate('doctor_nav_appointments'),
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.schedule_rounded),
-                label: 'خشتەی کات',
+                icon: const Icon(Icons.schedule_rounded),
+                label: s.translate('doctor_nav_schedule'),
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'پڕۆفایل',
+                icon: const Icon(Icons.person),
+                label: s.translate('doctor_nav_profile'),
               ),
             ],
           ),

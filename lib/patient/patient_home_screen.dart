@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../auth/app_logout.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
@@ -61,9 +62,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     final lower = q.toLowerCase();
     return list.where((d) {
       final data = d.data();
-      final name = (data['fullName'] ?? '').toString().toLowerCase();
+      final nameBlob = doctorNameSearchBlob(data);
       final spec = (data['specialty'] ?? '').toString().toLowerCase();
-      return name.contains(lower) || spec.contains(lower);
+      return nameBlob.contains(lower) || spec.contains(lower);
     }).toList();
   }
 
@@ -401,7 +402,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         itemBuilder: (context, index) {
                           final doc = filtered[index];
                           final data = doc.data();
-                          final name = (data['fullName'] ?? '—').toString();
+                          final lang = AppLocaleScope.of(context).effectiveLanguage;
+                          var name = localizedDoctorFullName(data, lang);
+                          if (name.isEmpty) {
+                            name = (data['fullName'] ?? '—').toString();
+                          }
                           final specialtyRaw = (data['specialty'] ?? '—').toString();
                           final specialty =
                               translatedSpecialtyForFirestore(context, specialtyRaw);

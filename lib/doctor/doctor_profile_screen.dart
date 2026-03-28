@@ -3,10 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
+import '../locale/language_picker.dart';
+import '../models/doctor_localized_content.dart';
 import '../auth/app_logout.dart';
+import '../specialty_categories.dart';
 import 'profile_settings_screen.dart';
 
-/// Doctor profile tab: name, email, specialty; edit and logout ([performAppLogout]).
+/// Doctor profile tab: name, email, specialty; edit, language, about, logout.
 class DoctorProfileScreen extends StatelessWidget {
   const DoctorProfileScreen({super.key});
 
@@ -14,10 +18,15 @@ class DoctorProfileScreen extends StatelessWidget {
     await performAppLogout(context);
   }
 
+  void _showLanguageSheet(BuildContext context) {
+    showHrNoraLanguagePicker(context);
+  }
+
   void _showAbout(BuildContext context) {
+    final s = S.of(context);
     showAboutDialog(
       context: context,
-      applicationName: 'نور بۆ پزیشکان',
+      applicationName: s.translate('app_display_name'),
       applicationVersion: '1.0.0',
       applicationIcon: Container(
         padding: const EdgeInsets.all(8),
@@ -35,7 +44,7 @@ class DoctorProfileScreen extends StatelessWidget {
         Directionality(
           textDirection: AppLocaleScope.of(context).textDirection,
           child: Text(
-            'تەختەی پزیشک و بەڕێوەبردنی نۆرە و خشتە.',
+            s.translate('doctor_about_description'),
             style: const TextStyle(
               color: Color(0xFF829AB1),
               fontFamily: 'KurdishFont',
@@ -50,16 +59,18 @@ class DoctorProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final s = S.of(context);
+    final lang = AppLocaleScope.of(context).effectiveLanguage;
 
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: ColoredBox(
         color: const Color(0xFF0A0E21),
         child: uid == null
-            ? const Center(
+            ? Center(
                 child: Text(
-                  'هیچ هەژمارێک نییە',
-                  style: TextStyle(
+                  s.translate('doctor_profile_no_session'),
+                  style: const TextStyle(
                     color: Color(0xFF829AB1),
                     fontFamily: 'KurdishFont',
                   ),
@@ -72,9 +83,16 @@ class DoctorProfileScreen extends StatelessWidget {
                     .snapshots(),
                 builder: (context, snap) {
                   final data = snap.data?.data();
-                  final name = (data?['fullName'] ?? 'پزیشک').toString();
-                  final specialty =
+                  final nameRaw = data ?? {};
+                  var name = localizedDoctorFullName(nameRaw, lang);
+                  if (name.isEmpty) {
+                    name = s.translate('doctor_default');
+                  }
+                  final specialtyRaw =
                       (data?['specialty'] ?? '—').toString().trim();
+                  final specialtyDisplay = specialtyRaw.isEmpty || specialtyRaw == '—'
+                      ? '—'
+                      : translatedSpecialtyForFirestore(context, specialtyRaw);
                   final emailFromDoc =
                       (data?['email'] ?? '').toString().trim();
                   final authEmail =
@@ -115,12 +133,11 @@ class DoctorProfileScreen extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         name,
-                                        textAlign: TextAlign.right,
+                                        textAlign: TextAlign.start,
                                         style: const TextStyle(
                                           color: Color(0xFFD9E2EC),
                                           fontSize: 20,
@@ -130,7 +147,8 @@ class DoctorProfileScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 10),
                                       Row(
-                                        textDirection: AppLocaleScope.of(context).textDirection,
+                                        textDirection:
+                                            AppLocaleScope.of(context).textDirection,
                                         children: [
                                           const Icon(
                                             Icons.alternate_email_rounded,
@@ -141,7 +159,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               email,
-                                              textAlign: TextAlign.right,
+                                              textAlign: TextAlign.start,
                                               style: const TextStyle(
                                                 color: Color(0xFF9FB3C8),
                                                 fontSize: 14,
@@ -152,10 +170,10 @@ class DoctorProfileScreen extends StatelessWidget {
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      const Text(
-                                        'پسپۆڕی',
-                                        textAlign: TextAlign.right,
-                                        style: TextStyle(
+                                      Text(
+                                        s.translate('field_specialty'),
+                                        textAlign: TextAlign.start,
+                                        style: const TextStyle(
                                           color: Color(0xFF627D98),
                                           fontSize: 11,
                                           fontFamily: 'KurdishFont',
@@ -164,8 +182,8 @@ class DoctorProfileScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        specialty.isEmpty ? '—' : specialty,
-                                        textAlign: TextAlign.right,
+                                        specialtyDisplay,
+                                        textAlign: TextAlign.start,
                                         style: const TextStyle(
                                           color: Color(0xFFD9E2EC),
                                           fontSize: 15,
@@ -192,8 +210,8 @@ class DoctorProfileScreen extends StatelessWidget {
                           children: [
                             _DoctorProfileTile(
                               icon: Icons.edit_outlined,
-                              title: 'گۆڕینی زانیارییەکان',
-                              subtitle: 'وێنە، ناونیشان، پسپۆڕی، ژمارە',
+                              title: s.translate('doctor_profile_tile_edit'),
+                              subtitle: s.translate('doctor_profile_tile_edit_sub'),
                               onTap: () {
                                 Navigator.push<void>(
                                   context,
@@ -206,15 +224,25 @@ class DoctorProfileScreen extends StatelessWidget {
                             ),
                             const Divider(height: 1, color: Colors.white10),
                             _DoctorProfileTile(
+                              icon: Icons.language_rounded,
+                              title: s.translate('language'),
+                              subtitle: AppLocaleScope.of(context)
+                                      .selectedLanguage
+                                      ?.nativeTitle ??
+                                  '—',
+                              onTap: () => _showLanguageSheet(context),
+                            ),
+                            const Divider(height: 1, color: Colors.white10),
+                            _DoctorProfileTile(
                               icon: Icons.info_outline_rounded,
-                              title: 'دەربارەی ئەپ',
-                              subtitle: 'وەشان و زانیاری',
+                              title: s.translate('about_app'),
+                              subtitle: s.translate('about_app_subtitle'),
                               onTap: () => _showAbout(context),
                             ),
                             const Divider(height: 1, color: Colors.white10),
                             _DoctorProfileTile(
                               icon: Icons.logout_rounded,
-                              title: 'چوونەدەرەوە',
+                              title: s.translate('logout'),
                               subtitle: null,
                               iconColor: const Color(0xFFEF4444),
                               titleColor: const Color(0xFFFCA5A5),
@@ -251,6 +279,7 @@ class _DoctorProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(
@@ -277,9 +306,9 @@ class _DoctorProfileTile extends StatelessWidget {
                 fontSize: 12,
               ),
             ),
-      trailing: const Icon(
-        Icons.chevron_left_rounded,
-        color: Color(0xFF627D98),
+      trailing: Icon(
+        rtl ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+        color: const Color(0xFF627D98),
         size: 22,
       ),
       onTap: onTap,

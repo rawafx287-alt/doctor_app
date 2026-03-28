@@ -3,26 +3,46 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
+import '../calendar/calendar_slot_logic.dart';
+import '../firestore/appointment_queries.dart';
+import '../firestore/calendar_block_queries.dart';
+import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import 'my_appointments_screen.dart';
 
-/// One day entry from [weekly_schedule] on the doctor's user document.
-class _ScheduleDayEntry {
-  const _ScheduleDayEntry({
-    required this.id,
-    required this.dayLabel,
-    required this.startMinutes,
-    required this.endMinutes,
-  });
+String _bookingTimeKeyFromMinutes(int m) {
+  final h = m ~/ 60;
+  final min = m % 60;
+  return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+}
 
-  final String id;
-  final String dayLabel;
-  final int startMinutes;
-  final int endMinutes;
+String _bookingNormalizeStoredTime(String raw) {
+  final parts = raw.split(':');
+  if (parts.length < 2) return raw.trim();
+  final h = int.tryParse(parts[0].trim()) ?? 0;
+  final mi = int.tryParse(parts[1].trim()) ?? 0;
+  return '${h.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}';
+}
+
+Set<String> _bookingBookedTimeKeysFromDocs(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final set = <String>{};
+  for (final d in docs) {
+    final data = d.data();
+    final st =
+        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+    if (st == 'cancelled') continue;
+    final time = (data[AppointmentFields.time] ?? '').toString().trim();
+    if (time.isEmpty) continue;
+    set.add(_bookingNormalizeStoredTime(time));
+  }
+  return set;
 }
 
 class DoctorDetailsScreen extends StatefulWidget {
@@ -42,84 +62,31 @@ class DoctorDetailsScreen extends StatefulWidget {
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
+  static const String _bookingBrandTitle = 'HR Nora';
 
-  String? _selectedDayId;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _saving = false;
-  bool _hasAutoSelectedDay = false;
+  DateTime _patientCalendarFocusedDay = DateTime.now();
+  bool _patientCalendarPrimed = false;
+  final GlobalKey _bookingSectionKey = GlobalKey();
 
-  static const List<String> _dayIds = [
-    'saturday',
-    'sunday',
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-  ];
+  static const Color _pcGreenFill = Color(0xFF0F3D28);
+  static const Color _pcGreenBorder = Color(0xFF22C55E);
+  static const Color _pcRedFill = Color(0xFF3D1418);
+  static const Color _pcRedBorder = Color(0xFFEF4444);
+  static const Color _pcNeutralFill = Color(0xFF1A1D2E);
+  static const Color _pcNeutralBorder = Color(0xFF3D4556);
 
   @override
   void didUpdateWidget(covariant DoctorDetailsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.doctorId != widget.doctorId) {
-      _hasAutoSelectedDay = false;
-      _selectedDayId = null;
+      _patientCalendarPrimed = false;
+      _patientCalendarFocusedDay = DateTime.now();
       _selectedDate = null;
       _selectedTime = null;
     }
-  }
-
-  int _asInt(dynamic v) {
-    if (v is int) return v;
-    if (v is num) return v.toInt();
-    return 0;
-  }
-
-  int _weekdayFromKey(String id) {
-    switch (id) {
-      case 'saturday':
-        return DateTime.saturday;
-      case 'sunday':
-        return DateTime.sunday;
-      case 'monday':
-        return DateTime.monday;
-      case 'tuesday':
-        return DateTime.tuesday;
-      case 'wednesday':
-        return DateTime.wednesday;
-      case 'thursday':
-        return DateTime.thursday;
-      case 'friday':
-        return DateTime.friday;
-      default:
-        return DateTime.monday;
-    }
-  }
-
-  static String _weekdayKeyForId(String id) {
-    switch (id) {
-      case 'saturday':
-        return 'weekday_sat';
-      case 'sunday':
-        return 'weekday_sun';
-      case 'monday':
-        return 'weekday_mon';
-      case 'tuesday':
-        return 'weekday_tue';
-      case 'wednesday':
-        return 'weekday_wed';
-      case 'thursday':
-        return 'weekday_thu';
-      case 'friday':
-        return 'weekday_fri';
-      default:
-        return 'weekday_mon';
-    }
-  }
-
-  String _localizedFallbackDayLabel(BuildContext context, String id) {
-    return S.of(context).translate(_weekdayKeyForId(id));
   }
 
   TimeOfDay _timeFromMinutes(int m) {
@@ -134,84 +101,208 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
   }
 
-  List<_ScheduleDayEntry> _parseSchedule(
-    Map<String, dynamic>? weekly,
-    String Function(String id) fallbackDayLabel,
-  ) {
-    if (weekly == null || weekly.isEmpty) return [];
-    final out = <_ScheduleDayEntry>[];
-    for (final id in _dayIds) {
-      final raw = weekly[id];
-      if (raw is! Map) continue;
-      if (raw['enabled'] != true) continue;
-      final sm = _asInt(raw['startMinutes']);
-      final em = _asInt(raw['endMinutes']);
-      if (em <= sm) continue;
-      final label = (raw['day'] ?? '').toString().trim();
-      out.add(
-        _ScheduleDayEntry(
-          id: id,
-          dayLabel: label.isNotEmpty ? label : fallbackDayLabel(id),
-          startMinutes: sm,
-          endMinutes: em,
-        ),
-      );
-    }
-    return out;
+  Map<String, dynamic>? _scheduleOverridesMap(dynamic raw) {
+    if (raw is! Map) return null;
+    return Map<String, dynamic>.from(
+      raw.map((k, v) => MapEntry(k.toString(), v)),
+    );
   }
 
-  _ScheduleDayEntry? _entryFor(List<_ScheduleDayEntry> days, String id) {
-    for (final d in days) {
-      if (d.id == id) return d;
+  bool _hasAnyBookableWindow(
+    Map<String, dynamic>? weekly,
+    Map<String, dynamic>? overrides,
+  ) {
+    final now = DateTime.now();
+    var d = DateTime(now.year, now.month, now.day);
+    for (var i = 0; i < 120; i++) {
+      if (workingWindowForDateWithOverrides(d, weekly, overrides) != null) {
+        return true;
+      }
+      d = d.add(const Duration(days: 1));
+    }
+    return false;
+  }
+
+  DateTime _patientMonthStart(DateTime d) => DateTime(d.year, d.month, 1);
+  DateTime _patientMonthEndExclusive(DateTime d) =>
+      DateTime(d.year, d.month + 1, 1);
+
+  Set<String> _patientApptBookedKeysForDay(
+    DateTime day,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
+  ) {
+    final y = day.year;
+    final m = day.month;
+    final d = day.day;
+    final set = <String>{};
+    for (final doc in apptDocs) {
+      final data = doc.data();
+      final st =
+          (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+      if (st == 'cancelled') continue;
+      final ts = data[AppointmentFields.date];
+      if (ts is! Timestamp) continue;
+      final dt = ts.toDate();
+      if (dt.year != y || dt.month != m || dt.day != d) continue;
+      final t = (data[AppointmentFields.time] ?? '').toString().trim();
+      if (t.isEmpty) continue;
+      final parts = t.split(':');
+      if (parts.length < 2) continue;
+      final h = int.tryParse(parts[0].trim()) ?? 0;
+      final mi = int.tryParse(parts[1].trim()) ?? 0;
+      set.add(
+        '${h.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}',
+      );
+    }
+    return set;
+  }
+
+  Map<DateTime, MasterDayVisual> _patientBookingVisualsForMonth({
+    required DateTime focusedMonth,
+    required Map<String, dynamic>? weekly,
+    required Map<String, dynamic>? overrides,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
+  }) {
+    final blockMaps = blockDocs.map((e) => e.data()).toList();
+    final year = focusedMonth.year;
+    final month = focusedMonth.month;
+    final first = DateTime(year, month, 1);
+    final last = DateTime(year, month + 1, 0);
+    final map = <DateTime, MasterDayVisual>{};
+
+    for (var d = first;
+        !d.isAfter(last);
+        d = d.add(const Duration(days: 1))) {
+      final key = DateTime(d.year, d.month, d.day);
+      final dayBlocks = blocksForCalendarDay(key, blockMaps);
+      final booked = _patientApptBookedKeysForDay(key, apptDocs);
+      map[key] = classifyDay(
+        dateOnly: key,
+        weeklySchedule: weekly,
+        dateOverrides: overrides,
+        bookedTimeKeys: booked,
+        dayBlocks: dayBlocks,
+      );
+    }
+    return map;
+  }
+
+  DateTime? _firstPatientDateWithAvailability(
+    Map<String, dynamic>? weekly,
+    Map<String, dynamic>? overrides,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
+  ) {
+    final blockMaps = blockDocs.map((e) => e.data()).toList();
+    final now = DateTime.now();
+    var d = DateTime(now.year, now.month, now.day);
+    for (var i = 0; i < 120; i++) {
+      final booked = _patientApptBookedKeysForDay(d, apptDocs);
+      final dayBlocks = blocksForCalendarDay(d, blockMaps);
+      final v = classifyDay(
+        dateOnly: d,
+        weeklySchedule: weekly,
+        dateOverrides: overrides,
+        bookedTimeKeys: booked,
+        dayBlocks: dayBlocks,
+      );
+      if (v == MasterDayVisual.hasAvailability) return d;
+      d = d.add(const Duration(days: 1));
     }
     return null;
   }
 
-  _ScheduleDayEntry? _selectedEntry(List<_ScheduleDayEntry> days) {
-    if (_selectedDayId == null) return null;
-    return _entryFor(days, _selectedDayId!);
-  }
-
-  /// Next [count] calendar dates matching [targetWeekday] (starting today).
-  List<DateTime> _upcomingDatesForWeekday(int targetWeekday, int count) {
-    final out = <DateTime>[];
-    final now = DateTime.now();
-    var d = DateTime(now.year, now.month, now.day);
-    final end = d.add(const Duration(days: 120));
-    while (!d.isAfter(end) && out.length < count) {
-      if (d.weekday == targetWeekday) {
-        out.add(d);
-      }
-      d = d.add(const Duration(days: 1));
+  void _setSelectedDateSlots(
+    DateTime date,
+    Map<String, dynamic>? weekly,
+    Map<String, dynamic>? overrides,
+  ) {
+    final win = workingWindowForDateWithOverrides(date, weekly, overrides);
+    if (win == null) {
+      _selectedTime = null;
+      return;
     }
-    return out;
-  }
-
-  /// Start times every 30 minutes within the doctor's window.
-  List<int> _slotStartMinutes(_ScheduleDayEntry day) {
-    final list = <int>[];
-    for (var m = day.startMinutes; m < day.endMinutes; m += 30) {
-      list.add(m);
-    }
-    return list;
-  }
-
-  void _primeSelectionForDay(_ScheduleDayEntry day) {
-    final dates = _upcomingDatesForWeekday(_weekdayFromKey(day.id), 8);
-    _selectedDate = dates.isNotEmpty ? dates.first : null;
-    final slots = _slotStartMinutes(day);
+    final slots = slotStartMinutesForWindow(win.startMinutes, win.endMinutes);
     _selectedTime = slots.isNotEmpty ? _timeFromMinutes(slots.first) : null;
+  }
+
+  Widget _patientBookingDayCell({
+    required DateTime day,
+    required DateTime focusedMonth,
+    required MasterDayVisual? visual,
+    required bool isToday,
+    required bool isSelected,
+    bool isOutside = false,
+  }) {
+    Color fill;
+    Color edgeColor;
+    switch (visual) {
+      case MasterDayVisual.hasAvailability:
+        fill = _pcGreenFill;
+        edgeColor = _pcGreenBorder;
+      case MasterDayVisual.fullyBooked:
+        fill = _pcRedFill;
+        edgeColor = _pcRedBorder;
+      case MasterDayVisual.nonWorking:
+      default:
+        fill = _pcNeutralFill;
+        edgeColor = _pcNeutralBorder;
+    }
+    if (isOutside) {
+      fill = fill.withValues(alpha: 0.45);
+      edgeColor = edgeColor.withValues(alpha: 0.45);
+    }
+
+    final textColor = isOutside
+        ? const Color(0xFF829AB1).withValues(alpha: 0.5)
+        : const Color(0xFFE8EEF4);
+
+    final Border cellBorder;
+    if (isToday) {
+      cellBorder = Border.all(color: const Color(0xFF38BDF8), width: 2);
+    } else if (isSelected) {
+      cellBorder = Border.all(color: const Color(0xFF6366F1), width: 2);
+    } else {
+      cellBorder = Border.all(
+        color: edgeColor,
+        width: visual == MasterDayVisual.nonWorking ? 1 : 1.4,
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(10),
+        border: cellBorder,
+      ),
+      child: Text(
+        '${day.day}',
+        style: TextStyle(
+          fontFamily: 'KurdishFont',
+          fontWeight: isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
+          fontSize: 15,
+          color: textColor,
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmAppointment(
     String patientName,
     String doctorDisplayName,
-    _ScheduleDayEntry? day,
+    Map<String, dynamic>? weekly,
+    Map<String, dynamic>? overrides,
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final s = S.of(context);
-    if (day == null || _selectedDate == null || _selectedTime == null) {
+    final win = _selectedDate != null
+        ? workingWindowForDateWithOverrides(_selectedDate!, weekly, overrides)
+        : null;
+    if (win == null || _selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -228,6 +319,36 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       final timeStr =
           '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
+      final dayStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+      final dayEnd = dayStart.add(const Duration(days: 1));
+      final sameDay = await appointmentsForDoctorDateRange(
+        doctorUserId: widget.doctorId,
+        rangeStartInclusiveLocal: dayStart,
+        rangeEndExclusiveLocal: dayEnd,
+      ).get();
+      for (final doc in sameDay.docs) {
+        final data = doc.data();
+        final st =
+            (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+        if (st == 'cancelled') continue;
+        if (_bookingNormalizeStoredTime(
+              (data[AppointmentFields.time] ?? '').toString(),
+            ) ==
+            timeStr) {
+          if (!mounted) return;
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                s.translate('booking_slot_conflict'),
+                style: const TextStyle(fontFamily: 'KurdishFont'),
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       // Always persist the doctor's display name from Firestore (users.fullName), not only UI cache.
       var doctorNameToSave = doctorDisplayName.trim();
       try {
@@ -235,7 +356,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             .collection('users')
             .doc(widget.doctorId)
             .get();
-        final fromServer = (doctorDoc.data()?['fullName'] ?? '').toString().trim();
+        final fromServer =
+            canonicalDoctorNameForStorage(doctorDoc.data() ?? <String, dynamic>{});
         if (fromServer.isNotEmpty) {
           doctorNameToSave = fromServer;
         }
@@ -248,31 +370,26 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
       var queueNumber = 1;
       try {
-        final d = _selectedDate!;
-        final start = DateTime(d.year, d.month, d.day);
-        final end = start.add(const Duration(days: 1));
-        final countAgg = await FirebaseFirestore.instance
-            .collection('appointments')
-            .where('doctorId', isEqualTo: widget.doctorId)
-            .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-            .where('date', isLessThan: Timestamp.fromDate(end))
-            .count()
-            .get();
+        final countAgg = await appointmentsForDoctorDateRange(
+          doctorUserId: widget.doctorId,
+          rangeStartInclusiveLocal: dayStart,
+          rangeEndExclusiveLocal: dayEnd,
+        ).count().get();
         queueNumber = (countAgg.count ?? 0) + 1;
       } catch (_) {
         queueNumber = (DateTime.now().millisecondsSinceEpoch % 90) + 10;
       }
 
-      await FirebaseFirestore.instance.collection('appointments').add({
-        'patientId': uid,
-        'doctorId': widget.doctorId,
-        'doctorName': doctorNameToSave,
-        'patientName': patientName,
-        'date': Timestamp.fromDate(_selectedDate!),
-        'time': timeStr,
-        'status': 'pending',
-        'queueNumber': queueNumber,
-        'createdAt': FieldValue.serverTimestamp(),
+      await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
+        AppointmentFields.patientId: uid,
+        AppointmentFields.doctorId: widget.doctorId,
+        AppointmentFields.doctorName: doctorNameToSave,
+        AppointmentFields.patientName: patientName,
+        AppointmentFields.date: Timestamp.fromDate(_selectedDate!),
+        AppointmentFields.time: timeStr,
+        AppointmentFields.status: 'pending',
+        AppointmentFields.queueNumber: queueNumber,
+        AppointmentFields.createdAt: FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
@@ -363,8 +480,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final appTextDir = AppLocaleScope.of(context).textDirection;
     final isRtlLayout = appTextDir == ui.TextDirection.rtl;
     final s = S.of(context);
-    final doctorName =
-        (widget.doctorData['fullName'] ?? s.translate('doctor_default')).toString();
+    final lang = AppLocaleScope.of(context).effectiveLanguage;
+    var doctorName = localizedDoctorFullName(widget.doctorData, lang);
+    if (doctorName.isEmpty) {
+      doctorName =
+          (widget.doctorData['fullName'] ?? s.translate('doctor_default')).toString();
+    }
     final specialty = (widget.doctorData['specialty'] ?? '—').toString();
 
     return Directionality(
@@ -401,25 +522,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               if (snap.data?.data() != null) ...snap.data!.data()!,
             };
             final mergedSpecialty = (merged['specialty'] ?? specialty).toString();
-            final doctorDisplayName = (merged['fullName'] ?? doctorName).toString();
-            final profileImageUrl = (merged['profileImageUrl'] ?? '').toString().trim();
-            final weekly = merged['weekly_schedule'];
-            final scheduleDays = _parseSchedule(
-              weekly is Map<String, dynamic> ? weekly : null,
-              (id) => _localizedFallbackDayLabel(context, id),
-            );
-
-            if (!_hasAutoSelectedDay && scheduleDays.isNotEmpty) {
-              _hasAutoSelectedDay = true;
-              final first = scheduleDays.first;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                setState(() {
-                  _selectedDayId = first.id;
-                  _primeSelectionForDay(first);
-                });
-              });
+            var doctorDisplayName = localizedDoctorFullName(merged, lang);
+            if (doctorDisplayName.isEmpty) {
+              doctorDisplayName = (merged['fullName'] ?? doctorName).toString();
             }
+            final profileImageUrl = (merged['profileImageUrl'] ?? '').toString().trim();
+            final weeklyRaw = merged['weekly_schedule'];
+            final weeklyMap =
+                weeklyRaw is Map<String, dynamic> ? weeklyRaw : null;
+            final overrides = _scheduleOverridesMap(merged['schedule_date_overrides']);
+            final hasSchedule = _hasAnyBookableWindow(weeklyMap, overrides);
 
             return uid == null
                 ? Center(
@@ -437,6 +549,49 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                       final patientName = (patientSnap.data?.data()?['fullName'] ??
                               s.translate('patient_default'))
                           .toString();
+
+                      final lang = AppLocaleScope.of(context).effectiveLanguage;
+                      final bio = localizedDoctorField(
+                        merged,
+                        lang,
+                        baseKey: 'bio',
+                        legacyKeys: const ['biography', 'about'],
+                      );
+                      final hospital = localizedDoctorField(
+                        merged,
+                        lang,
+                        baseKey: 'hospital_name',
+                        legacyKeys: const ['clinicName', 'hospitalName'],
+                      );
+                      final address = localizedDoctorField(
+                        merged,
+                        lang,
+                        baseKey: 'address',
+                        legacyKeys: const ['clinicAddress'],
+                      );
+                      var experienceText = localizedDoctorField(
+                        merged,
+                        lang,
+                        baseKey: 'experience',
+                        legacyKeys: const [],
+                      );
+                      if (experienceText.isEmpty) {
+                        final rawY = merged['yearsExperience'];
+                        int? yi;
+                        if (rawY is int) {
+                          yi = rawY;
+                        } else if (rawY is num) {
+                          yi = rawY.toInt();
+                        } else {
+                          yi = int.tryParse(rawY?.toString() ?? '');
+                        }
+                        if (yi != null && yi > 0) {
+                          experienceText = s.translate(
+                            'doctor_experience_years',
+                            params: {'years': '$yi'},
+                          );
+                        }
+                      }
 
                       return SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
@@ -504,134 +659,222 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 22),
-                            Text(
-                              s.translate('booking_title'),
-                              textAlign: TextAlign.start,
-                              style: const TextStyle(
-                                color: Color(0xFFD9E2EC),
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'KurdishFont',
+                            if (bio.isNotEmpty) ...[
+                              Text(
+                                s.translate('doctor_profile_about'),
+                                textAlign: TextAlign.start,
+                                style: const TextStyle(
+                                  color: Color(0xFFD9E2EC),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'KurdishFont',
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              s.translate('working_days_title'),
-                              textAlign: TextAlign.start,
-                              style: const TextStyle(
-                                color: Color(0xFF829AB1),
-                                fontSize: 12,
-                                fontFamily: 'KurdishFont',
+                              const SizedBox(height: 8),
+                              Text(
+                                bio,
+                                textAlign: TextAlign.start,
+                                style: const TextStyle(
+                                  color: Color(0xFF9FB3C8),
+                                  fontSize: 15,
+                                  fontFamily: 'KurdishFont',
+                                  height: 1.45,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (scheduleDays.isEmpty)
+                              const SizedBox(height: 18),
+                            ],
+                            if (experienceText.isNotEmpty) ...[
+                              Text(
+                                s.translate('doctor_profile_experience'),
+                                textAlign: TextAlign.start,
+                                style: const TextStyle(
+                                  color: Color(0xFFD9E2EC),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'KurdishFont',
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                experienceText,
+                                textAlign: TextAlign.start,
+                                style: const TextStyle(
+                                  color: Color(0xFF9FB3C8),
+                                  fontSize: 15,
+                                  fontFamily: 'KurdishFont',
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
+                            if (hospital.isNotEmpty || address.isNotEmpty) ...[
                               Container(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1D1E33),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: Colors.white10),
                                 ),
-                                child: Text(
-                                  s.translate('no_schedule_yet'),
-                                  textAlign: TextAlign.start,
-                                  style: const TextStyle(
-                                    color: Color(0xFF829AB1),
-                                    fontFamily: 'KurdishFont',
-                                    height: 1.4,
-                                  ),
-                                ),
-                              )
-                            else ...[
-                              SizedBox(
-                                height: 48,
-                                child: ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  reverse: isRtlLayout,
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _dayIds.length,
-                                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                                  itemBuilder: (context, index) {
-                                    final id = _dayIds[index];
-                                    final entry = _entryFor(scheduleDays, id);
-                                    final available = entry != null;
-                                    final selected =
-                                        available && _selectedDayId == id;
-                                    return Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: switch (entry) {
-                                          null => null,
-                                          final e => () => setState(() {
-                                                _selectedDayId = id;
-                                                _primeSelectionForDay(e);
-                                              }),
-                                        },
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 200),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: !available
-                                                ? const Color(0xFF1D1E33)
-                                                    .withValues(alpha: 0.5)
-                                                : selected
-                                                    ? const Color(0xFF42A5F5)
-                                                        .withValues(alpha: 0.28)
-                                                    : const Color(0xFF1D1E33),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(
-                                              color: !available
-                                                  ? Colors.white12
-                                                  : selected
-                                                      ? const Color(0xFF42A5F5)
-                                                      : Colors.white24,
-                                              width: selected ? 2 : 1,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              switch (entry) {
-                                                null => _localizedFallbackDayLabel(context, id),
-                                                final e => e.dayLabel,
-                                              },
-                                              style: TextStyle(
-                                                fontFamily: 'KurdishFont',
-                                                fontWeight: selected
-                                                    ? FontWeight.w800
-                                                    : FontWeight.w500,
-                                                fontSize: 13,
-                                                color: !available
-                                                    ? const Color(0xFF829AB1)
-                                                        .withValues(alpha: 0.45)
-                                                    : selected
-                                                        ? const Color(0xFFD9E2EC)
-                                                        : const Color(0xFF829AB1),
-                                              ),
-                                            ),
-                                          ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      s.translate('doctor_profile_location'),
+                                      textAlign: TextAlign.start,
+                                      style: const TextStyle(
+                                        color: Color(0xFFD9E2EC),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        fontFamily: 'KurdishFont',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (hospital.isNotEmpty) ...[
+                                      Text(
+                                        s.translate('doctor_profile_hospital_label'),
+                                        style: const TextStyle(
+                                          color: Color(0xFF829AB1),
+                                          fontSize: 12,
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    );
-                                  },
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        hospital,
+                                        textAlign: TextAlign.start,
+                                        style: const TextStyle(
+                                          color: Color(0xFF9FB3C8),
+                                          fontSize: 15,
+                                          fontFamily: 'KurdishFont',
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    if (address.isNotEmpty) ...[
+                                      Text(
+                                        s.translate('doctor_profile_address_label'),
+                                        style: const TextStyle(
+                                          color: Color(0xFF829AB1),
+                                          fontSize: 12,
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        address,
+                                        textAlign: TextAlign.start,
+                                        style: const TextStyle(
+                                          color: Color(0xFF9FB3C8),
+                                          fontSize: 15,
+                                          fontFamily: 'KurdishFont',
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                              if (_selectedEntry(scheduleDays) != null) ...[
-                                const SizedBox(height: 18),
-                                Builder(
-                                  builder: (context) {
-                                    final day = _selectedEntry(scheduleDays)!;
-                                    final dates =
-                                        _upcomingDatesForWeekday(_weekdayFromKey(day.id), 8);
-                                    final slots = _slotStartMinutes(day);
-
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                              const SizedBox(height: 14),
+                            ],
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  final ctx = _bookingSectionKey.currentContext;
+                                  if (ctx != null) {
+                                    Scrollable.ensureVisible(
+                                      ctx,
+                                      duration: const Duration(milliseconds: 420),
+                                      curve: Curves.easeOutCubic,
+                                      alignment: 0.12,
+                                    );
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.event_available_rounded,
+                                  color: Color(0xFF42A5F5),
+                                ),
+                                label: Text(
+                                  s.translate('book_now'),
+                                  style: const TextStyle(
+                                    fontFamily: 'KurdishFont',
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF42A5F5),
+                                  side: const BorderSide(color: Color(0xFF42A5F5)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                              ),
+                            ),
+                            KeyedSubtree(
+                              key: _bookingSectionKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const SizedBox(height: 12),
+                                  if (!hasSchedule)
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1D1E33),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: Colors.white10),
+                                      ),
+                                      child: Text(
+                                        s.translate('no_schedule_yet'),
+                                        textAlign: TextAlign.start,
+                                        style: const TextStyle(
+                                          color: Color(0xFF829AB1),
+                                          fontFamily: 'KurdishFont',
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    )
+                                  else ...[
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _bookingBrandTitle,
+                                            style: const TextStyle(
+                                              color: Color(0xFFE8EEF4),
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.4,
+                                              fontFamily: 'KurdishFont',
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            width: 44,
+                                            height: 3,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF42A5F5),
+                                              borderRadius: BorderRadius.circular(2),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            s.translate('booking_title'),
+                                            textAlign: TextAlign.start,
+                                            style: const TextStyle(
+                                              color: Color(0xFF9FB3C8),
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                              fontFamily: 'KurdishFont',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
                                         Text(
                                           s.translate('label_date'),
@@ -643,182 +886,751 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        if (dates.isEmpty)
-                                          Text(
-                                            s.translate('no_dates_available'),
-                                            textAlign: TextAlign.start,
-                                            style: const TextStyle(
-                                              color: Color(0xFF829AB1),
-                                              fontFamily: 'KurdishFont',
-                                            ),
-                                          )
-                                        else
-                                          SizedBox(
-                                            height: 42,
-                                            child: ListView.separated(
-                                              scrollDirection: Axis.horizontal,
-                                              reverse: isRtlLayout,
-                                              itemCount: dates.length,
-                                              separatorBuilder: (_, _) =>
-                                                  const SizedBox(width: 8),
-                                              itemBuilder: (context, i) {
-                                                final dt = dates[i];
-                                                final sel = _selectedDate != null &&
-                                                    _selectedDate!.year == dt.year &&
-                                                    _selectedDate!.month == dt.month &&
-                                                    _selectedDate!.day == dt.day;
-                                                return FilterChip(
-                                                  label: Text(
-                                                    DateFormat.yMMMd().format(dt),
-                                                    style: TextStyle(
-                                                      fontFamily: 'KurdishFont',
-                                                      fontWeight: sel
-                                                          ? FontWeight.w700
-                                                          : FontWeight.w500,
-                                                      color: sel
-                                                          ? const Color(0xFF102A43)
-                                                          : const Color(0xFFD9E2EC),
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                  selected: sel,
-                                                  onSelected: (_) {
-                                                    setState(() => _selectedDate = dt);
-                                                  },
-                                                  selectedColor: const Color(0xFF42A5F5),
-                                                  backgroundColor: const Color(0xFF1D1E33),
-                                                  checkmarkColor: const Color(0xFF102A43),
-                                                  side: BorderSide(
-                                                    color: sel
-                                                        ? const Color(0xFF42A5F5)
-                                                        : Colors.white24,
-                                                  ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(10),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        const SizedBox(height: 18),
-                                        Text(
-                                          s.translate('label_times'),
-                                          textAlign: TextAlign.start,
-                                          style: const TextStyle(
-                                            color: Color(0xFF829AB1),
-                                            fontSize: 13,
-                                            fontFamily: 'KurdishFont',
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 6),
                                         Text(
                                           s.translate(
-                                            'time_window',
-                                            params: {
-                                              'start': _formatMinutes(day.startMinutes),
-                                              'end': _formatMinutes(day.endMinutes),
-                                            },
+                                            'booking_calendar_legend_patient',
                                           ),
                                           textAlign: TextAlign.start,
                                           style: const TextStyle(
                                             color: Color(0xFF829AB1),
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             fontFamily: 'KurdishFont',
+                                            height: 1.35,
                                           ),
                                         ),
                                         const SizedBox(height: 10),
-                                        if (slots.isEmpty)
-                                          Text(
-                                            s.translate('no_times_set'),
-                                            textAlign: TextAlign.start,
-                                            style: const TextStyle(
-                                              color: Color(0xFF829AB1),
-                                              fontFamily: 'KurdishFont',
-                                            ),
-                                          )
-                                        else
-                                          Wrap(
-                                            alignment: isRtlLayout
-                                                ? WrapAlignment.end
-                                                : WrapAlignment.start,
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: slots.map((m) {
-                                              final t = _timeFromMinutes(m);
-                                              final sel = _selectedTime != null &&
-                                                  _toMinutes(_selectedTime!) == m;
-                                              return FilterChip(
-                                                label: Text(
-                                                  _formatMinutes(m),
-                                                  style: TextStyle(
+                                        Builder(
+                                          builder: (context) {
+                                            final monthStart = _patientMonthStart(
+                                              _patientCalendarFocusedDay,
+                                            );
+                                            final monthEnd =
+                                                _patientMonthEndExclusive(
+                                              _patientCalendarFocusedDay,
+                                            );
+                                            return StreamBuilder<
+                                                QuerySnapshot<
+                                                    Map<String, dynamic>>>(
+                                              key: ValueKey(
+                                                'pca-${widget.doctorId}-${monthStart.toIso8601String()}',
+                                              ),
+                                              stream: appointmentsForDoctorDateRange(
+                                                doctorUserId: widget.doctorId,
+                                                rangeStartInclusiveLocal:
+                                                    monthStart,
+                                                rangeEndExclusiveLocal:
+                                                    monthEnd,
+                                              ).snapshots(),
+                                              builder: (context, apptSnap) {
+                                                if (apptSnap.hasError) {
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback(
+                                                    (_) =>
+                                                        logFirestoreIndexHelpOnce(
+                                                      apptSnap.error,
+                                                      tag:
+                                                          'patient_booking_appointments',
+                                                      expectedCompositeIndexHint:
+                                                          kAppointmentsDoctorDateStatusIndexHint,
+                                                    ),
+                                                  );
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            12),
+                                                    child: Text(
+                                                      s.translate(
+                                                        'doctors_load_error_detail',
+                                                        params: {
+                                                          'error':
+                                                              '${apptSnap.error}',
+                                                        },
+                                                      ),
+                                                      style: const TextStyle(
+                                                        color: Colors.redAccent,
+                                                        fontFamily:
+                                                            'KurdishFont',
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                                return StreamBuilder<
+                                                    QuerySnapshot<
+                                                        Map<String, dynamic>>>(
+                                                  key: ValueKey(
+                                                    'pcb-${widget.doctorId}-${monthStart.toIso8601String()}',
+                                                  ),
+                                                  stream:
+                                                      calendarBlocksForDoctorDateRange(
+                                                    doctorUserId:
+                                                        widget.doctorId,
+                                                    rangeStartInclusiveLocal:
+                                                        monthStart,
+                                                    rangeEndExclusiveLocal:
+                                                        monthEnd,
+                                                  ).snapshots(),
+                                                  builder: (context, blockSnap) {
+                                                    if (blockSnap.hasError) {
+                                                      WidgetsBinding.instance
+                                                          .addPostFrameCallback(
+                                                        (_) =>
+                                                            logFirestoreIndexHelpOnce(
+                                                          blockSnap.error,
+                                                          tag:
+                                                              'patient_booking_calendar_blocks',
+                                                          expectedCompositeIndexHint:
+                                                              kCalendarBlocksDoctorDateIndexHint,
+                                                        ),
+                                                      );
+                                                      return Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(12),
+                                                        child: Text(
+                                                          s.translate(
+                                                            'doctors_load_error_detail',
+                                                            params: {
+                                                              'error':
+                                                                  '${blockSnap.error}',
+                                                            },
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Colors
+                                                                .redAccent,
+                                                            fontFamily:
+                                                                'KurdishFont',
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                    final loading = (apptSnap
+                                                                .connectionState ==
+                                                            ConnectionState
+                                                                .waiting &&
+                                                        !apptSnap.hasData) ||
+                                                        (blockSnap
+                                                                    .connectionState ==
+                                                                ConnectionState
+                                                                    .waiting &&
+                                                            !blockSnap.hasData);
+                                                    final appts =
+                                                        apptSnap.data?.docs ??
+                                                            [];
+                                                    final blocks =
+                                                        blockSnap.data?.docs ??
+                                                            [];
+                                                    final visuals =
+                                                        _patientBookingVisualsForMonth(
+                                                      focusedMonth:
+                                                          _patientCalendarFocusedDay,
+                                                      weekly: weeklyMap,
+                                                      overrides: overrides,
+                                                      apptDocs: appts,
+                                                      blockDocs: blocks,
+                                                    );
+
+                                                    if (!_patientCalendarPrimed &&
+                                                        hasSchedule &&
+                                                        apptSnap.hasData &&
+                                                        blockSnap.hasData) {
+                                                      WidgetsBinding.instance
+                                                          .addPostFrameCallback(
+                                                              (_) {
+                                                        if (!mounted ||
+                                                            _patientCalendarPrimed) {
+                                                          return;
+                                                        }
+                                                        _patientCalendarPrimed =
+                                                            true;
+                                                        final first =
+                                                            _firstPatientDateWithAvailability(
+                                                          weeklyMap,
+                                                          overrides,
+                                                          appts,
+                                                          blocks,
+                                                        );
+                                                        if (!mounted) return;
+                                                        setState(() {
+                                                          if (first != null) {
+                                                            _selectedDate =
+                                                                first;
+                                                            _patientCalendarFocusedDay =
+                                                                DateTime(
+                                                              first.year,
+                                                              first.month,
+                                                              first.day,
+                                                            );
+                                                            _setSelectedDateSlots(
+                                                              first,
+                                                              weeklyMap,
+                                                              overrides,
+                                                            );
+                                                          }
+                                                        });
+                                                      });
+                                                    }
+
+                                                    final todayNorm =
+                                                        DateTime(
+                                                      DateTime.now().year,
+                                                      DateTime.now().month,
+                                                      DateTime.now().day,
+                                                    );
+                                                    final selectedWin =
+                                                        _selectedDate != null
+                                                            ? workingWindowForDateWithOverrides(
+                                                                _selectedDate!,
+                                                                weeklyMap,
+                                                                overrides,
+                                                              )
+                                                            : null;
+                                                    final selVis =
+                                                        _selectedDate != null
+                                                            ? visuals[DateTime(
+                                                                _selectedDate!
+                                                                    .year,
+                                                                _selectedDate!
+                                                                    .month,
+                                                                _selectedDate!
+                                                                    .day,
+                                                              )]
+                                                            : null;
+                                                    final slots = selectedWin !=
+                                                            null
+                                                        ? slotStartMinutesForWindow(
+                                                            selectedWin
+                                                                .startMinutes,
+                                                            selectedWin
+                                                                .endMinutes,
+                                                          )
+                                                        : <int>[];
+                                                    final showSlots =
+                                                        _selectedDate !=
+                                                                null &&
+                                                            selVis ==
+                                                                MasterDayVisual
+                                                                    .hasAvailability &&
+                                                            selectedWin != null;
+
+                                                    return Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .stretch,
+                                                      children: [
+                                                        if (loading)
+                                                          const Padding(
+                                                            padding: EdgeInsets
+                                                                .only(
+                                                                    bottom: 8),
+                                                            child:
+                                                                LinearProgressIndicator(
+                                                              minHeight: 2,
+                                                              color: Color(
+                                                                  0xFF42A5F5),
+                                                            ),
+                                                          ),
+                                                        DecoratedBox(
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: const Color(
+                                                                0xFF12152A),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        16),
+                                                            border: Border.all(
+                                                                color: Colors
+                                                                    .white10),
+                                                          ),
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .fromLTRB(
+                                                              6,
+                                                              8,
+                                                              6,
+                                                              12,
+                                                            ),
+                                                            child:
+                                                                TableCalendar<
+                                                                    void>(
+                                                              firstDay:
+                                                                  DateTime.utc(
+                                                                      2024,
+                                                                      1,
+                                                                      1),
+                                                              lastDay:
+                                                                  DateTime.utc(
+                                                                      2035,
+                                                                      12,
+                                                                      31),
+                                                              focusedDay:
+                                                                  _patientCalendarFocusedDay,
+                                                              rowHeight: 48,
+                                                              daysOfWeekHeight:
+                                                                  34,
+                                                              selectedDayPredicate:
+                                                                  (d) =>
+                                                                      _selectedDate !=
+                                                                          null &&
+                                                                      isSameDay(
+                                                                          _selectedDate!,
+                                                                          d),
+                                                              calendarFormat:
+                                                                  CalendarFormat
+                                                                      .month,
+                                                              availableCalendarFormats: const {
+                                                                CalendarFormat
+                                                                    .month:
+                                                                    'Month',
+                                                              },
+                                                              startingDayOfWeek:
+                                                                  StartingDayOfWeek
+                                                                      .saturday,
+                                                              locale: Localizations
+                                                                      .localeOf(
+                                                                          context)
+                                                                  .toLanguageTag(),
+                                                              enabledDayPredicate:
+                                                                  (d) {
+                                                                final n = DateTime(
+                                                                    d.year,
+                                                                    d.month,
+                                                                    d.day);
+                                                                return !n.isBefore(
+                                                                    todayNorm);
+                                                              },
+                                                              daysOfWeekStyle:
+                                                                  DaysOfWeekStyle(
+                                                                weekdayStyle:
+                                                                    const TextStyle(
+                                                                  color: Color(
+                                                                      0xFF94A3B8),
+                                                                  fontFamily:
+                                                                      'KurdishFont',
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                                weekendStyle:
+                                                                    const TextStyle(
+                                                                  color: Color(
+                                                                      0xFF94A3B8),
+                                                                  fontFamily:
+                                                                      'KurdishFont',
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                              ),
+                                                              headerStyle:
+                                                                  HeaderStyle(
+                                                                formatButtonVisible:
+                                                                    false,
+                                                                titleCentered:
+                                                                    true,
+                                                                titleTextStyle:
+                                                                    const TextStyle(
+                                                                  color: Color(
+                                                                      0xFFE8EEF4),
+                                                                  fontSize: 16,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  fontFamily:
+                                                                      'KurdishFont',
+                                                                ),
+                                                                leftChevronIcon:
+                                                                    const Icon(
+                                                                  Icons
+                                                                      .chevron_left_rounded,
+                                                                  color: Color(
+                                                                      0xFF42A5F5),
+                                                                ),
+                                                                rightChevronIcon:
+                                                                    const Icon(
+                                                                  Icons
+                                                                      .chevron_right_rounded,
+                                                                  color: Color(
+                                                                      0xFF42A5F5),
+                                                                ),
+                                                              ),
+                                                              calendarStyle:
+                                                                  const CalendarStyle(
+                                                                outsideDaysVisible:
+                                                                    true,
+                                                                markersMaxCount:
+                                                                    0,
+                                                                cellMargin:
+                                                                    EdgeInsets
+                                                                        .zero,
+                                                                defaultDecoration:
+                                                                    BoxDecoration(
+                                                                        shape: BoxShape
+                                                                            .rectangle),
+                                                                weekendDecoration:
+                                                                    BoxDecoration(
+                                                                        shape: BoxShape
+                                                                            .rectangle),
+                                                                outsideDecoration:
+                                                                    BoxDecoration(
+                                                                        shape: BoxShape
+                                                                            .rectangle),
+                                                                todayDecoration:
+                                                                    BoxDecoration(
+                                                                        shape: BoxShape
+                                                                            .rectangle),
+                                                                selectedDecoration:
+                                                                    BoxDecoration(
+                                                                        shape: BoxShape
+                                                                            .rectangle),
+                                                                defaultTextStyle:
+                                                                    TextStyle(
+                                                                        fontSize:
+                                                                            0.1,
+                                                                        color: Colors
+                                                                            .transparent),
+                                                                weekendTextStyle:
+                                                                    TextStyle(
+                                                                        fontSize:
+                                                                            0.1,
+                                                                        color: Colors
+                                                                            .transparent),
+                                                                outsideTextStyle:
+                                                                    TextStyle(
+                                                                        fontSize:
+                                                                            0.1,
+                                                                        color: Colors
+                                                                            .transparent),
+                                                                todayTextStyle:
+                                                                    TextStyle(
+                                                                        fontSize:
+                                                                            0.1,
+                                                                        color: Colors
+                                                                            .transparent),
+                                                                selectedTextStyle:
+                                                                    TextStyle(
+                                                                        fontSize:
+                                                                            0.1,
+                                                                        color: Colors
+                                                                            .transparent),
+                                                              ),
+                                                              onPageChanged:
+                                                                  (f) {
+                                                                setState(() =>
+                                                                    _patientCalendarFocusedDay =
+                                                                        f);
+                                                              },
+                                                              onDaySelected:
+                                                                  (sel, foc) {
+                                                                final key =
+                                                                    DateTime(
+                                                                  sel.year,
+                                                                  sel.month,
+                                                                  sel.day,
+                                                                );
+                                                                final v =
+                                                                    visuals[
+                                                                        key];
+                                                                if (v ==
+                                                                        MasterDayVisual
+                                                                            .nonWorking ||
+                                                                    v ==
+                                                                        MasterDayVisual
+                                                                            .fullyBooked) {
+                                                                  ScaffoldMessenger
+                                                                          .of(
+                                                                              context)
+                                                                      .showSnackBar(
+                                                                    SnackBar(
+                                                                      content:
+                                                                          Text(
+                                                                        s.translate(
+                                                                            'booking_date_closed'),
+                                                                        style: const TextStyle(
+                                                                            fontFamily:
+                                                                                'KurdishFont'),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                if (v ==
+                                                                    MasterDayVisual
+                                                                        .hasAvailability) {
+                                                                  setState(
+                                                                      () {
+                                                                    _selectedDate =
+                                                                        sel;
+                                                                    _patientCalendarFocusedDay =
+                                                                        foc;
+                                                                    _setSelectedDateSlots(
+                                                                      sel,
+                                                                      weeklyMap,
+                                                                      overrides,
+                                                                    );
+                                                                  });
+                                                                }
+                                                              },
+                                                              calendarBuilders:
+                                                                  CalendarBuilders(
+                                                                defaultBuilder:
+                                                                    (context,
+                                                                        d,
+                                                                        fd) {
+                                                                  final k =
+                                                                      DateTime(
+                                                                    d.year,
+                                                                    d.month,
+                                                                    d.day,
+                                                                  );
+                                                                  final sel = _selectedDate !=
+                                                                          null &&
+                                                                      isSameDay(
+                                                                          _selectedDate!,
+                                                                          d);
+                                                                  return _patientBookingDayCell(
+                                                                    day: d,
+                                                                    focusedMonth:
+                                                                        fd,
+                                                                    visual: visuals[
+                                                                        k],
+                                                                    isToday: isSameDay(
+                                                                        d,
+                                                                        DateTime
+                                                                            .now()),
+                                                                    isSelected:
+                                                                        sel,
+                                                                  );
+                                                                },
+                                                                todayBuilder:
+                                                                    (context,
+                                                                        d,
+                                                                        fd) {
+                                                                  final k =
+                                                                      DateTime(
+                                                                    d.year,
+                                                                    d.month,
+                                                                    d.day,
+                                                                  );
+                                                                  final sel = _selectedDate !=
+                                                                          null &&
+                                                                      isSameDay(
+                                                                          _selectedDate!,
+                                                                          d);
+                                                                  return _patientBookingDayCell(
+                                                                    day: d,
+                                                                    focusedMonth:
+                                                                        fd,
+                                                                    visual: visuals[
+                                                                        k],
+                                                                    isToday:
+                                                                        true,
+                                                                    isSelected:
+                                                                        sel,
+                                                                  );
+                                                                },
+                                                                selectedBuilder:
+                                                                    (context,
+                                                                        d,
+                                                                        fd) {
+                                                                  final k =
+                                                                      DateTime(
+                                                                    d.year,
+                                                                    d.month,
+                                                                    d.day,
+                                                                  );
+                                                                  return _patientBookingDayCell(
+                                                                    day: d,
+                                                                    focusedMonth:
+                                                                        fd,
+                                                                    visual: visuals[
+                                                                        k],
+                                                                    isToday: isSameDay(
+                                                                        d,
+                                                                        DateTime
+                                                                            .now()),
+                                                                    isSelected:
+                                                                        true,
+                                                                  );
+                                                                },
+                                                                outsideBuilder:
+                                                                    (context,
+                                                                        d,
+                                                                        fd) {
+                                                                  final k =
+                                                                      DateTime(
+                                                                    d.year,
+                                                                    d.month,
+                                                                    d.day,
+                                                                  );
+                                                                  final sel = _selectedDate !=
+                                                                          null &&
+                                                                      isSameDay(
+                                                                          _selectedDate!,
+                                                                          d);
+                                                                  return _patientBookingDayCell(
+                                                                    day: d,
+                                                                    focusedMonth:
+                                                                        fd,
+                                                                    visual: visuals[
+                                                                        k],
+                                                                    isToday: isSameDay(
+                                                                        d,
+                                                                        DateTime
+                                                                            .now()),
+                                                                    isSelected:
+                                                                        sel,
+                                                                    isOutside:
+                                                                        true,
+                                                                  );
+                                                                },
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        if (showSlots) ...[
+                                              const SizedBox(height: 18),
+                                              Text(
+                                                s.translate('label_times'),
+                                                textAlign: TextAlign.start,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF829AB1),
+                                                  fontSize: 13,
+                                                  fontFamily: 'KurdishFont',
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                s.translate(
+                                                  'time_window',
+                                                  params: {
+                                                    'start': _formatMinutes(
+                                                      selectedWin.startMinutes,
+                                                    ),
+                                                    'end': _formatMinutes(
+                                                      selectedWin.endMinutes,
+                                                    ),
+                                                  },
+                                                ),
+                                                textAlign: TextAlign.start,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF829AB1),
+                                                  fontSize: 12,
+                                                  fontFamily: 'KurdishFont',
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              if (slots.isEmpty)
+                                                Text(
+                                                  s.translate('no_times_set'),
+                                                  textAlign: TextAlign.start,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF829AB1),
                                                     fontFamily: 'KurdishFont',
-                                                    fontWeight: sel
-                                                        ? FontWeight.w700
-                                                        : FontWeight.w500,
-                                                    color: sel
-                                                        ? const Color(0xFF102A43)
-                                                        : const Color(0xFFD9E2EC),
-                                                    fontSize: 14,
+                                                  ),
+                                                )
+                                              else if (_selectedDate == null)
+                                                Text(
+                                                  s.translate(
+                                                    'booking_select_datetime',
+                                                  ),
+                                                  textAlign: TextAlign.start,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF829AB1),
+                                                    fontFamily: 'KurdishFont',
+                                                  ),
+                                                )
+                                              else
+                                                _BookedTimeSlotPicker(
+                                                  doctorId: widget.doctorId,
+                                                  selectedDate: _selectedDate!,
+                                                  slots: slots,
+                                                  selectedMinutes:
+                                                      _selectedTime != null
+                                                          ? _toMinutes(
+                                                              _selectedTime!,
+                                                            )
+                                                          : null,
+                                                  isRtlLayout: isRtlLayout,
+                                                  onMinutesChanged: (m) {
+                                                    setState(() {
+                                                      _selectedTime = m != null
+                                                          ? _timeFromMinutes(m)
+                                                          : null;
+                                                    });
+                                                  },
+                                                ),
+                                              const SizedBox(height: 22),
+                                              ElevatedButton(
+                                                onPressed: _saving
+                                                    ? null
+                                                    : () => _confirmAppointment(
+                                                          patientName,
+                                                          doctorDisplayName,
+                                                          weeklyMap,
+                                                          overrides,
+                                                        ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      const Color(0xFF42A5F5),
+                                                  foregroundColor:
+                                                      const Color(0xFF102A43),
+                                                  minimumSize: const Size(
+                                                    double.infinity,
+                                                    54,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      14,
+                                                    ),
                                                   ),
                                                 ),
-                                                selected: sel,
-                                                onSelected: (_) {
-                                                  setState(() => _selectedTime = t);
-                                                },
-                                                selectedColor: const Color(0xFF42A5F5),
-                                                backgroundColor: const Color(0xFF1D1E33),
-                                                checkmarkColor: const Color(0xFF102A43),
-                                                side: BorderSide(
-                                                  color: sel
-                                                      ? const Color(0xFF42A5F5)
-                                                      : Colors.white24,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                              );
-                                            }).toList(),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 22),
-                                ElevatedButton(
-                                  onPressed: _saving
-                                      ? null
-                                      : () => _confirmAppointment(
-                                            patientName,
-                                            doctorDisplayName,
-                                            _selectedEntry(scheduleDays),
-                                          ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF42A5F5),
-                                    foregroundColor: const Color(0xFF102A43),
-                                    minimumSize: const Size(double.infinity, 54),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(strokeWidth: 2.2),
-                                        )
-                                      : Text(
-                                          s.translate('confirm_booking'),
-                                          style: const TextStyle(
-                                            fontFamily: 'KurdishFont',
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 16,
-                                          ),
+                                                child: _saving
+                                                    ? const SizedBox(
+                                                        width: 22,
+                                                        height: 22,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2.2,
+                                                        ),
+                                                      )
+                                                    : Text(
+                                                        s.translate(
+                                                          'confirm_booking',
+                                                        ),
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              'KurdishFont',
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                              ),
+                                            ],
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            );
+                                          },
                                         ),
-                                ),
-                              ],
-                            ],
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -827,6 +1639,218 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Live Firestore availability for one doctor + calendar day; disables taken slots.
+class _BookedTimeSlotPicker extends StatefulWidget {
+  const _BookedTimeSlotPicker({
+    required this.doctorId,
+    required this.selectedDate,
+    required this.slots,
+    required this.selectedMinutes,
+    required this.onMinutesChanged,
+    required this.isRtlLayout,
+  });
+
+  final String doctorId;
+  final DateTime selectedDate;
+  final List<int> slots;
+  final int? selectedMinutes;
+  final ValueChanged<int?> onMinutesChanged;
+  final bool isRtlLayout;
+
+  @override
+  State<_BookedTimeSlotPicker> createState() => _BookedTimeSlotPickerState();
+}
+
+class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
+  Set<String>? _prevBooked;
+  String? _sessionKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final start = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+      widget.selectedDate.day,
+    );
+    final end = start.add(const Duration(days: 1));
+    final session = '${widget.doctorId}|${start.toIso8601String()}';
+    if (_sessionKey != session) {
+      _sessionKey = session;
+      _prevBooked = null;
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: appointmentsForDoctorDateRange(
+        doctorUserId: widget.doctorId,
+        rangeStartInclusiveLocal: start,
+        rangeEndExclusiveLocal: end,
+      ).snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => logFirestoreIndexHelpOnce(
+              snap.error,
+              tag: 'patient_booking_day_slots',
+              expectedCompositeIndexHint:
+                  kAppointmentsDoctorDateStatusIndexHint,
+            ),
+          );
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              s.translate('doctors_load_error_detail', params: {'error': '${snap.error}'}),
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontFamily: 'KurdishFont',
+                fontSize: 12,
+              ),
+            ),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: Color(0xFF42A5F5),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final booked = _bookingBookedTimeKeysFromDocs(snap.data?.docs ?? []);
+
+        final selectedStr = widget.selectedMinutes != null
+            ? _bookingTimeKeyFromMinutes(widget.selectedMinutes!)
+            : null;
+        final selectedIsBooked =
+            selectedStr != null && booked.contains(selectedStr);
+
+        if (selectedIsBooked) {
+          int? pick;
+          for (final m in widget.slots) {
+            if (!booked.contains(_bookingTimeKeyFromMinutes(m))) {
+              pick = m;
+              break;
+            }
+          }
+          final shouldUpdate = pick != widget.selectedMinutes;
+          if (shouldUpdate) {
+            final prev = _prevBooked;
+            final showTakenSnack =
+                prev != null && !prev.contains(selectedStr) && booked.contains(selectedStr);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              widget.onMinutesChanged(pick);
+              if (showTakenSnack && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      S.of(context).translate('booking_slot_just_taken'),
+                      style: const TextStyle(fontFamily: 'KurdishFont'),
+                    ),
+                  ),
+                );
+              }
+            });
+          }
+        }
+
+        _prevBooked = Set<String>.from(booked);
+
+        const blueFill = Color(0xFF1565C0);
+        const blueBorder = Color(0xFF42A5F5);
+        const blueLabel = Color(0xFFE3F2FD);
+        const redFill = Color(0xFF4A1518);
+        const redBorder = Color(0xFFE53935);
+        const redLabel = Color(0xFFFFCDD2);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              alignment: widget.isRtlLayout ? WrapAlignment.end : WrapAlignment.start,
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.slots.map((m) {
+                final timeStr = _bookingTimeKeyFromMinutes(m);
+                final isBooked = booked.contains(timeStr);
+                final isSelected =
+                    !isBooked && widget.selectedMinutes != null && widget.selectedMinutes == m;
+
+                final tile = Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isBooked ? null : () => widget.onMinutesChanged(m),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isBooked
+                            ? redFill
+                            : isSelected
+                                ? blueFill
+                                : const Color(0xFF1D1E33),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isBooked
+                              ? redBorder
+                              : isSelected
+                                  ? blueBorder
+                                  : Colors.white24,
+                          width: isBooked || isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Text(
+                        timeStr,
+                        style: TextStyle(
+                          fontFamily: 'KurdishFont',
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 14,
+                          color: isBooked
+                              ? redLabel
+                              : isSelected
+                                  ? blueLabel
+                                  : const Color(0xFFD9E2EC),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+
+                if (isBooked) {
+                  return Tooltip(
+                    message: s.translate('booking_slot_booked_hint'),
+                    child: tile,
+                  );
+                }
+                return tile;
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              s.translate('booking_slot_legend'),
+              textAlign: TextAlign.start,
+              style: const TextStyle(
+                color: Color(0xFF829AB1),
+                fontSize: 11,
+                fontFamily: 'KurdishFont',
+                height: 1.35,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

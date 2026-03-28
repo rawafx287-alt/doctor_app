@@ -6,6 +6,8 @@ import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
 import 'admin_feedback_screen.dart';
 import 'doctor_management_screen.dart';
+import '../calendar/master_calendar_screen.dart';
+import '../locale/app_localizations.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -36,6 +38,23 @@ class AdminDashboard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Column(
             children: [
+              _DashboardCard(
+                title: S.of(context).translate('master_calendar_tooltip'),
+                subtitle: S.of(context).translate('master_calendar_subtitle'),
+                icon: Icons.calendar_month_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const MasterCalendarScreen(
+                        showDoctorPicker: true,
+                        canManage: true,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
               _DashboardCard(
                 title: 'بۆچوونەکان',
                 subtitle: 'بۆچوون و پێشنیارەکانی نەخۆشەکان',

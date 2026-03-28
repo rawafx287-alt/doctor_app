@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../firestore/appointment_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -720,7 +722,7 @@ class PatientAppointmentsScreen extends StatelessWidget {
   static const Color _muted = Color(0xFF829AB1);
 
   String _queueLabel(Map<String, dynamic> data, int fallbackIndex) {
-    final q = data['queueNumber'];
+    final q = data[AppointmentFields.queueNumber];
     if (q is int && q > 0) {
       return '#${q.toString().padLeft(2, '0')}';
     }
@@ -744,8 +746,8 @@ class PatientAppointmentsScreen extends StatelessWidget {
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
-                .collection('appointments')
-                .where('patientId', isEqualTo: uid)
+                .collection(AppointmentFields.collection)
+                .where(AppointmentFields.patientId, isEqualTo: uid)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -776,13 +778,13 @@ class PatientAppointmentsScreen extends StatelessWidget {
               sorted.sort((a, b) {
                 final da = a.data();
                 final db = b.data();
-                final ta = da['createdAt'];
-                final tb = db['createdAt'];
+                final ta = da[AppointmentFields.createdAt];
+                final tb = db[AppointmentFields.createdAt];
                 if (ta is Timestamp && tb is Timestamp) {
                   return tb.compareTo(ta);
                 }
-                final dateA = da['date'];
-                final dateB = db['date'];
+                final dateA = da[AppointmentFields.date];
+                final dateB = db[AppointmentFields.date];
                 if (dateA is Timestamp && dateB is Timestamp) {
                   return dateB.compareTo(dateA);
                 }
@@ -813,13 +815,17 @@ class PatientAppointmentsScreen extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final data = sorted[index].data();
-                  final doctorName =
-                      (data['doctorName'] ?? data['doctorId'] ?? '—').toString();
+                  final doctorName = (data[AppointmentFields.doctorName] ??
+                          data[AppointmentFields.doctorId] ??
+                          '—')
+                      .toString();
                   final patientName =
-                      (data['patientName'] ?? '—').toString();
-                  final status = (data['status'] ?? 'pending').toString();
-                  final timeStr = (data['time'] ?? '—').toString();
-                  final rawDate = data['date'];
+                      (data[AppointmentFields.patientName] ?? '—').toString();
+                  final status =
+                      (data[AppointmentFields.status] ?? 'pending').toString();
+                  final timeStr =
+                      (data[AppointmentFields.time] ?? '—').toString();
+                  final rawDate = data[AppointmentFields.date];
                   final parsedDay = _parseAppointmentDate(rawDate);
                   String dateStr = '—';
                   if (parsedDay != null) {

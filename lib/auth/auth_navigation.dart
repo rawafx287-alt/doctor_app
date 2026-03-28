@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../locale/app_localizations.dart';
 import '../admin_panel/admin_dashboard.dart';
 import '../doctor/doctor_home_screen.dart';
 import '../patient/patient_home_screen.dart';
+import '../secretary/secretary_home_screen.dart';
 
 /// Maps Firestore [users] document to the correct home screen.
 /// Returns `null` if the doctor is not approved yet.
@@ -16,6 +18,9 @@ Widget? homeWidgetForUserData(Map<String, dynamic> data) {
   }
   if (role == 'Admin') {
     return const AdminDashboard();
+  }
+  if (role == 'Secretary') {
+    return const SecretaryHomeScreen();
   }
   if (role == 'Doctor') {
     return const DoctorHomeScreen();
@@ -40,10 +45,10 @@ Future<void> navigateAfterLogin(
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'هەژمارەکەت هێشتا لەلایەن بەڕێوەبەرەوە قبوڵ نەکراوە',
-          style: TextStyle(fontFamily: 'KurdishFont'),
+          S.of(context).translate('auth_snack_doctor_not_approved'),
+          style: const TextStyle(fontFamily: 'KurdishFont'),
         ),
       ),
     );
@@ -59,10 +64,10 @@ Future<void> navigateAfterLogin(
   await FirebaseAuth.instance.signOut();
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
+    SnackBar(
       content: Text(
-        'ڕۆڵی هەژمارەکەت نەناسراوە',
-        style: TextStyle(fontFamily: 'KurdishFont'),
+        S.of(context).translate('auth_snack_unknown_role'),
+        style: const TextStyle(fontFamily: 'KurdishFont'),
       ),
     ),
   );

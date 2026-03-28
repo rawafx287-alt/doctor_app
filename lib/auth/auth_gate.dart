@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import '../baxerhatn_login/login.dart';
 import 'auth_navigation.dart';
 
@@ -109,6 +110,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
@@ -121,10 +123,10 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.hourglass_top_rounded, size: 72, color: Color(0xFF42A5F5)),
                 const SizedBox(height: 24),
-                const Text(
-                  'هەژمارەکەت چاوەڕێی قبوڵکردنی بەڕێوەبەرە',
+                Text(
+                  s.translate('auth_doctor_pending_title'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFFD9E2EC),
                     fontFamily: 'KurdishFont',
                     fontSize: 18,
@@ -134,7 +136,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'دواتر دووبارە هەوڵ بدەرەوە',
+                  s.translate('auth_doctor_pending_hint'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: const Color(0xFF829AB1).withValues(alpha: 0.95),
@@ -151,9 +153,9 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () => FirebaseAuth.instance.signOut(),
-                  child: const Text(
-                    'گەڕانەوە بۆ چوونەژوورەوە',
-                    style: TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                  child: Text(
+                    s.translate('auth_back_to_login'),
+                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -170,6 +172,7 @@ class UnknownRoleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
@@ -182,10 +185,10 @@ class UnknownRoleScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline_rounded, size: 64, color: Color(0xFF829AB1)),
                 const SizedBox(height: 20),
-                const Text(
-                  'ڕۆڵی هەژمارەکەت نەناسراوە',
+                Text(
+                  s.translate('auth_unknown_role'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFFD9E2EC),
                     fontFamily: 'KurdishFont',
                     fontSize: 17,
@@ -201,9 +204,9 @@ class UnknownRoleScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () => FirebaseAuth.instance.signOut(),
-                  child: const Text(
-                    'گەڕانەوە',
-                    style: TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                  child: Text(
+                    s.translate('auth_back'),
+                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

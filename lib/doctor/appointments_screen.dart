@@ -1,9 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../firestore/appointment_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
+import '../models/patient_profile_read.dart';
 
 class AppointmentsScreen extends StatelessWidget {
   const AppointmentsScreen({super.key, this.embedded = false});
@@ -20,7 +25,7 @@ class AppointmentsScreen extends StatelessWidget {
   ) {
     final list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
     int ts(QueryDocumentSnapshot<Map<String, dynamic>> d) {
-      final c = d.data()['createdAt'];
+      final c = d.data()[AppointmentFields.createdAt];
       if (c is Timestamp) return c.millisecondsSinceEpoch;
       return 0;
     }
@@ -30,8 +35,8 @@ class AppointmentsScreen extends StatelessWidget {
   }
 
   static String _formatDateTime(Map<String, dynamic> data) {
-    final date = data['date'];
-    final time = (data['time'] ?? '—').toString();
+    final date = data[AppointmentFields.date];
+    final time = (data[AppointmentFields.time] ?? '—').toString();
     String datePart = '—';
     if (date is Timestamp) {
       datePart = DateFormat('yyyy/MM/dd').format(date.toDate());
@@ -39,17 +44,175 @@ class AppointmentsScreen extends StatelessWidget {
     return '$datePart  •  $time';
   }
 
-  Future<void> _setStatus(BuildContext context, String docId, String status) async {
+  static String _localizedGender(BuildContext context, String raw) {
+    if (raw.isEmpty) return S.of(context).translate('doctor_appt_not_available');
+    final n = raw.toLowerCase().trim();
+    final s = S.of(context);
+    const maleHints = {'male', 'm', 'man', 'ذكر', 'رجل', 'نێر'};
+    const femaleHints = {'female', 'f', 'woman', 'أنثى', 'انثى', 'مێ'};
+    if (maleHints.contains(n)) return s.translate('doctor_appt_gender_male');
+    if (femaleHints.contains(n)) return s.translate('doctor_appt_gender_female');
+    return raw;
+  }
+
+  static Uri? _telUri(String raw) {
+    final cleaned = raw.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (cleaned.isEmpty) return null;
+    return Uri.parse('tel:$cleaned');
+  }
+
+  static Future<void> _launchTel(BuildContext context, String phone) async {
+    final s = S.of(context);
+    final uri = _telUri(phone);
+    if (uri == null) return;
     try {
-      await FirebaseFirestore.instance.collection('appointments').doc(docId).update({
-        'status': status,
-        'updatedAt': FieldValue.serverTimestamp(),
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('doctor_appt_call_failed'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('doctor_appt_call_failed'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  static void _showPatientDetail(
+    BuildContext context, {
+    required Map<String, dynamic>? patientProfile,
+    required String fallbackPatientName,
+    required String dateTimeLine,
+    required String status,
+  }) {
+    final s = S.of(context);
+    final dir = AppLocaleScope.of(context).textDirection;
+    final name = (patientProfile?['fullName'] ?? fallbackPatientName).toString().trim();
+    final displayName = name.isEmpty ? fallbackPatientName : name;
+    final age = patientAgeYearsFromUserData(patientProfile);
+    final ageStr = age != null ? '$age' : s.translate('doctor_appt_not_available');
+    final genderRaw = patientGenderRawFromUserData(patientProfile);
+    final genderStr = _localizedGender(context, genderRaw);
+    final phone = patientPhoneFromUserData(patientProfile);
+    final phoneStr = phone.isNotEmpty ? phone : s.translate('doctor_appt_not_available');
+    final email = patientEmailFromUserData(patientProfile);
+    final emailStr = email.isNotEmpty ? email : s.translate('doctor_appt_not_available');
+    final history = patientMedicalHistoryFromUserData(patientProfile);
+    final historyBody = history.isNotEmpty
+        ? history
+        : s.translate('doctor_appt_no_medical_history');
+
+    String statusLabel() {
+      switch (_statusKey(status)) {
+        case 'completed':
+          return s.translate('doctor_appt_status_completed');
+        case 'cancelled':
+          return s.translate('doctor_appt_status_cancelled');
+        default:
+          return s.translate('doctor_appt_status_pending');
+      }
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return Directionality(
+          textDirection: dir,
+          child: AlertDialog(
+            backgroundColor: const Color(0xFF1D1E33),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Text(
+              s.translate('doctor_appt_patient_profile_title'),
+              style: const TextStyle(
+                fontFamily: 'KurdishFont',
+                color: Color(0xFFD9E2EC),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DetailLine(label: s.translate('doctor_appt_patient_name_label'), value: displayName),
+                  _DetailLine(label: s.translate('doctor_appt_label_age'), value: ageStr),
+                  _DetailLine(label: s.translate('doctor_appt_label_gender'), value: genderStr),
+                  _DetailLine(label: s.translate('doctor_appt_label_phone'), value: phoneStr),
+                  _DetailLine(label: s.translate('doctor_appt_label_email'), value: emailStr),
+                  _DetailLine(label: s.translate('doctor_appt_datetime_label'), value: dateTimeLine),
+                  _DetailLine(label: s.translate('doctor_appt_label_appointment_status'), value: statusLabel()),
+                  const SizedBox(height: 12),
+                  Text(
+                    s.translate('doctor_appt_medical_history_section'),
+                    style: TextStyle(
+                      color: const Color(0xFF829AB1).withValues(alpha: 0.95),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'KurdishFont',
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    historyBody,
+                    style: const TextStyle(
+                      color: Color(0xFFD9E2EC),
+                      fontSize: 14,
+                      height: 1.4,
+                      fontFamily: 'KurdishFont',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  s.translate('doctor_appt_close'),
+                  style: const TextStyle(
+                    color: Color(0xFF42A5F5),
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _setStatus(BuildContext context, String docId, String status) async {
+    final s = S.of(context);
+    try {
+      await FirebaseFirestore.instance
+          .collection(AppointmentFields.collection)
+          .doc(docId)
+          .update({
+        AppointmentFields.status: status,
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              status == 'completed' ? 'وەک تەواوبوو تۆمارکرا' : 'وەک هەڵوەشاوە تۆمارکرا',
+              status == 'completed'
+                  ? s.translate('doctor_appointment_done_snack')
+                  : s.translate('doctor_appointment_cancelled_snack'),
               style: const TextStyle(fontFamily: 'KurdishFont'),
             ),
           ),
@@ -58,7 +221,12 @@ class AppointmentsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('هەڵە لە نوێکردنەوە')),
+          SnackBar(
+            content: Text(
+              s.translate('doctor_appointments_update_error'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
         );
       }
     }
@@ -67,81 +235,116 @@ class AppointmentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final s = S.of(context);
 
     final body = uid == null
-            ? const Center(
-                child: Text(
-                  'چوونەژوورەوە پێویستە',
-                  style: TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+        ? Center(
+            child: Text(
+              s.translate('login_required'),
+              style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+            ),
+          )
+        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection(AppointmentFields.collection)
+                .where(AppointmentFields.doctorId, isEqualTo: uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                );
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      s.translate('doctors_load_error_detail', params: {'error': '${snapshot.error}'}),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontFamily: 'KurdishFont',
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+              final sorted = _sortNewestFirst(docs);
+
+              if (sorted.isEmpty) {
+                return Center(
+                  child: Text(
+                    s.translate('doctor_appointments_empty'),
+                    style: const TextStyle(
+                      color: Color(0xFF829AB1),
+                      fontFamily: 'KurdishFont',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                itemCount: sorted.length,
+                separatorBuilder: (_, _) => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 5),
+                  child: Divider(height: 1, thickness: 1, color: Colors.white10),
                 ),
-              )
-            : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('appointments')
-                    .where('doctorId', isEqualTo: uid)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'هەڵە: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontFamily: 'KurdishFont',
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+                itemBuilder: (context, index) {
+                  final doc = sorted[index];
+                  final data = doc.data();
+                  final patientName =
+                      (data[AppointmentFields.patientName] ?? '—').toString();
+                  final status = _statusKey(data[AppointmentFields.status]);
+                  final dateTimeLine = _formatDateTime(data);
+                  final patientId =
+                      (data[AppointmentFields.patientId] ?? '').toString().trim();
 
-                  final docs = snapshot.data?.docs ?? [];
-                  final sorted = _sortNewestFirst(docs);
-
-                  if (sorted.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'هیچ نۆرەیەکی نوێ نییە',
-                        style: TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: sorted.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final doc = sorted[index];
-                      final data = doc.data();
-                      final patientName = (data['patientName'] ?? '—').toString();
-                      final status = _statusKey(data['status']);
-                      final dateTimeLine = _formatDateTime(data);
-
-                      return _AppointmentCard(
-                        patientName: patientName,
+                  Widget cardForProfile(Map<String, dynamic>? profile, {required bool patientLoading}) {
+                    return _AppointmentCard(
+                      patientName: patientName,
+                      dateTimeLine: dateTimeLine,
+                      status: status,
+                      showActions: status == 'pending',
+                      phoneForCall: patientPhoneFromUserData(profile),
+                      ageLine: _ageGenderPhoneSummary(context, profile, patientLoading),
+                      onCardTap: () => _showPatientDetail(
+                        context,
+                        patientProfile: profile,
+                        fallbackPatientName: patientName,
                         dateTimeLine: dateTimeLine,
                         status: status,
-                        showActions: status == 'pending',
-                        onComplete: () => _setStatus(context, doc.id, 'completed'),
-                        onCancel: () => _setStatus(context, doc.id, 'cancelled'),
-                      );
+                      ),
+                      onCallTap: patientPhoneFromUserData(profile).isNotEmpty
+                          ? () => _launchTel(context, patientPhoneFromUserData(profile))
+                          : null,
+                      onComplete: () => _setStatus(context, doc.id, 'completed'),
+                      onCancel: () => _setStatus(context, doc.id, 'cancelled'),
+                    );
+                  }
+
+                  if (patientId.isEmpty) {
+                    return cardForProfile(null, patientLoading: false);
+                  }
+
+                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance.collection('users').doc(patientId).snapshots(),
+                    builder: (context, patientSnap) {
+                      final loading =
+                          patientSnap.connectionState == ConnectionState.waiting && !patientSnap.hasData;
+                      final profile = patientSnap.data?.data();
+                      return cardForProfile(profile, patientLoading: loading);
                     },
                   );
                 },
               );
+            },
+          );
 
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
@@ -153,11 +356,11 @@ class AppointmentsScreen extends StatelessWidget {
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_forward_ios_rounded),
                   onPressed: () => Navigator.pop(context),
-                  tooltip: 'گەڕانەوە',
+                  tooltip: s.translate('tooltip_back'),
                 ),
-                title: const Text(
-                  'نۆرەکانی داواکراو',
-                  style: TextStyle(
+                title: Text(
+                  s.translate('doctor_title_appointments_list'),
+                  style: const TextStyle(
                     fontFamily: 'KurdishFont',
                     fontWeight: FontWeight.w700,
                   ),
@@ -170,6 +373,113 @@ class AppointmentsScreen extends StatelessWidget {
       ),
     );
   }
+
+  static Widget _ageGenderPhoneSummary(
+    BuildContext context,
+    Map<String, dynamic>? profile,
+    bool patientLoading,
+  ) {
+    final s = S.of(context);
+    if (patientLoading) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.8,
+                color: const Color(0xFF42A5F5).withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '…',
+              style: TextStyle(
+                color: const Color(0xFF829AB1).withValues(alpha: 0.9),
+                fontSize: 11,
+                fontFamily: 'KurdishFont',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final age = patientAgeYearsFromUserData(profile);
+    final agePart = age != null
+        ? '${s.translate('doctor_appt_label_age')}: $age'
+        : '${s.translate('doctor_appt_label_age')}: ${s.translate('doctor_appt_not_available')}';
+    final genderRaw = patientGenderRawFromUserData(profile);
+    final genderPart = genderRaw.isNotEmpty
+        ? '${s.translate('doctor_appt_label_gender')}: ${_localizedGender(context, genderRaw)}'
+        : '${s.translate('doctor_appt_label_gender')}: ${s.translate('doctor_appt_not_available')}';
+    final phone = patientPhoneFromUserData(profile);
+    final phonePart = phone.isNotEmpty
+        ? '${s.translate('doctor_appt_label_phone')}: $phone'
+        : '${s.translate('doctor_appt_label_phone')}: ${s.translate('doctor_appt_not_available')}';
+
+    const compactMeta = TextStyle(
+      color: Color(0xFF829AB1),
+      fontSize: 11,
+      height: 1.2,
+      fontFamily: 'KurdishFont',
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$agePart  ·  $genderPart', style: compactMeta),
+          const SizedBox(height: 2),
+          Text(
+            phonePart,
+            style: compactMeta.copyWith(fontSize: 12, height: 1.25),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
+  const _DetailLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: const Color(0xFF829AB1).withValues(alpha: 0.95),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'KurdishFont',
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFFD9E2EC),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'KurdishFont',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AppointmentCard extends StatelessWidget {
@@ -178,6 +488,10 @@ class _AppointmentCard extends StatelessWidget {
     required this.dateTimeLine,
     required this.status,
     required this.showActions,
+    required this.phoneForCall,
+    required this.ageLine,
+    required this.onCardTap,
+    required this.onCallTap,
     required this.onComplete,
     required this.onCancel,
   });
@@ -186,6 +500,10 @@ class _AppointmentCard extends StatelessWidget {
   final String dateTimeLine;
   final String status;
   final bool showActions;
+  final String phoneForCall;
+  final Widget ageLine;
+  final VoidCallback onCardTap;
+  final VoidCallback? onCallTap;
   final VoidCallback onComplete;
   final VoidCallback onCancel;
 
@@ -201,161 +519,199 @@ class _AppointmentCard extends StatelessWidget {
     }
   }
 
-  String get _badgeLabel {
+  String _badgeLabel(BuildContext context) {
+    final s = S.of(context);
     switch (status) {
       case 'completed':
-        return 'تەواوبوو';
+        return s.translate('doctor_appt_status_completed');
       case 'cancelled':
-        return 'هەڵوەشاوە';
+        return s.translate('doctor_appt_status_cancelled');
       case 'pending':
       default:
-        return 'چاوەڕێ';
+        return s.translate('doctor_appt_status_pending');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1D1E33),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    final s = S.of(context);
+    final showPhoneIcon = onCallTap != null && phoneForCall.isNotEmpty;
+
+    return Material(
+      color: const Color(0xFF1D1E33),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Colors.white10, width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            textDirection: AppLocaleScope.of(context).textDirection,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onCardTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ناوی نەخۆش',
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        color: const Color(0xFF829AB1).withOpacity(0.95),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'KurdishFont',
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                textDirection: AppLocaleScope.of(context).textDirection,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.translate('doctor_appt_patient_name_label'),
+                          textAlign: TextAlign.start,
+                          style: TextStyle(
+                            color: const Color(0xFF829AB1).withValues(alpha: 0.95),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'KurdishFont',
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                patientName,
+                                textAlign: TextAlign.start,
+                                style: const TextStyle(
+                                  color: Color(0xFFD9E2EC),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'KurdishFont',
+                                ),
+                              ),
+                            ),
+                            if (showPhoneIcon) ...[
+                              const SizedBox(width: 4),
+                              Material(
+                                color: const Color(0xFF42A5F5).withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  onTap: onCallTap,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6),
+                                    child: Icon(
+                                      Icons.phone_rounded,
+                                      size: 18,
+                                      color: Color(0xFF42A5F5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        ageLine,
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      patientName,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: Color(0xFFD9E2EC),
-                        fontSize: 17,
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _badgeColor.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _badgeColor.withValues(alpha: 0.55)),
+                    ),
+                    child: Text(
+                      _badgeLabel(context),
+                      style: TextStyle(
+                        color: _badgeColor,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'KurdishFont',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                s.translate('doctor_appt_datetime_label'),
+                textAlign: TextAlign.start,
+                style: TextStyle(
+                  color: const Color(0xFF829AB1).withValues(alpha: 0.95),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'KurdishFont',
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                dateTimeLine,
+                textAlign: TextAlign.start,
+                style: const TextStyle(
+                  color: Color(0xFFD9E2EC),
+                  fontSize: 14,
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (showActions) ...[
+                const SizedBox(height: 10),
+                Row(
+                  textDirection: AppLocaleScope.of(context).textDirection,
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onCancel,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF4D6D),
+                          side: const BorderSide(color: Color(0xFFFF4D6D)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          minimumSize: const Size(0, 40),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          s.translate('doctor_appt_action_decline'),
+                          style: const TextStyle(
+                            fontFamily: 'KurdishFont',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: onComplete,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF28C76F),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          minimumSize: const Size(0, 40),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          s.translate('doctor_appt_action_complete'),
+                          style: const TextStyle(
+                            fontFamily: 'KurdishFont',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _badgeColor.withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: _badgeColor.withOpacity(0.55)),
-                ),
-                child: Text(
-                  _badgeLabel,
-                  style: TextStyle(
-                    color: _badgeColor,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'KurdishFont',
-                    fontSize: 13,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            'بەروار و کات',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: const Color(0xFF829AB1).withOpacity(0.95),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'KurdishFont',
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            dateTimeLine,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Color(0xFFD9E2EC),
-              fontSize: 15,
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (showActions) ...[
-            const SizedBox(height: 16),
-            Row(
-              textDirection: AppLocaleScope.of(context).textDirection,
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF4D6D),
-                      side: const BorderSide(color: Color(0xFFFF4D6D)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'ڕەتکردنەوە',
-                      style: TextStyle(
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onComplete,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF28C76F),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'تەواوبوو',
-                      style: TextStyle(
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
