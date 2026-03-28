@@ -10,6 +10,15 @@ import '../firestore/calendar_block_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 
+int _appointmentSortMinutes(Map<String, dynamic> data) {
+  final t = (data[AppointmentFields.time] ?? '').toString();
+  final parts = t.split(':');
+  if (parts.length < 2) return 0;
+  final h = int.tryParse(parts[0].trim()) ?? 0;
+  final m = int.tryParse(parts[1].trim()) ?? 0;
+  return h * 60 + m;
+}
+
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key, this.embedded = false});
 
@@ -217,31 +226,65 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModal) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 16,
-                bottom: MediaQuery.paddingOf(ctx).bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      DateFormat.yMMMEd().format(day),
-                      style: const TextStyle(
-                        color: Color(0xFFD9E2EC),
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
+        final tabBodyHeight = (MediaQuery.sizeOf(ctx).height * 0.52).clamp(280.0, 540.0);
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.paddingOf(ctx).bottom + 16,
+          ),
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  DateFormat.yMMMEd().format(day),
+                  style: const TextStyle(
+                    color: Color(0xFFD9E2EC),
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: Colors.transparent,
+                  child: TabBar(
+                    labelColor: const Color(0xFF42A5F5),
+                    unselectedLabelColor: const Color(0xFF829AB1),
+                    indicatorColor: const Color(0xFF42A5F5),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.white12,
+                    labelStyle: const TextStyle(
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
                     ),
-                    const SizedBox(height: 14),
-                    SwitchListTile(
+                    unselectedLabelStyle: const TextStyle(
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    tabs: [
+                      Tab(text: s.translate('schedule_sheet_tab_settings')),
+                      Tab(text: s.translate('schedule_sheet_tab_patients')),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: tabBodyHeight,
+                  child: TabBarView(
+                    children: [
+                      StatefulBuilder(
+                        builder: (context, setModal) {
+                          return SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         s.translate('schedule_day_blocked'),
@@ -448,11 +491,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               ),
                             ),
                     ),
-                  ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      _ScheduleSheetPatientsTab(doctorId: uid, day: day),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         );
       },
     );
@@ -739,6 +789,123 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               : const Color(0xFFE8EEF4),
         ),
       ),
+    );
+  }
+}
+
+/// Patient appointments for a single day (Schedule Management bottom sheet — tab 2).
+class _ScheduleSheetPatientsTab extends StatelessWidget {
+  const _ScheduleSheetPatientsTab({
+    required this.doctorId,
+    required this.day,
+  });
+
+  final String doctorId;
+  final DateTime day;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: appointmentsForDoctorDateRange(
+        doctorUserId: doctorId,
+        rangeStartInclusiveLocal: dayStart,
+        rangeEndExclusiveLocal: dayEnd,
+      ).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontFamily: 'KurdishFont',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final active = docs.where((d) {
+          final st =
+              (d.data()[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+          return st != 'cancelled';
+        }).toList()
+          ..sort(
+            (a, b) => _appointmentSortMinutes(a.data()).compareTo(_appointmentSortMinutes(b.data())),
+          );
+
+        if (active.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                s.translate('schedule_sheet_no_appointments_day'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF829AB1),
+                  fontFamily: 'KurdishFont',
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          itemCount: active.length,
+          separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
+          itemBuilder: (context, i) {
+            final data = active[i].data();
+            final name = (data[AppointmentFields.patientName] ?? '').toString().trim();
+            final timeRaw = (data[AppointmentFields.time] ?? '').toString().trim();
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              title: Text(
+                name.isEmpty ? '—' : name,
+                style: const TextStyle(
+                  color: Color(0xFFD9E2EC),
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF42A5F5)),
+                    const SizedBox(width: 6),
+                    Text(
+                      timeRaw.isEmpty ? '—' : timeRaw,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontFamily: 'KurdishFont',
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

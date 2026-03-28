@@ -876,6 +876,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'حفظ',
     'en': 'Save',
   },
+  'schedule_sheet_tab_settings': {
+    'ckb': 'ڕێکخستنی کات',
+    'ar': 'إعدادات الوقت',
+    'en': 'Time settings',
+  },
+  'schedule_sheet_tab_patients': {
+    'ckb': 'لیستى نەخۆشەکان',
+    'ar': 'قائمة المرضى',
+    'en': 'Patient list',
+  },
+  'schedule_sheet_no_appointments_day': {
+    'ckb': 'هیچ نۆرەیەک بۆ ئەم ڕۆژە نییە',
+    'ar': 'لا مواعيد لهذا اليوم',
+    'en': 'No appointments for this day',
+  },
   'schedule_save_ok': {
     'ckb': 'پاشکەوتکردن بە سەرکەوتوویی تەواوبوو',
     'ar': 'تم الحفظ بنجاح',
