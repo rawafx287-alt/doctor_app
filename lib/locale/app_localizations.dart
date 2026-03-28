@@ -1096,6 +1096,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'أخضر = يوم عمل · برتقالي = ممتلئ · أحمر = عطلة/مغلق',
     'en': 'Green = working day · Orange = fully booked · Red = off / closed',
   },
+  'booking_pick_day_hint': {
+    'ckb': 'بۆ بینینی کاتەکان، ڕۆژێکی سەوز داوە بکە.',
+    'ar': 'اضغط على يوم أخضر لاختيار الوقت.',
+    'en': 'Tap a green day to choose a time.',
+  },
   'working_days_title': {
     'ckb': 'ڕۆژەکانی کار (تەنها ئەوانەی پزیشک چالاکی کردووە)',
     'ar': 'أيام العمل (المفعّلة من الطبيب فقط)',

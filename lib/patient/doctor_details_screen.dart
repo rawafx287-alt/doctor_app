@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../calendar/calendar_slot_logic.dart';
@@ -64,9 +65,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
   static const String _bookingBrandTitle = 'HR Nora';
 
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  bool _saving = false;
   DateTime _patientCalendarFocusedDay = DateTime.now();
   bool _patientCalendarPrimed = false;
   final GlobalKey _bookingSectionKey = GlobalKey();
@@ -84,22 +82,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     if (oldWidget.doctorId != widget.doctorId) {
       _patientCalendarPrimed = false;
       _patientCalendarFocusedDay = DateTime.now();
-      _selectedDate = null;
-      _selectedTime = null;
     }
   }
 
-  TimeOfDay _timeFromMinutes(int m) {
-    return TimeOfDay(hour: m ~/ 60, minute: m % 60);
-  }
-
   int _toMinutes(TimeOfDay t) => t.hour * 60 + t.minute;
-
-  String _formatMinutes(int m) {
-    final h = m ~/ 60;
-    final min = m % 60;
-    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
-  }
 
   Map<String, dynamic>? _scheduleOverridesMap(dynamic raw) {
     if (raw is! Map) return null;
@@ -221,29 +207,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return null;
   }
 
-  void _setSelectedDateSlots(
-    DateTime date,
-    Map<String, dynamic>? weekly,
-    Map<String, dynamic>? overrides, {
-    required List<Map<String, dynamic>> monthBlockMaps,
-  }) {
-    final win = workingWindowForDateWithOverrides(date, weekly, overrides);
-    if (win == null) {
-      _selectedTime = null;
-      return;
-    }
-    final step = appointmentSlotMinutesForDateWithAllBlocks(
-      date,
-      monthBlockMaps,
-    );
-    final slots = slotStartMinutesForWindow(
-      win.startMinutes,
-      win.endMinutes,
-      step: step,
-    );
-    _selectedTime = slots.isNotEmpty ? _timeFromMinutes(slots.first) : null;
-  }
-
   Widget _patientBookingDayCell({
     required DateTime day,
     required DateTime focusedMonth,
@@ -307,29 +270,18 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     );
   }
 
-  Future<void> _confirmAppointment(
-    String patientName,
-    String doctorDisplayName,
-    Map<String, dynamic>? weekly,
-    Map<String, dynamic>? overrides,
-  ) async {
+  Future<void> _confirmAppointmentForDate({
+    required DateTime selectedDate,
+    required TimeOfDay selectedTime,
+    required String patientName,
+    required String doctorDisplayName,
+    required Map<String, dynamic>? weekly,
+    required Map<String, dynamic>? overrides,
+  }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final s = S.of(context);
-    final win = _selectedDate != null
-        ? workingWindowForDateWithOverrides(_selectedDate!, weekly, overrides)
-        : null;
-    if (_selectedDate == null || _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('booking_select_datetime'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-      return;
-    }
+    final win = workingWindowForDateWithOverrides(selectedDate, weekly, overrides);
     if (win == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -342,12 +294,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       return;
     }
 
-    setState(() => _saving = true);
     try {
       final dateNorm = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
       );
       final nextDay = dateNorm.add(const Duration(days: 1));
       final blockSnap = await calendarBlocksForDoctorDateRange(
@@ -359,7 +310,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       final closedDayBlocks = blocksForCalendarDay(dateNorm, blockMaps);
       if (calendarDayHasIsClosedFlag(closedDayBlocks)) {
         if (!mounted) return;
-        setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -379,10 +329,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         win.endMinutes,
         step: step,
       );
-      final selMin = _toMinutes(_selectedTime!);
+      final selMin = _toMinutes(selectedTime);
       if (!allowedStarts.contains(selMin)) {
         if (!mounted) return;
-        setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -395,7 +344,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       }
 
       final timeStr =
-          '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+          '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
 
       final sameDay = await appointmentsForDoctorDateRange(
         doctorUserId: widget.doctorId,
@@ -412,7 +361,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             ) ==
             timeStr) {
           if (!mounted) return;
-          setState(() => _saving = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -545,9 +493,67 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           ),
         ),
       );
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _openPatientBookingSlotsSheet({
+    required BuildContext context,
+    required DateTime day,
+    required Map<String, dynamic>? weeklyMap,
+    required Map<String, dynamic>? overrides,
+    required List<Map<String, dynamic>> monthBlockMaps,
+    required String patientName,
+    required String doctorDisplayName,
+    required bool isRtlLayout,
+  }) async {
+    final win = workingWindowForDateWithOverrides(day, weeklyMap, overrides);
+    if (win == null) return;
+    final step = appointmentSlotMinutesForDateWithAllBlocks(day, monthBlockMaps);
+    final slots = slotStartMinutesForWindow(
+      win.startMinutes,
+      win.endMinutes,
+      step: step,
+    );
+    final dayNorm = DateTime(day.year, day.month, day.day);
+
+    if (!context.mounted) return;
+    final picked = await showModalBottomSheet<TimeOfDay?>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: const Color(0xFF1D1E33),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.68,
+          minChildSize: 0.42,
+          maxChildSize: 0.94,
+          builder: (ctx, scrollController) {
+            return _PatientBookingTimeSheet(
+              scrollController: scrollController,
+              doctorId: widget.doctorId,
+              day: dayNorm,
+              slots: slots,
+              windowStartMinutes: win.startMinutes,
+              windowEndMinutes: win.endMinutes,
+              isRtlLayout: isRtlLayout,
+            );
+          },
+        );
+      },
+    );
+    if (!mounted || picked == null) return;
+    await _confirmAppointmentForDate(
+      selectedDate: dayNorm,
+      selectedTime: picked,
+      patientName: patientName,
+      doctorDisplayName: doctorDisplayName,
+      weekly: weeklyMap,
+      overrides: overrides,
+    );
   }
 
   @override
@@ -974,6 +980,17 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                             height: 1.35,
                                           ),
                                         ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          s.translate('booking_pick_day_hint'),
+                                          textAlign: TextAlign.start,
+                                          style: const TextStyle(
+                                            color: Color(0xFF64748B),
+                                            fontSize: 12,
+                                            fontFamily: 'KurdishFont',
+                                            height: 1.35,
+                                          ),
+                                        ),
                                         const SizedBox(height: 10),
                                         Builder(
                                           builder: (context) {
@@ -1108,42 +1125,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                       blockDocs: blocks,
                                                     );
 
-                                                    if (_selectedDate != null &&
-                                                        apptSnap.hasData &&
-                                                        blockSnap.hasData) {
-                                                      final sk = DateTime(
-                                                        _selectedDate!.year,
-                                                        _selectedDate!.month,
-                                                        _selectedDate!.day,
-                                                      );
-                                                      if (visuals[sk] ==
-                                                          MasterDayVisual
-                                                              .nonWorking) {
-                                                        WidgetsBinding.instance
-                                                            .addPostFrameCallback(
-                                                                (_) {
-                                                          if (!mounted) return;
-                                                          setState(() {
-                                                            if (_selectedDate !=
-                                                                    null &&
-                                                                DateTime(
-                                                                  _selectedDate!
-                                                                      .year,
-                                                                  _selectedDate!
-                                                                      .month,
-                                                                  _selectedDate!
-                                                                      .day,
-                                                                ) ==
-                                                                    sk) {
-                                                              _selectedDate =
-                                                                  null;
-                                                              _selectedTime =
-                                                                  null;
-                                                            }
-                                                          });
-                                                        });
-                                                      }
-                                                    }
+                                                    final blockMaps = blocks
+                                                        .map((e) => e.data())
+                                                        .toList();
 
                                                     if (!_patientCalendarPrimed &&
                                                         hasSchedule &&
@@ -1168,23 +1152,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                         if (!mounted) return;
                                                         setState(() {
                                                           if (first != null) {
-                                                            _selectedDate =
-                                                                first;
                                                             _patientCalendarFocusedDay =
                                                                 DateTime(
                                                               first.year,
                                                               first.month,
                                                               first.day,
-                                                            );
-                                                            _setSelectedDateSlots(
-                                                              first,
-                                                              weeklyMap,
-                                                              overrides,
-                                                              monthBlockMaps:
-                                                                  blocks
-                                                                      .map((e) =>
-                                                                          e.data())
-                                                                      .toList(),
                                                             );
                                                           }
                                                         });
@@ -1197,60 +1169,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                       DateTime.now().month,
                                                       DateTime.now().day,
                                                     );
-                                                    final selectedWin =
-                                                        _selectedDate != null
-                                                            ? workingWindowForDateWithOverrides(
-                                                                _selectedDate!,
-                                                                weeklyMap,
-                                                                overrides,
-                                                              )
-                                                            : null;
-                                                    final selVis =
-                                                        _selectedDate != null
-                                                            ? visuals[DateTime(
-                                                                _selectedDate!
-                                                                    .year,
-                                                                _selectedDate!
-                                                                    .month,
-                                                                _selectedDate!
-                                                                    .day,
-                                                              )]
-                                                            : null;
-                                                    final blockMaps = blocks
-                                                        .map((e) => e.data())
-                                                        .toList();
-                                                    final slotForSelected =
-                                                        _selectedDate != null
-                                                            ? appointmentSlotMinutesForDateWithAllBlocks(
-                                                                DateTime(
-                                                                  _selectedDate!
-                                                                      .year,
-                                                                  _selectedDate!
-                                                                      .month,
-                                                                  _selectedDate!
-                                                                      .day,
-                                                                ),
-                                                                blockMaps,
-                                                              )
-                                                            : kDefaultAppointmentSlotMinutes;
-                                                    final slots = selectedWin !=
-                                                            null
-                                                        ? slotStartMinutesForWindow(
-                                                            selectedWin
-                                                                .startMinutes,
-                                                            selectedWin
-                                                                .endMinutes,
-                                                            step:
-                                                                slotForSelected,
-                                                          )
-                                                        : <int>[];
-                                                    final showSlots =
-                                                        _selectedDate !=
-                                                                null &&
-                                                            selVis ==
-                                                                MasterDayVisual
-                                                                    .hasAvailability &&
-                                                            selectedWin != null;
 
                                                     return Column(
                                                       crossAxisAlignment:
@@ -1310,12 +1228,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                               daysOfWeekHeight:
                                                                   34,
                                                               selectedDayPredicate:
-                                                                  (d) =>
-                                                                      _selectedDate !=
-                                                                          null &&
-                                                                      isSameDay(
-                                                                          _selectedDate!,
-                                                                          d),
+                                                                  (_) => false,
                                                               calendarFormat:
                                                                   CalendarFormat
                                                                       .month,
@@ -1483,7 +1396,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                         f);
                                                               },
                                                               onDaySelected:
-                                                                  (sel, foc) {
+                                                                  (sel, foc) async {
                                                                 final key =
                                                                     DateTime(
                                                                   sel.year,
@@ -1536,23 +1449,31 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                 if (v ==
                                                                     MasterDayVisual
                                                                         .hasAvailability) {
-                                                                  setState(
-                                                                      () {
-                                                                    _selectedDate =
-                                                                        sel;
+                                                                  setState(() {
                                                                     _patientCalendarFocusedDay =
                                                                         foc;
-                                                                    _setSelectedDateSlots(
-                                                                      sel,
-                                                                      weeklyMap,
-                                                                      overrides,
-                                                                      monthBlockMaps:
-                                                                          blocks
-                                                                              .map((e) => e
-                                                                                  .data())
-                                                                              .toList(),
-                                                                    );
                                                                   });
+                                                                  if (!context
+                                                                      .mounted) {
+                                                                    return;
+                                                                  }
+                                                                  await _openPatientBookingSlotsSheet(
+                                                                    context:
+                                                                        context,
+                                                                    day: sel,
+                                                                    weeklyMap:
+                                                                        weeklyMap,
+                                                                    overrides:
+                                                                        overrides,
+                                                                    monthBlockMaps:
+                                                                        blockMaps,
+                                                                    patientName:
+                                                                        patientName,
+                                                                    doctorDisplayName:
+                                                                        doctorDisplayName,
+                                                                    isRtlLayout:
+                                                                        isRtlLayout,
+                                                                  );
                                                                 }
                                                               },
                                                               calendarBuilders:
@@ -1567,11 +1488,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     d.month,
                                                                     d.day,
                                                                   );
-                                                                  final sel = _selectedDate !=
-                                                                          null &&
-                                                                      isSameDay(
-                                                                          _selectedDate!,
-                                                                          d);
                                                                   return _patientBookingDayCell(
                                                                     day: d,
                                                                     focusedMonth:
@@ -1583,7 +1499,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                         DateTime
                                                                             .now()),
                                                                     isSelected:
-                                                                        sel,
+                                                                        false,
                                                                   );
                                                                 },
                                                                 todayBuilder:
@@ -1596,11 +1512,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     d.month,
                                                                     d.day,
                                                                   );
-                                                                  final sel = _selectedDate !=
-                                                                          null &&
-                                                                      isSameDay(
-                                                                          _selectedDate!,
-                                                                          d);
                                                                   return _patientBookingDayCell(
                                                                     day: d,
                                                                     focusedMonth:
@@ -1610,7 +1521,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     isToday:
                                                                         true,
                                                                     isSelected:
-                                                                        sel,
+                                                                        false,
                                                                   );
                                                                 },
                                                                 selectedBuilder:
@@ -1634,7 +1545,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                         DateTime
                                                                             .now()),
                                                                     isSelected:
-                                                                        true,
+                                                                        false,
                                                                   );
                                                                 },
                                                                 outsideBuilder:
@@ -1647,11 +1558,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     d.month,
                                                                     d.day,
                                                                   );
-                                                                  final sel = _selectedDate !=
-                                                                          null &&
-                                                                      isSameDay(
-                                                                          _selectedDate!,
-                                                                          d);
                                                                   return _patientBookingDayCell(
                                                                     day: d,
                                                                     focusedMonth:
@@ -1663,7 +1569,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                         DateTime
                                                                             .now()),
                                                                     isSelected:
-                                                                        sel,
+                                                                        false,
                                                                     isOutside:
                                                                         true,
                                                                   );
@@ -1672,128 +1578,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                             ),
                                                           ),
                                                         ),
-                                                        if (showSlots) ...[
-                                              const SizedBox(height: 18),
-                                              Text(
-                                                s.translate('label_times'),
-                                                textAlign: TextAlign.start,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF829AB1),
-                                                  fontSize: 13,
-                                                  fontFamily: 'KurdishFont',
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                s.translate(
-                                                  'time_window',
-                                                  params: {
-                                                    'start': _formatMinutes(
-                                                      selectedWin.startMinutes,
-                                                    ),
-                                                    'end': _formatMinutes(
-                                                      selectedWin.endMinutes,
-                                                    ),
-                                                  },
-                                                ),
-                                                textAlign: TextAlign.start,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF829AB1),
-                                                  fontSize: 12,
-                                                  fontFamily: 'KurdishFont',
-                                                ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                              if (slots.isEmpty)
-                                                Text(
-                                                  s.translate('no_times_set'),
-                                                  textAlign: TextAlign.start,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF829AB1),
-                                                    fontFamily: 'KurdishFont',
-                                                  ),
-                                                )
-                                              else if (_selectedDate == null)
-                                                Text(
-                                                  s.translate(
-                                                    'booking_select_datetime',
-                                                  ),
-                                                  textAlign: TextAlign.start,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF829AB1),
-                                                    fontFamily: 'KurdishFont',
-                                                  ),
-                                                )
-                                              else
-                                                _BookedTimeSlotPicker(
-                                                  doctorId: widget.doctorId,
-                                                  selectedDate: _selectedDate!,
-                                                  slots: slots,
-                                                  selectedMinutes:
-                                                      _selectedTime != null
-                                                          ? _toMinutes(
-                                                              _selectedTime!,
-                                                            )
-                                                          : null,
-                                                  isRtlLayout: isRtlLayout,
-                                                  onMinutesChanged: (m) {
-                                                    setState(() {
-                                                      _selectedTime = m != null
-                                                          ? _timeFromMinutes(m)
-                                                          : null;
-                                                    });
-                                                  },
-                                                ),
-                                              const SizedBox(height: 22),
-                                              ElevatedButton(
-                                                onPressed: _saving
-                                                    ? null
-                                                    : () => _confirmAppointment(
-                                                          patientName,
-                                                          doctorDisplayName,
-                                                          weeklyMap,
-                                                          overrides,
-                                                        ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      const Color(0xFF42A5F5),
-                                                  foregroundColor:
-                                                      const Color(0xFF102A43),
-                                                  minimumSize: const Size(
-                                                    double.infinity,
-                                                    54,
-                                                  ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      14,
-                                                    ),
-                                                  ),
-                                                ),
-                                                child: _saving
-                                                    ? const SizedBox(
-                                                        width: 22,
-                                                        height: 22,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2.2,
-                                                        ),
-                                                      )
-                                                    : Text(
-                                                        s.translate(
-                                                          'confirm_booking',
-                                                        ),
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              'KurdishFont',
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                              ),
-                                            ],
                                                       ],
                                                     );
                                                   },
@@ -1814,6 +1598,165 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     },
                   );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Draggable bottom sheet: live booked vs available slots and confirm → pops [TimeOfDay].
+class _PatientBookingTimeSheet extends StatefulWidget {
+  const _PatientBookingTimeSheet({
+    required this.scrollController,
+    required this.doctorId,
+    required this.day,
+    required this.slots,
+    required this.windowStartMinutes,
+    required this.windowEndMinutes,
+    required this.isRtlLayout,
+  });
+
+  final ScrollController scrollController;
+  final String doctorId;
+  final DateTime day;
+  final List<int> slots;
+  final int windowStartMinutes;
+  final int windowEndMinutes;
+  final bool isRtlLayout;
+
+  @override
+  State<_PatientBookingTimeSheet> createState() => _PatientBookingTimeSheetState();
+}
+
+class _PatientBookingTimeSheetState extends State<_PatientBookingTimeSheet> {
+  int? _selectedMinutes;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMinutes = widget.slots.isNotEmpty ? widget.slots.first : null;
+  }
+
+  static String _fmtMin(int m) {
+    final h = m ~/ 60;
+    final min = m % 60;
+    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final dir = AppLocaleScope.of(context).textDirection;
+    final localeTag = Localizations.localeOf(context).toLanguageTag();
+
+    return Directionality(
+      textDirection: dir,
+      child: Material(
+        color: Colors.transparent,
+        child: ListView(
+          controller: widget.scrollController,
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 8,
+            bottom: 20 + MediaQuery.paddingOf(context).bottom,
+          ),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              DateFormat.yMMMEd(localeTag).format(widget.day),
+              style: const TextStyle(
+                color: Color(0xFFD9E2EC),
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              s.translate('label_times'),
+              style: const TextStyle(
+                color: Color(0xFF829AB1),
+                fontSize: 13,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              s.translate(
+                'time_window',
+                params: {
+                  'start': _fmtMin(widget.windowStartMinutes),
+                  'end': _fmtMin(widget.windowEndMinutes),
+                },
+              ),
+              style: const TextStyle(
+                color: Color(0xFF829AB1),
+                fontSize: 12,
+                fontFamily: 'KurdishFont',
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (widget.slots.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  s.translate('no_times_set'),
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontFamily: 'KurdishFont',
+                  ),
+                ),
+              )
+            else
+              _BookedTimeSlotPicker(
+                doctorId: widget.doctorId,
+                selectedDate: widget.day,
+                slots: widget.slots,
+                selectedMinutes: _selectedMinutes,
+                isRtlLayout: widget.isRtlLayout,
+                onMinutesChanged: (m) => setState(() => _selectedMinutes = m),
+              ),
+            const SizedBox(height: 22),
+            FilledButton(
+              onPressed: _selectedMinutes == null || widget.slots.isEmpty
+                  ? null
+                  : () {
+                      final m = _selectedMinutes!;
+                      Navigator.pop(
+                        context,
+                        TimeOfDay(hour: m ~/ 60, minute: m % 60),
+                      );
+                    },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF42A5F5),
+                foregroundColor: const Color(0xFF102A43),
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                s.translate('confirm_booking'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
