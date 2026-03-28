@@ -4,18 +4,25 @@ import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
 import 'package:flutter_application_1/nawarok/norakanimn.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'locale/app_locale.dart';
+import 'locale/app_localizations.dart';
 import 'splash_screen.dart';
 import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const DoctorApp());
+  final localeController = LocaleController();
+  await localeController.load();
+  runApp(HrNoraAppRoot(localeController: localeController));
 }
 
-class DoctorApp extends StatelessWidget {
-  const DoctorApp({super.key});
+class HrNoraAppRoot extends StatelessWidget {
+  const HrNoraAppRoot({super.key, required this.localeController});
+
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +35,32 @@ class DoctorApp extends StatelessWidget {
       ),
     );
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'HR Nora',
-      theme: ThemeData(
+    return ListenableBuilder(
+      listenable: localeController,
+      builder: (context, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'HR Nora',
+          locale: localeController.materialLocale,
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ar'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            return AppLocaleScope(
+              notifier: localeController,
+              child: Directionality(
+                textDirection: localeController.textDirection,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
+          theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
@@ -115,7 +144,9 @@ class DoctorApp extends StatelessWidget {
           color: HrNoraColors.accentLight,
         ),
       ),
-      home: const SplashScreen(),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
@@ -163,20 +194,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           unselectedItemColor: HrNoraColors.textMuted,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
-              label: 'سەرەتا',
+              icon: const Icon(Icons.home_filled),
+              label: S.of(context).translate('home'),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month),
-              label: 'نۆرەکانم',
+              icon: const Icon(Icons.calendar_month),
+              label: S.of(context).translate('appointments'),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'ئاگاداری',
+              icon: const Icon(Icons.notifications),
+              label: S.of(context).translate('notifications'),
             ),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'پڕۆفایل'),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.person),
+              label: S.of(context).translate('profile'),
+            ),
           ],
         ),
       ),

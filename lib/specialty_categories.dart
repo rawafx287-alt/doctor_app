@@ -1,53 +1,102 @@
 import 'package:flutter/material.dart';
 
-/// Filter label for “all doctors” in patient home — not stored as `specialty` in Firestore.
-const String kPatientSpecialtyAllLabel = 'هەمووی';
+import 'locale/app_localizations.dart';
 
-/// Kurdish specialty labels — must match Firestore `users.specialty` exactly.
-const List<String> kDoctorSpecialtyOptions = [
-  'ددان',
-  'دڵ',
-  'فەقەڕات',
-  'منداڵان',
-  'قورگ و لوت و گوێ',
-  'چاو',
-  'پێست و جوانکاری',
-  'دەمار و مێشک',
-  'ژنان و منداڵبوون',
-  'هەناوی',
+/// One doctor specialty: [translationKey] for [S.of(context).translate];
+/// [firestoreValue] must match `users.specialty` in Firestore (Sorani label).
+class DoctorSpecialtyDef {
+  const DoctorSpecialtyDef({
+    required this.translationKey,
+    required this.firestoreValue,
+  });
+
+  final String translationKey;
+  final String firestoreValue;
+}
+
+/// Patient home “all specialties” chip — not stored in Firestore.
+const String kPatientSpecialtyAllKey = 'specialties_all';
+
+/// Ordered list — [firestoreValue] must stay in sync with existing doctor data.
+const List<DoctorSpecialtyDef> kDoctorSpecialtyDefinitions = [
+  DoctorSpecialtyDef(translationKey: 'dentist_specialty', firestoreValue: 'ددان'),
+  DoctorSpecialtyDef(translationKey: 'cardiology_specialty', firestoreValue: 'دڵ'),
+  DoctorSpecialtyDef(translationKey: 'orthopedics_specialty', firestoreValue: 'فەقەڕات'),
+  DoctorSpecialtyDef(translationKey: 'pediatrics_specialty', firestoreValue: 'منداڵان'),
+  DoctorSpecialtyDef(
+    translationKey: 'ent_specialty',
+    firestoreValue: 'قورگ و لوت و گوێ',
+  ),
+  DoctorSpecialtyDef(translationKey: 'ophthalmology_specialty', firestoreValue: 'چاو'),
+  DoctorSpecialtyDef(
+    translationKey: 'dermatology_specialty',
+    firestoreValue: 'پێست و جوانکاری',
+  ),
+  DoctorSpecialtyDef(
+    translationKey: 'neurology_specialty',
+    firestoreValue: 'دەمار و مێشک',
+  ),
+  DoctorSpecialtyDef(
+    translationKey: 'obgyn_specialty',
+    firestoreValue: 'ژنان و منداڵبوون',
+  ),
+  DoctorSpecialtyDef(
+    translationKey: 'gastroenterology_specialty',
+    firestoreValue: 'هەناوی',
+  ),
 ];
 
-/// Horizontal filter chips: “all” plus every doctor specialty.
-List<String> get patientSpecialtyFilterCategories => [
-      kPatientSpecialtyAllLabel,
-      ...kDoctorSpecialtyOptions,
+/// Kurdish values saved in Firestore (same order as [kDoctorSpecialtyDefinitions]).
+List<String> get kDoctorSpecialtyOptions =>
+    kDoctorSpecialtyDefinitions.map((d) => d.firestoreValue).toList();
+
+/// Firestore value → translation key (for migrating UI only).
+String? specialtyFirestoreToKey(String firestoreValue) {
+  final t = firestoreValue.trim();
+  for (final d in kDoctorSpecialtyDefinitions) {
+    if (d.firestoreValue == t) return d.translationKey;
+  }
+  return null;
+}
+
+/// Localized label for a stored `users.specialty` value; unknown values returned as-is.
+String translatedSpecialtyForFirestore(BuildContext context, String firestoreValue) {
+  final key = specialtyFirestoreToKey(firestoreValue);
+  if (key == null) return firestoreValue;
+  return S.of(context).translate(key);
+}
+
+/// Translation keys for patient home chips: “all” + each specialty.
+List<String> get patientSpecialtyFilterCategoryKeys => [
+      kPatientSpecialtyAllKey,
+      ...kDoctorSpecialtyDefinitions.map((d) => d.translationKey),
     ];
 
-/// Icon for patient filter row / display; [kPatientSpecialtyAllLabel] shows “all” icon.
-IconData iconForSpecialtyCategory(String category) {
-  if (category == kPatientSpecialtyAllLabel) {
+/// Icons for filter chips; [kPatientSpecialtyAllKey] or each [translationKey].
+IconData iconForSpecialtyCategoryKey(String categoryKey) {
+  if (categoryKey == kPatientSpecialtyAllKey) {
     return Icons.apps_rounded;
   }
-  switch (category) {
-    case 'ددان':
+  switch (categoryKey) {
+    case 'dentist_specialty':
       return Icons.medical_services_rounded;
-    case 'دڵ':
+    case 'cardiology_specialty':
       return Icons.favorite_rounded;
-    case 'فەقەڕات':
+    case 'orthopedics_specialty':
       return Icons.accessibility_new_rounded;
-    case 'منداڵان':
+    case 'pediatrics_specialty':
       return Icons.child_care_rounded;
-    case 'قورگ و لوت و گوێ':
+    case 'ent_specialty':
       return Icons.hearing_rounded;
-    case 'چاو':
+    case 'ophthalmology_specialty':
       return Icons.visibility_rounded;
-    case 'پێست و جوانکاری':
+    case 'dermatology_specialty':
       return Icons.spa_rounded;
-    case 'دەمار و مێشک':
+    case 'neurology_specialty':
       return Icons.psychology_rounded;
-    case 'ژنان و منداڵبوون':
+    case 'obgyn_specialty':
       return Icons.pregnant_woman_rounded;
-    case 'هەناوی':
+    case 'gastroenterology_specialty':
       return Icons.restaurant_rounded;
     default:
       return Icons.medical_services_rounded;
@@ -77,6 +126,7 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final textStyle = TextStyle(
       color: const Color(0xFFD9E2EC),
       fontFamily: useKurdishFont ? 'KurdishFont' : null,
@@ -91,15 +141,15 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
       dropdownColor: const Color(0xFF1D1E33),
       style: textStyle,
       decoration: InputDecoration(
-        labelText: 'لیستی هەڵبژاردن',
+        labelText: s.translate('dropdown_specialty_label'),
         labelStyle: TextStyle(
           color: const Color(0xFF829AB1),
           fontFamily: useKurdishFont ? 'KurdishFont' : null,
           fontSize: dense ? 13 : 14,
         ),
-        hintText: 'پسپۆڕی هەڵبژێرە',
+        hintText: s.translate('dropdown_specialty_hint'),
         hintStyle: TextStyle(
-          color: const Color(0xFF829AB1).withOpacity(0.85),
+          color: const Color(0xFF829AB1).withValues(alpha: 0.85),
           fontFamily: useKurdishFont ? 'KurdishFont' : null,
         ),
         prefixIcon: Icon(Icons.local_hospital_rounded, color: accentColor),
@@ -114,15 +164,15 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
           vertical: dense ? 14 : 16,
         ),
       ),
-      items: kDoctorSpecialtyOptions
+      items: kDoctorSpecialtyDefinitions
           .map(
-            (e) => DropdownMenuItem<String>(
-              value: e,
+            (d) => DropdownMenuItem<String>(
+              value: d.firestoreValue,
               child: Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: Text(
-                  e,
-                  textAlign: TextAlign.right,
+                  s.translate(d.translationKey),
+                  textAlign: TextAlign.start,
                   style: textStyle,
                 ),
               ),

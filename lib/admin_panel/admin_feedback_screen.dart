@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 /// Admin view of patient feedback ([support_messages]).
 class AdminFeedbackScreen extends StatelessWidget {
@@ -42,7 +42,7 @@ class AdminFeedbackScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1D1E33),
           title: const Text(
@@ -114,7 +114,7 @@ class AdminFeedbackScreen extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1D1E33),
           insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -256,7 +256,7 @@ class AdminFeedbackScreen extends StatelessWidget {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('support_messages')

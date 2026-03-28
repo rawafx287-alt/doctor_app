@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../auth/app_logout.dart';
 import 'profile_settings_screen.dart';
 
@@ -32,11 +32,11 @@ class DoctorProfileScreen extends StatelessWidget {
         ),
       ),
       children: [
-        const Directionality(
-          textDirection: kRtlTextDirection,
+        Directionality(
+          textDirection: AppLocaleScope.of(context).textDirection,
           child: Text(
             'تەختەی پزیشک و بەڕێوەبردنی نۆرە و خشتە.',
-            style: TextStyle(
+            style: const TextStyle(
               color: Color(0xFF829AB1),
               fontFamily: 'KurdishFont',
               height: 1.45,
@@ -52,7 +52,7 @@ class DoctorProfileScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: ColoredBox(
         color: const Color(0xFF0A0E21),
         child: uid == null
@@ -130,7 +130,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 10),
                                       Row(
-                                        textDirection: kRtlTextDirection,
+                                        textDirection: AppLocaleScope.of(context).textDirection,
                                         children: [
                                           const Icon(
                                             Icons.alternate_email_rounded,

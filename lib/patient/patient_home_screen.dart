@@ -2,8 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
 import '../auth/app_logout.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
@@ -23,7 +24,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   /// Bottom nav: 0 = home, 1 = appointments, 2 = profile
   int _bottomNavIndex = 0;
 
-  String _selectedCategory = kPatientSpecialtyAllLabel;
+  String _selectedCategory = kPatientSpecialtyAllKey;
 
   /// Single subscription: all approved doctors (filter locally for category + search).
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _approvedDoctorsStream =
@@ -33,16 +34,25 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           .where('isApproved', isEqualTo: true)
           .snapshots();
 
+  /// Maps selected chip key ([kPatientSpecialtyAllKey] or translation key) to Firestore `specialty` string.
+  String _firestoreValueForSelectedCategory() {
+    for (final d in kDoctorSpecialtyDefinitions) {
+      if (d.translationKey == _selectedCategory) return d.firestoreValue;
+    }
+    return _selectedCategory;
+  }
+
   /// Local filter: specialty chip, then name/specialty search.
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyLocalFilters(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     var list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
 
-    if (_selectedCategory != kPatientSpecialtyAllLabel) {
+    if (_selectedCategory != kPatientSpecialtyAllKey) {
+      final firestoreValue = _firestoreValueForSelectedCategory();
       list = list.where((d) {
         final spec = (d.data()['specialty'] ?? '').toString().trim();
-        return spec == _selectedCategory;
+        return spec == firestoreValue;
       }).toList();
     }
 
@@ -70,7 +80,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
@@ -79,10 +89,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           elevation: 0,
           title: Text(
             _bottomNavIndex == 0
-                ? 'سەرەتا'
+                ? S.of(context).translate('home')
                 : _bottomNavIndex == 1
-                    ? 'نۆرەکانم'
-                    : 'پڕۆفایل',
+                    ? S.of(context).translate('appointments')
+                    : S.of(context).translate('profile'),
             style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
@@ -90,7 +100,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           ),
           actions: [
             IconButton(
-              tooltip: 'بۆچوون',
+              tooltip: S.of(context).translate('tooltip_support'),
               onPressed: () {
                 Navigator.push<void>(
                   context,
@@ -103,7 +113,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             ),
             if (_bottomNavIndex != 2)
               IconButton(
-                tooltip: 'چوونەدەرەوە',
+                tooltip: S.of(context).translate('tooltip_logout'),
                 onPressed: _logout,
                 icon: const Icon(Icons.logout_rounded),
               ),
@@ -138,18 +148,18 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             type: BottomNavigationBarType.fixed,
             selectedLabelStyle: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
             unselectedLabelStyle: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
-            items: const [
+            items: [
               BottomNavigationBarItem(
-                icon: Icon(Icons.home_filled),
-                label: 'سەرەتا',
+                icon: const Icon(Icons.home_filled),
+                label: S.of(context).translate('home'),
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_month),
-                label: 'نۆرەکانم',
+                icon: const Icon(Icons.calendar_month),
+                label: S.of(context).translate('appointments'),
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'پڕۆفایل',
+                icon: const Icon(Icons.person),
+                label: S.of(context).translate('profile'),
               ),
             ],
           ),
@@ -169,8 +179,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   stream:
                       FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
                   builder: (context, snap) {
-                    final name =
-                        (snap.data?.data()?['fullName'] ?? 'نەخۆش').toString();
+                    final name = (snap.data?.data()?['fullName'] ??
+                            S.of(context).translate('patient_default'))
+                        .toString();
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Container(
@@ -182,8 +193,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           border: Border.all(color: Colors.white10),
                         ),
                         child: Text(
-                          'بەخێربێیت، $name',
-                          textAlign: TextAlign.right,
+                          S.of(context)
+                              .translate('welcome_user', params: {'name': name}),
+                          textAlign: TextAlign.start,
                           style: const TextStyle(
                             color: Color(0xFFD9E2EC),
                             fontSize: 20,
@@ -206,39 +218,55 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.start,
                     style: const TextStyle(
                       color: Color(0xFFD9E2EC),
                       fontFamily: 'KurdishFont',
                     ),
-                    decoration: const InputDecoration(
-                      hintText: 'گەڕان بە پزیشک یان پسپۆڕی...',
-                      hintStyle: TextStyle(
+                    decoration: InputDecoration(
+                      hintText: S.of(context).translate('search_doctors_hint'),
+                      hintStyle: const TextStyle(
                         color: Color(0xFF829AB1),
                         fontFamily: 'KurdishFont',
                       ),
-                      prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    S.of(context).translate('specialties'),
+                    style: const TextStyle(
+                      color: Color(0xFFD9E2EC),
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 height: 48,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  itemCount: patientSpecialtyFilterCategories.length,
+                  itemCount: patientSpecialtyFilterCategoryKeys.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
-                    final cat = patientSpecialtyFilterCategories[index];
-                    final selected = _selectedCategory == cat;
+                    final catKey = patientSpecialtyFilterCategoryKeys[index];
+                    final selected = _selectedCategory == catKey;
                     return Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () => setState(() => _selectedCategory = cat),
+                        onTap: () => setState(() => _selectedCategory = catKey),
                         borderRadius: BorderRadius.circular(14),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
@@ -256,10 +284,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            textDirection: kRtlTextDirection,
+                            textDirection:
+                                AppLocaleScope.of(context).textDirection,
                             children: [
                               Icon(
-                                iconForSpecialtyCategory(cat),
+                                iconForSpecialtyCategoryKey(catKey),
                                 size: 20,
                                 color: selected
                                     ? const Color(0xFF42A5F5)
@@ -267,7 +296,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                cat,
+                                S.of(context).translate(catKey),
                                 style: TextStyle(
                                   fontFamily: 'KurdishFont',
                                   fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
@@ -289,12 +318,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'پزیشکە پەسەندکراوەکان',
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
+                    Text(
+                      S.of(context).translate('recommended_doctors'),
+                      textAlign: TextAlign.start,
+                      style: const TextStyle(
                         color: Color(0xFFD9E2EC),
                         fontFamily: 'KurdishFont',
                         fontWeight: FontWeight.w700,
@@ -303,10 +332,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'پزیشکەکان کە لەلایەن بەڕێوەبەرەوە قبوڵکراون',
-                      textAlign: TextAlign.right,
+                      S.of(context).translate('recommended_doctors_sub'),
+                      textAlign: TextAlign.start,
                       style: TextStyle(
-                        color: Color(0xFF829AB1).withOpacity(0.9),
+                        color: const Color(0xFF829AB1).withOpacity(0.9),
                         fontFamily: 'KurdishFont',
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
@@ -334,7 +363,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
-                              'هەڵە لە بارکردنی لیست (${snapshot.error})',
+                              S.of(context).translate(
+                                'doctors_load_error_detail',
+                                params: {'error': '${snapshot.error}'},
+                              ),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.redAccent,
@@ -347,13 +379,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       final docs = snapshot.data?.docs ?? [];
                       final filtered = _applyLocalFilters(docs);
                       if (filtered.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 24),
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Text(
-                              'هیچ پزیشکێک بەم ناوە نەدۆزرایەوە',
+                              S.of(context).translate('doctors_empty_search'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF829AB1),
                                 fontFamily: 'KurdishFont',
                                 fontSize: 16,
@@ -370,7 +402,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           final doc = filtered[index];
                           final data = doc.data();
                           final name = (data['fullName'] ?? '—').toString();
-                          final specialty = (data['specialty'] ?? '—').toString();
+                          final specialtyRaw = (data['specialty'] ?? '—').toString();
+                          final specialty =
+                              translatedSpecialtyForFirestore(context, specialtyRaw);
                           return _DoctorCard(
                             name: name,
                             specialty: specialty,
@@ -455,7 +489,7 @@ class _DoctorCard extends StatelessWidget {
             children: [
               Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              textDirection: kRtlTextDirection,
+              textDirection: Directionality.of(context),
               children: [
                 Container(
                   width: 52,
@@ -486,13 +520,13 @@ class _DoctorCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ناو',
-                        textAlign: TextAlign.right,
+                        S.of(context).translate('field_name'),
+                        textAlign: TextAlign.start,
                         style: _labelStyle,
                       ),
                       Text(
                         name,
-                        textAlign: TextAlign.right,
+                        textAlign: TextAlign.start,
                         style: const TextStyle(
                           color: Color(0xFFD9E2EC),
                           fontSize: 18,
@@ -503,13 +537,13 @@ class _DoctorCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'پسپۆڕی',
-                        textAlign: TextAlign.right,
+                        S.of(context).translate('field_specialty'),
+                        textAlign: TextAlign.start,
                         style: _labelStyle,
                       ),
                       Text(
                         specialty,
-                        textAlign: TextAlign.right,
+                        textAlign: TextAlign.start,
                         style: const TextStyle(
                           color: Color(0xFF829AB1),
                           fontSize: 15,
@@ -525,9 +559,10 @@ class _DoctorCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
+                textDirection: Directionality.of(context),
                 children: [
                   Text(
-                    'کرتە بکە بۆ نۆرە ووردەکاری',
+                    S.of(context).translate('click_for_details'),
                     style: TextStyle(
                       color: const Color(0xFF829AB1).withOpacity(0.95),
                       fontFamily: 'KurdishFont',
@@ -536,7 +571,9 @@ class _DoctorCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Icon(
-                    Icons.arrow_back_ios_new_rounded,
+                    Directionality.of(context) == TextDirection.rtl
+                        ? Icons.arrow_back_ios_new_rounded
+                        : Icons.arrow_forward_ios_rounded,
                     size: 14,
                     color: const Color(0xFF42A5F5).withOpacity(0.9),
                   ),

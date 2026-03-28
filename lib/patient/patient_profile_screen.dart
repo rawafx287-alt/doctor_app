@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
 import '../auth/app_logout.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
+import '../locale/language_picker.dart';
 import 'patient_edit_profile_screen.dart';
 
 /// Patient profile tab: info card + settings; logout uses [performAppLogout].
@@ -15,73 +17,13 @@ class PatientProfileScreen extends StatelessWidget {
   }
 
   void _showLanguageSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF1D1E33),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (ctx) => Directionality(
-        textDirection: kRtlTextDirection,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'زمان',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFFD9E2EC),
-                  fontFamily: 'KurdishFont',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF42A5F5)),
-                title: const Text(
-                  'کوردی',
-                  style: TextStyle(
-                    color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: const Text(
-                  'ئێستا چالاکە',
-                  style: TextStyle(
-                    color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    showHrNoraLanguagePicker(context);
   }
 
   void _showAbout(BuildContext context) {
     showAboutDialog(
       context: context,
-      applicationName: 'نور بۆ پزیشکان',
+      applicationName: S.of(context).translate('app_display_name'),
       applicationVersion: '1.0.0',
       applicationIcon: Container(
         padding: const EdgeInsets.all(8),
@@ -96,11 +38,11 @@ class PatientProfileScreen extends StatelessWidget {
         ),
       ),
       children: [
-        const Directionality(
-          textDirection: kRtlTextDirection,
+        Directionality(
+          textDirection: AppLocaleScope.of(context).textDirection,
           child: Text(
-            'ئەم ئەپە یارمەتی تۆ دەدات بۆ دۆزینەوەی پزیشک و بەڕێوەبردنی نۆرەکان.',
-            style: TextStyle(
+            S.of(context).translate('about_description'),
+            style: const TextStyle(
               color: Color(0xFF829AB1),
               fontFamily: 'KurdishFont',
               height: 1.45,
@@ -116,14 +58,14 @@ class PatientProfileScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: ColoredBox(
         color: const Color(0xFF0A0E21),
         child: uid == null
-            ? const Center(
+            ? Center(
                 child: Text(
-                  'هیچ هەژمارێک نییە',
-                  style: TextStyle(
+                  S.of(context).translate('profile_guest'),
+                  style: const TextStyle(
                     color: Color(0xFF829AB1),
                     fontFamily: 'KurdishFont',
                   ),
@@ -136,8 +78,9 @@ class PatientProfileScreen extends StatelessWidget {
                     .snapshots(),
                 builder: (context, snap) {
                   final data = snap.data?.data();
-                  final name =
-                      (data?['fullName'] ?? 'نەخۆش').toString();
+                  final name = (data?['fullName'] ??
+                          S.of(context).translate('patient_default'))
+                      .toString();
                   final emailFromDoc =
                       (data?['email'] ?? '').toString().trim();
                   final authEmail =
@@ -193,7 +136,9 @@ class PatientProfileScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 10),
                                       Row(
-                                        textDirection: kRtlTextDirection,
+                                        textDirection:
+                                            AppLocaleScope.of(context)
+                                                .textDirection,
                                         children: [
                                           const Icon(
                                             Icons.alternate_email_rounded,
@@ -226,9 +171,11 @@ class PatientProfileScreen extends StatelessWidget {
                       _SettingsCard(
                         children: [
                           _tile(
+                            context,
                             icon: Icons.edit_outlined,
-                            title: 'گۆڕینی زانیارییەکان',
-                            subtitle: 'ناو و ژمارەی مۆبایل',
+                            title: S.of(context).translate('edit_profile'),
+                            subtitle:
+                                S.of(context).translate('edit_profile_subtitle'),
                             onTap: () {
                               Navigator.push<void>(
                                 context,
@@ -241,22 +188,29 @@ class PatientProfileScreen extends StatelessWidget {
                           ),
                           const Divider(height: 1, color: Colors.white10),
                           _tile(
+                            context,
                             icon: Icons.language_rounded,
-                            title: 'زمان',
-                            subtitle: 'کوردی',
+                            title: S.of(context).translate('language'),
+                            subtitle: AppLocaleScope.of(context)
+                                    .selectedLanguage
+                                    ?.nativeTitle ??
+                                '—',
                             onTap: () => _showLanguageSheet(context),
                           ),
                           const Divider(height: 1, color: Colors.white10),
                           _tile(
+                            context,
                             icon: Icons.info_outline_rounded,
-                            title: 'دەربارەی ئەپ',
-                            subtitle: 'وەشان و زانیاری',
+                            title: S.of(context).translate('about_app'),
+                            subtitle:
+                                S.of(context).translate('about_app_subtitle'),
                             onTap: () => _showAbout(context),
                           ),
                           const Divider(height: 1, color: Colors.white10),
                           _tile(
+                            context,
                             icon: Icons.logout_rounded,
-                            title: 'چوونەدەرەوە',
+                            title: S.of(context).translate('logout'),
                             subtitle: null,
                             iconColor: const Color(0xFFEF4444),
                             titleColor: const Color(0xFFFCA5A5),
@@ -291,7 +245,8 @@ class _SettingsCard extends StatelessWidget {
   }
 }
 
-Widget _tile({
+Widget _tile(
+  BuildContext context, {
   required IconData icon,
   required String title,
   String? subtitle,
@@ -299,6 +254,7 @@ Widget _tile({
   Color? titleColor,
   required VoidCallback onTap,
 }) {
+  final rtl = Directionality.of(context) == TextDirection.rtl;
   return ListTile(
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     leading: Icon(
@@ -325,9 +281,9 @@ Widget _tile({
               fontSize: 12,
             ),
           ),
-    trailing: const Icon(
-      Icons.chevron_left_rounded,
-      color: Color(0xFF627D98),
+    trailing: Icon(
+      rtl ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+      color: const Color(0xFF627D98),
       size: 22,
     ),
     onTap: onTap,

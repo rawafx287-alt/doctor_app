@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../auth/app_logout.dart';
 import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
@@ -31,7 +31,7 @@ class AdminDashboard extends StatelessWidget {
         ],
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(

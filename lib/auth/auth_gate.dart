@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../baxerhatn_login/login.dart';
 import 'auth_navigation.dart';
 
@@ -110,7 +110,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         body: SafeArea(
@@ -171,7 +171,7 @@ class UnknownRoleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         body: SafeArea(

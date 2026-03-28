@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'app_rtl.dart';
 import 'auth/auth_gate.dart';
+import 'locale/app_locale.dart';
+import 'locale/app_localizations.dart';
+import 'locale/language_selection_screen.dart';
 import 'theme/hr_nora_colors.dart';
 
 /// Splash → [AuthGate] (FirebaseAuth + Firestore role → login or dashboard).
@@ -27,8 +29,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _goToAuthGate() {
     if (!mounted) return;
+    final locale = AppLocaleScope.of(context);
+    final next = locale.hasCompletedLanguageSelection
+        ? const AuthGate()
+        : const LanguageSelectionScreen();
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const AuthGate()),
+      MaterialPageRoute<void>(builder: (_) => next),
       (route) => false,
     );
   }
@@ -41,9 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: kRtlTextDirection,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: HrNoraColors.scaffoldDark,
         body: SafeArea(
           child: Center(
@@ -107,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'کەمێک چاوەڕوان بن...',
+                  S.of(context).translate('splash_loading'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
@@ -120,7 +124,6 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 }

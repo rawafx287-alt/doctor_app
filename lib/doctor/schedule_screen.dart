@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key, this.embedded = false});
@@ -135,7 +135,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       initialTime: isStart ? _schedules[index].startTime : _schedules[index].endTime,
       builder: (context, child) {
         return Directionality(
-          textDirection: kRtlTextDirection,
+          textDirection: AppLocaleScope.of(context).textDirection,
           child: child ?? const SizedBox.shrink(),
         );
       },
@@ -204,7 +204,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: widget.embedded

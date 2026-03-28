@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 /// Lists approved doctors; admin can remove a doctor document from Firestore.
 class DoctorManagementScreen extends StatelessWidget {
@@ -15,7 +15,7 @@ class DoctorManagementScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1D1E33),
           title: const Text(
@@ -106,7 +106,7 @@ class DoctorManagementScreen extends StatelessWidget {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')

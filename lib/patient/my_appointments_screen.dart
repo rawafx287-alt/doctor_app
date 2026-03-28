@@ -1,12 +1,13 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 
 /// Parses [date] from Firestore: [Timestamp], [DateTime], or strings like `2026/03/30`.
 DateTime? _parseAppointmentDate(dynamic value) {
@@ -49,33 +50,37 @@ class _DaysRemainingStyle {
   final Color foreground;
   final Color background;
 
-  static _DaysRemainingStyle fromAppointmentDay(DateTime appointmentDay) {
+  static _DaysRemainingStyle fromAppointmentDay(
+    BuildContext context,
+    DateTime appointmentDay,
+  ) {
+    final s = S.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final diff = appointmentDay.difference(today).inDays;
     if (diff < 0) {
-      return const _DaysRemainingStyle(
-        label: 'کاتی بەسەرچووە',
-        foreground: Color(0xFFB0BEC5),
-        background: Color(0x28FFFFFF),
+      return _DaysRemainingStyle(
+        label: s.translate('day_expired'),
+        foreground: const Color(0xFFB0BEC5),
+        background: const Color(0x28FFFFFF),
       );
     }
     if (diff == 0) {
-      return const _DaysRemainingStyle(
-        label: 'ئەمڕۆ',
-        foreground: Color(0xFF81D4FA),
-        background: Color(0x331565C0),
+      return _DaysRemainingStyle(
+        label: s.translate('day_today'),
+        foreground: const Color(0xFF81D4FA),
+        background: const Color(0x331565C0),
       );
     }
     if (diff == 1) {
-      return const _DaysRemainingStyle(
-        label: 'بەیانی',
-        foreground: Color(0xFFFFCC80),
-        background: Color(0x33FF9800),
+      return _DaysRemainingStyle(
+        label: s.translate('day_tomorrow'),
+        foreground: const Color(0xFFFFCC80),
+        background: const Color(0x33FF9800),
       );
     }
     return _DaysRemainingStyle(
-      label: '$diff ڕۆژی ماوە',
+      label: s.translate('day_n_days_left', params: {'n': '$diff'}),
       foreground: const Color(0xFF90CAF9),
       background: const Color(0x331976D2),
     );
@@ -169,26 +174,30 @@ class _DashedLinePainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-(Color bg, Color fg, String label) _appointmentStatusBadge(String status) {
+(Color bg, Color fg, String label) _appointmentStatusBadge(
+  BuildContext context,
+  String status,
+) {
+  final tr = S.of(context);
   final s = status.toLowerCase();
   if (s == 'completed') {
     return (
       const Color(0x3322C55E),
       const Color(0xFFA5D6A7),
-      'تەواو',
+      tr.translate('status_completed'),
     );
   }
   if (s == 'cancelled' || s == 'canceled') {
     return (
       const Color(0x33EF5350),
       const Color(0xFFFFAB91),
-      'هەڵوەشاوە',
+      tr.translate('status_cancelled'),
     );
   }
   return (
     const Color(0x3364B5F6),
     const Color(0xFF90CAF9),
-    'چاوەڕوان',
+    tr.translate('status_pending'),
   );
 }
 
@@ -227,7 +236,10 @@ class _TicketVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge = _appointmentStatusBadge(status);
+    final badge = _appointmentStatusBadge(context, status);
+    final isRtl = Directionality.of(context) == ui.TextDirection.rtl;
+    final textEnd = isRtl ? TextAlign.right : TextAlign.left;
+    final rowDir = Directionality.of(context);
     final r = BorderRadius.circular(isPreview ? 16 : 12);
     final innerR = BorderRadius.circular(isPreview ? 15 : 11);
 
@@ -279,7 +291,7 @@ class _TicketVisual extends StatelessWidget {
             Padding(
               padding: headerPad,
               child: Row(
-                textDirection: kRtlTextDirection,
+                textDirection: rowDir,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
@@ -289,7 +301,7 @@ class _TicketVisual extends StatelessWidget {
                             children: [
                               Text(
                                 'HR Nora',
-                                textAlign: TextAlign.right,
+                                textAlign: textEnd,
                                 style: TextStyle(
                                   color: _labelDim,
                                   fontSize: labelSize,
@@ -297,10 +309,20 @@ class _TicketVisual extends StatelessWidget {
                                   letterSpacing: 0.6,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
+                              Text(
+                                S.of(context).translate('ticket_doctor_label'),
+                                textAlign: textEnd,
+                                style: TextStyle(
+                                  color: _labelDim,
+                                  fontSize: labelSize * 0.92,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               Text(
                                 doctorName,
-                                textAlign: TextAlign.right,
+                                textAlign: textEnd,
                                 maxLines: doctorMaxLines,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -321,7 +343,7 @@ class _TicketVisual extends StatelessWidget {
                             ],
                           )
                         : Row(
-                            textDirection: kRtlTextDirection,
+                            textDirection: rowDir,
                             children: [
                               Text(
                                 'HR Nora',
@@ -342,7 +364,7 @@ class _TicketVisual extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   doctorName,
-                                  textAlign: TextAlign.right,
+                                  textAlign: textEnd,
                                   maxLines: doctorMaxLines,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -429,8 +451,8 @@ class _TicketVisual extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'بەروار: $dateStr',
-                    textAlign: TextAlign.right,
+                    '${S.of(context).translate('ticket_date')}: $dateStr',
+                    textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyMuted,
                       fontFamily: 'KurdishFont',
@@ -441,8 +463,8 @@ class _TicketVisual extends StatelessWidget {
                   ),
                   SizedBox(height: isPreview ? 5 : 3),
                   Text(
-                    'کات: $timeStr',
-                    textAlign: TextAlign.right,
+                    '${S.of(context).translate('ticket_time')}: $timeStr',
+                    textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyMuted,
                       fontFamily: 'KurdishFont',
@@ -453,8 +475,8 @@ class _TicketVisual extends StatelessWidget {
                   ),
                   SizedBox(height: isPreview ? 5 : 3),
                   Text(
-                    'نەخۆش: $patientName',
-                    textAlign: TextAlign.right,
+                    '${S.of(context).translate('ticket_patient')}: $patientName',
+                    textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyLight,
                       fontFamily: 'KurdishFont',
@@ -466,7 +488,9 @@ class _TicketVisual extends StatelessWidget {
                   if (daysStyle != null) ...[
                     SizedBox(height: isPreview ? 10 : 6),
                     Align(
-                      alignment: Alignment.centerRight,
+                      alignment: isRtl
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: isPreview ? 10 : 8,
@@ -532,7 +556,7 @@ class _TicketPreviewPage extends StatelessWidget {
     );
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -542,7 +566,7 @@ class _TicketPreviewPage extends StatelessWidget {
               onTap: () => Navigator.of(context).maybePop(),
               child: ClipRect(
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.52),
                   ),
@@ -565,9 +589,9 @@ class _TicketPreviewPage extends StatelessWidget {
                           color: Color(0xFF90CAF9),
                           size: 22,
                         ),
-                        label: const Text(
-                          'داخستن',
-                          style: TextStyle(
+                        label: Text(
+                          S.of(context).translate('close'),
+                          style: const TextStyle(
                             color: Color(0xFFECEFF4),
                             fontFamily: 'KurdishFont',
                             fontWeight: FontWeight.w600,
@@ -712,10 +736,10 @@ class PatientAppointmentsScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     final body = uid == null
-        ? const Center(
+        ? Center(
             child: Text(
-              'چوونەژوورەوە پێویستە',
-              style: TextStyle(color: _muted, fontFamily: 'KurdishFont'),
+              S.of(context).translate('appointments_need_login'),
+              style: const TextStyle(color: _muted, fontFamily: 'KurdishFont'),
             ),
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -734,7 +758,10 @@ class PatientAppointmentsScreen extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'هەڵە (${snapshot.error})',
+                      S.of(context).translate(
+                        'error_with_details',
+                        params: {'detail': '${snapshot.error}'},
+                      ),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.redAccent,
@@ -763,13 +790,13 @@ class PatientAppointmentsScreen extends StatelessWidget {
               });
 
               if (sorted.isEmpty) {
-                return const Center(
+                return Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Text(
-                      'هێشتا نۆرەیەک تۆمار نەکردووە.',
+                      S.of(context).translate('appointments_empty'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: _muted,
                         fontFamily: 'KurdishFont',
                         fontSize: 16,
@@ -801,7 +828,10 @@ class PatientAppointmentsScreen extends StatelessWidget {
                     dateStr = rawDate.toString();
                   }
                   final daysStyle = parsedDay != null
-                      ? _DaysRemainingStyle.fromAppointmentDay(parsedDay)
+                      ? _DaysRemainingStyle.fromAppointmentDay(
+                          context,
+                          parsedDay,
+                        )
                       : null;
                   final queueLabel = _queueLabel(data, index);
                   final docId = sorted[index].id;
@@ -844,15 +874,18 @@ class PatientAppointmentsScreen extends StatelessWidget {
             },
           );
 
+    final pageDir = AppLocaleScope.of(context).textDirection;
+    final pageRtl = pageDir == ui.TextDirection.rtl;
+
     if (embedded) {
       return Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: pageDir,
         child: ColoredBox(color: _bg, child: body),
       );
     }
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: pageDir,
       child: Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
@@ -860,13 +893,17 @@ class PatientAppointmentsScreen extends StatelessWidget {
           foregroundColor: _text,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded),
+            icon: Icon(
+              pageRtl
+                  ? Icons.arrow_forward_ios_rounded
+                  : Icons.arrow_back_ios_new_rounded,
+            ),
             onPressed: () => Navigator.pop(context),
-            tooltip: 'گەڕانەوە',
+            tooltip: S.of(context).translate('back'),
           ),
-          title: const Text(
-            'نۆرەکانم',
-            style: TextStyle(
+          title: Text(
+            S.of(context).translate('appointments'),
+            style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
               fontSize: 20,

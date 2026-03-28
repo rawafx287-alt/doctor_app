@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 /// Edit patient [fullName] and [phone] in Firestore [users].
 class PatientEditProfileScreen extends StatefulWidget {
@@ -91,7 +91,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(

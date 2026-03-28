@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-import '../app_rtl.dart';
 import '../auth/auth_gate.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import '../patient/patient_home_screen.dart';
 import '../specialty_categories.dart';
 
@@ -49,21 +50,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
   );
 
   String? _validateEmail(String? value) {
+    final s = S.of(context);
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'ئیمەیڵ پێویستە';
-    if (!_emailRegex.hasMatch(v)) return 'ئیمەیڵەکە دروست نییە';
+    if (v.isEmpty) return s.translate('validation_email_required');
+    if (!_emailRegex.hasMatch(v)) return s.translate('validation_email_invalid');
     return null;
   }
 
   String? _validatePassword(String? value) {
+    final s = S.of(context);
     final v = value ?? '';
-    if (v.isEmpty) return 'وشەی نهێنی پێویستە';
-    if (v.length < 6) return 'وشەی نهێنی لانیکەم ٦ پیت بێت';
+    if (v.isEmpty) return s.translate('validation_password_required');
+    if (v.length < 6) return s.translate('validation_password_short');
     return null;
   }
 
   String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return 'ناو پێویستە';
+    if (value == null || value.trim().isEmpty) {
+      return S.of(context).translate('validation_name_required');
+    }
     return null;
   }
 
@@ -116,16 +121,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      String msg = 'هەڵەیەک ڕوویدا';
-      if (e.code == 'email-already-in-use') msg = 'ئەم ئیمەیڵە پێشتر بەکارهاتووە';
-      if (e.code == 'invalid-email') msg = 'ئیمەیڵەکە دروست نییە';
-      if (e.code == 'weak-password') msg = 'وشەی نهێنی لانیکەم ٦ پیت بێت';
-      if (e.code == 'network-request-failed') msg = 'ئینتەرنێتەکەت تاقیکەرەوە';
+      final s = S.of(context);
+      String msg = s.translate('signup_err_generic');
+      if (e.code == 'email-already-in-use') {
+        msg = s.translate('signup_err_email_in_use');
+      }
+      if (e.code == 'invalid-email') {
+        msg = s.translate('validation_email_invalid');
+      }
+      if (e.code == 'weak-password') {
+        msg = s.translate('validation_password_short');
+      }
+      if (e.code == 'network-request-failed') {
+        msg = s.translate('auth_err_network');
+      }
       _showSnackBar('$msg (${e.code})');
     } on FirebaseException catch (e) {
-      _showSnackBar('هەڵەی Firebase (${e.code})');
+      _showSnackBar(
+        '${S.of(context).translate('signup_err_firestore')} (${e.code})',
+      );
     } catch (e) {
-      _showSnackBar('هەڵەیەک ڕوویدا: $e');
+      _showSnackBar('${S.of(context).translate('signup_err_generic')}: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -153,7 +169,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -161,10 +177,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'دروستکردنی هەژمار',
+                Text(
+                  S.of(context).translate('sign_up_title'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: _text,
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -173,7 +189,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'ڕۆڵی خۆت هەڵبژێرە',
+                  S.of(context).translate('sign_up_subtitle'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _muted.withValues(alpha: 0.95),
@@ -186,8 +202,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   children: [
                     Expanded(
                       child: _buildRoleTile(
-                        title: 'من نەخۆشم',
-                        subtitle: 'Patient',
+                        title: S.of(context).translate('role_patient'),
+                        subtitle: S.of(context).translate('role_patient_short'),
                         role: UserRole.patient,
                         icon: Icons.person_rounded,
                       ),
@@ -195,8 +211,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildRoleTile(
-                        title: 'من پزیشکم',
-                        subtitle: 'Doctor',
+                        title: S.of(context).translate('role_doctor'),
+                        subtitle: S.of(context).translate('role_doctor_short'),
                         role: UserRole.doctor,
                         icon: Icons.medical_services_rounded,
                       ),
@@ -206,14 +222,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 22),
                 _buildTextField(
                   controller: _fullNameController,
-                  label: 'ناوی تەواو',
+                  label: S.of(context).translate('full_name'),
                   icon: Icons.person_outline_rounded,
                   validator: _validateName,
                 ),
                 const SizedBox(height: 14),
                 _buildTextField(
                   controller: _emailController,
-                  label: 'ئیمەیڵ',
+                  label: S.of(context).translate('email'),
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   validator: _validateEmail,
@@ -224,14 +240,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     value: _doctorSpecialty,
                     accentColor: _teal,
                     onChanged: (v) => setState(() => _doctorSpecialty = v),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'پسپۆڕی هەڵبژێرە لە لیستەکە' : null,
+                    validator: (v) => v == null || v.isEmpty
+                        ? S.of(context).translate('validation_specialty_required')
+                        : null,
                   ),
                   const SizedBox(height: 14),
                 ],
                 _buildTextField(
                   controller: _passwordController,
-                  label: 'وشەی نهێنی (لانیکەم ٦ پیت)',
+                  label: S.of(context).translate('password_hint_signup'),
                   icon: Icons.lock_outline_rounded,
                   isPassword: true,
                   validator: _validatePassword,
@@ -253,9 +270,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2.4),
                         )
-                      : const Text(
-                          'تۆماربوون',
-                          style: TextStyle(
+                      : Text(
+                          S.of(context).translate('register'),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'KurdishFont',
@@ -384,7 +401,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
             : null,
       ),
       validator: validator ??
-          (value) => value == null || value.trim().isEmpty ? 'ئەم خانەیە پڕ بکەرەوە' : null,
+          (value) => value == null || value.trim().isEmpty
+              ? S.of(context).translate('validation_field_required')
+              : null,
     );
   }
 }

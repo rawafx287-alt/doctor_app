@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 
 /// Patient feedback → Firestore [support_messages] with contact fields + [timestamp].
 class ContactSupportScreen extends StatefulWidget {
@@ -26,13 +27,14 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   }
 
   Future<void> _send() async {
+    final s = S.of(context);
     final text = _messageController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'تکایە بۆچوونەکەت بنووسە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            s.translate('support_empty'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -42,10 +44,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'تکایە بچۆ ژوورەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            s.translate('support_need_login'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -57,15 +59,16 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       final userSnap =
           await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = userSnap.data() ?? {};
-      final name = (data['fullName'] ?? 'نەخۆش').toString().trim();
+      final name = (data['fullName'] ?? s.translate('patient_default')).toString().trim();
       final emailFromProfile = (data['email'] ?? '').toString().trim();
       final phoneFromProfile = (data['phone'] ?? '').toString().trim();
       final email = (user.email ?? emailFromProfile).trim();
       final phone = phoneFromProfile;
+      final fallbackName = s.translate('patient_default');
 
       await FirebaseFirestore.instance.collection('support_messages').add({
         'patientId': user.uid,
-        'patientName': name.isEmpty ? 'نەخۆش' : name,
+        'patientName': name.isEmpty ? fallbackName : name,
         'patientEmail': email,
         'patientPhone': phone,
         'message': text,
@@ -76,10 +79,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       if (!mounted) return;
       _messageController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'سوپاس، بۆچوونەکەت وەرگیرا',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            S.of(context).translate('support_thanks_received'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -87,10 +90,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            S.of(context).translate('support_error_retry'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -101,8 +104,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final dir = AppLocaleScope.of(context).textDirection;
+    final s = S.of(context);
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: dir,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
@@ -113,9 +118,9 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
             icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text(
-            'بۆچوون',
-            style: TextStyle(
+          title: Text(
+            s.translate('support_title'),
+            style: const TextStyle(
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w700,
             ),
@@ -127,10 +132,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'بۆچوون یان پێشنیارەکەت لێرە بنووسە. پشتیوانیەکەمان ئاگادار دەکەینەوە.',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
+                Text(
+                  s.translate('support_intro'),
+                  textAlign: TextAlign.start,
+                  style: const TextStyle(
                     color: Color(0xFF829AB1),
                     fontFamily: 'KurdishFont',
                     height: 1.5,
@@ -144,7 +149,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                     expands: true,
                     minLines: null,
                     maxLines: null,
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.start,
                     textAlignVertical: TextAlignVertical.top,
                     style: const TextStyle(
                       color: Color(0xFFD9E2EC),
@@ -154,7 +159,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                     ),
                     decoration: InputDecoration(
                       alignLabelWithHint: true,
-                      hintText: 'بۆچوونەکەت لێرە بنووسە...',
+                      hintText: s.translate('support_hint'),
                       hintStyle: const TextStyle(
                         color: Color(0xFF627D98),
                         fontFamily: 'KurdishFont',
@@ -203,14 +208,14 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                               color: Color(0xFF102A43),
                             ),
                           )
-                        : const Row(
+                        : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.send_rounded, size: 22),
-                              SizedBox(width: 10),
+                              const Icon(Icons.send_rounded, size: 22),
+                              const SizedBox(width: 10),
                               Text(
-                                'ناردن',
-                                style: TextStyle(
+                                s.translate('support_send'),
+                                style: const TextStyle(
                                   fontFamily: 'KurdishFont',
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,

@@ -2,26 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/auth_navigation.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
-import '../app_rtl.dart';
 
-String _kurdishAuthErrorMessage(String code) {
+String _authErrorMessage(BuildContext context, String code) {
+  final s = S.of(context);
   switch (code) {
     case 'invalid-email':
-      return 'ئیمەیڵەکە دروست نییە';
+      return s.translate('auth_err_invalid_email');
     case 'invalid-credential':
     case 'wrong-password':
     case 'user-not-found':
-      return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە، تکایە دووبارە هەوڵ بدەرەوە';
+      return s.translate('auth_err_wrong_credential');
     case 'user-disabled':
-      return 'ئەم هەژمارە ناچالاک کراوە';
+      return s.translate('auth_err_user_disabled');
     case 'too-many-requests':
-      return 'هەوڵی زۆر، دواتر تاقی بکەرەوە';
+      return s.translate('auth_err_too_many_requests');
     case 'network-request-failed':
-      return 'پەیوەندی ئینتەرنێتەکەت تاقیکەرەوە';
+      return s.translate('auth_err_network');
     default:
-      return 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە';
+      return s.translate('auth_err_generic');
   }
 }
 
@@ -64,32 +66,32 @@ class _LoginScreenState extends State<LoginScreen> {
             : null,
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text(
-                'بچۆ ژوورەوە',
-                style: TextStyle(
+              Text(
+                S.of(context).translate('login'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 35,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'تکایە زانیارییەکانت بنووسە بۆ بەردەوامبوون',
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+              Text(
+                S.of(context).translate('login_subtitle'),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
               const SizedBox(height: 50),
 
               // خانەی ژمارەی مۆبایل
               _buildTextField(
                 controller: _contactController,
-                hint: 'ئیمەیڵ یان ژمارەی مۆبایل',
+                hint: S.of(context).translate('hint_email_or_phone'),
                 icon: Icons.alternate_email,
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -98,13 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
               // خانەی وشەی نهێنی
               _buildTextField(
                 controller: _passwordController,
-                hint: 'وشەی نهێنی',
+                hint: S.of(context).translate('hint_password'),
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
               ),
 
               Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: TextButton(
                   onPressed: () {
                     Navigator.push(
@@ -114,9 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    'وشەی نهێنیت لەبیرچووە؟',
-                    style: TextStyle(color: Colors.blueAccent),
+                  child: Text(
+                    S.of(context).translate('forgot_password'),
+                    style: const TextStyle(color: Colors.blueAccent),
                   ),
                 ),
               ),
@@ -133,9 +135,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   elevation: 5,
                 ),
                 onPressed: _isLoading ? null : _handleLogin,
-                child: const Text(
-                  'چوونە ژوورەوە',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                child: Text(
+                  S.of(context).translate('sign_in'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               
@@ -145,7 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('هەژمارت نییە؟ ', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    S.of(context).translate('no_account'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -155,9 +164,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: const Text(
-                      'هەژمار دروست بکە',
-                      style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                    child: Text(
+                      S.of(context).translate('sign_up'),
+                      style: const TextStyle(
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -175,10 +187,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     if (emailOrPhone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'تکایە زانیارییەکان پڕ بکەرەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            S.of(context).translate('fill_fields'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -198,8 +210,11 @@ class _LoginScreenState extends State<LoginScreen> {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('هەژمار نەدۆزرایەوە', style: TextStyle(fontFamily: 'KurdishFont')),
+          SnackBar(
+            content: Text(
+              S.of(context).translate('account_not_found'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
           ),
         );
         return;
@@ -210,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await navigateAfterLogin(context, data);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final msg = _kurdishAuthErrorMessage(e.code);
+      final msg = _authErrorMessage(context, e.code);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg, style: const TextStyle(fontFamily: 'KurdishFont')),
@@ -219,10 +234,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            S.of(context).translate('error_generic'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );

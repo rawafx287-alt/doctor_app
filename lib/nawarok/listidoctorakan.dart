@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import 'barwar.dart';
 
 class ListiDoctorakanScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class _ListiDoctorakanScreenState extends State<ListiDoctorakanScreen> {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

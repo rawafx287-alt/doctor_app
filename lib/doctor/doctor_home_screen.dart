@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../auth/app_logout.dart';
 import 'appointments_screen.dart';
 import 'doctor_profile_screen.dart';
@@ -39,7 +39,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(

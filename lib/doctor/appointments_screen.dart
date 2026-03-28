@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 class AppointmentsScreen extends StatelessWidget {
   const AppointmentsScreen({super.key, this.embedded = false});
@@ -144,7 +144,7 @@ class AppointmentsScreen extends StatelessWidget {
               );
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: embedded
@@ -234,7 +234,7 @@ class _AppointmentCard extends StatelessWidget {
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            textDirection: kRtlTextDirection,
+            textDirection: AppLocaleScope.of(context).textDirection,
             children: [
               Expanded(
                 child: Column(
@@ -309,7 +309,7 @@ class _AppointmentCard extends StatelessWidget {
           if (showActions) ...[
             const SizedBox(height: 16),
             Row(
-              textDirection: kRtlTextDirection,
+              textDirection: AppLocaleScope.of(context).textDirection,
               children: [
                 Expanded(
                   child: OutlinedButton(

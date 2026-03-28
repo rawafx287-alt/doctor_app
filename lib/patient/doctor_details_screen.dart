@@ -1,22 +1,26 @@
+import 'dart:ui' as ui;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
+import '../specialty_categories.dart';
 import 'my_appointments_screen.dart';
 
 /// One day entry from [weekly_schedule] on the doctor's user document.
 class _ScheduleDayEntry {
   const _ScheduleDayEntry({
     required this.id,
-    required this.labelKu,
+    required this.dayLabel,
     required this.startMinutes,
     required this.endMinutes,
   });
 
   final String id;
-  final String labelKu;
+  final String dayLabel;
   final int startMinutes;
   final int endMinutes;
 }
@@ -93,26 +97,29 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
   }
 
-  /// Short Kurdish label when schedule has no custom [day] string.
-  String _fallbackDayLabelKu(String id) {
+  static String _weekdayKeyForId(String id) {
     switch (id) {
       case 'saturday':
-        return 'شەممە';
+        return 'weekday_sat';
       case 'sunday':
-        return 'یەکشەممە';
+        return 'weekday_sun';
       case 'monday':
-        return 'دووشەممە';
+        return 'weekday_mon';
       case 'tuesday':
-        return 'سێشەممە';
+        return 'weekday_tue';
       case 'wednesday':
-        return 'چوارشەممە';
+        return 'weekday_wed';
       case 'thursday':
-        return 'پێنجشەممە';
+        return 'weekday_thu';
       case 'friday':
-        return 'هەینی';
+        return 'weekday_fri';
       default:
-        return id;
+        return 'weekday_mon';
     }
+  }
+
+  String _localizedFallbackDayLabel(BuildContext context, String id) {
+    return S.of(context).translate(_weekdayKeyForId(id));
   }
 
   TimeOfDay _timeFromMinutes(int m) {
@@ -127,7 +134,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
   }
 
-  List<_ScheduleDayEntry> _parseSchedule(Map<String, dynamic>? weekly) {
+  List<_ScheduleDayEntry> _parseSchedule(
+    Map<String, dynamic>? weekly,
+    String Function(String id) fallbackDayLabel,
+  ) {
     if (weekly == null || weekly.isEmpty) return [];
     final out = <_ScheduleDayEntry>[];
     for (final id in _dayIds) {
@@ -141,7 +151,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       out.add(
         _ScheduleDayEntry(
           id: id,
-          labelKu: label.isNotEmpty ? label : _fallbackDayLabelKu(id),
+          dayLabel: label.isNotEmpty ? label : fallbackDayLabel(id),
           startMinutes: sm,
           endMinutes: em,
         ),
@@ -200,12 +210,13 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+    final s = S.of(context);
     if (day == null || _selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'تکایە ڕۆژ و کات هەڵبژێرە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            s.translate('booking_select_datetime'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
       );
@@ -232,7 +243,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         /* use doctorDisplayName */
       }
       if (doctorNameToSave.isEmpty) {
-        doctorNameToSave = 'پزیشک';
+        doctorNameToSave = s.translate('doctor_default');
       }
 
       var queueNumber = 1;
@@ -269,45 +280,49 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => Directionality(
-          textDirection: kRtlTextDirection,
-          child: AlertDialog(
-            backgroundColor: const Color(0xFF1D1E33),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text(
-              'سەرکەوتوو',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'KurdishFont',
-                color: Color(0xFFD9E2EC),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            content: const Text(
-              'نۆرەکەت بە سەرکەوتوویی تۆمارکرا',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'KurdishFont',
-                color: Color(0xFF829AB1),
-                height: 1.4,
-              ),
-            ),
-            actionsAlignment: MainAxisAlignment.start,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'باشە',
-                  style: TextStyle(
-                    color: Color(0xFF42A5F5),
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w700,
-                  ),
+        builder: (ctx) {
+          final dir = AppLocaleScope.of(ctx).textDirection;
+          final s = S.of(ctx);
+          return Directionality(
+            textDirection: dir,
+            child: AlertDialog(
+              backgroundColor: const Color(0xFF1D1E33),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                s.translate('booking_success_title'),
+                textAlign: TextAlign.start,
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFD9E2EC),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
-          ),
-        ),
+              content: Text(
+                s.translate('booking_success_body'),
+                textAlign: TextAlign.start,
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFF829AB1),
+                  height: 1.4,
+                ),
+              ),
+              actionsAlignment: MainAxisAlignment.start,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    s.translate('ok'),
+                    style: const TextStyle(
+                      color: Color(0xFF42A5F5),
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       );
 
       if (!mounted) return;
@@ -322,7 +337,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'هەڵە (${e.code})',
+            S.of(context).translate('error_code', params: {'code': e.code}),
             style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
@@ -332,7 +347,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'هەڵە لە پاشەکەوتکردن: $e',
+            S.of(context).translate('save_error_detail', params: {'error': '$e'}),
             style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
@@ -345,11 +360,15 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    final doctorName = (widget.doctorData['fullName'] ?? 'پزیشک').toString();
+    final appTextDir = AppLocaleScope.of(context).textDirection;
+    final isRtlLayout = appTextDir == ui.TextDirection.rtl;
+    final s = S.of(context);
+    final doctorName =
+        (widget.doctorData['fullName'] ?? s.translate('doctor_default')).toString();
     final specialty = (widget.doctorData['specialty'] ?? '—').toString();
 
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: appTextDir,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(
@@ -359,7 +378,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_forward_ios_rounded),
             onPressed: () => Navigator.pop(context),
-            tooltip: 'گەڕانەوە',
+            tooltip: s.translate('tooltip_back'),
           ),
           title: Text(
             doctorName,
@@ -387,6 +406,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             final weekly = merged['weekly_schedule'];
             final scheduleDays = _parseSchedule(
               weekly is Map<String, dynamic> ? weekly : null,
+              (id) => _localizedFallbackDayLabel(context, id),
             );
 
             if (!_hasAutoSelectedDay && scheduleDays.isNotEmpty) {
@@ -402,17 +422,21 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             }
 
             return uid == null
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'چوونەژوورەوە پێویستە',
-                      style: TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+                      s.translate('login_required'),
+                      style: const TextStyle(
+                        color: Color(0xFF829AB1),
+                        fontFamily: 'KurdishFont',
+                      ),
                     ),
                   )
                 : FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
                     builder: (context, patientSnap) {
-                      final patientName =
-                          (patientSnap.data?.data()?['fullName'] ?? 'نەخۆش').toString();
+                      final patientName = (patientSnap.data?.data()?['fullName'] ??
+                              s.translate('patient_default'))
+                          .toString();
 
                       return SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
@@ -427,7 +451,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 border: Border.all(color: Colors.white10),
                               ),
                               child: Row(
-                                textDirection: kRtlTextDirection,
+                                textDirection: appTextDir,
                                 children: [
                                   Container(
                                     width: 62,
@@ -460,8 +484,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Text(
-                                      'پسپۆڕی: $mergedSpecialty',
-                                      textAlign: TextAlign.right,
+                                      s.translate(
+                                        'specialty_colon',
+                                        params: {
+                                          'value': translatedSpecialtyForFirestore(
+                                            context,
+                                            mergedSpecialty,
+                                          ),
+                                        },
+                                      ),
+                                      textAlign: TextAlign.start,
                                       style: const TextStyle(
                                         color: Color(0xFF829AB1),
                                         fontSize: 15,
@@ -473,10 +505,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                               ),
                             ),
                             const SizedBox(height: 22),
-                            const Text(
-                              'نۆرەگرتن',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
+                            Text(
+                              s.translate('booking_title'),
+                              textAlign: TextAlign.start,
+                              style: const TextStyle(
                                 color: Color(0xFFD9E2EC),
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -484,10 +516,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            const Text(
-                              'ڕۆژەکانی کار (تەنها ئەوانەی پزیشک چالاکی کردووە)',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
+                            Text(
+                              s.translate('working_days_title'),
+                              textAlign: TextAlign.start,
+                              style: const TextStyle(
                                 color: Color(0xFF829AB1),
                                 fontSize: 12,
                                 fontFamily: 'KurdishFont',
@@ -502,10 +534,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: Colors.white10),
                                 ),
-                                child: const Text(
-                                  'ئەم پزیشکە هێشتا خشتەی کار تۆمار نەکردووە. دواتر هەوڵ بدەرەوە.',
-                                  textAlign: TextAlign.right,
-                                  style: TextStyle(
+                                child: Text(
+                                  s.translate('no_schedule_yet'),
+                                  textAlign: TextAlign.start,
+                                  style: const TextStyle(
                                     color: Color(0xFF829AB1),
                                     fontFamily: 'KurdishFont',
                                     height: 1.4,
@@ -517,7 +549,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 height: 48,
                                 child: ListView.separated(
                                   scrollDirection: Axis.horizontal,
-                                  reverse: true,
+                                  reverse: isRtlLayout,
                                   padding: EdgeInsets.zero,
                                   itemCount: _dayIds.length,
                                   separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -565,8 +597,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                           child: Center(
                                             child: Text(
                                               switch (entry) {
-                                                null => _fallbackDayLabelKu(id),
-                                                final e => e.labelKu,
+                                                null => _localizedFallbackDayLabel(context, id),
+                                                final e => e.dayLabel,
                                               },
                                               style: TextStyle(
                                                 fontFamily: 'KurdishFont',
@@ -601,10 +633,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                     return Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        const Text(
-                                          'بەروار',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
+                                        Text(
+                                          s.translate('label_date'),
+                                          textAlign: TextAlign.start,
+                                          style: const TextStyle(
                                             color: Color(0xFF829AB1),
                                             fontSize: 13,
                                             fontFamily: 'KurdishFont',
@@ -613,10 +645,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         if (dates.isEmpty)
-                                          const Text(
-                                            'بەروارێکی بەردەست نییە',
-                                            textAlign: TextAlign.right,
-                                            style: TextStyle(
+                                          Text(
+                                            s.translate('no_dates_available'),
+                                            textAlign: TextAlign.start,
+                                            style: const TextStyle(
                                               color: Color(0xFF829AB1),
                                               fontFamily: 'KurdishFont',
                                             ),
@@ -626,7 +658,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                             height: 42,
                                             child: ListView.separated(
                                               scrollDirection: Axis.horizontal,
-                                              reverse: true,
+                                              reverse: isRtlLayout,
                                               itemCount: dates.length,
                                               separatorBuilder: (_, _) =>
                                                   const SizedBox(width: 8),
@@ -670,10 +702,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                             ),
                                           ),
                                         const SizedBox(height: 18),
-                                        const Text(
-                                          'کاتەکان',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
+                                        Text(
+                                          s.translate('label_times'),
+                                          textAlign: TextAlign.start,
+                                          style: const TextStyle(
                                             color: Color(0xFF829AB1),
                                             fontSize: 13,
                                             fontFamily: 'KurdishFont',
@@ -682,8 +714,14 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'ناوچە: ${_formatMinutes(day.startMinutes)} — ${_formatMinutes(day.endMinutes)}',
-                                          textAlign: TextAlign.right,
+                                          s.translate(
+                                            'time_window',
+                                            params: {
+                                              'start': _formatMinutes(day.startMinutes),
+                                              'end': _formatMinutes(day.endMinutes),
+                                            },
+                                          ),
+                                          textAlign: TextAlign.start,
                                           style: const TextStyle(
                                             color: Color(0xFF829AB1),
                                             fontSize: 12,
@@ -692,17 +730,19 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                         ),
                                         const SizedBox(height: 10),
                                         if (slots.isEmpty)
-                                          const Text(
-                                            'کاتێک دیاری نەکراوە',
-                                            textAlign: TextAlign.right,
-                                            style: TextStyle(
+                                          Text(
+                                            s.translate('no_times_set'),
+                                            textAlign: TextAlign.start,
+                                            style: const TextStyle(
                                               color: Color(0xFF829AB1),
                                               fontFamily: 'KurdishFont',
                                             ),
                                           )
                                         else
                                           Wrap(
-                                            alignment: WrapAlignment.end,
+                                            alignment: isRtlLayout
+                                                ? WrapAlignment.end
+                                                : WrapAlignment.start,
                                             spacing: 8,
                                             runSpacing: 8,
                                             children: slots.map((m) {
@@ -768,9 +808,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                           height: 22,
                                           child: CircularProgressIndicator(strokeWidth: 2.2),
                                         )
-                                      : const Text(
-                                          'دوپاتکردنەوەی نۆرە',
-                                          style: TextStyle(
+                                      : Text(
+                                          s.translate('confirm_booking'),
+                                          style: const TextStyle(
                                             fontFamily: 'KurdishFont',
                                             fontWeight: FontWeight.w700,
                                             fontSize: 16,

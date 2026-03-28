@@ -4,7 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../specialty_categories.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
@@ -194,7 +194,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       ),
       builder: (ctx) => SafeArea(
         child: Directionality(
-          textDirection: kRtlTextDirection,
+          textDirection: AppLocaleScope.of(context).textDirection,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -238,7 +238,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: kRtlTextDirection,
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E21),
         appBar: AppBar(

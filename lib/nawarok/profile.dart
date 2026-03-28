@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 import '../doctor/profile_settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -18,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: SingleChildScrollView(
           child: Column(
             children: [

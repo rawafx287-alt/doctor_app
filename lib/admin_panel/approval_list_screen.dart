@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
 
 /// Pending doctor registrations: [role] Doctor, [isApproved] false.
 class ApprovalListScreen extends StatefulWidget {
@@ -64,7 +64,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')
