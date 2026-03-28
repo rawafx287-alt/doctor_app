@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+
+import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
 import 'package:flutter_application_1/nawarok/norakanimn.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
@@ -13,7 +15,9 @@ import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   final localeController = LocaleController();
   await localeController.load();
   runApp(HrNoraAppRoot(localeController: localeController));
