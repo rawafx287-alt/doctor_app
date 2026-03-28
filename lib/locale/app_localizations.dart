@@ -839,7 +839,7 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Turn off to use your default weekday pattern below.',
   },
   'schedule_day_appointment_duration': {
-    'ckb': 'ماوەی نێوان نۆرەکان (ئەم ڕۆژە)',
+    'ckb': 'ماوەی نێوان نۆرەکان',
     'ar': 'مدة الموعد لهذا اليوم',
     'en': 'Appointment duration (this day)',
   },
@@ -865,6 +865,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'خشتەی هەفتانە (بنەڕەت)',
     'ar': 'جدول أيام الأسبوع (الافتراضي)',
     'en': 'Default weekly pattern',
+  },
+  'schedule_weekday_slot_label': {
+    'ckb': 'ماوەی نۆرە',
+    'ar': 'مدة الموعد',
+    'en': 'Appointment slot length',
   },
   'schedule_save_button': {
     'ckb': 'پاشکەوتکردن',
@@ -1131,6 +1136,14 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'ئەم کاتە لە پێشدا گیراوە. کاتێکی تر هەڵبژێرە.',
     'ar': 'هذا الوقت محجوز مسبقاً. اختر وقتاً آخر.',
     'en': 'This slot is no longer available. Please pick another time.',
+  },
+  'booking_slot_invalid': {
+    'ckb':
+        'ئەم کاتە لەگەڵ ماوەی نۆرەکانی دکتۆر ناکۆکە. تکایە دووبارە هەڵبژێرە یان پەڕەکە نوێ بکەرەوە.',
+    'ar':
+        'هذا الوقت لا يطابق فترات المواعيد الحالية للطبيب. أعد الاختيار أو حدّث الصفحة.',
+    'en':
+        'This time does not match the doctor’s current slot length. Refresh the page or pick another slot.',
   },
   'confirm_booking': {
     'ckb': 'دوپاتکردنەوەی نۆرە',

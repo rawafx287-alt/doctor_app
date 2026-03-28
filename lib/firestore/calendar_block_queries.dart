@@ -52,6 +52,10 @@ abstract final class CalendarBlockFields {
 
   static const String kindOff = 'off';
   static const String kindEmergency = 'emergency';
+
+  /// Per-calendar-day slot length (Schedule Management); does not block time ranges.
+  /// Fields: [AppointmentFields.doctorId], [AppointmentFields.date], optional `appointmentDuration` (int minutes).
+  static const String kindDaySettings = 'daySettings';
 }
 
 /// Debug hint when [calendarBlocksForDoctorDateRange] fails with a missing index.

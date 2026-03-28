@@ -1,45 +1,57 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Firestore field on doctor `users/{id}` — slot length in minutes (e.g. 15, 20, 30).
+import '../firestore/calendar_block_queries.dart';
+
+/// Primary Firestore field on doctor `users/{uid}` — appointment length in minutes.
+const String kAppointmentDurationField = 'appointmentDuration';
+
+/// Legacy field name (still read when [kAppointmentDurationField] is absent).
 const String kAppointmentSlotMinutesField = 'appointmentSlotMinutes';
 
-/// Reads [kAppointmentSlotMinutesField] from doctor profile; clamps to \[5, 120\], default **30**.
+/// When the profile has no duration fields, slot generation and booking use this step.
+const int kDefaultAppointmentSlotMinutes = 20;
+
+/// Reads duration from doctor profile: [kAppointmentDurationField], then legacy
+/// [kAppointmentSlotMinutesField]; clamps to \[5, 120\], default [kDefaultAppointmentSlotMinutes].
 int appointmentSlotMinutesFromUserData(Map<String, dynamic>? data) {
-  final raw = data?[kAppointmentSlotMinutesField];
-  if (raw is int) {
-    return raw.clamp(5, 120);
+  for (final raw in [
+    data?[kAppointmentDurationField],
+    data?[kAppointmentSlotMinutesField],
+  ]) {
+    if (raw is int) return raw.clamp(5, 120);
+    if (raw is num) return raw.toInt().clamp(5, 120);
   }
-  if (raw is num) {
-    return raw.toInt().clamp(5, 120);
-  }
-  return 30;
+  return kDefaultAppointmentSlotMinutes;
 }
 
-/// Slot length for [dateOnly]: override in [schedule_date_overrides] for that date
-/// (field [kAppointmentSlotMinutesField]), else doctor profile [doctorUserData].
-int effectiveAppointmentSlotMinutes({
-  required DateTime dateOnly,
-  Map<String, dynamic>? weeklySchedule,
-  Map<String, dynamic>? dateOverrides,
-  Map<String, dynamic>? doctorUserData,
-}) {
-  final key = scheduleDateOverrideKey(
-    DateTime(dateOnly.year, dateOnly.month, dateOnly.day),
-  );
-  if (dateOverrides != null && dateOverrides.containsKey(key)) {
-    final raw = dateOverrides[key];
-    if (raw is Map) {
-      final m = Map<String, dynamic>.from(
-        raw.map((k, v) => MapEntry(k.toString(), v)),
-      );
-      if (m['blocked'] != true && m.containsKey(kAppointmentSlotMinutesField)) {
-        final local = m[kAppointmentSlotMinutesField];
-        if (local is int) return local.clamp(5, 120);
-        if (local is num) return local.toInt().clamp(5, 120);
-      }
+/// Slot step from [calendar_blocks] for [dateOnly]: first [CalendarBlockFields.kindDaySettings]
+/// doc that matches the day; else [kDefaultAppointmentSlotMinutes].
+int appointmentSlotMinutesFromCalendarDayBlockMaps(
+  Iterable<Map<String, dynamic>> dayBlocks,
+) {
+  for (final data in dayBlocks) {
+    if (data[CalendarBlockFields.blockKind] != CalendarBlockFields.kindDaySettings) {
+      continue;
+    }
+    for (final raw in [
+      data[kAppointmentDurationField],
+      data[kAppointmentSlotMinutesField],
+    ]) {
+      if (raw is int) return raw.clamp(5, 120);
+      if (raw is num) return raw.toInt().clamp(5, 120);
     }
   }
-  return appointmentSlotMinutesFromUserData(doctorUserData);
+  return kDefaultAppointmentSlotMinutes;
+}
+
+/// Uses [blocksForCalendarDay] on [allBlockMaps] (e.g. month query snapshot data).
+int appointmentSlotMinutesForDateWithAllBlocks(
+  DateTime dateOnly,
+  Iterable<Map<String, dynamic>> allBlockMaps,
+) {
+  return appointmentSlotMinutesFromCalendarDayBlockMaps(
+    blocksForCalendarDay(dateOnly, allBlockMaps),
+  );
 }
 
 /// Stable `yyyy-MM-dd` key for [schedule_date_overrides] on the doctor user doc.
@@ -92,8 +104,7 @@ String? weekdayScheduleKeyForDate(DateTime d) {
 /// Per-date window from [dateOverrides] (doctor `schedule_date_overrides` map), else [weekly].
 ///
 /// Override value: `{ 'blocked': true }`, or custom window
-/// `{ 'startMinutes': int, 'endMinutes': int, optional 'appointmentSlotMinutes': int }`,
-/// or slot-only `{ 'appointmentSlotMinutes': int }` (uses weekly hours for that weekday).
+/// `{ 'startMinutes': int, 'endMinutes': int }` (uses weekly hours when absent).
 ({int startMinutes, int endMinutes})? workingWindowForDateWithOverrides(
   DateTime date,
   Map<String, dynamic>? weekly,
@@ -120,7 +131,11 @@ String? weekdayScheduleKeyForDate(DateTime d) {
   return workingWindowForDate(date, weekly);
 }
 
-List<int> slotStartMinutesForWindow(int startMinutes, int endMinutes, {int step = 30}) {
+List<int> slotStartMinutesForWindow(
+  int startMinutes,
+  int endMinutes, {
+  int step = kDefaultAppointmentSlotMinutes,
+}) {
   final list = <int>[];
   for (var m = startMinutes; m < endMinutes; m += step) {
     list.add(m);
@@ -169,7 +184,7 @@ MasterDayVisual classifyDay({
   Map<String, dynamic>? dateOverrides,
   required Set<String> bookedTimeKeys,
   required List<Map<String, dynamic>> dayBlocks,
-  int slotStepMinutes = 30,
+  int slotStepMinutes = kDefaultAppointmentSlotMinutes,
 }) {
   final win = workingWindowForDateWithOverrides(
     dateOnly,
@@ -182,6 +197,9 @@ MasterDayVisual classifyDay({
   slots = slots.where((start) {
     final end = start + slotStepMinutes;
     for (final b in dayBlocks) {
+      if (b[CalendarBlockFields.blockKind] == CalendarBlockFields.kindDaySettings) {
+        continue;
+      }
       if (_slotOverlapsBlock(start, end, b)) return false;
     }
     return true;

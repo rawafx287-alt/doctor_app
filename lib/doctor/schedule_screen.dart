@@ -5,9 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../calendar/calendar_slot_logic.dart';
+import '../firestore/appointment_queries.dart';
+import '../firestore/calendar_block_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
-import '../locale/schedule_weekday_key.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key, this.embedded = false});
@@ -19,79 +20,21 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  final List<_DaySchedule> _schedules = [
-    _DaySchedule(
-      id: 'saturday',
-      isAvailable: true,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'sunday',
-      isAvailable: true,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'monday',
-      isAvailable: true,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'tuesday',
-      isAvailable: true,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'wednesday',
-      isAvailable: true,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'thursday',
-      isAvailable: false,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 14, minute: 0),
-    ),
-    _DaySchedule(
-      id: 'friday',
-      isAvailable: false,
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
-    ),
-  ];
-
   Map<String, dynamic> _dateOverrides = {};
+  Map<String, dynamic>? _cachedWeekly;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedCalendarDay;
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _defaultsExpanded = false;
-  /// Default from profile; used when a date has no per-day [kAppointmentSlotMinutesField].
-  int _profileAppointmentSlotMinutes = 30;
 
-  static const List<int> _daySlotDurationChoices = [15, 20, 30, 45, 60];
+  static const List<int> _daySlotChoices = [15, 20, 30, 45, 60];
 
-  int _coerceDaySlotMinutes(int? value, int fallback) {
-    if (value == null) return fallback;
-    if (_daySlotDurationChoices.contains(value)) return value;
-    return fallback;
-  }
-
-  Map<String, dynamic> _weeklyFirestoreMap() {
-    final map = <String, dynamic>{};
-    for (final day in _schedules) {
-      map[day.id] = {
-        'day': '',
-        'enabled': day.isAvailable,
-        'startMinutes': _toMinutes(day.startTime),
-        'endMinutes': _toMinutes(day.endTime),
-      };
-    }
-    return map;
+  Map<String, dynamic> _weeklyMap() {
+    final w = _cachedWeekly;
+    if (w == null || w.isEmpty) return {};
+    return Map<String, dynamic>.from(
+      w.map((k, v) => MapEntry(k.toString(), v)),
+    );
   }
 
   @override
@@ -111,23 +54,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final data = doc.data();
       final weekly = data?['weekly_schedule'];
-
       if (weekly is Map) {
-        for (var i = 0; i < _schedules.length; i++) {
-          final id = _schedules[i].id;
-          final dayData = weekly[id];
-          if (dayData is! Map) continue;
-
-          final start = _fromMinutes(dayData['startMinutes']);
-          final end = _fromMinutes(dayData['endMinutes']);
-          final enabled = dayData['enabled'] == true;
-
-          _schedules[i] = _schedules[i].copyWith(
-            isAvailable: enabled,
-            startTime: start ?? _schedules[i].startTime,
-            endTime: end ?? _schedules[i].endTime,
-          );
-        }
+        _cachedWeekly = Map<String, dynamic>.from(
+          weekly.map((k, v) => MapEntry(k.toString(), v)),
+        );
+      } else {
+        _cachedWeekly = null;
       }
 
       final rawOv = data?['schedule_date_overrides'];
@@ -138,9 +70,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       } else {
         _dateOverrides = {};
       }
-
-      _profileAppointmentSlotMinutes =
-          appointmentSlotMinutesFromUserData(data);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,10 +98,70 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return DateFormat.jm().format(dt);
   }
 
+  String _daySettingsDocId(String uid, DateTime day) {
+    final k = scheduleDateOverrideKey(DateTime(day.year, day.month, day.day));
+    return '${uid}_${k}_daySettings';
+  }
+
+  Future<int?> _loadDaySettingsSlotMinutes(String uid, DateTime day) async {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    try {
+      final snap = await calendarBlocksForDoctorDateRange(
+        doctorUserId: uid,
+        rangeStartInclusiveLocal: start,
+        rangeEndExclusiveLocal: end,
+      ).get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data[CalendarBlockFields.blockKind] != CalendarBlockFields.kindDaySettings) {
+          continue;
+        }
+        final raw = data[kAppointmentDurationField] ?? data[kAppointmentSlotMinutesField];
+        if (raw is int && _daySlotChoices.contains(raw)) return raw;
+        if (raw is num) {
+          final i = raw.toInt();
+          if (_daySlotChoices.contains(i)) return i;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _persistDaySettingsBlock(String uid, DateTime day, int minutes) async {
+    final start = DateTime(day.year, day.month, day.day);
+    await FirebaseFirestore.instance
+        .collection(CalendarBlockFields.collection)
+        .doc(_daySettingsDocId(uid, day))
+        .set(
+      {
+        AppointmentFields.doctorId: uid,
+        AppointmentFields.date: Timestamp.fromDate(start),
+        CalendarBlockFields.blockKind: CalendarBlockFields.kindDaySettings,
+        kAppointmentDurationField: minutes,
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _removeDaySettingsBlock(String uid, DateTime day) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection(CalendarBlockFields.collection)
+          .doc(_daySettingsDocId(uid, day))
+          .delete();
+    } catch (_) {}
+  }
+
+  int _coerceSheetSlot(int? v) {
+    if (v != null && _daySlotChoices.contains(v)) return v;
+    return kDefaultAppointmentSlotMinutes;
+  }
+
   ({int startMinutes, int endMinutes})? _resolvedWindow(DateTime day) {
     return workingWindowForDateWithOverrides(
       DateTime(day.year, day.month, day.day),
-      _weeklyFirestoreMap(),
+      _weeklyMap(),
       _dateOverrides,
     );
   }
@@ -183,31 +172,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return raw is Map && raw['blocked'] == true;
   }
 
-  Future<void> _pickTime(int index, {required bool isStart}) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? _schedules[index].startTime : _schedules[index].endTime,
-      builder: (context, child) {
-        return Directionality(
-          textDirection: AppLocaleScope.of(context).textDirection,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-    );
-    if (picked == null) return;
-
-    setState(() {
-      _schedules[index] = _schedules[index].copyWith(
-        startTime: isStart ? picked : _schedules[index].startTime,
-        endTime: isStart ? _schedules[index].endTime : picked,
-      );
-    });
-  }
-
   Future<void> _openDayEditor(DateTime day) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+
     final s = S.of(context);
     final key = scheduleDateOverrideKey(DateTime(day.year, day.month, day.day));
-    final weeklyOnly = workingWindowForDate(day, _weeklyFirestoreMap());
+    final weeklyOnly = workingWindowForDate(day, _weeklyMap());
     final raw = _dateOverrides[key];
     final blocked = raw is Map && raw['blocked'] == true;
     var custom = raw is Map &&
@@ -227,23 +198,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             ? TimeOfDay(hour: weeklyOnly.endMinutes ~/ 60, minute: weeklyOnly.endMinutes % 60)
             : const TimeOfDay(hour: 17, minute: 0));
 
+    final loadedSlot = await _loadDaySettingsSlotMinutes(uid, day);
+    var sbSlot = _coerceSheetSlot(loadedSlot);
+
     if (!mounted) return;
 
     var sbBlocked = blocked;
     var sbCustom = custom;
     var sbStart = startT;
     var sbEnd = endT;
-
-    final slotRaw =
-        raw is Map ? raw[kAppointmentSlotMinutesField] : null;
-    var sbSlot = _coerceDaySlotMinutes(
-      slotRaw is int
-          ? slotRaw
-          : slotRaw is num
-              ? slotRaw.toInt()
-              : null,
-      _profileAppointmentSlotMinutes,
-    );
+    var sheetSaving = false;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -262,211 +226,230 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 top: 16,
                 bottom: MediaQuery.paddingOf(ctx).bottom + 16,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    DateFormat.yMMMEd().format(day),
-                    style: const TextStyle(
-                      color: Color(0xFFD9E2EC),
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      s.translate('schedule_day_blocked'),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      DateFormat.yMMMEd().format(day),
                       style: const TextStyle(
                         color: Color(0xFFD9E2EC),
                         fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
                       ),
                     ),
-                    value: sbBlocked,
-                    activeThumbColor: const Color(0xFFE53935),
-                    onChanged: (v) {
-                      setModal(() {
-                        sbBlocked = v;
-                        if (v) sbCustom = false;
-                      });
-                    },
-                  ),
-                  if (!sbBlocked) ...[
+                    const SizedBox(height: 14),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        s.translate('schedule_custom_hours'),
+                        s.translate('schedule_day_blocked'),
                         style: const TextStyle(
                           color: Color(0xFFD9E2EC),
                           fontFamily: 'KurdishFont',
                         ),
                       ),
-                      subtitle: Text(
-                        s.translate('schedule_use_weekday_default_hint'),
-                        style: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
-                          fontSize: 12,
-                        ),
-                      ),
-                      value: sbCustom,
-                      activeThumbColor: const Color(0xFF42A5F5),
-                      onChanged: (v) => setModal(() => sbCustom = v),
+                      value: sbBlocked,
+                      activeThumbColor: const Color(0xFFE53935),
+                      onChanged: (v) {
+                        setModal(() {
+                          sbBlocked = v;
+                          if (v) sbCustom = false;
+                        });
+                      },
                     ),
-                    if (sbCustom) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                final p = await showTimePicker(
-                                  context: ctx,
-                                  initialTime: sbStart,
-                                  builder: (c, ch) => Directionality(
-                                    textDirection: AppLocaleScope.of(c).textDirection,
-                                    child: ch ?? const SizedBox.shrink(),
-                                  ),
-                                );
-                                if (p != null) setModal(() => sbStart = p);
-                              },
-                              child: Text(
-                                '${s.translate('schedule_time_start')}: ${_formatTime(sbStart)}',
-                                style: const TextStyle(fontFamily: 'KurdishFont'),
+                    if (!sbBlocked) ...[
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          s.translate('schedule_custom_hours'),
+                          style: const TextStyle(
+                            color: Color(0xFFD9E2EC),
+                            fontFamily: 'KurdishFont',
+                          ),
+                        ),
+                        subtitle: Text(
+                          s.translate('schedule_use_weekday_default_hint'),
+                          style: const TextStyle(
+                            color: Color(0xFF829AB1),
+                            fontFamily: 'KurdishFont',
+                            fontSize: 11,
+                          ),
+                        ),
+                        value: sbCustom,
+                        activeThumbColor: const Color(0xFF42A5F5),
+                        onChanged: (v) => setModal(() => sbCustom = v),
+                      ),
+                      if (sbCustom) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  final p = await showTimePicker(
+                                    context: ctx,
+                                    initialTime: sbStart,
+                                    builder: (c, ch) => Directionality(
+                                      textDirection: AppLocaleScope.of(c).textDirection,
+                                      child: ch ?? const SizedBox.shrink(),
+                                    ),
+                                  );
+                                  if (p != null) setModal(() => sbStart = p);
+                                },
+                                child: Text(
+                                  '${s.translate('schedule_time_start')}: ${_formatTime(sbStart)}',
+                                  style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                final p = await showTimePicker(
-                                  context: ctx,
-                                  initialTime: sbEnd,
-                                  builder: (c, ch) => Directionality(
-                                    textDirection: AppLocaleScope.of(c).textDirection,
-                                    child: ch ?? const SizedBox.shrink(),
-                                  ),
-                                );
-                                if (p != null) setModal(() => sbEnd = p);
-                              },
-                              child: Text(
-                                '${s.translate('schedule_time_end')}: ${_formatTime(sbEnd)}',
-                                style: const TextStyle(fontFamily: 'KurdishFont'),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  final p = await showTimePicker(
+                                    context: ctx,
+                                    initialTime: sbEnd,
+                                    builder: (c, ch) => Directionality(
+                                      textDirection: AppLocaleScope.of(c).textDirection,
+                                      child: ch ?? const SizedBox.shrink(),
+                                    ),
+                                  );
+                                  if (p != null) setModal(() => sbEnd = p);
+                                },
+                                child: Text(
+                                  '${s.translate('schedule_time_end')}: ${_formatTime(sbEnd)}',
+                                  style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          s.translate('schedule_weekday_slot_label'),
+                          style: const TextStyle(
+                            color: Color(0xFF829AB1),
+                            fontSize: 12,
+                            fontFamily: 'KurdishFont',
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                    ],
-                  ],
-                  if (!sbBlocked) ...[
-                    const SizedBox(height: 18),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        s.translate('schedule_day_appointment_duration'),
-                        style: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontSize: 13,
-                          fontFamily: 'KurdishFont',
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF12152A),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            isExpanded: true,
-                            value: sbSlot,
-                            dropdownColor: const Color(0xFF252640),
-                            iconEnabledColor: const Color(0xFF42A5F5),
-                            style: const TextStyle(
-                              color: Color(0xFFD9E2EC),
-                              fontFamily: 'KurdishFont',
-                              fontSize: 15,
-                            ),
-                            items: _daySlotDurationChoices
-                                .map(
-                                  (m) => DropdownMenuItem(
-                                    value: m,
-                                    child: Text(
-                                      s.translate(
-                                        'schedule_day_slot_minutes_option',
-                                        params: {'minutes': '$m'},
+                      const SizedBox(height: 6),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF12152A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<int>(
+                              isExpanded: true,
+                              value: sbSlot,
+                              dropdownColor: const Color(0xFF252640),
+                              iconEnabledColor: const Color(0xFF42A5F5),
+                              style: const TextStyle(
+                                color: Color(0xFFD9E2EC),
+                                fontFamily: 'KurdishFont',
+                                fontSize: 14,
+                              ),
+                              items: _daySlotChoices
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(
+                                        s.translate(
+                                          'schedule_day_slot_minutes_option',
+                                          params: {'minutes': '$m'},
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) setModal(() => sbSlot = v);
-                            },
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) setModal(() => sbSlot = v);
+                              },
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        s.translate('schedule_day_appointment_duration_hint'),
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11,
-                          fontFamily: 'KurdishFont',
-                          height: 1.35,
-                        ),
+                    ],
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: (sheetSaving || _isSaving)
+                          ? null
+                          : () async {
+                              setState(() {
+                                if (sbBlocked) {
+                                  _dateOverrides[key] = {'blocked': true};
+                                } else if (!sbCustom) {
+                                  _dateOverrides.remove(key);
+                                } else {
+                                  _dateOverrides[key] = {
+                                    'startMinutes': _toMinutes(sbStart),
+                                    'endMinutes': _toMinutes(sbEnd),
+                                  };
+                                }
+                              });
+                              sheetSaving = true;
+                              setModal(() {});
+                              try {
+                                if (sbBlocked) {
+                                  await _removeDaySettingsBlock(uid, day);
+                                } else {
+                                  await _persistDaySettingsBlock(uid, day, sbSlot);
+                                }
+                              } catch (_) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        s.translate('schedule_save_error_generic'),
+                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                sheetSaving = false;
+                                if (ctx.mounted) setModal(() {});
+                                return;
+                              }
+                              final ok = await _saveSchedule();
+                              sheetSaving = false;
+                              if (!ctx.mounted) return;
+                              setModal(() {});
+                              if (ok) Navigator.pop(ctx);
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF42A5F5),
+                        foregroundColor: const Color(0xFF102A43),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
+                      child: sheetSaving
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Color(0xFF102A43),
+                              ),
+                            )
+                          : Text(
+                              s.translate('schedule_save_button'),
+                              style: const TextStyle(
+                                fontFamily: 'KurdishFont',
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () {
-                      setState(() {
-                        if (sbBlocked) {
-                          _dateOverrides[key] = {'blocked': true};
-                        } else if (!sbCustom) {
-                          if (sbSlot == _profileAppointmentSlotMinutes) {
-                            _dateOverrides.remove(key);
-                          } else {
-                            _dateOverrides[key] = {
-                              kAppointmentSlotMinutesField: sbSlot,
-                            };
-                          }
-                        } else {
-                          _dateOverrides[key] = {
-                            'startMinutes': _toMinutes(sbStart),
-                            'endMinutes': _toMinutes(sbEnd),
-                            kAppointmentSlotMinutesField: sbSlot,
-                          };
-                        }
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF42A5F5),
-                      foregroundColor: const Color(0xFF102A43),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: Text(
-                      s.translate('schedule_apply_day'),
-                      style: const TextStyle(
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           },
@@ -475,11 +458,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  Future<void> _saveSchedule() async {
+  /// Persists [schedule_date_overrides] on the user doc (weekly template is not edited here).
+  Future<bool> _saveSchedule() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final s = S.of(context);
     if (uid == null) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -488,20 +472,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ),
       );
-      return;
+      return false;
     }
 
     setState(() => _isSaving = true);
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set(
         {
-          'weekly_schedule': _weeklyFirestoreMap(),
           'schedule_date_overrides': _dateOverrides,
           'scheduleUpdatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -510,8 +493,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ),
       );
+      return true;
     } on FirebaseException catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -520,8 +504,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ),
       );
+      return false;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -530,6 +515,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -635,96 +621,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              ExpansionTile(
-                initiallyExpanded: _defaultsExpanded,
-                onExpansionChanged: (e) => setState(() => _defaultsExpanded = e),
-                tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-                title: Text(
-                  s.translate('schedule_weekday_defaults_title'),
-                  style: const TextStyle(
-                    color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                children: [
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                    itemCount: _schedules.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.white10),
-                    itemBuilder: (context, index) {
-                      final item = _schedules[index];
-                      final dayTitle = s.translate(scheduleDayTranslationKey(item.id));
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    dayTitle,
-                                    style: const TextStyle(
-                                      color: Color(0xFFD9E2EC),
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: 'KurdishFont',
-                                    ),
-                                  ),
-                                ),
-                                Switch(
-                                  value: item.isAvailable,
-                                  activeThumbColor: const Color(0xFF42A5F5),
-                                  onChanged: (v) {
-                                    setState(() {
-                                      _schedules[index] = _schedules[index].copyWith(isAvailable: v);
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (item.isAvailable)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => _pickTime(index, isStart: true),
-                                      child: Text(
-                                        '${s.translate('schedule_time_start')} ${_formatTime(item.startTime)}',
-                                        style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => _pickTime(index, isStart: false),
-                                      child: Text(
-                                        '${s.translate('schedule_time_end')} ${_formatTime(item.endTime)}',
-                                        style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
             ],
           );
 
     final saveBar = Padding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, savePaddingBottom),
       child: ElevatedButton(
-        onPressed: _isSaving ? null : _saveSchedule,
+        onPressed: _isSaving ? null : () => _saveSchedule(),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF42A5F5),
           foregroundColor: const Color(0xFF102A43),
@@ -836,34 +739,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               : const Color(0xFFE8EEF4),
         ),
       ),
-    );
-  }
-}
-
-class _DaySchedule {
-  const _DaySchedule({
-    required this.id,
-    required this.isAvailable,
-    required this.startTime,
-    required this.endTime,
-  });
-
-  final String id;
-  final bool isAvailable;
-  final TimeOfDay startTime;
-  final TimeOfDay endTime;
-
-  _DaySchedule copyWith({
-    String? id,
-    bool? isAvailable,
-    TimeOfDay? startTime,
-    TimeOfDay? endTime,
-  }) {
-    return _DaySchedule(
-      id: id ?? this.id,
-      isAvailable: isAvailable ?? this.isAvailable,
-      startTime: startTime ?? this.startTime,
-      endTime: endTime ?? this.endTime,
     );
   }
 }

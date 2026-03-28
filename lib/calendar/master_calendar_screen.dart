@@ -98,7 +98,6 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     Map<String, dynamic>? dateOverrides,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
-    Map<String, dynamic>? doctorProfileData,
   }) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final year = focusedMonth.year;
@@ -113,10 +112,9 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       final key = DateTime(d.year, d.month, d.day);
       final dayBlocks = blocksForCalendarDay(key, blockMaps);
       final booked = _bookedKeysForDay(key, apptDocs);
-      final step = effectiveAppointmentSlotMinutes(
-        dateOnly: key,
-        dateOverrides: dateOverrides,
-        doctorUserData: doctorProfileData,
+      final step = appointmentSlotMinutesForDateWithAllBlocks(
+        key,
+        blockMaps,
       );
       map[key] = classifyDay(
         dateOnly: key,
@@ -461,7 +459,6 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                     dateOverrides: dateOverrides,
                                     apptDocs: appts,
                                     blockDocs: blocks,
-                                    doctorProfileData: snapData,
                                   );
 
                                   return SingleChildScrollView(
@@ -584,15 +581,15 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                     monthAppointments: appts,
                                                     monthBlocks: blocks,
                                                     slotDurationMinutes:
-                                                        effectiveAppointmentSlotMinutes(
-                                                      dateOnly: DateTime(
+                                                        appointmentSlotMinutesForDateWithAllBlocks(
+                                                      DateTime(
                                                         sel.year,
                                                         sel.month,
                                                         sel.day,
                                                       ),
-                                                      dateOverrides:
-                                                          dateOverrides,
-                                                      doctorUserData: snapData,
+                                                      blocks
+                                                          .map((e) => e.data())
+                                                          .toList(),
                                                     ),
                                                   );
                                                 },

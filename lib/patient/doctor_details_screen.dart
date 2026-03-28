@@ -163,7 +163,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     required Map<String, dynamic>? overrides,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
-    required Map<String, dynamic>? doctorProfile,
   }) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final year = focusedMonth.year;
@@ -184,10 +183,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         dateOverrides: overrides,
         bookedTimeKeys: booked,
         dayBlocks: dayBlocks,
-        slotStepMinutes: effectiveAppointmentSlotMinutes(
-          dateOnly: key,
-          dateOverrides: overrides,
-          doctorUserData: doctorProfile,
+        slotStepMinutes: appointmentSlotMinutesForDateWithAllBlocks(
+          key,
+          blockMaps,
         ),
       );
     }
@@ -199,7 +197,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     Map<String, dynamic>? overrides,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> blockDocs,
-    Map<String, dynamic>? doctorProfile,
   ) {
     final blockMaps = blockDocs.map((e) => e.data()).toList();
     final now = DateTime.now();
@@ -213,10 +210,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         dateOverrides: overrides,
         bookedTimeKeys: booked,
         dayBlocks: dayBlocks,
-        slotStepMinutes: effectiveAppointmentSlotMinutes(
-          dateOnly: d,
-          dateOverrides: overrides,
-          doctorUserData: doctorProfile,
+        slotStepMinutes: appointmentSlotMinutesForDateWithAllBlocks(
+          d,
+          blockMaps,
         ),
       );
       if (v == MasterDayVisual.hasAvailability) return d;
@@ -229,17 +225,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     DateTime date,
     Map<String, dynamic>? weekly,
     Map<String, dynamic>? overrides, {
-    Map<String, dynamic>? doctorProfile,
+    required List<Map<String, dynamic>> monthBlockMaps,
   }) {
     final win = workingWindowForDateWithOverrides(date, weekly, overrides);
     if (win == null) {
       _selectedTime = null;
       return;
     }
-    final step = effectiveAppointmentSlotMinutes(
-      dateOnly: date,
-      dateOverrides: overrides,
-      doctorUserData: doctorProfile,
+    final step = appointmentSlotMinutesForDateWithAllBlocks(
+      date,
+      monthBlockMaps,
     );
     final slots = slotStartMinutesForWindow(
       win.startMinutes,
@@ -338,15 +333,49 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
     setState(() => _saving = true);
     try {
+      final dateNorm = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+      );
+      final nextDay = dateNorm.add(const Duration(days: 1));
+      final blockSnap = await calendarBlocksForDoctorDateRange(
+        doctorUserId: widget.doctorId,
+        rangeStartInclusiveLocal: dateNorm,
+        rangeEndExclusiveLocal: nextDay,
+      ).get();
+      final blockMaps = blockSnap.docs.map((e) => e.data()).toList();
+      final step = appointmentSlotMinutesForDateWithAllBlocks(
+        dateNorm,
+        blockMaps,
+      );
+      final allowedStarts = slotStartMinutesForWindow(
+        win.startMinutes,
+        win.endMinutes,
+        step: step,
+      );
+      final selMin = _toMinutes(_selectedTime!);
+      if (!allowedStarts.contains(selMin)) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('booking_slot_invalid'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+        return;
+      }
+
       final timeStr =
           '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
-      final dayStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
-      final dayEnd = dayStart.add(const Duration(days: 1));
       final sameDay = await appointmentsForDoctorDateRange(
         doctorUserId: widget.doctorId,
-        rangeStartInclusiveLocal: dayStart,
-        rangeEndExclusiveLocal: dayEnd,
+        rangeStartInclusiveLocal: dateNorm,
+        rangeEndExclusiveLocal: nextDay,
       ).get();
       for (final doc in sameDay.docs) {
         final data = doc.data();
@@ -394,8 +423,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       try {
         final countAgg = await appointmentsForDoctorDateRange(
           doctorUserId: widget.doctorId,
-          rangeStartInclusiveLocal: dayStart,
-          rangeEndExclusiveLocal: dayEnd,
+          rangeStartInclusiveLocal: dateNorm,
+          rangeEndExclusiveLocal: nextDay,
         ).count().get();
         queueNumber = (countAgg.count ?? 0) + 1;
       } catch (_) {
@@ -407,7 +436,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         AppointmentFields.doctorId: widget.doctorId,
         AppointmentFields.doctorName: doctorNameToSave,
         AppointmentFields.patientName: patientName,
-        AppointmentFields.date: Timestamp.fromDate(_selectedDate!),
+        AppointmentFields.date: Timestamp.fromDate(dateNorm),
         AppointmentFields.time: timeStr,
         AppointmentFields.status: 'pending',
         AppointmentFields.queueNumber: queueNumber,
@@ -1052,7 +1081,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                       overrides: overrides,
                                                       apptDocs: appts,
                                                       blockDocs: blocks,
-                                                      doctorProfile: merged,
                                                     );
 
                                                     if (!_patientCalendarPrimed &&
@@ -1074,7 +1102,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                           overrides,
                                                           appts,
                                                           blocks,
-                                                          merged,
                                                         );
                                                         if (!mounted) return;
                                                         setState(() {
@@ -1091,8 +1118,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                               first,
                                                               weeklyMap,
                                                               overrides,
-                                                              doctorProfile:
-                                                                  merged,
+                                                              monthBlockMaps:
+                                                                  blocks
+                                                                      .map((e) =>
+                                                                          e.data())
+                                                                      .toList(),
                                                             );
                                                           }
                                                         });
@@ -1124,17 +1154,23 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     .day,
                                                               )]
                                                             : null;
+                                                    final blockMaps = blocks
+                                                        .map((e) => e.data())
+                                                        .toList();
                                                     final slotForSelected =
                                                         _selectedDate != null
-                                                            ? effectiveAppointmentSlotMinutes(
-                                                                dateOnly:
-                                                                    _selectedDate!,
-                                                                dateOverrides:
-                                                                    overrides,
-                                                                doctorUserData:
-                                                                    merged,
+                                                            ? appointmentSlotMinutesForDateWithAllBlocks(
+                                                                DateTime(
+                                                                  _selectedDate!
+                                                                      .year,
+                                                                  _selectedDate!
+                                                                      .month,
+                                                                  _selectedDate!
+                                                                      .day,
+                                                                ),
+                                                                blockMaps,
                                                               )
-                                                            : 30;
+                                                            : kDefaultAppointmentSlotMinutes;
                                                     final slots = selectedWin !=
                                                             null
                                                         ? slotStartMinutesForWindow(
@@ -1429,8 +1465,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                       sel,
                                                                       weeklyMap,
                                                                       overrides,
-                                                                      doctorProfile:
-                                                                          merged,
+                                                                      monthBlockMaps:
+                                                                          blocks
+                                                                              .map((e) => e
+                                                                                  .data())
+                                                                              .toList(),
                                                                     );
                                                                   });
                                                                 }
