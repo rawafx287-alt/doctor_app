@@ -319,11 +319,22 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final win = _selectedDate != null
         ? workingWindowForDateWithOverrides(_selectedDate!, weekly, overrides)
         : null;
-    if (win == null || _selectedDate == null || _selectedTime == null) {
+    if (_selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             s.translate('booking_select_datetime'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+      return;
+    }
+    if (win == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('booking_date_closed'),
             style: const TextStyle(fontFamily: 'KurdishFont'),
           ),
         ),
@@ -345,6 +356,20 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         rangeEndExclusiveLocal: nextDay,
       ).get();
       final blockMaps = blockSnap.docs.map((e) => e.data()).toList();
+      final closedDayBlocks = blocksForCalendarDay(dateNorm, blockMaps);
+      if (calendarDayHasIsClosedFlag(closedDayBlocks)) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('booking_date_closed'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+        return;
+      }
       final step = appointmentSlotMinutesForDateWithAllBlocks(
         dateNorm,
         blockMaps,
@@ -1083,6 +1108,43 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                       blockDocs: blocks,
                                                     );
 
+                                                    if (_selectedDate != null &&
+                                                        apptSnap.hasData &&
+                                                        blockSnap.hasData) {
+                                                      final sk = DateTime(
+                                                        _selectedDate!.year,
+                                                        _selectedDate!.month,
+                                                        _selectedDate!.day,
+                                                      );
+                                                      if (visuals[sk] ==
+                                                          MasterDayVisual
+                                                              .nonWorking) {
+                                                        WidgetsBinding.instance
+                                                            .addPostFrameCallback(
+                                                                (_) {
+                                                          if (!mounted) return;
+                                                          setState(() {
+                                                            if (_selectedDate !=
+                                                                    null &&
+                                                                DateTime(
+                                                                  _selectedDate!
+                                                                      .year,
+                                                                  _selectedDate!
+                                                                      .month,
+                                                                  _selectedDate!
+                                                                      .day,
+                                                                ) ==
+                                                                    sk) {
+                                                              _selectedDate =
+                                                                  null;
+                                                              _selectedTime =
+                                                                  null;
+                                                            }
+                                                          });
+                                                        });
+                                                      }
+                                                    }
+
                                                     if (!_patientCalendarPrimed &&
                                                         hasSchedule &&
                                                         apptSnap.hasData &&
@@ -1275,8 +1337,27 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                                     d.year,
                                                                     d.month,
                                                                     d.day);
-                                                                return !n.isBefore(
-                                                                    todayNorm);
+                                                                if (n.isBefore(
+                                                                    todayNorm)) {
+                                                                  return false;
+                                                                }
+                                                                final key =
+                                                                    DateTime(
+                                                                  n.year,
+                                                                  n.month,
+                                                                  n.day,
+                                                                );
+                                                                final v =
+                                                                    visuals[
+                                                                        key];
+                                                                if (v ==
+                                                                        null ||
+                                                                    v ==
+                                                                        MasterDayVisual
+                                                                            .nonWorking) {
+                                                                  return false;
+                                                                }
+                                                                return true;
                                                               },
                                                               daysOfWeekStyle:
                                                                   DaysOfWeekStyle(

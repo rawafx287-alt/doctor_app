@@ -56,6 +56,12 @@ abstract final class CalendarBlockFields {
   /// Per-calendar-day slot length (Schedule Management); does not block time ranges.
   /// Fields: [AppointmentFields.doctorId], [AppointmentFields.date], optional `appointmentDuration` (int minutes).
   static const String kindDaySettings = 'daySettings';
+
+  /// Whole-day closure from Schedule Management (“داخستنی ئەم ڕۆژە”); patient booking must treat day as off.
+  static const String kindClosedDay = 'closedDay';
+
+  /// When true on a [calendar_blocks] doc for that calendar day, patients cannot book.
+  static const String isClosed = 'isClosed';
 }
 
 /// Debug hint when [calendarBlocksForDoctorDateRange] fails with a missing index.

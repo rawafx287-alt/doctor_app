@@ -176,6 +176,36 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return '${uid}_${k}_daySettings';
   }
 
+  String _closedDayDocId(String uid, DateTime day) {
+    final k = scheduleDateOverrideKey(DateTime(day.year, day.month, day.day));
+    return '${uid}_${k}_closed';
+  }
+
+  Future<void> _persistClosedDayBlock(String uid, DateTime day) async {
+    final start = DateTime(day.year, day.month, day.day);
+    await FirebaseFirestore.instance
+        .collection(CalendarBlockFields.collection)
+        .doc(_closedDayDocId(uid, day))
+        .set(
+      {
+        AppointmentFields.doctorId: uid,
+        AppointmentFields.date: Timestamp.fromDate(start),
+        CalendarBlockFields.blockKind: CalendarBlockFields.kindClosedDay,
+        CalendarBlockFields.isClosed: true,
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _removeClosedDayBlock(String uid, DateTime day) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection(CalendarBlockFields.collection)
+          .doc(_closedDayDocId(uid, day))
+          .delete();
+    } catch (_) {}
+  }
+
   Future<int?> _loadDaySettingsSlotMinutes(String uid, DateTime day) async {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
@@ -533,7 +563,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               try {
                                 if (sbBlocked) {
                                   await _removeDaySettingsBlock(uid, day);
+                                  await _persistClosedDayBlock(uid, day);
                                 } else {
+                                  await _removeClosedDayBlock(uid, day);
                                   await _persistDaySettingsBlock(uid, day, sbSlot);
                                 }
                               } catch (_) {

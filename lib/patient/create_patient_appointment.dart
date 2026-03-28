@@ -3,7 +3,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../calendar/calendar_slot_logic.dart';
 import '../firestore/appointment_queries.dart';
+import '../firestore/calendar_block_queries.dart';
 import '../models/doctor_localized_content.dart';
+
+Map<String, dynamic>? _weeklyScheduleFromDoctorData(Map<String, dynamic>? data) {
+  if (data == null) return null;
+  final w = data['weekly_schedule'];
+  if (w is! Map) return null;
+  return Map<String, dynamic>.from(
+    w.map((k, v) => MapEntry(k.toString(), v)),
+  );
+}
+
+Map<String, dynamic>? _scheduleOverridesFromDoctorData(Map<String, dynamic>? data) {
+  if (data == null) return null;
+  final raw = data['schedule_date_overrides'];
+  if (raw is! Map) return null;
+  return Map<String, dynamic>.from(
+    raw.map((k, v) => MapEntry(k.toString(), v)),
+  );
+}
 
 /// Shared Firestore write for a patient booking (same shape as [DoctorDetailsScreen]).
 Future<String?> createPatientAppointment({
@@ -19,6 +38,28 @@ Future<String?> createPatientAppointment({
   final timeStr = formatSlotMinutesKey(slotStartMinutes);
   final dayStart = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
   final dayEnd = dayStart.add(const Duration(days: 1));
+
+  try {
+    final doctorDoc =
+        await FirebaseFirestore.instance.collection('users').doc(doctorId).get();
+    final dd = doctorDoc.data();
+    final weekly = _weeklyScheduleFromDoctorData(dd);
+    final overrides = _scheduleOverridesFromDoctorData(dd);
+    if (workingWindowForDateWithOverrides(dayStart, weekly, overrides) == null) {
+      return 'booking_date_closed';
+    }
+    final blockSnap = await calendarBlocksForDoctorDateRange(
+      doctorUserId: doctorId,
+      rangeStartInclusiveLocal: dayStart,
+      rangeEndExclusiveLocal: dayEnd,
+    ).get();
+    final blockMaps = blockSnap.docs.map((e) => e.data()).toList();
+    if (calendarDayHasIsClosedFlag(blocksForCalendarDay(dayStart, blockMaps))) {
+      return 'booking_date_closed';
+    }
+  } catch (_) {
+    // Firestore/read failure: do not block booking here; confirm flow validates when possible.
+  }
 
   final sameDay = await appointmentsForDoctorDateRange(
     doctorUserId: doctorId,

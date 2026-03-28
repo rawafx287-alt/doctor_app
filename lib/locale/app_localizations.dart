@@ -1082,9 +1082,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Book appointment',
   },
   'booking_date_closed': {
-    'ckb': 'ئەم بەروارە داخراوە (پشوو یان لە خشتەدا نییە)',
-    'ar': 'هذا التاريخ غير متاح (عطلة أو خارج الجدول)',
-    'en': 'This date is not available (off schedule or closed).',
+    'ckb': 'ببورە، دکتۆر لەم ڕێکەوتەدا دەوام ناکات',
+    'ar': 'عذراً، الطبيب لا يعمل في هذا الموعد.',
+    'en': 'Sorry, the doctor is not working on this date.',
   },
   'booking_date_fully_booked': {
     'ckb': 'ئەم ڕۆژە هەموو کاتەکان گیراون. ڕۆژێکی تر هەڵبژێرە.',

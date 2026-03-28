@@ -178,6 +178,17 @@ List<Map<String, dynamic>> blocksForCalendarDay(
 
 enum MasterDayVisual { nonWorking, hasAvailability, fullyBooked }
 
+/// True if any non–[CalendarBlockFields.kindDaySettings] block marks the clinic closed ([CalendarBlockFields.isClosed]).
+bool calendarDayHasIsClosedFlag(Iterable<Map<String, dynamic>> dayBlocks) {
+  for (final b in dayBlocks) {
+    if (b[CalendarBlockFields.blockKind] == CalendarBlockFields.kindDaySettings) {
+      continue;
+    }
+    if (b[CalendarBlockFields.isClosed] == true) return true;
+  }
+  return false;
+}
+
 MasterDayVisual classifyDay({
   required DateTime dateOnly,
   required Map<String, dynamic>? weeklySchedule,
@@ -186,6 +197,8 @@ MasterDayVisual classifyDay({
   required List<Map<String, dynamic>> dayBlocks,
   int slotStepMinutes = kDefaultAppointmentSlotMinutes,
 }) {
+  if (calendarDayHasIsClosedFlag(dayBlocks)) return MasterDayVisual.nonWorking;
+
   final win = workingWindowForDateWithOverrides(
     dateOnly,
     weeklySchedule,
