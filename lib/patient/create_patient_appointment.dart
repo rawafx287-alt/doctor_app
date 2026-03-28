@@ -24,6 +24,26 @@ Map<String, dynamic>? _scheduleOverridesFromDoctorData(Map<String, dynamic>? dat
   );
 }
 
+Set<String> _bookedTimeKeysFromAppointmentDocs(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final set = <String>{};
+  for (final doc in docs) {
+    final data = doc.data();
+    final st =
+        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+    if (st == 'cancelled') continue;
+    final t = (data[AppointmentFields.time] ?? '').toString().trim();
+    if (t.isEmpty) continue;
+    final parts = t.split(':');
+    if (parts.length < 2) continue;
+    final h = int.tryParse(parts[0].trim()) ?? 0;
+    final mi = int.tryParse(parts[1].trim()) ?? 0;
+    set.add('${h.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}');
+  }
+  return set;
+}
+
 /// Shared Firestore write for a patient booking (same shape as [DoctorDetailsScreen]).
 Future<String?> createPatientAppointment({
   required String doctorId,
@@ -39,26 +59,37 @@ Future<String?> createPatientAppointment({
   final dayStart = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
   final dayEnd = dayStart.add(const Duration(days: 1));
 
+  Map<String, dynamic>? dd;
+  var blockMaps = <Map<String, dynamic>>[];
   try {
     final doctorDoc =
         await FirebaseFirestore.instance.collection('users').doc(doctorId).get();
-    final dd = doctorDoc.data();
-    final weekly = _weeklyScheduleFromDoctorData(dd);
-    final overrides = _scheduleOverridesFromDoctorData(dd);
-    if (workingWindowForDateWithOverrides(dayStart, weekly, overrides) == null) {
-      return 'booking_date_closed';
-    }
+    dd = doctorDoc.data();
     final blockSnap = await calendarBlocksForDoctorDateRange(
       doctorUserId: doctorId,
       rangeStartInclusiveLocal: dayStart,
       rangeEndExclusiveLocal: dayEnd,
     ).get();
-    final blockMaps = blockSnap.docs.map((e) => e.data()).toList();
-    if (calendarDayHasIsClosedFlag(blocksForCalendarDay(dayStart, blockMaps))) {
-      return 'booking_date_closed';
-    }
+    blockMaps = blockSnap.docs.map((e) => e.data()).toList();
   } catch (_) {
-    // Firestore/read failure: do not block booking here; confirm flow validates when possible.
+    // Continue with empty blocks; sequential check may be skipped if window unknown.
+  }
+
+  final weekly = _weeklyScheduleFromDoctorData(dd);
+  final overrides = _scheduleOverridesFromDoctorData(dd);
+  final win = workingWindowForDateWithOverrides(dayStart, weekly, overrides);
+  if (win == null) return 'booking_date_closed';
+  if (calendarDayHasIsClosedFlag(blocksForCalendarDay(dayStart, blockMaps))) {
+    return 'booking_date_closed';
+  }
+  final step = appointmentSlotMinutesForDateWithAllBlocks(dayStart, blockMaps);
+  final allowedStarts = slotStartMinutesForWindow(
+    win.startMinutes,
+    win.endMinutes,
+    step: step,
+  );
+  if (!allowedStarts.contains(slotStartMinutes)) {
+    return 'booking_slot_invalid';
   }
 
   final sameDay = await appointmentsForDoctorDateRange(
@@ -66,6 +97,11 @@ Future<String?> createPatientAppointment({
     rangeStartInclusiveLocal: dayStart,
     rangeEndExclusiveLocal: dayEnd,
   ).get();
+
+  final bookedKeys = _bookedTimeKeysFromAppointmentDocs(sameDay.docs);
+  final nextSequential = earliestSequentialFreeSlotStartMinutes(allowedStarts, bookedKeys);
+  if (nextSequential == null) return 'booking_date_fully_booked';
+  if (slotStartMinutes != nextSequential) return 'booking_sequential_must_pick_first';
 
   for (final doc in sameDay.docs) {
     final data = doc.data();
@@ -84,8 +120,8 @@ Future<String?> createPatientAppointment({
 
   var doctorNameToSave = doctorDisplayFallback.trim();
   try {
-    final doctorDoc = await FirebaseFirestore.instance.collection('users').doc(doctorId).get();
-    final fromServer = canonicalDoctorNameForStorage(doctorDoc.data() ?? <String, dynamic>{});
+    final fromServer =
+        canonicalDoctorNameForStorage(dd ?? <String, dynamic>{});
     if (fromServer.isNotEmpty) doctorNameToSave = fromServer;
   } catch (_) {}
 

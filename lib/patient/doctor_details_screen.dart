@@ -343,14 +343,42 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         return;
       }
 
-      final timeStr =
-          '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-
       final sameDay = await appointmentsForDoctorDateRange(
         doctorUserId: widget.doctorId,
         rangeStartInclusiveLocal: dateNorm,
         rangeEndExclusiveLocal: nextDay,
       ).get();
+      final bookedKeys = _bookingBookedTimeKeysFromDocs(sameDay.docs);
+      final nextSequential =
+          earliestSequentialFreeSlotStartMinutes(allowedStarts, bookedKeys);
+      if (nextSequential == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('booking_date_fully_booked'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (selMin != nextSequential) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('booking_sequential_must_pick_first'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final timeStr =
+          '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+
       for (final doc in sameDay.docs) {
         final data = doc.data();
         final st =
@@ -1707,6 +1735,16 @@ class _PatientBookingTimeSheetState extends State<_PatientBookingTimeSheet> {
                 fontFamily: 'KurdishFont',
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              s.translate('booking_sequential_queue_hint'),
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 11,
+                fontFamily: 'KurdishFont',
+                height: 1.35,
+              ),
+            ),
             const SizedBox(height: 12),
             if (widget.slots.isEmpty)
               Padding(
@@ -1726,11 +1764,13 @@ class _PatientBookingTimeSheetState extends State<_PatientBookingTimeSheet> {
                 slots: widget.slots,
                 selectedMinutes: _selectedMinutes,
                 isRtlLayout: widget.isRtlLayout,
+                sequentialQueueFirstSlot: true,
                 onMinutesChanged: (m) => setState(() => _selectedMinutes = m),
               ),
             const SizedBox(height: 22),
             FilledButton(
-              onPressed: _selectedMinutes == null || widget.slots.isEmpty
+              onPressed: _selectedMinutes == null ||
+                      widget.slots.isEmpty
                   ? null
                   : () {
                       final m = _selectedMinutes!;
@@ -1764,6 +1804,7 @@ class _PatientBookingTimeSheetState extends State<_PatientBookingTimeSheet> {
 }
 
 /// Live Firestore availability for one doctor + calendar day; disables taken slots.
+/// When [sequentialQueueFirstSlot] is true, only the first free slot is tappable (تەسەلسول).
 class _BookedTimeSlotPicker extends StatefulWidget {
   const _BookedTimeSlotPicker({
     required this.doctorId,
@@ -1772,6 +1813,7 @@ class _BookedTimeSlotPicker extends StatefulWidget {
     required this.selectedMinutes,
     required this.onMinutesChanged,
     required this.isRtlLayout,
+    this.sequentialQueueFirstSlot = false,
   });
 
   final String doctorId;
@@ -1780,14 +1822,34 @@ class _BookedTimeSlotPicker extends StatefulWidget {
   final int? selectedMinutes;
   final ValueChanged<int?> onMinutesChanged;
   final bool isRtlLayout;
+  final bool sequentialQueueFirstSlot;
 
   @override
   State<_BookedTimeSlotPicker> createState() => _BookedTimeSlotPickerState();
 }
 
-class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
+class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker>
+    with SingleTickerProviderStateMixin {
   Set<String>? _prevBooked;
   String? _sessionKey;
+  AnimationController? _queuePulse;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.sequentialQueueFirstSlot) {
+      _queuePulse = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 950),
+      )..repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _queuePulse?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1850,13 +1912,39 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
 
         final booked = _bookingBookedTimeKeysFromDocs(snap.data?.docs ?? []);
 
+        final firstFreeSequential = widget.sequentialQueueFirstSlot
+            ? earliestSequentialFreeSlotStartMinutes(widget.slots, booked)
+            : null;
+
         final selectedStr = widget.selectedMinutes != null
             ? _bookingTimeKeyFromMinutes(widget.selectedMinutes!)
             : null;
         final selectedIsBooked =
             selectedStr != null && booked.contains(selectedStr);
 
-        if (selectedIsBooked) {
+        if (widget.sequentialQueueFirstSlot) {
+          if (firstFreeSequential != widget.selectedMinutes) {
+            final prev = _prevBooked;
+            final showTakenSnack = prev != null &&
+                selectedStr != null &&
+                !prev.contains(selectedStr) &&
+                booked.contains(selectedStr);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              widget.onMinutesChanged(firstFreeSequential);
+              if (showTakenSnack && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      S.of(context).translate('booking_slot_just_taken'),
+                      style: const TextStyle(fontFamily: 'KurdishFont'),
+                    ),
+                  ),
+                );
+              }
+            });
+          }
+        } else if (selectedIsBooked) {
           int? pick;
           for (final m in widget.slots) {
             if (!booked.contains(_bookingTimeKeyFromMinutes(m))) {
@@ -1867,8 +1955,9 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
           final shouldUpdate = pick != widget.selectedMinutes;
           if (shouldUpdate) {
             final prev = _prevBooked;
-            final showTakenSnack =
-                prev != null && !prev.contains(selectedStr) && booked.contains(selectedStr);
+            final showTakenSnack = prev != null &&
+                !prev.contains(selectedStr) &&
+                booked.contains(selectedStr);
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               widget.onMinutesChanged(pick);
@@ -1897,6 +1986,12 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
         const availFill = Color(0xFF0F3D28);
         const availBorder = Color(0xFF22C55E);
         const availLabel = Color(0xFFBBF7D0);
+        const lockedFutureFill = Color(0xFF1A2332);
+        const lockedFutureBorder = Color(0xFF334155);
+        const lockedFutureLabel = Color(0xFF64748B);
+        const queueFill = Color(0xFF14532D);
+        const queueBorder = Color(0xFF4ADE80);
+        const queueLabel = Color(0xFFD1FAE5);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1908,52 +2003,114 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
               children: widget.slots.map((m) {
                 final timeStr = _bookingTimeKeyFromMinutes(m);
                 final isBooked = booked.contains(timeStr);
-                final isSelected =
-                    !isBooked && widget.selectedMinutes != null && widget.selectedMinutes == m;
+                final isQueueSlot = widget.sequentialQueueFirstSlot &&
+                    !isBooked &&
+                    firstFreeSequential == m;
+                final isLockedFutureFree = widget.sequentialQueueFirstSlot &&
+                    !isBooked &&
+                    firstFreeSequential != null &&
+                    m != firstFreeSequential;
 
-                final tile = Material(
+                final bool tappable;
+                if (isBooked) {
+                  tappable = false;
+                } else if (widget.sequentialQueueFirstSlot) {
+                  tappable = isQueueSlot;
+                } else {
+                  tappable = true;
+                }
+
+                final isSelected = !isBooked &&
+                    !widget.sequentialQueueFirstSlot &&
+                    widget.selectedMinutes != null &&
+                    widget.selectedMinutes == m;
+
+                Color fill = availFill;
+                Color borderColor = availBorder;
+                var borderW = 1.0;
+                Color labelColor = availLabel;
+
+                if (isBooked) {
+                  fill = bookedFill;
+                  borderColor = bookedBorder;
+                  borderW = 2;
+                  labelColor = bookedLabel;
+                } else if (isLockedFutureFree) {
+                  fill = lockedFutureFill;
+                  borderColor = lockedFutureBorder;
+                  borderW = 1;
+                  labelColor = lockedFutureLabel;
+                } else if (isQueueSlot) {
+                  fill = queueFill;
+                  borderColor = queueBorder;
+                  borderW = 2.6;
+                  labelColor = queueLabel;
+                } else if (isSelected) {
+                  fill = blueFill;
+                  borderColor = blueBorder;
+                  borderW = 2;
+                  labelColor = blueLabel;
+                }
+
+                Widget tile = Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: isBooked ? null : () => widget.onMinutesChanged(m),
+                    onTap: tappable ? () => widget.onMinutesChanged(m) : null,
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isBooked
-                            ? bookedFill
-                            : isSelected
-                                ? blueFill
-                                : availFill,
+                        color: fill,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isBooked
-                              ? bookedBorder
-                              : isSelected
-                                  ? blueBorder
-                                  : availBorder,
-                          width: isBooked || isSelected ? 2 : 1,
-                        ),
+                        border: Border.all(color: borderColor, width: borderW),
                       ),
                       child: Text(
                         timeStr,
                         style: TextStyle(
                           fontFamily: 'KurdishFont',
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight:
+                              isQueueSlot || isSelected ? FontWeight.w800 : FontWeight.w600,
                           fontSize: 14,
-                          color: isBooked
-                              ? bookedLabel
-                              : isSelected
-                                  ? blueLabel
-                                  : availLabel,
+                          color: labelColor,
                         ),
                       ),
                     ),
                   ),
                 );
 
+                if (isQueueSlot && _queuePulse != null) {
+                  tile = AnimatedBuilder(
+                    animation: _queuePulse!,
+                    builder: (context, child) {
+                      final t = Curves.easeInOut.transform(_queuePulse!.value);
+                      final v = 0.35 + 0.65 * t;
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF22C55E).withValues(alpha: 0.42 * v),
+                              blurRadius: 16 * v,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                        ),
+                        child: child,
+                      );
+                    },
+                    child: tile,
+                  );
+                }
+
                 if (isBooked) {
                   return Tooltip(
                     message: s.translate('booking_slot_booked_hint'),
+                    child: tile,
+                  );
+                }
+                if (isLockedFutureFree) {
+                  return Tooltip(
+                    message: s.translate('booking_sequential_future_slot_hint'),
                     child: tile,
                   );
                 }
@@ -1962,7 +2119,11 @@ class _BookedTimeSlotPickerState extends State<_BookedTimeSlotPicker> {
             ),
             const SizedBox(height: 8),
             Text(
-              s.translate('booking_slot_legend'),
+              s.translate(
+                widget.sequentialQueueFirstSlot
+                    ? 'booking_slot_legend_sequential'
+                    : 'booking_slot_legend',
+              ),
               textAlign: TextAlign.start,
               style: const TextStyle(
                 color: Color(0xFF829AB1),

@@ -149,6 +149,18 @@ String formatSlotMinutesKey(int m) {
   return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
 }
 
+/// Sequential queue (تەسەلسول): first free start in [slotStartsSorted] order.
+/// [bookedTimeKeysNormalized] uses the same `HH:mm` strings as [formatSlotMinutesKey].
+int? earliestSequentialFreeSlotStartMinutes(
+  List<int> slotStartsSorted,
+  Set<String> bookedTimeKeysNormalized,
+) {
+  for (final m in slotStartsSorted) {
+    if (!bookedTimeKeysNormalized.contains(formatSlotMinutesKey(m))) return m;
+  }
+  return null;
+}
+
 bool _slotOverlapsBlock(int slotStart, int slotEndExclusive, Map<String, dynamic> block) {
   if (block['wholeDay'] == true) return true;
   final sm = (block['startMinutes'] as num?)?.toInt();

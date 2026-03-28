@@ -1172,6 +1172,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'أخضر = متاح · رمادي = محجوز',
     'en': 'Green = available · Gray = booked (disabled)',
   },
+  'booking_sequential_queue_hint': {
+    'ckb': 'تەنها یەکەم کاتی بەتاڵ (تەسەلسول) دەتوانیت هەڵیبژێریت.',
+    'ar': 'يمكنك اختيار أول موعد فارغ فقط (بالتسلسل).',
+    'en': 'Only the first free slot can be booked (sequential queue).',
+  },
+  'booking_slot_legend_sequential': {
+    'ckb': 'سەوز (گلۆپ) = نۆرەی تۆ · تۆخم = کاتەکانی دیکە بەتاڵ (چاوەڕوان) · خۆڵەمێش = گیراوە',
+    'ar': 'أخضر (وميض) = دورك · باهت = أوقات لاحقة فارغة (انتظر) · رمادي = محجوز',
+    'en': 'Pulsing green = your turn · Dim = later free slots (wait) · Gray = booked',
+  },
+  'booking_sequential_future_slot_hint': {
+    'ckb': 'ئەم کاتە بەتاڵە؛ تەنها یەکەم کاتی بەتاڵ هەڵبژێرە.',
+    'ar': 'هذا الوقت فارغ لاحقاً؛ اختر أول فراغ في الجدول.',
+    'en': 'This slot is free later; book the first free slot in order.',
+  },
+  'booking_sequential_must_pick_first': {
+    'ckb': 'تەنها یەکەم کاتی بەتاڵ دەتوانیت بگریت (تەسەلسول).',
+    'ar': 'يجب اختيار أول موعد فارغ فقط (تسلسل).',
+    'en': 'You can only book the first available slot (sequential queue).',
+  },
   'booking_slot_just_taken': {
     'ckb': 'ئەم کاتە ئێستا کەسێک وەرگرت. تکایە کاتێکی تر هەڵبژێرە.',
     'ar': 'تم حجز هذا الوقت للتو. اختر وقتاً آخر.',
