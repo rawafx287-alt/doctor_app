@@ -23,6 +23,17 @@ int _appointmentSortMinutes(Map<String, dynamic> data) {
 String _dayCountKey(DateTime d) =>
     scheduleDateOverrideKey(DateTime(d.year, d.month, d.day));
 
+/// Normalized `HH:mm` key for matching [AppointmentFields.time] to [formatSlotMinutesKey].
+String _scheduleApptTimeKey(Map<String, dynamic> data) {
+  final t = (data[AppointmentFields.time] ?? '').toString().trim();
+  if (t.isEmpty) return '';
+  final parts = t.split(':');
+  if (parts.length < 2) return '';
+  final h = int.tryParse(parts[0].trim()) ?? 0;
+  final m = int.tryParse(parts[1].trim()) ?? 0;
+  return formatSlotMinutesKey(h * 60 + m);
+}
+
 /// Active (non-cancelled) appointment counts per calendar day for the doctor.
 List<QueryDocumentSnapshot<Map<String, dynamic>>> _activeAppointmentsSortedForDay(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
@@ -617,6 +628,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         },
                       ),
                       _ScheduleSheetPatientsTab(
+                        doctorId: uid,
+                        day: day,
+                        weeklySchedule: _weeklyMap(),
+                        dateOverrides: _dateOverrides,
                         appointmentsSnapshot: apptSnap,
                       ),
                             ],
@@ -1013,13 +1028,165 @@ String _patientFullNameFromProfile(
   return f.isEmpty ? '' : f;
 }
 
-/// Patient appointments for a single day (Schedule Management bottom sheet — tab 2).
-/// Uses [appointmentsSnapshot] from the parent [StreamBuilder] so the tab label and list share one stream.
+/// Dashed rounded border for “available” slot rows.
+class _DashedRRectPainter extends CustomPainter {
+  _DashedRRectPainter({
+    required this.color,
+    required this.borderRadius,
+  });
+
+  final Color color;
+  final double borderRadius;
+
+  static const double _dash = 6;
+  static const double _gap = 4;
+  static const double _strokeWidth = 1.2;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = _strokeWidth / 2;
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTWH(inset, inset, size.width - _strokeWidth, size.height - _strokeWidth),
+      Radius.circular(borderRadius.clamp(0, 999)),
+    );
+    final path = Path()..addRRect(r);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth;
+    for (final metric in path.computeMetrics()) {
+      var dist = 0.0;
+      while (dist < metric.length) {
+        final end = (dist + _dash).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(dist, end), paint);
+        dist += _dash + _gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRRectPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.borderRadius != borderRadius;
+}
+
+void _showSchedulePatientDetailsDialog(
+  BuildContext context,
+  Map<String, dynamic> appointment,
+  Map<String, dynamic>? patientProfile,
+) {
+  final s = S.of(context);
+  final apptName =
+      (appointment[AppointmentFields.patientName] ?? '').toString().trim();
+  final displayName = _patientFullNameFromProfile(patientProfile, apptName);
+  final nameShown = displayName.isEmpty
+      ? s.translate('doctor_appt_not_available')
+      : displayName;
+
+  final phone = patientPhoneFromUserData(patientProfile);
+  final email = patientEmailFromUserData(patientProfile);
+  final age = patientAgeYearsFromUserData(patientProfile);
+  final genderRaw = patientGenderRawFromUserData(patientProfile);
+
+  final timeRaw = (appointment[AppointmentFields.time] ?? '').toString().trim();
+  final timeShown = timeRaw.isEmpty ? '—' : timeRaw;
+
+  String dash(String v) =>
+      v.trim().isEmpty ? s.translate('doctor_appt_not_available') : v.trim();
+  final ageStr =
+      age != null ? '$age' : s.translate('doctor_appt_not_available');
+  final genderStr = genderRaw.isEmpty
+      ? s.translate('doctor_appt_not_available')
+      : _scheduleLocalizedGender(context, genderRaw);
+
+  showDialog<void>(
+    context: context,
+    builder: (ctx) {
+      final dir = AppLocaleScope.of(ctx).textDirection;
+      return Directionality(
+        textDirection: dir,
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1D1E33),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            s.translate('schedule_patient_details_title'),
+            style: const TextStyle(
+              fontFamily: 'KurdishFont',
+              color: Color(0xFFD9E2EC),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SchedulePatientInfoRow(
+                  icon: Icons.schedule_rounded,
+                  label: s.translate('label_times'),
+                  value: timeShown,
+                ),
+                _SchedulePatientInfoRow(
+                  icon: Icons.person_outline_rounded,
+                  label: s.translate('doctor_appt_patient_name_label'),
+                  value: nameShown,
+                ),
+                _SchedulePatientInfoRow(
+                  icon: Icons.phone_android_rounded,
+                  label: s.translate('doctor_appt_label_phone'),
+                  value: dash(phone),
+                ),
+                _SchedulePatientInfoRow(
+                  icon: Icons.email_outlined,
+                  label: s.translate('doctor_appt_label_email'),
+                  value: dash(email),
+                ),
+                _SchedulePatientInfoRow(
+                  icon: Icons.cake_outlined,
+                  label: s.translate('doctor_appt_label_age'),
+                  value: ageStr,
+                ),
+                _SchedulePatientInfoRow(
+                  icon: Icons.wc_rounded,
+                  label: s.translate('doctor_appt_label_gender'),
+                  value: genderStr,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                s.translate('ok'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFF42A5F5),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// Full-day slot timeline (Schedule Management bottom sheet — tab 2).
+/// [appointmentsSnapshot] is live; [calendar_blocks] is streamed inside for slot step.
 class _ScheduleSheetPatientsTab extends StatelessWidget {
   const _ScheduleSheetPatientsTab({
+    required this.doctorId,
+    required this.day,
+    required this.weeklySchedule,
+    required this.dateOverrides,
     required this.appointmentsSnapshot,
   });
 
+  final String doctorId;
+  final DateTime day;
+  final Map<String, dynamic> weeklySchedule;
+  final Map<String, dynamic> dateOverrides;
   final AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> appointmentsSnapshot;
 
   @override
@@ -1049,55 +1216,159 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
       );
     }
 
-    final docs = snapshot.data?.docs ?? [];
-    final active = _activeAppointmentsSortedForDay(docs);
+    final dayNorm = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayNorm.add(const Duration(days: 1));
 
-    if (active.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            s.translate('schedule_sheet_no_appointments_day'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
-              fontSize: 14,
-              height: 1.35,
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: calendarBlocksForDoctorDateRange(
+        doctorUserId: doctorId,
+        rangeStartInclusiveLocal: dayNorm,
+        rangeEndExclusiveLocal: dayEnd,
+      ).snapshots(),
+      builder: (context, blockSnap) {
+        if (blockSnap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '${blockSnap.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontFamily: 'KurdishFont',
+                  fontSize: 12,
+                ),
+              ),
             ),
-          ),
-        ),
-      );
-    }
-
-    final patientIds = active
-        .map((e) => (e.data()[AppointmentFields.patientId] ?? '').toString().trim())
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList();
-
-    return FutureBuilder<Map<String, Map<String, dynamic>>>(
-      key: ValueKey('${active.map((e) => e.id).join('|')}|$patientIds'),
-      future: _fetchPatientUserMaps(patientIds),
-      builder: (context, profileSnap) {
-        if (profileSnap.connectionState == ConnectionState.waiting && !profileSnap.hasData) {
+          );
+        }
+        if (blockSnap.connectionState == ConnectionState.waiting && !blockSnap.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
           );
         }
-        final profiles = profileSnap.data ?? {};
 
-        return ListView.separated(
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          itemCount: active.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, i) {
-            final appt = active[i].data();
-            final pid = (appt[AppointmentFields.patientId] ?? '').toString().trim();
-            final profile = pid.isNotEmpty ? profiles[pid] : null;
-            return _PatientAppointmentDetailCard(
-              appointment: appt,
-              patientProfile: profile,
+        final blockMaps = blockSnap.data?.docs.map((e) => e.data()).toList() ?? [];
+        final win = workingWindowForDateWithOverrides(
+          dayNorm,
+          weeklySchedule.isEmpty ? null : weeklySchedule,
+          dateOverrides,
+        );
+        if (win == null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                s.translate('schedule_timeline_no_hours'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF829AB1),
+                  fontFamily: 'KurdishFont',
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          );
+        }
+
+        final step = appointmentSlotMinutesForDateWithAllBlocks(dayNorm, blockMaps);
+        final slotStarts = slotStartMinutesForWindow(
+          win.startMinutes,
+          win.endMinutes,
+          step: step,
+        );
+
+        if (slotStarts.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                s.translate('schedule_timeline_no_slots'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF829AB1),
+                  fontFamily: 'KurdishFont',
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final active = _activeAppointmentsSortedForDay(docs);
+        final slotKeys = slotStarts.map(formatSlotMinutesKey).toSet();
+
+        final apptBySlotKey = <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+        for (final d in active) {
+          final k = _scheduleApptTimeKey(d.data());
+          if (k.isEmpty) continue;
+          apptBySlotKey.putIfAbsent(k, () => []).add(d);
+        }
+
+        final unmatched = active.where((d) {
+          final k = _scheduleApptTimeKey(d.data());
+          return k.isEmpty || !slotKeys.contains(k);
+        }).toList();
+
+        final patientIds = active
+            .map((e) => (e.data()[AppointmentFields.patientId] ?? '').toString().trim())
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+
+        return FutureBuilder<Map<String, Map<String, dynamic>>>(
+          key: ValueKey('${active.map((e) => e.id).join('|')}|$patientIds'),
+          future: _fetchPatientUserMaps(patientIds),
+          builder: (context, profileSnap) {
+            if (profileSnap.connectionState == ConnectionState.waiting && !profileSnap.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              );
+            }
+            final profiles = profileSnap.data ?? {};
+
+            return ListView(
+              padding: const EdgeInsets.only(top: 6, bottom: 12),
+              children: [
+                for (var i = 0; i < slotStarts.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _ScheduleTimelineSlotRow(
+                    timeLabel: formatSlotMinutesKey(slotStarts[i]),
+                    bookedDocs: apptBySlotKey[formatSlotMinutesKey(slotStarts[i])],
+                    profiles: profiles,
+                  ),
+                ],
+                if (unmatched.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      s.translate('schedule_timeline_other_bookings'),
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  for (var j = 0; j < unmatched.length; j++) ...[
+                    if (j > 0) const SizedBox(height: 8),
+                    _ScheduleTimelineSlotRow(
+                      timeLabel: () {
+                        final tk = _scheduleApptTimeKey(unmatched[j].data());
+                        return tk.isEmpty ? '—' : tk;
+                      }(),
+                      bookedDocs: [unmatched[j]],
+                      profiles: profiles,
+                    ),
+                  ],
+                ],
+              ],
             );
           },
         );
@@ -1106,96 +1377,216 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
   }
 }
 
-class _PatientAppointmentDetailCard extends StatelessWidget {
-  const _PatientAppointmentDetailCard({
-    required this.appointment,
-    required this.patientProfile,
+class _ScheduleTimelineSlotRow extends StatelessWidget {
+  const _ScheduleTimelineSlotRow({
+    required this.timeLabel,
+    required this.bookedDocs,
+    required this.profiles,
   });
 
-  final Map<String, dynamic> appointment;
-  final Map<String, dynamic>? patientProfile;
+  final String timeLabel;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>>? bookedDocs;
+  final Map<String, Map<String, dynamic>> profiles;
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final apptName =
-        (appointment[AppointmentFields.patientName] ?? '').toString().trim();
-    final displayName = _patientFullNameFromProfile(patientProfile, apptName);
+    final bookedList = bookedDocs ?? const [];
+    final booked = bookedList.isNotEmpty;
+
+    if (!booked) {
+      return CustomPaint(
+        foregroundPainter: _DashedRRectPainter(
+          color: const Color(0xFF64748B),
+          borderRadius: 12,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1F2E).withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Text(
+                timeLabel,
+                style: const TextStyle(
+                  color: Color(0xFF42A5F5),
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  s.translate('schedule_slot_available'),
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final primary = bookedList.first;
+    final data = primary.data();
+    final pid = (data[AppointmentFields.patientId] ?? '').toString().trim();
+    final profile = pid.isNotEmpty ? profiles[pid] : null;
+    final apptName = (data[AppointmentFields.patientName] ?? '').toString().trim();
+    final displayName = _patientFullNameFromProfile(profile, apptName);
     final nameShown = displayName.isEmpty
         ? s.translate('doctor_appt_not_available')
         : displayName;
+    final extra = bookedList.length - 1;
 
-    final phone = patientPhoneFromUserData(patientProfile);
-    final email = patientEmailFromUserData(patientProfile);
-    final age = patientAgeYearsFromUserData(patientProfile);
-    final genderRaw = patientGenderRawFromUserData(patientProfile);
-
-    final timeRaw = (appointment[AppointmentFields.time] ?? '').toString().trim();
-    final timeShown = timeRaw.isEmpty ? '—' : timeRaw;
-
-    String dash(String v) =>
-        v.trim().isEmpty ? s.translate('doctor_appt_not_available') : v.trim();
-    final ageStr =
-        age != null ? '$age' : s.translate('doctor_appt_not_available');
-    final genderStr = genderRaw.isEmpty
-        ? s.translate('doctor_appt_not_available')
-        : _scheduleLocalizedGender(context, genderRaw);
-
-    return Card(
-      color: const Color(0xFF12152A),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.schedule_rounded, color: Color(0xFF42A5F5), size: 22),
-                const SizedBox(width: 10),
-                Text(
-                  timeShown,
-                  style: const TextStyle(
-                    color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (bookedList.length <= 1) {
+            _showSchedulePatientDetailsDialog(context, data, profile);
+            return;
+          }
+          showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: const Color(0xFF1D1E33),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (ctx) {
+              final dir = AppLocaleScope.of(ctx).textDirection;
+              return Directionality(
+                textDirection: dir,
+                child: SafeArea(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                    children: [
+                      Text(
+                        timeLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF42A5F5),
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      for (final doc in bookedList)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            () {
+                              final dd = doc.data();
+                              final p = (dd[AppointmentFields.patientId] ?? '')
+                                  .toString()
+                                  .trim();
+                              final pr = p.isNotEmpty ? profiles[p] : null;
+                              final an =
+                                  (dd[AppointmentFields.patientName] ?? '').toString().trim();
+                              final dn = _patientFullNameFromProfile(pr, an);
+                              return dn.isEmpty
+                                  ? s.translate('doctor_appt_not_available')
+                                  : dn;
+                            }(),
+                            style: const TextStyle(
+                              color: Color(0xFFD9E2EC),
+                              fontFamily: 'KurdishFont',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_left_rounded,
+                            color: Color(0xFF829AB1),
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            final dd = doc.data();
+                            final p =
+                                (dd[AppointmentFields.patientId] ?? '').toString().trim();
+                            final pr = p.isNotEmpty ? profiles[p] : null;
+                            _showSchedulePatientDetailsDialog(context, dd, pr);
+                          },
+                        ),
+                    ],
                   ),
+                ),
+              );
+            },
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFF12152A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF42A5F5).withValues(alpha: 0.45), width: 1.4),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.person_rounded, color: Color(0xFF42A5F5), size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timeLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF42A5F5),
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        nameShown,
+                        style: const TextStyle(
+                          color: Color(0xFFD9E2EC),
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (extra > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            s.translate(
+                              'schedule_timeline_more_same_slot',
+                              params: {'count': '$extra'},
+                            ),
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontFamily: 'KurdishFont',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white.withValues(alpha: 0.35),
+                  size: 22,
                 ),
               ],
             ),
-            const Divider(height: 22, color: Colors.white12),
-            _SchedulePatientInfoRow(
-              icon: Icons.person_outline_rounded,
-              label: s.translate('doctor_appt_patient_name_label'),
-              value: nameShown,
-            ),
-            _SchedulePatientInfoRow(
-              icon: Icons.phone_android_rounded,
-              label: s.translate('doctor_appt_label_phone'),
-              value: dash(phone),
-            ),
-            _SchedulePatientInfoRow(
-              icon: Icons.email_outlined,
-              label: s.translate('doctor_appt_label_email'),
-              value: dash(email),
-            ),
-            _SchedulePatientInfoRow(
-              icon: Icons.cake_outlined,
-              label: s.translate('doctor_appt_label_age'),
-              value: ageStr,
-            ),
-            _SchedulePatientInfoRow(
-              icon: Icons.wc_rounded,
-              label: s.translate('doctor_appt_label_gender'),
-              value: genderStr,
-            ),
-          ],
+          ),
         ),
       ),
     );

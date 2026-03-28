@@ -891,6 +891,36 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا مواعيد لهذا اليوم',
     'en': 'No appointments for this day',
   },
+  'schedule_slot_available': {
+    'ckb': 'بەتاڵە',
+    'ar': 'متاح',
+    'en': 'Available',
+  },
+  'schedule_timeline_no_hours': {
+    'ckb': 'ئەم ڕۆژە کاتژمێری کار نییە (داخراو یان پشوو)',
+    'ar': 'لا ساعات عمل لهذا اليوم (مغلق أو عطلة)',
+    'en': 'No working hours for this day (closed or off).',
+  },
+  'schedule_timeline_no_slots': {
+    'ckb': 'هیچ کاتێک دروست ناکرێت (کاتی دەستپێکردن/کۆتایی نادروستە)',
+    'ar': 'لا فترات زمنية (نافذة غير صالحة)',
+    'en': 'No time slots could be generated for this window.',
+  },
+  'schedule_timeline_other_bookings': {
+    'ckb': 'نۆرەکانی دیکە (کات ناناسراو)',
+    'ar': 'مواعيد أخرى (وقت غير مطابق للفترات)',
+    'en': 'Other bookings (time outside slot grid)',
+  },
+  'schedule_patient_details_title': {
+    'ckb': 'زانیاری نەخۆش',
+    'ar': 'تفاصيل المريض',
+    'en': 'Patient details',
+  },
+  'schedule_timeline_more_same_slot': {
+    'ckb': 'هێشتا +{count}',
+    'ar': 'و +{count} آخر',
+    'en': '+{count} more',
+  },
   'schedule_save_ok': {
     'ckb': 'پاشکەوتکردن بە سەرکەوتوویی تەواوبوو',
     'ar': 'تم الحفظ بنجاح',
