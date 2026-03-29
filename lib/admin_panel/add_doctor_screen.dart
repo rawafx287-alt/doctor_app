@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../locale/app_locale.dart';
 import '../specialty_categories.dart';
+import 'widgets/admin_hospital_dropdown.dart';
 
 class AddDoctorScreen extends StatefulWidget {
   const AddDoctorScreen({super.key});
@@ -15,6 +16,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   String? _selectedSpecialty;
+  String? _selectedHospitalId;
   final _clinicLocation = TextEditingController();
   final _phone = TextEditingController();
   final _hours = TextEditingController();
@@ -34,7 +36,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').add({
+      final payload = <String, dynamic>{
         'fullName': _name.text.trim(),
         'specialty': (_selectedSpecialty ?? '').trim(),
         'clinicLocation': _clinicLocation.text.trim(),
@@ -44,14 +46,22 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
         'isApproved': true,
         'createdAt': FieldValue.serverTimestamp(),
         'createdByAdmin': true,
-      });
+      };
+      final hid = (_selectedHospitalId ?? '').trim();
+      if (hid.isNotEmpty) {
+        payload['hospitalId'] = hid;
+      }
+      await FirebaseFirestore.instance.collection('users').add(payload);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('پاشەکەوت کرا بە سەرکەوتوویی')),
       );
       _formKey.currentState?.reset();
       _name.clear();
-      setState(() => _selectedSpecialty = null);
+      setState(() {
+        _selectedSpecialty = null;
+        _selectedHospitalId = null;
+      });
       _clinicLocation.clear();
       _phone.clear();
       _hours.clear();
@@ -101,6 +111,11 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
                   onChanged: (v) => setState(() => _selectedSpecialty = v),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'پسپۆڕی هەڵبژێرە لە لیستەکە' : null,
+                ),
+                const SizedBox(height: 12),
+                AdminHospitalDropdown(
+                  value: _selectedHospitalId,
+                  onChanged: (v) => setState(() => _selectedHospitalId = v),
                 ),
                 const SizedBox(height: 12),
                 _field(

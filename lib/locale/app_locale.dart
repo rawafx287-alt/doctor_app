@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _kLanguagePrefKey = 'hr_nora_app_language';
@@ -81,16 +82,25 @@ class LocaleController extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    _language = HrNoraLanguage.fromStorageCode(prefs.getString(_kLanguagePrefKey));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _language =
+          HrNoraLanguage.fromStorageCode(prefs.getString(_kLanguagePrefKey));
+    } on MissingPluginException {
+      _language = null;
+    }
     notifyListeners();
   }
 
   Future<void> setLanguage(HrNoraLanguage language) async {
     _language = language;
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kLanguagePrefKey, language.storageCode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kLanguagePrefKey, language.storageCode);
+    } on MissingPluginException {
+      // In-memory only until plugins are registered (e.g. full restart).
+    }
   }
 }
 

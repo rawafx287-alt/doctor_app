@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 /// [appointments] collection — field names must match composite indexes exactly.
 /// Use [doctorId] (capital **I** in `Id`), never `doctorld` or `doctor_id`.
@@ -20,6 +23,9 @@ abstract final class AppointmentFields {
   static const String createdAt = 'createdAt';
   static const String updatedAt = 'updatedAt';
   static const String createdByStaff = 'createdByStaff';
+
+  /// Links an [appointments] row to an [available_days] document (patient self-booking).
+  static const String availableDayDocId = 'availableDayDocId';
 }
 
 /// Doctor + local date range on [AppointmentFields.date].
@@ -45,6 +51,11 @@ const String kAppointmentsDoctorDateStatusIndexHint =
     'date (Ascending), status (Ascending). Query: where doctorId ==; where date >=; '
     'where date <; orderBy date asc; orderBy status asc.';
 
+/// Composite index for string [AppointmentFields.date] (equality), e.g. `2026/05/06`.
+const String kAppointmentsDoctorIdDateStringIndexHint =
+    'Composite index — collection: appointments | fields: doctorId (Ascending), '
+    'date (Ascending). Query: where doctorId ==; where date == string yyyy/MM/dd.';
+
 Query<Map<String, dynamic>> appointmentsForDoctorDateRange({
   required String doctorUserId,
   required DateTime rangeStartInclusiveLocal,
@@ -63,4 +74,146 @@ Query<Map<String, dynamic>> appointmentsForDoctorDateRange({
       )
       .orderBy(AppointmentFields.date, descending: false)
       .orderBy(AppointmentFields.status, descending: false);
+}
+
+/// Real-time bookings tied to one [available_days] document (same field as stored on create).
+///
+/// Composite index (if the console prompts): `appointments` —
+/// [AppointmentFields.doctorId] Ascending, [AppointmentFields.availableDayDocId] Ascending.
+const String kAppointmentsDoctorAvailableDayIndexHint =
+    'Composite index — collection: appointments | fields: doctorId (Ascending), '
+    'availableDayDocId (Ascending). Query: where doctorId ==; where availableDayDocId ==.';
+
+Stream<QuerySnapshot<Map<String, dynamic>>> watchAppointmentsForAvailableDay({
+  required String doctorUserId,
+  required String availableDayDocId,
+}) {
+  final did = doctorUserId.trim();
+  final aid = availableDayDocId.trim();
+  return FirebaseFirestore.instance
+      .collection(AppointmentFields.collection)
+      .where(AppointmentFields.doctorId, isEqualTo: did)
+      .where(AppointmentFields.availableDayDocId, isEqualTo: aid)
+      .snapshots();
+}
+
+/// Counts non-cancelled [appointments] per [AppointmentFields.availableDayDocId] (for calendar badges).
+Map<String, int> countBookingsByAvailableDayDocId(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final map = <String, int>{};
+  for (final d in docs) {
+    final data = d.data();
+    final st =
+        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+    if (st == 'cancelled') continue;
+    final id = (data[AppointmentFields.availableDayDocId] ?? '').toString().trim();
+    if (id.isEmpty) continue;
+    map[id] = (map[id] ?? 0) + 1;
+  }
+  return map;
+}
+
+/// Doctor appointments for one **local** calendar day: merges
+///
+/// 1. [Timestamp] rows: same range as [appointmentsForDoctorDateRange] (midnight … next midnight).
+/// 2. **String** rows: [AppointmentFields.date] `==` [DateFormat] `yyyy/MM/dd` (e.g. `2026/05/06`).
+///
+/// Create indexes if the debug console links suggest it:
+/// - [kAppointmentsDoctorDateStatusIndexHint] (Timestamp branch)
+/// - [kAppointmentsDoctorIdDateStringIndexHint] (string branch)
+Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+    watchDoctorAppointmentsForLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) {
+  final start =
+      DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final endExclusive = start.add(const Duration(days: 1));
+  final dateStringKey = DateFormat('yyyy/MM/dd').format(start);
+
+  final streamTs = appointmentsForDoctorDateRange(
+    doctorUserId: doctorUserId,
+    rangeStartInclusiveLocal: start,
+    rangeEndExclusiveLocal: endExclusive,
+  ).snapshots();
+
+  final streamStr = FirebaseFirestore.instance
+      .collection(AppointmentFields.collection)
+      .where(AppointmentFields.doctorId, isEqualTo: doctorUserId)
+      .where(AppointmentFields.date, isEqualTo: dateStringKey)
+      .snapshots();
+
+  return Stream.multi((controller) {
+    QuerySnapshot<Map<String, dynamic>>? lastTs;
+    QuerySnapshot<Map<String, dynamic>>? lastStr;
+
+    void emit() {
+      final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      for (final d in lastTs?.docs ?? const []) {
+        byId[d.id] = d;
+      }
+      for (final d in lastStr?.docs ?? const []) {
+        byId[d.id] = d;
+      }
+      controller.add(byId.values.toList());
+    }
+
+    final subTs = streamTs.listen(
+      (event) {
+        lastTs = event;
+        emit();
+      },
+      onError: controller.addError,
+    );
+    final subStr = streamStr.listen(
+      (event) {
+        lastStr = event;
+        emit();
+      },
+      onError: controller.addError,
+    );
+
+    controller.onCancel = () async {
+      await subTs.cancel();
+      await subStr.cancel();
+    };
+  });
+}
+
+/// Patient's appointments: optional filter to one **local** calendar [dateLocalDay].
+///
+/// [AppointmentFields.date] in this app is stored as [Timestamp] (local midnight per
+/// [create_patient_appointment] / doctor flows). Filter: start of day … end of day inclusive.
+///
+/// Firebase composite index (if prompted): collection `appointments` —
+/// `patientId` Ascending, `date` Ascending.
+///
+/// Legacy string dates (`yyyy/MM/dd`) are not matched by this query; use “هەموو نۆرەکان”
+/// or migrate documents to [Timestamp].
+Query<Map<String, dynamic>> patientAppointmentsQuery({
+  required String patientUid,
+  DateTime? dateLocalDay,
+}) {
+  var q = FirebaseFirestore.instance
+      .collection(AppointmentFields.collection)
+      .where(AppointmentFields.patientId, isEqualTo: patientUid);
+  if (dateLocalDay != null) {
+    final y = dateLocalDay.year;
+    final m = dateLocalDay.month;
+    final d = dateLocalDay.day;
+    final startOfToday = DateTime(y, m, d);
+    final endOfToday = DateTime(y, m, d, 23, 59, 59, 999);
+    q = q
+        .where(
+          AppointmentFields.date,
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday),
+        )
+        .where(
+          AppointmentFields.date,
+          isLessThanOrEqualTo: Timestamp.fromDate(endOfToday),
+        )
+        .orderBy(AppointmentFields.date, descending: false);
+  }
+  return q;
 }

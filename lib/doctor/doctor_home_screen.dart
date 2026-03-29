@@ -7,7 +7,7 @@ import '../auth/app_logout.dart';
 import 'appointments_screen.dart';
 import 'doctor_profile_screen.dart';
 import 'patient_list_screen.dart';
-import 'schedule_screen.dart';
+import 'available_days_schedule_screen.dart';
 import '../calendar/master_calendar_screen.dart';
 
 /// Doctor shell: 3 tabs (appointments, schedule, profile) with [IndexedStack].
@@ -101,10 +101,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         body: SafeArea(
           child: IndexedStack(
             index: _bottomNavIndex,
-            children: const [
-              AppointmentsScreen(embedded: true),
-              ScheduleScreen(embedded: true),
-              DoctorProfileScreen(),
+            children: [
+              const AppointmentsScreen(embedded: true),
+              const AvailableDaysScheduleScreen(embedded: true),
+              const DoctorProfileScreen(),
             ],
           ),
         ),
@@ -119,7 +119,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           ),
           child: BottomNavigationBar(
             currentIndex: _bottomNavIndex,
-            onTap: (index) => setState(() => _bottomNavIndex = index),
+            onTap: (index) {
+              setState(() => _bottomNavIndex = index);
+            },
             backgroundColor: const Color(0xFF1A237E),
             selectedItemColor: const Color(0xFF42A5F5),
             unselectedItemColor: const Color(0xFF829AB1),

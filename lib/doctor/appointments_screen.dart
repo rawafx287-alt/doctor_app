@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore/appointment_queries.dart';
@@ -10,11 +12,14 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/patient_profile_read.dart';
 
-class AppointmentsScreen extends StatelessWidget {
+class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key, this.embedded = false});
 
   /// When true, used inside [IndexedStack] without an [AppBar] (parent supplies title).
   final bool embedded;
+
+  @override
+  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
 
   static String _statusKey(dynamic raw) {
     return (raw ?? 'pending').toString().trim().toLowerCase();
@@ -40,6 +45,8 @@ class AppointmentsScreen extends StatelessWidget {
     String datePart = '—';
     if (date is Timestamp) {
       datePart = DateFormat('yyyy/MM/dd').format(date.toDate());
+    } else if (date is String && date.trim().isNotEmpty) {
+      datePart = date.trim();
     }
     return '$datePart  •  $time';
   }
@@ -196,184 +203,6 @@ class AppointmentsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _setStatus(BuildContext context, String docId, String status) async {
-    final s = S.of(context);
-    try {
-      await FirebaseFirestore.instance
-          .collection(AppointmentFields.collection)
-          .doc(docId)
-          .update({
-        AppointmentFields.status: status,
-        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              status == 'completed'
-                  ? s.translate('doctor_appointment_done_snack')
-                  : s.translate('doctor_appointment_cancelled_snack'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate('doctor_appointments_update_error'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final s = S.of(context);
-
-    final body = uid == null
-        ? Center(
-            child: Text(
-              s.translate('login_required'),
-              style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
-            ),
-          )
-        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection(AppointmentFields.collection)
-                .where(AppointmentFields.doctorId, isEqualTo: uid)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-                );
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      s.translate('doctors_load_error_detail', params: {'error': '${snapshot.error}'}),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontFamily: 'KurdishFont',
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-              final sorted = _sortNewestFirst(docs);
-
-              if (sorted.isEmpty) {
-                return Center(
-                  child: Text(
-                    s.translate('doctor_appointments_empty'),
-                    style: const TextStyle(
-                      color: Color(0xFF829AB1),
-                      fontFamily: 'KurdishFont',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                itemCount: sorted.length,
-                separatorBuilder: (_, _) => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 5),
-                  child: Divider(height: 1, thickness: 1, color: Colors.white10),
-                ),
-                itemBuilder: (context, index) {
-                  final doc = sorted[index];
-                  final data = doc.data();
-                  final patientName =
-                      (data[AppointmentFields.patientName] ?? '—').toString();
-                  final status = _statusKey(data[AppointmentFields.status]);
-                  final dateTimeLine = _formatDateTime(data);
-                  final patientId =
-                      (data[AppointmentFields.patientId] ?? '').toString().trim();
-
-                  Widget cardForProfile(Map<String, dynamic>? profile, {required bool patientLoading}) {
-                    return _AppointmentCard(
-                      patientName: patientName,
-                      dateTimeLine: dateTimeLine,
-                      status: status,
-                      showActions: status == 'pending',
-                      phoneForCall: patientPhoneFromUserData(profile),
-                      ageLine: _ageGenderPhoneSummary(context, profile, patientLoading),
-                      onCardTap: () => _showPatientDetail(
-                        context,
-                        patientProfile: profile,
-                        fallbackPatientName: patientName,
-                        dateTimeLine: dateTimeLine,
-                        status: status,
-                      ),
-                      onCallTap: patientPhoneFromUserData(profile).isNotEmpty
-                          ? () => _launchTel(context, patientPhoneFromUserData(profile))
-                          : null,
-                      onComplete: () => _setStatus(context, doc.id, 'completed'),
-                      onCancel: () => _setStatus(context, doc.id, 'cancelled'),
-                    );
-                  }
-
-                  if (patientId.isEmpty) {
-                    return cardForProfile(null, patientLoading: false);
-                  }
-
-                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance.collection('users').doc(patientId).snapshots(),
-                    builder: (context, patientSnap) {
-                      final loading =
-                          patientSnap.connectionState == ConnectionState.waiting && !patientSnap.hasData;
-                      final profile = patientSnap.data?.data();
-                      return cardForProfile(profile, patientLoading: loading);
-                    },
-                  );
-                },
-              );
-            },
-          );
-
-    return Directionality(
-      textDirection: AppLocaleScope.of(context).textDirection,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
-        appBar: embedded
-            ? null
-            : AppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios_rounded),
-                  onPressed: () => Navigator.pop(context),
-                  tooltip: s.translate('tooltip_back'),
-                ),
-                title: Text(
-                  s.translate('doctor_title_appointments_list'),
-                  style: const TextStyle(
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                backgroundColor: const Color(0xFF1A237E),
-                foregroundColor: const Color(0xFFD9E2EC),
-                elevation: 0,
-              ),
-        body: body,
-      ),
-    );
-  }
-
   static Widget _ageGenderPhoneSummary(
     BuildContext context,
     Map<String, dynamic>? profile,
@@ -439,6 +268,213 @@ class AppointmentsScreen extends StatelessWidget {
             style: compactMeta.copyWith(fontSize: 12, height: 1.25),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppointmentsScreenState extends State<AppointmentsScreen> {
+  late DateTime _todayAnchor;
+  Timer? _dayTick;
+
+  @override
+  void initState() {
+    super.initState();
+    final n = DateTime.now();
+    _todayAnchor = DateTime(n.year, n.month, n.day);
+    _dayTick = Timer.periodic(const Duration(minutes: 1), (_) {
+      final now = DateTime.now();
+      final d = DateTime(now.year, now.month, now.day);
+      if (d != _todayAnchor) {
+        setState(() => _todayAnchor = d);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dayTick?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _setStatus(BuildContext context, String docId, String status) async {
+    final s = S.of(context);
+    try {
+      await FirebaseFirestore.instance
+          .collection(AppointmentFields.collection)
+          .doc(docId)
+          .update({
+        AppointmentFields.status: status,
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == 'completed'
+                  ? s.translate('doctor_appointment_done_snack')
+                  : s.translate('doctor_appointment_cancelled_snack'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('doctor_appointments_update_error'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final s = S.of(context);
+
+    final body = uid == null
+        ? Center(
+            child: Text(
+              s.translate('login_required'),
+              style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+            ),
+          )
+        : StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            stream: watchDoctorAppointmentsForLocalDay(
+              doctorUserId: uid,
+              dayLocal: _todayAnchor,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                );
+              }
+              if (snapshot.hasError) {
+                final err = '${snapshot.error}';
+                final indexHints =
+                    '\n\n$kAppointmentsDoctorDateStatusIndexHint\n'
+                    '$kAppointmentsDoctorIdDateStringIndexHint';
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      s.translate('doctors_load_error_detail', params: {'error': '$err$indexHints'}),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontFamily: 'KurdishFont',
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final docs = snapshot.data ?? [];
+              final sorted = AppointmentsScreen._sortNewestFirst(docs);
+
+              if (sorted.isEmpty) {
+                return Center(
+                  child: Text(
+                    s.translate('doctor_appointments_empty'),
+                    style: const TextStyle(
+                      color: Color(0xFF829AB1),
+                      fontFamily: 'KurdishFont',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                itemCount: sorted.length,
+                separatorBuilder: (_, _) => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 5),
+                  child: Divider(height: 1, thickness: 1, color: Colors.white10),
+                ),
+                itemBuilder: (context, index) {
+                  final doc = sorted[index];
+                  final data = doc.data();
+                  final patientName =
+                      (data[AppointmentFields.patientName] ?? '—').toString();
+                  final status = AppointmentsScreen._statusKey(data[AppointmentFields.status]);
+                  final dateTimeLine = AppointmentsScreen._formatDateTime(data);
+                  final patientId =
+                      (data[AppointmentFields.patientId] ?? '').toString().trim();
+
+                  Widget cardForProfile(Map<String, dynamic>? profile, {required bool patientLoading}) {
+                    return _AppointmentCard(
+                      patientName: patientName,
+                      dateTimeLine: dateTimeLine,
+                      status: status,
+                      showActions: status == 'pending',
+                      phoneForCall: patientPhoneFromUserData(profile),
+                      ageLine: AppointmentsScreen._ageGenderPhoneSummary(context, profile, patientLoading),
+                      onCardTap: () => AppointmentsScreen._showPatientDetail(
+                        context,
+                        patientProfile: profile,
+                        fallbackPatientName: patientName,
+                        dateTimeLine: dateTimeLine,
+                        status: status,
+                      ),
+                      onCallTap: patientPhoneFromUserData(profile).isNotEmpty
+                          ? () => AppointmentsScreen._launchTel(context, patientPhoneFromUserData(profile))
+                          : null,
+                      onComplete: () => _setStatus(context, doc.id, 'completed'),
+                      onCancel: () => _setStatus(context, doc.id, 'cancelled'),
+                    );
+                  }
+
+                  if (patientId.isEmpty) {
+                    return cardForProfile(null, patientLoading: false);
+                  }
+
+                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance.collection('users').doc(patientId).snapshots(),
+                    builder: (context, patientSnap) {
+                      final loading =
+                          patientSnap.connectionState == ConnectionState.waiting && !patientSnap.hasData;
+                      final profile = patientSnap.data?.data();
+                      return cardForProfile(profile, patientLoading: loading);
+                    },
+                  );
+                },
+              );
+            },
+          );
+
+    return Directionality(
+      textDirection: AppLocaleScope.of(context).textDirection,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0A0E21),
+        appBar: widget.embedded
+            ? null
+            : AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: s.translate('tooltip_back'),
+                ),
+                title: Text(
+                  s.translate('doctor_title_appointments_list'),
+                  style: const TextStyle(
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                backgroundColor: const Color(0xFF1A237E),
+                foregroundColor: const Color(0xFFD9E2EC),
+                elevation: 0,
+              ),
+        body: body,
       ),
     );
   }

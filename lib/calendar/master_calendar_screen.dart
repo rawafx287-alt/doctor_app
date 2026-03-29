@@ -407,12 +407,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                           final snapData = docSnap.data?.data();
                           final weeklyRaw = snapData?['weekly_schedule'];
                           final weekly = weeklyRaw is Map<String, dynamic> ? weeklyRaw : null;
-                          final ovRaw = snapData?['schedule_date_overrides'];
-                          final Map<String, dynamic>? dateOverrides = ovRaw is Map
-                              ? Map<String, dynamic>.from(
-                                  ovRaw.map((k, v) => MapEntry(k.toString(), v)),
-                                )
-                              : null;
+                          final normalizedOv =
+                              normalizeScheduleDateOverridesMap(
+                            snapData?['schedule_date_overrides'],
+                          );
+                          final Map<String, dynamic>? dateOverrides =
+                              normalizedOv.isEmpty ? null : normalizedOv;
                           final monthStart = _monthStart(_focusedDay);
                           final monthEnd = _monthEndExclusive(_focusedDay);
 

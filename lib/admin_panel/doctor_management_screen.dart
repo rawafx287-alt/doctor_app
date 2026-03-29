@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import 'admin_edit_doctor_screen.dart';
 
 /// Lists approved doctors; admin can remove a doctor document from Firestore.
 class DoctorManagementScreen extends StatelessWidget {
@@ -208,6 +209,22 @@ class DoctorManagementScreen extends StatelessWidget {
                             ],
                           ],
                         ),
+                      ),
+                      IconButton(
+                        tooltip: 'دەستکاری',
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: Color(0xFF42A5F5),
+                        ),
+                        onPressed: () {
+                          Navigator.push<void>(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (context) =>
+                                  AdminEditDoctorScreen(doctorId: doc.id),
+                            ),
+                          );
+                        },
                       ),
                       IconButton(
                         tooltip: 'سڕینەوە',

@@ -17,11 +17,9 @@ Map<String, dynamic>? _weeklyScheduleFromDoctorData(Map<String, dynamic>? data) 
 
 Map<String, dynamic>? _scheduleOverridesFromDoctorData(Map<String, dynamic>? data) {
   if (data == null) return null;
-  final raw = data['schedule_date_overrides'];
-  if (raw is! Map) return null;
-  return Map<String, dynamic>.from(
-    raw.map((k, v) => MapEntry(k.toString(), v)),
-  );
+  final normalized = normalizeScheduleDateOverridesMap(data['schedule_date_overrides']);
+  if (normalized.isEmpty) return null;
+  return normalized;
 }
 
 Set<String> _bookedTimeKeysFromAppointmentDocs(
@@ -55,31 +53,56 @@ Future<String?> createPatientAppointment({
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return 'login_required';
 
+  final did = doctorId.trim();
   final timeStr = formatSlotMinutesKey(slotStartMinutes);
   final dayStart = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
   final dayEnd = dayStart.add(const Duration(days: 1));
 
   Map<String, dynamic>? dd;
   var blockMaps = <Map<String, dynamic>>[];
+  var blockDocList = <DocumentSnapshot<Map<String, dynamic>>>[];
+  DocumentSnapshot<Map<String, dynamic>>? serverDaySnap;
   try {
-    final doctorDoc =
-        await FirebaseFirestore.instance.collection('users').doc(doctorId).get();
+    final doctorDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(did)
+        .get(const GetOptions(source: Source.server));
     dd = doctorDoc.data();
+    final daySnap = await fetchCalendarDayStatusDocumentFromServer(
+      dayStart,
+      doctorUserId: did,
+    );
+    serverDaySnap = daySnap;
     final blockSnap = await calendarBlocksForDoctorDateRange(
-      doctorUserId: doctorId,
+      doctorUserId: did,
       rangeStartInclusiveLocal: dayStart,
       rangeEndExclusiveLocal: dayEnd,
-    ).get();
-    blockMaps = blockSnap.docs.map((e) => e.data()).toList();
+    ).get(const GetOptions(source: Source.server));
+    blockDocList = List<DocumentSnapshot<Map<String, dynamic>>>.from(blockSnap.docs);
+    if (daySnap.exists &&
+        !blockDocList.any((d) => d.id.trim() == daySnap.id.trim())) {
+      blockDocList = [...blockDocList, daySnap];
+    }
+    blockMaps = blockDocList
+        .where((e) => e.exists)
+        .map((e) => e.data())
+        .whereType<Map<String, dynamic>>()
+        .toList();
   } catch (_) {
     // Continue with empty blocks; sequential check may be skipped if window unknown.
   }
 
   final weekly = _weeklyScheduleFromDoctorData(dd);
   final overrides = _scheduleOverridesFromDoctorData(dd);
+  if (serverDaySnap == null ||
+      patientDayGateFromDayStatusDocument(serverDaySnap, did) !=
+          PatientCalendarDayGate.open) {
+    return 'booking_date_closed';
+  }
+  final dayBlocks = blocksForCalendarDay(dayStart, blockMaps);
   final win = workingWindowForDateWithOverrides(dayStart, weekly, overrides);
   if (win == null) return 'booking_date_closed';
-  if (calendarDayHasIsClosedFlag(blocksForCalendarDay(dayStart, blockMaps))) {
+  if (calendarDayHasIsClosedFlag(dayBlocks)) {
     return 'booking_date_closed';
   }
   final step = appointmentSlotMinutesForDateWithAllBlocks(dayStart, blockMaps);
@@ -93,7 +116,7 @@ Future<String?> createPatientAppointment({
   }
 
   final sameDay = await appointmentsForDoctorDateRange(
-    doctorUserId: doctorId,
+    doctorUserId: did,
     rangeStartInclusiveLocal: dayStart,
     rangeEndExclusiveLocal: dayEnd,
   ).get();
@@ -128,7 +151,7 @@ Future<String?> createPatientAppointment({
   var queueNumber = 1;
   try {
     final countAgg = await appointmentsForDoctorDateRange(
-      doctorUserId: doctorId,
+      doctorUserId: did,
       rangeStartInclusiveLocal: dayStart,
       rangeEndExclusiveLocal: dayEnd,
     ).count().get();
@@ -139,7 +162,7 @@ Future<String?> createPatientAppointment({
 
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: uid,
-    AppointmentFields.doctorId: doctorId,
+    AppointmentFields.doctorId: did,
     AppointmentFields.doctorName: doctorNameToSave.isEmpty ? '—' : doctorNameToSave,
     AppointmentFields.patientName:
         patientName.trim().isEmpty ? '—' : patientName.trim(),

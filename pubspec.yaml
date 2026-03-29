@@ -43,6 +43,13 @@ dependencies:
   image_picker: ^1.2.1
   firebase_storage: ^13.2.0
   shared_preferences: ^2.5.3
+  # Direct deps for [ensureSharedPreferencesRegistered] (also pulled by shared_preferences).
+  path_provider_linux: ^2.2.1
+  path_provider_windows: ^2.3.0
+  shared_preferences_android: ^2.4.23
+  shared_preferences_foundation: ^2.5.6
+  shared_preferences_linux: ^2.4.1
+  shared_preferences_windows: ^2.4.1
   url_launcher: ^6.3.1
   table_calendar: ^3.2.0
 

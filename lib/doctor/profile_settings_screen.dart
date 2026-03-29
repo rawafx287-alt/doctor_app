@@ -4,8 +4,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../firestore/hospital_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
@@ -44,6 +46,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   String? _selectedSpecialty;
+  /// Firestore `hospitals` document id; shown in patient app hospital filter.
+  String? _selectedHospitalId;
   String _profileImageUrl = '';
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
@@ -102,6 +106,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _fullNameEnController.text = (data['fullName_en'] ?? '').toString();
       final spec = (data['specialty'] ?? '').toString().trim();
       _selectedSpecialty = kDoctorSpecialtyOptions.contains(spec) ? spec : null;
+      final hid = (data['hospitalId'] ?? '').toString().trim();
+      _selectedHospitalId = hid.isEmpty ? null : hid;
       _profileImageUrl = (data['profileImageUrl'] ?? '').toString().trim();
       _consultationFeeController.text = (data['consultationFee'] ?? '').toString();
       _phoneController.text = (data['phone'] ?? '').toString();
@@ -193,6 +199,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'biography': bioKu,
         'clinicAddress': addressKu,
       };
+
+      final hid = (_selectedHospitalId ?? '').trim();
+      if (hid.isEmpty) {
+        payload['hospitalId'] = FieldValue.delete();
+      } else {
+        payload['hospitalId'] = hid;
+      }
 
       final yParsed = int.tryParse(_yearsExperienceController.text.trim());
       if (yParsed != null && yParsed > 0) {
@@ -373,6 +386,96 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 
+  Widget _hospitalRegistryDropdown() {
+    final s = S.of(context);
+    final lang = AppLocaleScope.of(context).effectiveLanguage;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: hospitalsSnapshotStream(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Text(
+            s.translate('hospitals_load_error', params: {'error': '${snap.error}'}),
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontFamily: 'KurdishFont',
+              fontSize: 12,
+            ),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF42A5F5),
+                ),
+              ),
+            ),
+          );
+        }
+        final sorted = sortHospitalDocuments(snap.data?.docs ?? const []);
+        String? value = _selectedHospitalId;
+        if (value != null &&
+            value.isNotEmpty &&
+            !sorted.any((d) => d.id == value)) {
+          value = null;
+        }
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1D1E33),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white10),
+          ),
+          padding: const EdgeInsetsDirectional.only(start: 4, end: 12),
+          child: DropdownButtonFormField<String?>(
+            // Controlled selection via rebuild + onChanged; `value` still required here.
+            // ignore: deprecated_member_use
+            value: value,
+            isExpanded: true,
+            iconEnabledColor: const Color(0xFF42A5F5),
+            dropdownColor: const Color(0xFF1D1E33),
+            style: const TextStyle(
+              color: Color(0xFFD9E2EC),
+              fontFamily: 'KurdishFont',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              labelText: s.translate('doctor_field_hospital_registry'),
+              labelStyle: const TextStyle(
+                color: Color(0xFF829AB1),
+                fontFamily: 'KurdishFont',
+              ),
+              prefixIcon: const Icon(Icons.local_hospital_rounded, color: Color(0xFF42A5F5)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            items: [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text(s.translate('hospital_registry_none')),
+              ),
+              ...sorted.map(
+                (d) => DropdownMenuItem<String?>(
+                  value: d.id,
+                  child: Text(
+                    localizedHospitalName(d.data(), lang),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+            onChanged: (v) => setState(() => _selectedHospitalId = v),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
@@ -481,6 +584,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             ? s.translate('validation_specialty_required')
                             : null,
                       ),
+                      const SizedBox(height: 12),
+                      _hospitalRegistryDropdown(),
                       const SizedBox(height: 12),
                       _field(
                         controller: _consultationFeeController,

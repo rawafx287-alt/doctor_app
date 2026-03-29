@@ -95,9 +95,16 @@ Future<Map<String, Map<String, dynamic>>> _fetchPatientUserMaps(
 }
 
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key, this.embedded = false});
+  const ScheduleScreen({
+    super.key,
+    this.embedded = false,
+    this.reloadToken,
+  });
 
   final bool embedded;
+
+  /// Increment (e.g. when this tab is selected) to reload [schedule_date_overrides] from Firestore.
+  final ValueNotifier<int>? reloadToken;
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -124,6 +131,17 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
+    widget.reloadToken?.addListener(_onScheduleReloadSignal);
+    _loadSchedule();
+  }
+
+  @override
+  void dispose() {
+    widget.reloadToken?.removeListener(_onScheduleReloadSignal);
+    super.dispose();
+  }
+
+  void _onScheduleReloadSignal() {
     _loadSchedule();
   }
 
@@ -146,14 +164,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         _cachedWeekly = null;
       }
 
-      final rawOv = data?['schedule_date_overrides'];
-      if (rawOv is Map) {
-        _dateOverrides = Map<String, dynamic>.from(
-          rawOv.map((k, v) => MapEntry(k.toString(), v)),
-        );
-      } else {
-        _dateOverrides = {};
-      }
+      _dateOverrides =
+          normalizeScheduleDateOverridesMap(data?['schedule_date_overrides']);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,31 +204,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return '${uid}_${k}_closed';
   }
 
-  Future<void> _persistClosedDayBlock(String uid, DateTime day) async {
-    final start = DateTime(day.year, day.month, day.day);
-    await FirebaseFirestore.instance
-        .collection(CalendarBlockFields.collection)
-        .doc(_closedDayDocId(uid, day))
-        .set(
-      {
-        AppointmentFields.doctorId: uid,
-        AppointmentFields.date: Timestamp.fromDate(start),
-        CalendarBlockFields.blockKind: CalendarBlockFields.kindClosedDay,
-        CalendarBlockFields.isClosed: true,
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  Future<void> _removeClosedDayBlock(String uid, DateTime day) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection(CalendarBlockFields.collection)
-          .doc(_closedDayDocId(uid, day))
-          .delete();
-    } catch (_) {}
-  }
-
   Future<int?> _loadDaySettingsSlotMinutes(String uid, DateTime day) async {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
@@ -228,6 +215,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ).get();
       for (final doc in snap.docs) {
         final data = doc.data();
+        if (data[CalendarBlockFields.isOpen] == true) {
+          final raw = data[kAppointmentDurationField] ?? data[kAppointmentSlotMinutesField];
+          if (raw is int && _daySlotChoices.contains(raw)) return raw;
+          if (raw is num) {
+            final i = raw.toInt();
+            if (_daySlotChoices.contains(i)) return i;
+          }
+        }
         if (data[CalendarBlockFields.blockKind] != CalendarBlockFields.kindDaySettings) {
           continue;
         }
@@ -242,29 +237,59 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return null;
   }
 
-  Future<void> _persistDaySettingsBlock(String uid, DateTime day, int minutes) async {
-    final start = DateTime(day.year, day.month, day.day);
-    await FirebaseFirestore.instance
-        .collection(CalendarBlockFields.collection)
-        .doc(_daySettingsDocId(uid, day))
-        .set(
+  /// Single atomic write: [users.schedule_date_overrides] + [calendar_blocks] for this day.
+  Future<void> _commitDayAvailabilityBatch({
+    required String uid,
+    required DateTime day,
+    required bool blocked,
+    required int slotMinutes,
+    required Map<String, dynamic> fullOverrides,
+  }) async {
+    final batch = FirebaseFirestore.instance.batch();
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    batch.set(
+      userRef,
       {
-        AppointmentFields.doctorId: uid,
-        AppointmentFields.date: Timestamp.fromDate(start),
-        CalendarBlockFields.blockKind: CalendarBlockFields.kindDaySettings,
-        kAppointmentDurationField: minutes,
+        'schedule_date_overrides': fullOverrides,
+        'scheduleUpdatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
-  }
 
-  Future<void> _removeDaySettingsBlock(String uid, DateTime day) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection(CalendarBlockFields.collection)
-          .doc(_daySettingsDocId(uid, day))
-          .delete();
-    } catch (_) {}
+    final start = DateTime(day.year, day.month, day.day);
+    final selectedDate = CalendarBlockFields.dayStatusDocumentId(start);
+    // Same persistence as:
+    // FirebaseFirestore.instance.collection('calendar_blocks').doc(selectedDate).set(...)
+    final dayStatusRef = FirebaseFirestore.instance
+        .collection(CalendarBlockFields.collection)
+        .doc(selectedDate);
+
+    final closedRef = FirebaseFirestore.instance
+        .collection(CalendarBlockFields.collection)
+        .doc(_closedDayDocId(uid, day));
+    final settingsRef = FirebaseFirestore.instance
+        .collection(CalendarBlockFields.collection)
+        .doc(_daySettingsDocId(uid, day));
+    batch.delete(closedRef);
+    batch.delete(settingsRef);
+
+    final statusPayload = <String, dynamic>{
+      AppointmentFields.doctorId: uid,
+      AppointmentFields.date: Timestamp.fromDate(start),
+      CalendarBlockFields.dateKey: selectedDate,
+      CalendarBlockFields.isOpen: !blocked,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (!blocked) {
+      statusPayload[kAppointmentDurationField] = slotMinutes;
+    } else {
+      statusPayload[kAppointmentDurationField] = FieldValue.delete();
+    }
+    batch.set(dayStatusRef, statusPayload, SetOptions(merge: true));
+
+    await batch.commit();
+    // ignore: avoid_print
+    print('Data saved successfully');
   }
 
   int _coerceSheetSlot(int? v) {
@@ -557,27 +582,53 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       onPressed: (sheetSaving || _isSaving)
                           ? null
                           : () async {
-                              setState(() {
-                                if (sbBlocked) {
-                                  _dateOverrides[key] = {'blocked': true};
-                                } else if (!sbCustom) {
-                                  _dateOverrides.remove(key);
-                                } else {
-                                  _dateOverrides[key] = {
-                                    'startMinutes': _toMinutes(sbStart),
-                                    'endMinutes': _toMinutes(sbEnd),
-                                  };
-                                }
-                              });
+                              final next = Map<String, dynamic>.from(_dateOverrides);
+                              if (sbBlocked) {
+                                next[key] = {'blocked': true};
+                              } else if (!sbCustom) {
+                                next.remove(key);
+                              } else {
+                                next[key] = {
+                                  'startMinutes': _toMinutes(sbStart),
+                                  'endMinutes': _toMinutes(sbEnd),
+                                };
+                              }
                               sheetSaving = true;
                               setModal(() {});
                               try {
-                                if (sbBlocked) {
-                                  await _removeDaySettingsBlock(uid, day);
-                                  await _persistClosedDayBlock(uid, day);
-                                } else {
-                                  await _removeClosedDayBlock(uid, day);
-                                  await _persistDaySettingsBlock(uid, day, sbSlot);
+                                await _commitDayAvailabilityBatch(
+                                  uid: uid,
+                                  day: day,
+                                  blocked: sbBlocked,
+                                  slotMinutes: sbSlot,
+                                  fullOverrides: next,
+                                );
+                                if (!mounted) return;
+                                setState(() => _dateOverrides = next);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        s.translate('schedule_save_ok'),
+                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                      ),
+                                    ),
+                                  );
+                                  Navigator.pop(ctx);
+                                }
+                              } on FirebaseException catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        S.of(ctx).translate(
+                                          'error_code',
+                                          params: {'code': e.code},
+                                        ),
+                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                      ),
+                                    ),
+                                  );
                                 }
                               } catch (_) {
                                 if (ctx.mounted) {
@@ -590,15 +641,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                     ),
                                   );
                                 }
+                              } finally {
                                 sheetSaving = false;
                                 if (ctx.mounted) setModal(() {});
-                                return;
                               }
-                              final ok = await _saveSchedule();
-                              sheetSaving = false;
-                              if (!ctx.mounted) return;
-                              setModal(() {});
-                              if (ok) Navigator.pop(ctx);
                             },
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF42A5F5),
@@ -606,13 +652,30 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: sheetSaving
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Color(0xFF102A43),
-                              ),
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Color(0xFF102A43),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(
+                                    s.translate('schedule_saving'),
+                                    style: const TextStyle(
+                                      fontFamily: 'KurdishFont',
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             )
                           : Text(
                               s.translate('schedule_save_button'),
@@ -650,6 +713,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   /// Persists [schedule_date_overrides] on the user doc (weekly template is not edited here).
+  /// Keys are normalized to `yyyy-MM-dd` via [normalizeScheduleDateOverridesMap] on load;
+  /// this write keeps the in-memory map (already canonical keys).
   Future<bool> _saveSchedule() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final s = S.of(context);
@@ -668,14 +733,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     setState(() => _isSaving = true);
     try {
+      final toWrite = normalizeScheduleDateOverridesMap(_dateOverrides);
       await FirebaseFirestore.instance.collection('users').doc(uid).set(
         {
-          'schedule_date_overrides': _dateOverrides,
+          'schedule_date_overrides': toWrite,
           'scheduleUpdatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
       if (!mounted) return false;
+      setState(() => _dateOverrides = Map<String, dynamic>.from(toWrite));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -767,10 +834,28 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: _isSaving
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.2),
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      s.translate('schedule_saving'),
+                      style: const TextStyle(
+                        fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               )
             : Text(
                 s.translate('schedule_save_button'),

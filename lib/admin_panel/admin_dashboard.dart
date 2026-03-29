@@ -6,6 +6,7 @@ import 'add_doctor_screen.dart';
 import 'approval_list_screen.dart';
 import 'admin_feedback_screen.dart';
 import 'doctor_management_screen.dart';
+import 'admin_hospital_management_screen.dart';
 import '../calendar/master_calendar_screen.dart';
 import '../locale/app_localizations.dart';
 
@@ -64,6 +65,20 @@ class AdminDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const AdminFeedbackScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              _DashboardCard(
+                title: 'نەخۆشخانەکان',
+                subtitle: 'زیادکردن و سڕینەوەی نەخۆشخانە لە داتابەیس',
+                icon: Icons.local_hospital_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const AdminHospitalManagementScreen(),
                     ),
                   );
                 },
@@ -150,7 +165,7 @@ class _DashboardCard extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: Colors.blueAccent.withOpacity(0.18),
+                color: Colors.blueAccent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: Colors.blueAccent, size: 28),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -38,6 +39,63 @@ DateTime? _parseAppointmentDate(dynamic value) {
   } catch (_) {
     return null;
   }
+}
+
+/// Minutes from midnight for [AppointmentFields.time] keys like `09:30`; unknown → large value (last).
+int _appointmentTimeSortMinutes(dynamic timeVal) {
+  final s = (timeVal ?? '').toString().trim();
+  final m = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(s);
+  if (m != null) {
+    return int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
+  }
+  return 1 << 20;
+}
+
+String _appointmentQueueLabel(Map<String, dynamic> data, int fallbackIndex) {
+  final q = data[AppointmentFields.queueNumber];
+  if (q is int && q > 0) {
+    return '#${q.toString().padLeft(2, '0')}';
+  }
+  if (q is num && q > 0) {
+    return '#${q.toInt().toString().padLeft(2, '0')}';
+  }
+  final h = (fallbackIndex + 1).toString().padLeft(2, '0');
+  return '#$h';
+}
+
+void _sortPatientAppointmentsToday(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
+) {
+  list.sort((a, b) => _appointmentTimeSortMinutes(
+        a.data()[AppointmentFields.time],
+      ).compareTo(
+        _appointmentTimeSortMinutes(b.data()[AppointmentFields.time]),
+      ));
+}
+
+void _sortPatientAppointmentsAll(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
+) {
+  list.sort((a, b) {
+    final da = _parseAppointmentDate(a.data()[AppointmentFields.date]);
+    final db = _parseAppointmentDate(b.data()[AppointmentFields.date]);
+    if (da != null && db != null) {
+      final c = da.compareTo(db);
+      if (c != 0) return c;
+    } else if (da != null) {
+      return -1;
+    } else if (db != null) {
+      return 1;
+    }
+    final ta = a.data()[AppointmentFields.createdAt];
+    final tb = b.data()[AppointmentFields.createdAt];
+    if (ta is Timestamp && tb is Timestamp) {
+      final c = ta.compareTo(tb);
+      if (c != 0) return c;
+    }
+    return _appointmentTimeSortMinutes(a.data()[AppointmentFields.time])
+        .compareTo(_appointmentTimeSortMinutes(b.data()[AppointmentFields.time]));
+  });
 }
 
 /// Kurdish label + colors for چەند ڕۆژی ماوە / ئەمڕۆ / بەیانی / بەسەرچوو.
@@ -711,33 +769,81 @@ void _openTicketPreview(
 
 /// Patient view: نۆرەکانم — lists [appointments] for the signed-in user.
 /// Set [embedded] to true when used inside [PatientHomeScreen] bottom tab (no [Scaffold]/[AppBar]).
-class PatientAppointmentsScreen extends StatelessWidget {
+class PatientAppointmentsScreen extends StatefulWidget {
   const PatientAppointmentsScreen({super.key, this.embedded = false});
 
   final bool embedded;
 
+  @override
+  State<PatientAppointmentsScreen> createState() =>
+      _PatientAppointmentsScreenState();
+}
+
+class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   static const Color _bg = Color(0xFF0A0E21);
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
 
-  String _queueLabel(Map<String, dynamic> data, int fallbackIndex) {
-    final q = data[AppointmentFields.queueNumber];
-    if (q is int && q > 0) {
-      return '#${q.toString().padLeft(2, '0')}';
-    }
-    if (q is num && q > 0) {
-      return '#${q.toInt().toString().padLeft(2, '0')}';
-    }
-    final h = (fallbackIndex + 1).toString().padLeft(2, '0');
-    return '#$h';
+  bool _todayOnly = true;
+  late DateTime _todayAnchor;
+  Timer? _dayTick;
+
+  @override
+  void initState() {
+    super.initState();
+    final n = DateTime.now();
+    _todayAnchor = DateTime(n.year, n.month, n.day);
+    _dayTick = Timer.periodic(const Duration(minutes: 1), (_) {
+      final now = DateTime.now();
+      final d = DateTime(now.year, now.month, now.day);
+      if (d != _todayAnchor) {
+        setState(() => _todayAnchor = d);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dayTick?.cancel();
+    super.dispose();
+  }
+
+  void _toggleTodayOnly() => setState(() => _todayOnly = !_todayOnly);
+
+  Widget _filterToggleBar(BuildContext context) {
+    final s = S.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: TextButton.icon(
+          onPressed: _toggleTodayOnly,
+          icon: Icon(
+            _todayOnly ? Icons.list_alt_outlined : Icons.today_outlined,
+            size: 20,
+            color: _teal,
+          ),
+          label: Text(
+            _todayOnly
+                ? s.translate('appointments_show_all')
+                : s.translate('appointments_show_today'),
+            style: const TextStyle(
+              color: _teal,
+              fontFamily: 'KurdishFont',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    final body = uid == null
+    final listBody = uid == null
         ? Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
@@ -745,10 +851,10 @@ class PatientAppointmentsScreen extends StatelessWidget {
             ),
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection(AppointmentFields.collection)
-                .where(AppointmentFields.patientId, isEqualTo: uid)
-                .snapshots(),
+            stream: patientAppointmentsQuery(
+              patientUid: uid,
+              dateLocalDay: _todayOnly ? _todayAnchor : null,
+            ).snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -774,29 +880,24 @@ class PatientAppointmentsScreen extends StatelessWidget {
                 );
               }
               final docs = snapshot.data?.docs ?? [];
-              final sorted = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
-              sorted.sort((a, b) {
-                final da = a.data();
-                final db = b.data();
-                final ta = da[AppointmentFields.createdAt];
-                final tb = db[AppointmentFields.createdAt];
-                if (ta is Timestamp && tb is Timestamp) {
-                  return tb.compareTo(ta);
-                }
-                final dateA = da[AppointmentFields.date];
-                final dateB = db[AppointmentFields.date];
-                if (dateA is Timestamp && dateB is Timestamp) {
-                  return dateB.compareTo(dateA);
-                }
-                return 0;
-              });
+              final sorted =
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
+              if (_todayOnly) {
+                _sortPatientAppointmentsToday(sorted);
+              } else {
+                _sortPatientAppointmentsAll(sorted);
+              }
 
               if (sorted.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      S.of(context).translate('appointments_empty'),
+                      S.of(context).translate(
+                        _todayOnly
+                            ? 'appointments_empty_today'
+                            : 'appointments_empty',
+                      ),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: _muted,
@@ -839,7 +940,7 @@ class PatientAppointmentsScreen extends StatelessWidget {
                           parsedDay,
                         )
                       : null;
-                  final queueLabel = _queueLabel(data, index);
+                  final queueLabel = _appointmentQueueLabel(data, index);
                   final docId = sorted[index].id;
                   final heroTag = 'appointment_ticket_$docId';
 
@@ -880,10 +981,22 @@ class PatientAppointmentsScreen extends StatelessWidget {
             },
           );
 
+    final body = uid == null
+        ? listBody
+        : widget.embedded
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _filterToggleBar(context),
+                  Expanded(child: listBody),
+                ],
+              )
+            : listBody;
+
     final pageDir = AppLocaleScope.of(context).textDirection;
     final pageRtl = pageDir == ui.TextDirection.rtl;
 
-    if (embedded) {
+    if (widget.embedded) {
       return Directionality(
         textDirection: pageDir,
         child: ColoredBox(color: _bg, child: body),
@@ -915,6 +1028,20 @@ class PatientAppointmentsScreen extends StatelessWidget {
               fontSize: 20,
             ),
           ),
+          actions: [
+            if (uid != null)
+              IconButton(
+                icon: Icon(
+                  _todayOnly
+                      ? Icons.calendar_view_month_outlined
+                      : Icons.today_outlined,
+                ),
+                tooltip: _todayOnly
+                    ? S.of(context).translate('appointments_show_all')
+                    : S.of(context).translate('appointments_show_today'),
+                onPressed: _toggleTodayOnly,
+              ),
+          ],
         ),
         body: body,
       ),

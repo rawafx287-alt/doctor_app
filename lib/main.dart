@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-
+import 'bootstrap/ensure_shared_preferences_registered.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
 import 'package:flutter_application_1/nawarok/norakanimn.dart';
@@ -15,6 +15,7 @@ import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ensureSharedPreferencesRegistered();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
