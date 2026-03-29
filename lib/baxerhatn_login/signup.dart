@@ -1,17 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 
-import '../auth/auth_gate.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
-import '../patient/patient_home_screen.dart';
 import '../specialty_categories.dart';
 
 enum UserRole { patient, doctor }
 
+/// Email/password registration: [createUserWithEmailAndPassword], [User.sendEmailVerification],
+/// Firestore `users` doc, then sign-out and prompt to check inbox before login.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -119,11 +119,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _validatePhone(String? value) {
     final s = S.of(context);
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return s.translate('validation_phone_required');
+    if (v.isEmpty) return null;
     if (!_digitsOnly.hasMatch(v)) {
       return s.translate('validation_phone_digits_only');
     }
-    if (v.length != 11) return s.translate('validation_phone_must_be_11');
     return null;
   }
 
@@ -135,8 +134,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _onSignUpPressed() async {
-    final isFormValid = _formKey.currentState?.validate() ?? false;
-    if (!isFormValid) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
 
@@ -145,24 +143,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await Firebase.initializeApp();
       }
 
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      final userCred =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
 
-      final uid = userCredential.user?.uid;
-      if (uid == null) throw Exception('User ID is null');
+      final user = userCred.user;
+      if (user == null) throw Exception('User ID is null');
+
+      await user.sendEmailVerification();
 
       final first = _firstNameController.text.trim();
       final last = _lastNameController.text.trim();
       final fullName = '$first $last'.trim();
+      final phone = _phoneController.text.trim();
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'firstName': first,
         'lastName': last,
         'fullName': fullName.isEmpty ? first : fullName,
-        'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'email': email,
+        'phone': phone,
         'address': _addressController.text.trim(),
         'role': _isDoctor ? 'Doctor' : 'Patient',
         'specialty': _isDoctor ? (_doctorSpecialty ?? '').trim() : '',
@@ -170,26 +175,57 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      await FirebaseAuth.instance.signOut();
+
       if (!mounted) return;
 
-      if (_isDoctor) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => const DoctorPendingApprovalScreen(),
-          ),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => const PatientHomeScreen(),
-          ),
-          (route) => false,
-        );
-      }
+      final s = S.of(context);
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          return Directionality(
+            textDirection: AppLocaleScope.of(ctx).textDirection,
+            child: AlertDialog(
+              backgroundColor: const Color(0xFF1D1E33),
+              title: Text(
+                s.translate('signup_verify_email_dialog_title'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFD9E2EC),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: Text(
+                s.translate('signup_verify_email_dialog_body'),
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFF829AB1),
+                  height: 1.4,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: Text(
+                    s.translate('ok'),
+                    style: const TextStyle(
+                      color: Color(0xFF42A5F5),
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       final s = S.of(context);
       String msg = s.translate('signup_err_generic');
       if (e.code == 'email-already-in-use') {
@@ -206,10 +242,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
       _showSnackBar('$msg (${e.code})');
     } on FirebaseException catch (e) {
+      if (!mounted) return;
       _showSnackBar(
         '${S.of(context).translate('signup_err_firestore')} (${e.code})',
       );
     } catch (e) {
+      if (!mounted) return;
       _showSnackBar('${S.of(context).translate('signup_err_generic')}: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -308,11 +346,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 14),
                 _buildTextField(
                   controller: _phoneController,
-                  label: S.of(context).translate('signup_mobile'),
+                  label: S.of(context).translate('signup_mobile_optional'),
                   icon: Icons.phone_android_rounded,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  maxLength: 11,
                   validator: _validatePhone,
                 ),
                 const SizedBox(height: 14),

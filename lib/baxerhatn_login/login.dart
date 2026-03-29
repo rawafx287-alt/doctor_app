@@ -30,7 +30,6 @@ String _authErrorMessage(BuildContext context, String code) {
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.showBackButton = true});
 
-  /// When false (e.g. root [AuthGate]), hides back — nothing to pop.
   final bool showBackButton;
 
   @override
@@ -38,174 +37,75 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _isObscured = true; // بۆ شاردنەوە و پیشاندانی وشەی نهێنی
-  final TextEditingController _contactController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isObscured = true;
   bool _isLoading = false;
+
+  static final RegExp _emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$',
+    caseSensitive: false,
+  );
 
   @override
   void dispose() {
-    _contactController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: widget.showBackButton,
-        leading: widget.showBackButton
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
-      ),
-      body: Directionality(
-        textDirection: AppLocaleScope.of(context).textDirection,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Text(
-                S.of(context).translate('login'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                S.of(context).translate('login_subtitle'),
-                style: const TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              const SizedBox(height: 50),
-
-              // خانەی ژمارەی مۆبایل
-              _buildTextField(
-                controller: _contactController,
-                hint: S.of(context).translate('hint_email_or_phone'),
-                icon: Icons.alternate_email,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 20),
-
-              // خانەی وشەی نهێنی
-              _buildTextField(
-                controller: _passwordController,
-                hint: S.of(context).translate('hint_password'),
-                icon: Icons.lock_outline_rounded,
-                isPassword: true,
-              ),
-
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ForgotPasswordScreen(),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    S.of(context).translate('forgot_password'),
-                    style: const TextStyle(color: Colors.blueAccent),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // دوگمەی چوونە ژوورەوە
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
-                  minimumSize: const Size(double.infinity, 60),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  elevation: 5,
-                ),
-                onPressed: _isLoading ? null : _handleLogin,
-                child: Text(
-                  S.of(context).translate('sign_in'),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 25),
-              
-              // دروستکردنی هەژمار
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    S.of(context).translate('no_account'),
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SignUpScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      S.of(context).translate('sign_up'),
-                      style: const TextStyle(
-                        color: Colors.blueAccent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  String? _validateEmail(String? value) {
+    final s = S.of(context);
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return s.translate('validation_email_required');
+    if (!_emailRegex.hasMatch(v)) return s.translate('validation_email_invalid');
+    return null;
   }
 
-  // ویجێتێکی یاریدەدەر بۆ دروستکردنی TextField بە شێوەیەکی ڕێک
-  Future<void> _handleLogin() async {
-    final emailOrPhone = _contactController.text.trim();
-    final password = _passwordController.text.trim();
-    if (emailOrPhone.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            S.of(context).translate('fill_fields'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-      return;
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return S.of(context).translate('validation_password_required');
     }
+    return null;
+  }
+
+  Future<void> _handleLogin() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
     setState(() => _isLoading = true);
     try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailOrPhone,
+        email: email,
         password: password,
       );
+
       final user = credential.user;
       if (user == null) throw FirebaseAuthException(code: 'user-null');
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      await user.reload();
+      final fresh = FirebaseAuth.instance.currentUser;
+      if (fresh == null || !fresh.emailVerified) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              S.of(context).translate('auth_err_email_not_verified'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(fresh.uid)
+          .get();
       if (!doc.exists) {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
@@ -246,42 +146,183 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Widget _buildTextField({
-    TextEditingController? controller,
-    required String hint,
-    required IconData icon,
-    bool isPassword = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E21),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+      ),
+      body: Directionality(
+        textDirection: AppLocaleScope.of(context).textDirection,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  S.of(context).translate('login'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  S.of(context).translate('login_subtitle'),
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                const SizedBox(height: 50),
+                _buildEmailField(),
+                const SizedBox(height: 20),
+                _buildPasswordField(),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      S.of(context).translate('forgot_password'),
+                      style: const TextStyle(color: Colors.blueAccent),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    minimumSize: const Size(double.infinity, 60),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    elevation: 5,
+                  ),
+                  onPressed: _isLoading ? null : _handleLogin,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 26,
+                          width: 26,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.6,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          S.of(context).translate('sign_in'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 25),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      S.of(context).translate('no_account'),
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (context) => const SignUpScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        S.of(context).translate('sign_up'),
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailField() {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1D1E33),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white10),
       ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword ? _isObscured : false,
-        keyboardType: keyboardType,
+      child: TextFormField(
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        style: const TextStyle(color: Colors.white),
+        validator: _validateEmail,
+        decoration: InputDecoration(
+          labelText: S.of(context).translate('hint_email_login'),
+          labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          hintText: S.of(context).translate('hint_email_login'),
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          prefixIcon: const Icon(Icons.email_outlined,
+              color: Colors.blueAccent, size: 22),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1D1E33),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: TextFormField(
+        controller: _passwordController,
+        obscureText: _isObscured,
+        validator: _validatePassword,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
-          hintText: hint,
+          labelText: S.of(context).translate('hint_password'),
+          labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          hintText: S.of(context).translate('hint_password'),
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-          prefixIcon: Icon(icon, color: Colors.blueAccent, size: 22),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    _isObscured ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isObscured = !_isObscured;
-                    });
-                  },
-                )
-              : null,
+          prefixIcon: const Icon(Icons.lock_outline_rounded,
+              color: Colors.blueAccent, size: 22),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _isObscured ? Icons.visibility_off : Icons.visibility,
+              color: Colors.grey,
+              size: 20,
+            ),
+            onPressed: () => setState(() => _isObscured = !_isObscured),
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 18),
         ),

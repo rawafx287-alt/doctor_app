@@ -36,14 +36,66 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Sign in',
   },
   'login_subtitle': {
-    'ckb': 'تکایە زانیارییەکانت بنووسە بۆ بەردەوامبوون',
-    'ar': 'أدخل بياناتك للمتابعة',
-    'en': 'Enter your details to continue',
+    'ckb': 'ئیمەیڵ و وشەی نهێنیت بنووسە',
+    'ar': 'أدخل بريدك وكلمة المرور',
+    'en': 'Enter your email and password',
   },
   'hint_email_or_phone': {
     'ckb': 'ئیمەیڵ یان ژمارەی مۆبایل',
     'ar': 'البريد أو رقم الجوال',
     'en': 'Email or mobile number',
+  },
+  'hint_email_login': {
+    'ckb': 'ئیمەیڵ',
+    'ar': 'البريد الإلكتروني',
+    'en': 'Email',
+  },
+  'auth_err_email_not_verified': {
+    'ckb':
+        'تکایە سندوقی نامەی ئەلیکترۆنی پشتڕاست بکەرەوە پێش چوونە ژوورەوە.',
+    'ar': 'يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول.',
+    'en': 'Please verify your email before signing in.',
+  },
+  'auth_verify_email_title': {
+    'ckb': 'ئیمەیڵەکەت پشتڕاست بکەرەوە',
+    'ar': 'تأكيد بريدك الإلكتروني',
+    'en': 'Verify your email',
+  },
+  'auth_verify_email_body': {
+    'ckb':
+        'لینکی پشتڕاستکردنەوەمان بۆ ئەم ئیمەیڵە ناردووە. دوای کرتەکردن لەسەر لینکەکە، «دووبارە پشکنین» بکە.',
+    'ar':
+        'أرسلنا رابط التحقق إلى بريدك. بعد فتح الرابط، اضغط «تحديث الحالة».',
+    'en':
+        'We sent a verification link to your inbox. After you open it, tap “I’ve verified”.',
+  },
+  'auth_resend_verification': {
+    'ckb': 'دووبارە ناردنی ئیمەیڵی پشتڕاستکردنەوە',
+    'ar': 'إعادة إرسال بريد التحقق',
+    'en': 'Resend verification email',
+  },
+  'auth_verify_email_recheck': {
+    'ckb': 'دووبارە پشکنین',
+    'ar': 'تحديث الحالة',
+    'en': "I've verified — refresh",
+  },
+  'auth_verify_email_resent': {
+    'ckb': 'ئیمەیڵی پشتڕاستکردنەوە دووبارە نێردرا',
+    'ar': 'تم إعادة إرسال بريد التحقق',
+    'en': 'Verification email sent again',
+  },
+  'signup_verify_email_dialog_title': {
+    'ckb': 'سندوقی نامەکەت بپشکنە',
+    'ar': 'تحقق من بريدك',
+    'en': 'Check your inbox',
+  },
+  'signup_verify_email_dialog_body': {
+    'ckb':
+        'ئیمەیڵێکی پشتڕاستکردنەوەمان نارد. تکایە سندوقی نامەکەت بکەرەوە و لینکەکە کرتە بکە، پاشان بچۆرە ژوورەوە.',
+    'ar':
+        'أرسلنا رسالة تحقق. افتح بريدك واضغط الرابط، ثم سجّل الدخول.',
+    'en':
+        'We sent a verification email. Open it, tap the link, then sign in.',
   },
   'hint_password': {
     'ckb': 'وشەی نهێنی',
@@ -235,6 +287,66 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'تکایە ١١ ژمارە بنووسە',
     'ar': 'يرجى إدخال ١١ رقمًا',
     'en': 'Please enter 11 digits',
+  },
+  'validation_phone_leading_zero': {
+    'ckb': 'ژمارە دەبێت بە ٠ دەست پێبکات (١١ ژمارە)',
+    'ar': 'يجب أن يبدأ الرقم بـ 0 (١١ رقمًا)',
+    'en': 'Number must start with 0 (11 digits)',
+  },
+  'signup_otp_title': {
+    'ckb': 'پشتڕاستکردنەوەی ژمارە',
+    'ar': 'التحقق من الرقم',
+    'en': 'Verify phone number',
+  },
+  'signup_otp_subtitle': {
+    'ckb': 'کۆدی ٦ ژمارەیی بنووسە کە بۆ ژمارەی ({phone}) نێردراوە.',
+    'ar': 'أدخل الرمز المكوّن من ٦ أرقام المرسل إلى ({phone}).',
+    'en': 'Enter the 6-digit code sent to ({phone}).',
+  },
+  'signup_otp_verify': {
+    'ckb': 'پشتڕاستکردنەوە',
+    'ar': 'تحقق',
+    'en': 'Verify',
+  },
+  'signup_otp_resend': {
+    'ckb': 'دووبارە ناردنەوەی کۆد',
+    'ar': 'إعادة إرسال الرمز',
+    'en': 'Resend code',
+  },
+  'signup_otp_resend_wait': {
+    'ckb': 'دووبارە ناردن لە {seconds} چرکە',
+    'ar': 'إعادة الإرسال خلال {seconds} ث',
+    'en': 'Resend in {seconds}s',
+  },
+  'signup_otp_resend_hint': {
+    'ckb': 'کۆد نەگەیشت؟',
+    'ar': 'لم يصلك الرمز؟',
+    'en': "Didn't get a code?",
+  },
+  'signup_otp_wrong_code': {
+    'ckb': 'کۆدەکە هەڵەیە، تکایە دووبارە تاقی بکەرەوە',
+    'ar': 'الرمز غير صحيح، حاول مرة أخرى',
+    'en': 'The code is wrong, please try again',
+  },
+  'signup_otp_incomplete': {
+    'ckb': 'تکایە کۆدی ٦ ژمارەیی بە تەواوی بنووسە',
+    'ar': 'أدخل الرمز المكوّن من ٦ أرقام',
+    'en': 'Enter all 6 digits',
+  },
+  'signup_otp_no_verification_id': {
+    'ckb': 'هەڵە لە ناردنی کۆد، دووبارە هەوڵ بدەرەوە',
+    'ar': 'خطأ في الجلسة، أعد المحاولة',
+    'en': 'Session error, try again',
+  },
+  'signup_otp_resent': {
+    'ckb': 'کۆدێکی نوێ نێردرا',
+    'ar': 'تم إرسال رمز جديد',
+    'en': 'A new code was sent',
+  },
+  'signup_phone_send_failed': {
+    'ckb': 'ناردنی کۆد سەرکەوتوو نەبوو',
+    'ar': 'فشل إرسال الرمز',
+    'en': 'Failed to send verification code',
   },
   'validation_address_required': {
     'ckb': 'شوێنی نیشتەجێبوون پێویستە',
