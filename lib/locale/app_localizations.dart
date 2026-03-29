@@ -100,6 +100,41 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الاسم الكامل',
     'en': 'Full name',
   },
+  'signup_first_name': {
+    'ckb': 'ناوی یەکەم',
+    'ar': 'الاسم الأول',
+    'en': 'First name',
+  },
+  'signup_last_name': {
+    'ckb': 'ناوی دووەم',
+    'ar': 'اسم العائلة',
+    'en': 'Last name',
+  },
+  'signup_mobile': {
+    'ckb': 'ژمارەی مۆبایل',
+    'ar': 'رقم الجوال',
+    'en': 'Mobile number',
+  },
+  'signup_mobile_optional': {
+    'ckb': 'ژمارەی مۆبایل (ئارەزوومەندانە)',
+    'ar': 'رقم الجوال (اختياري)',
+    'en': 'Mobile number (optional)',
+  },
+  'signup_mobile_mandatory': {
+    'ckb': 'ژمارەی مۆبایل (ناچاری)',
+    'ar': 'رقم الجوال (إلزامي)',
+    'en': 'Mobile number (required)',
+  },
+  'signup_address': {
+    'ckb': 'شوێنی نیشتەجێبوون',
+    'ar': 'عنوان السكن / المدينة',
+    'en': 'Address / city',
+  },
+  'password_confirm': {
+    'ckb': 'دووپاتکردنەوەی وشەی نهێنی',
+    'ar': 'تأكيد كلمة المرور',
+    'en': 'Confirm password',
+  },
   'email': {
     'ckb': 'ئیمەیڵ',
     'ar': 'البريد الإلكتروني',
@@ -111,9 +146,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Password',
   },
   'password_hint_signup': {
-    'ckb': 'وشەی نهێنی (لانیکەم ٦ پیت)',
-    'ar': 'كلمة المرور (٦ أحرف على الأقل)',
-    'en': 'Password (at least 6 characters)',
+    'ckb': 'وشەی نهێنی (لانیکەم ٨ پیت)',
+    'ar': 'كلمة المرور (٨ أحرف على الأقل)',
+    'en': 'Password (at least 8 characters)',
   },
   'register': {
     'ckb': 'تۆماربوون',
@@ -162,9 +197,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Email is required',
   },
   'validation_email_invalid': {
-    'ckb': 'ئیمەیڵەکە دروست نییە',
-    'ar': 'البريد غير صالح',
-    'en': 'Invalid email',
+    'ckb': 'ئیمەیڵێکی دروست بنووسە (@ و کۆتایی .com)',
+    'ar': 'أدخل بريدًا صالحًا (@ وينتهي بـ .com)',
+    'en': 'Enter a valid email (@ and a .com address)',
   },
   'validation_password_required': {
     'ckb': 'وشەی نهێنی پێویستە',
@@ -172,9 +207,39 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Password is required',
   },
   'validation_password_short': {
-    'ckb': 'وشەی نهێنی لانیکەم ٦ پیت بێت',
-    'ar': 'كلمة المرور ٦ أحرف على الأقل',
-    'en': 'Password must be at least 6 characters',
+    'ckb': 'وشەی نهێنی لانیکەم ٨ پیت بێت',
+    'ar': 'كلمة المرور ٨ أحرف على الأقل',
+    'en': 'Password must be at least 8 characters',
+  },
+  'validation_password_mismatch': {
+    'ckb': 'وشەکانی نهێنی یەک ناگرنەوە',
+    'ar': 'كلمتا المرور غير متطابقتين',
+    'en': 'Passwords do not match',
+  },
+  'validation_phone_required': {
+    'ckb': 'ژمارەی مۆبایل پێویستە',
+    'ar': 'رقم الجوال مطلوب',
+    'en': 'Mobile number is required',
+  },
+  'validation_phone_digits_only': {
+    'ckb': 'تەنها ژمارە بنووسە',
+    'ar': 'أدخل أرقامًا فقط',
+    'en': 'Digits only',
+  },
+  'validation_phone_short': {
+    'ckb': 'ژمارەی مۆبایل کورتە',
+    'ar': 'رقم الجوال قصير جدًا',
+    'en': 'Mobile number is too short',
+  },
+  'validation_phone_must_be_11': {
+    'ckb': 'تکایە ١١ ژمارە بنووسە',
+    'ar': 'يرجى إدخال ١١ رقمًا',
+    'en': 'Please enter 11 digits',
+  },
+  'validation_address_required': {
+    'ckb': 'شوێنی نیشتەجێبوون پێویستە',
+    'ar': 'عنوان السكن مطلوب',
+    'en': 'Address is required',
   },
   'validation_name_required': {
     'ckb': 'ناو پێویستە',

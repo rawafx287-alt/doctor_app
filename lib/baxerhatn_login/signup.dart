@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -20,12 +21,21 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _fullNameController = TextEditingController();
+  final GlobalKey<FormFieldState<String>> _addressFieldKey =
+      GlobalKey<FormFieldState<String>>();
+  final FocusNode _emailFocusNode = FocusNode();
+
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
-  bool _isObscured = true;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _doctorSpecialty;
 
@@ -36,24 +46,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
   static const Color _muted = Color(0xFF829AB1);
 
   @override
+  void initState() {
+    super.initState();
+    _emailFocusNode.addListener(_onEmailFocusChanged);
+  }
+
+  void _onEmailFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
-    _fullNameController.dispose();
+    _emailFocusNode.removeListener(_onEmailFocusChanged);
+    _emailFocusNode.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
+    _addressController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   bool get _isDoctor => _selectedRole == UserRole.doctor;
 
+  /// Requires `@` and a domain ending in `.com` (case-insensitive).
   static final RegExp _emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$',
+    caseSensitive: false,
   );
+
+  static final RegExp _digitsOnly = RegExp(r'^[0-9]+$');
 
   String? _validateEmail(String? value) {
     final s = S.of(context);
     final v = value?.trim() ?? '';
     if (v.isEmpty) return s.translate('validation_email_required');
-    if (!_emailRegex.hasMatch(v)) return s.translate('validation_email_invalid');
+    if (!_emailRegex.hasMatch(v)) {
+      // Do not show "invalid format" while the field is focused (still typing).
+      if (_emailFocusNode.hasFocus) return null;
+      return s.translate('validation_email_invalid');
+    }
     return null;
   }
 
@@ -61,13 +95,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final s = S.of(context);
     final v = value ?? '';
     if (v.isEmpty) return s.translate('validation_password_required');
-    if (v.length < 6) return s.translate('validation_password_short');
+    if (v.length < 8) return s.translate('validation_password_short');
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    final s = S.of(context);
+    final v = value ?? '';
+    if (v.isEmpty) return s.translate('validation_password_required');
+    if (v != _passwordController.text) {
+      return s.translate('validation_password_mismatch');
+    }
     return null;
   }
 
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
       return S.of(context).translate('validation_name_required');
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    final s = S.of(context);
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return s.translate('validation_phone_required');
+    if (!_digitsOnly.hasMatch(v)) {
+      return s.translate('validation_phone_digits_only');
+    }
+    if (v.length != 11) return s.translate('validation_phone_must_be_11');
+    return null;
+  }
+
+  String? _validateAddress(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return S.of(context).translate('validation_address_required');
     }
     return null;
   }
@@ -85,16 +147,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password: _passwordController.text,
       );
 
       final uid = userCredential.user?.uid;
       if (uid == null) throw Exception('User ID is null');
 
+      final first = _firstNameController.text.trim();
+      final last = _lastNameController.text.trim();
+      final fullName = '$first $last'.trim();
+
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'fullName': _fullNameController.text.trim(),
+        'firstName': first,
+        'lastName': last,
+        'fullName': fullName.isEmpty ? first : fullName,
         'email': _emailController.text.trim(),
-        'phone': '',
+        'phone': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
         'role': _isDoctor ? 'Doctor' : 'Patient',
         'specialty': _isDoctor ? (_doctorSpecialty ?? '').trim() : '',
         'isApproved': _isDoctor ? false : true,
@@ -174,6 +243,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -221,14 +291,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 22),
                 _buildTextField(
-                  controller: _fullNameController,
-                  label: S.of(context).translate('full_name'),
+                  controller: _firstNameController,
+                  label: S.of(context).translate('signup_first_name'),
+                  icon: Icons.badge_outlined,
+                  validator: _validateName,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _lastNameController,
+                  label: S.of(context).translate('signup_last_name'),
                   icon: Icons.person_outline_rounded,
                   validator: _validateName,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _phoneController,
+                  label: S.of(context).translate('signup_mobile'),
+                  icon: Icons.phone_android_rounded,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 11,
+                  validator: _validatePhone,
                 ),
                 const SizedBox(height: 14),
                 _buildTextField(
                   controller: _emailController,
+                  focusNode: _emailFocusNode,
                   label: S.of(context).translate('email'),
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
@@ -251,7 +341,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   label: S.of(context).translate('password_hint_signup'),
                   icon: Icons.lock_outline_rounded,
                   isPassword: true,
+                  isConfirmPassword: false,
+                  englishPasswordOnly: true,
                   validator: _validatePassword,
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _confirmPasswordController,
+                  label: S.of(context).translate('password_confirm'),
+                  icon: Icons.lock_person_outlined,
+                  isPassword: true,
+                  isConfirmPassword: true,
+                  englishPasswordOnly: true,
+                  validator: _validateConfirmPassword,
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
+                  key: _addressFieldKey,
+                  controller: _addressController,
+                  label: S.of(context).translate('signup_address'),
+                  icon: Icons.location_on_outlined,
+                  maxLines: 2,
+                  keyboardType: TextInputType.streetAddress,
+                  validator: _validateAddress,
+                  onChanged: (_) =>
+                      _addressFieldKey.currentState?.validate(),
                 ),
                 const SizedBox(height: 28),
                 ElevatedButton(
@@ -283,6 +397,45 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String? labelText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+    String? hintText,
+    bool alignLabelWithHint = false,
+  }) {
+    return InputDecoration(
+      alignLabelWithHint: alignLabelWithHint,
+      labelText: labelText,
+      hintText: hintText,
+      labelStyle: const TextStyle(color: _muted, fontFamily: 'KurdishFont'),
+      hintStyle: TextStyle(
+        color: _muted.withValues(alpha: 0.65),
+        fontFamily: 'KurdishFont',
+      ),
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: _surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: _teal, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent),
       ),
     );
   }
@@ -351,55 +504,73 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildTextField({
+    Key? key,
     required TextEditingController controller,
+    FocusNode? focusNode,
     required String label,
     required IconData icon,
     bool isPassword = false,
+    bool isConfirmPassword = false,
+    bool englishPasswordOnly = false,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+    int maxLines = 1,
+    int? maxLength,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    void Function(String)? onChanged,
   }) {
+    final obscure = isConfirmPassword ? _obscureConfirm : _obscurePassword;
+
+    final formatters = <TextInputFormatter>[
+      if (englishPasswordOnly)
+        FilteringTextInputFormatter.allow(
+          RegExp(r'[a-zA-Z0-9!@#$%^&*()_+-=]'),
+        ),
+      ...?inputFormatters,
+    ];
+
+    final baseDecoration = _fieldDecoration(
+      alignLabelWithHint: maxLines > 1,
+      labelText: label,
+      prefixIcon: Icon(icon, color: _teal),
+      suffixIcon: isPassword
+          ? IconButton(
+              icon: Icon(
+                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: _muted,
+              ),
+              onPressed: () => setState(() {
+                if (isConfirmPassword) {
+                  _obscureConfirm = !_obscureConfirm;
+                } else {
+                  _obscurePassword = !_obscurePassword;
+                }
+              }),
+            )
+          : null,
+    );
+    final decoration = maxLength != null
+        ? baseDecoration.copyWith(counterText: '')
+        : baseDecoration;
+
     return TextFormField(
+      key: key,
       controller: controller,
-      obscureText: isPassword && _isObscured,
+      focusNode: focusNode,
+      obscureText: isPassword && obscure,
       keyboardType: keyboardType,
+      maxLines: isPassword ? 1 : maxLines,
+      maxLength: maxLength,
+      inputFormatters: formatters.isEmpty ? null : formatters,
+      textCapitalization: textCapitalization,
+      onChanged: onChanged,
       style: const TextStyle(
         color: _text,
         fontFamily: 'KurdishFont',
         fontWeight: FontWeight.w600,
       ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: _muted, fontFamily: 'KurdishFont'),
-        hintStyle: const TextStyle(color: _muted),
-        prefixIcon: Icon(icon, color: _teal),
-        filled: true,
-        fillColor: _surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.white10),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _teal, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.redAccent),
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  _isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: _muted,
-                ),
-                onPressed: () => setState(() => _isObscured = !_isObscured),
-              )
-            : null,
-      ),
+      decoration: decoration,
       validator: validator ??
           (value) => value == null || value.trim().isEmpty
               ? S.of(context).translate('validation_field_required')
