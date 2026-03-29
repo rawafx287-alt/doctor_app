@@ -1,60 +1,157 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'baxerhatn_login/login.dart';
-// هاوردەکردنی لاپەڕەکانی ناو فۆڵدەری nawarok
-import 'nawarok/listidoctorakan.dart';
-import 'nawarok/norakanimn.dart';
-import 'nawarok/notifications.dart';
-import 'nawarok/profile.dart';
+import 'package:flutter/material.dart';
+import 'bootstrap/ensure_shared_preferences_registered.dart';
+import 'firebase_options.dart';
+import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
+import 'package:flutter_application_1/nawarok/norakanimn.dart';
+import 'package:flutter_application_1/nawarok/notifications.dart';
+import 'package:flutter_application_1/nawarok/profile.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'locale/app_locale.dart';
+import 'locale/app_localizations.dart';
+import 'splash_screen.dart';
+import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(const DoctorApp());
+  ensureSharedPreferencesRegistered();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  final localeController = LocaleController();
+  await localeController.load();
+  runApp(HrNoraAppRoot(localeController: localeController));
 }
 
-class DoctorApp extends StatelessWidget {
-  const DoctorApp({super.key});
+class HrNoraAppRoot extends StatelessWidget {
+  const HrNoraAppRoot({super.key, required this.localeController});
 
-  static const Color _deepNavy = Color(0xFF102A43);
-  static const Color _slateBlue = Color(0xFF243B53);
-  static const Color _clinicalTeal = Color(0xFF2CB1BC);
-  static const Color _coolGray = Color(0xFF829AB1);
-  static const Color _softText = Color(0xFFD9E2EC);
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'نور بۆ پزیشکان',
-      theme: ThemeData(
+    final baseButtons = ButtonStyle(
+      shape: WidgetStateProperty.all(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      padding: WidgetStateProperty.all(
+        const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+      ),
+    );
+
+    return ListenableBuilder(
+      listenable: localeController,
+      builder: (context, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'HR Nora',
+          locale: localeController.materialLocale,
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ar'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            return AppLocaleScope(
+              notifier: localeController,
+              child: Directionality(
+                textDirection: localeController.textDirection,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
+          theme: ThemeData(
+        useMaterial3: true,
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: _deepNavy,
-        primaryColor: _clinicalTeal,
-        colorScheme: const ColorScheme.dark(
-          primary: _clinicalTeal,
-          secondary: Color(0xFF55DDE0),
-          surface: _slateBlue,
-          onPrimary: _softText,
-          onSecondary: _softText,
-          onSurface: _softText,
+        scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
+        primaryColor: HrNoraColors.primary,
+        colorScheme: ColorScheme.dark(
+          primary: HrNoraColors.primary,
+          onPrimary: Colors.white,
+          secondary: HrNoraColors.accentLight,
+          onSecondary: const Color(0xFF0D1B2A),
+          surface: HrNoraColors.primaryDeep,
+          onSurface: HrNoraColors.textSoft,
+          error: const Color(0xFFEF4444),
+          onError: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: _slateBlue,
-          foregroundColor: _softText,
+          backgroundColor: HrNoraColors.primaryDeep,
+          foregroundColor: HrNoraColors.textSoft,
           elevation: 0,
+          centerTitle: false,
         ),
-        cardColor: _slateBlue,
-        dividerColor: Color(0xFF334E68),
+        cardColor: HrNoraColors.primaryDeep,
+        dividerColor: const Color(0xFF334E68),
         textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: _softText),
-          bodyMedium: TextStyle(color: _softText),
-          titleLarge: TextStyle(color: _softText, fontWeight: FontWeight.w600),
-          labelLarge: TextStyle(color: _softText),
+          bodyLarge: TextStyle(color: HrNoraColors.textSoft),
+          bodyMedium: TextStyle(color: HrNoraColors.textSoft),
+          titleLarge: TextStyle(
+            color: HrNoraColors.textSoft,
+            fontWeight: FontWeight.w600,
+          ),
+          labelLarge: TextStyle(color: HrNoraColors.textSoft),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: baseButtons.copyWith(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return HrNoraColors.primary.withValues(alpha: 0.38);
+              }
+              return HrNoraColors.primary;
+            }),
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+            overlayColor: WidgetStateProperty.all(
+              Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: baseButtons.copyWith(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return HrNoraColors.primary.withValues(alpha: 0.38);
+              }
+              return HrNoraColors.primary;
+            }),
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: baseButtons.copyWith(
+            foregroundColor: WidgetStateProperty.all(HrNoraColors.accentLight),
+            side: WidgetStateProperty.all(
+              BorderSide(
+                color: HrNoraColors.accentLight.withValues(alpha: 0.65),
+                width: 1.2,
+              ),
+            ),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: HrNoraColors.accentLight,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: HrNoraColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        progressIndicatorTheme: const ProgressIndicatorThemeData(
+          color: HrNoraColors.accentLight,
         ),
       ),
-      // ئەپەکە لێرەوە دەستپێدەکات
-      home: const LoginScreen(),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
@@ -85,7 +182,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: DoctorApp._coolGray.withOpacity(0.35),
+              color: HrNoraColors.textMuted.withValues(alpha: 0.35),
               width: 0.5,
             ),
           ),
@@ -97,25 +194,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               _currentIndex = index;
             });
           },
-          backgroundColor: DoctorApp._slateBlue,
-          selectedItemColor: DoctorApp._clinicalTeal,
-          unselectedItemColor: DoctorApp._coolGray,
+          backgroundColor: HrNoraColors.primaryDeep,
+          selectedItemColor: HrNoraColors.accentLight,
+          unselectedItemColor: HrNoraColors.textMuted,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
-              label: 'سەرەتا',
+              icon: const Icon(Icons.home_filled),
+              label: S.of(context).translate('home'),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month),
-              label: 'نۆرەکانم',
+              icon: const Icon(Icons.calendar_month),
+              label: S.of(context).translate('appointments'),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'ئاگاداری',
+              icon: const Icon(Icons.notifications),
+              label: S.of(context).translate('notifications'),
             ),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'پڕۆفایل'),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.person),
+              label: S.of(context).translate('profile'),
+            ),
           ],
         ),
       ),

@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -38,6 +40,18 @@ dependencies:
   firebase_auth: ^6.3.0
   cloud_firestore: ^6.2.0
   intl: ^0.20.2
+  image_picker: ^1.2.1
+  firebase_storage: ^13.2.0
+  shared_preferences: ^2.5.3
+  # Direct deps for [ensureSharedPreferencesRegistered] (also pulled by shared_preferences).
+  path_provider_linux: ^2.2.1
+  path_provider_windows: ^2.3.0
+  shared_preferences_android: ^2.4.23
+  shared_preferences_foundation: ^2.5.6
+  shared_preferences_linux: ^2.4.1
+  shared_preferences_windows: ^2.4.1
+  url_launcher: ^6.3.1
+  table_calendar: ^3.2.0
 
 dev_dependencies:
   flutter_test:
@@ -49,6 +63,20 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# App launcher icons (Android + iOS). Place source PNG at assets/images/app_icon.png
+# then run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/app_icon.png
+  min_sdk_android: 21
+  # Android adaptive icon: background layer + foreground (use same art or a trimmed foreground PNG)
+  adaptive_icon_background: "#0D47A1"
+  adaptive_icon_foreground: assets/images/app_icon.png
+  # Optional: separate foreground with transparency for a cleaner adaptive mask
+  # adaptive_icon_foreground: assets/images/app_icon_foreground.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -61,10 +89,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

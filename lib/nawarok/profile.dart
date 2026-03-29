@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
+import '../doctor/profile_settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -16,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -42,13 +44,35 @@ class ProfileScreen extends StatelessWidget {
                     Positioned(
                       bottom: 5,
                       right: 5,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Colors.blueAccent,
-                          shape: BoxShape.circle,
+                      child: Material(
+                        color: Colors.blueAccent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () {
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'تکایە بچۆ ژوورەوە بۆ گۆڕینی وێنە',
+                                    style: TextStyle(fontFamily: 'KurdishFont'),
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ProfileSettingsScreen(),
+                              ),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(Icons.camera_alt, size: 20, color: Colors.white),
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
                       ),
                     ),
                   ],

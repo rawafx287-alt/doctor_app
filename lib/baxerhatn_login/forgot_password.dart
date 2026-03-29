@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'otp_verification.dart';
 
-import '../app_rtl.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -43,7 +44,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: Form(
           key: _formKey,
           child: Padding(
@@ -52,18 +53,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                const Text(
-                  'لەبیرکردنەوەی وشەی نهێنی',
-                  style: TextStyle(
+                Text(
+                  S.of(context).translate('forgot_password_title'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'ئیمەیڵ یان ژمارەی تەلەفۆن بنووسە بۆ ناردنی کۆدی پشتڕاستکردنەوە.',
-                  style: TextStyle(color: Colors.grey, fontSize: 15),
+                Text(
+                  S.of(context).translate('forgot_password_body'),
+                  style: const TextStyle(color: Colors.grey, fontSize: 15),
                 ),
                 const SizedBox(height: 26),
                 Container(
@@ -77,16 +78,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: const TextStyle(color: Colors.white),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'تکایە ئیمەیڵ یان ژمارەی تەلەفۆن بنووسە';
+                        return S.of(context).translate('validation_contact_required');
                       }
                       return null;
                     },
-                    decoration: const InputDecoration(
-                      hintText: 'ئیمەیڵ یان ژمارەی تەلەفۆن',
-                      hintStyle: TextStyle(color: Colors.grey),
+                    decoration: InputDecoration(
+                      hintText: S.of(context).translate('hint_contact_forgot'),
+                      hintStyle: const TextStyle(color: Colors.grey),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 18),
-                      prefixIcon: Icon(Icons.alternate_email, color: Colors.blueAccent),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                      prefixIcon: const Icon(Icons.alternate_email, color: Colors.blueAccent),
                     ),
                   ),
                 ),
@@ -100,9 +101,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                   onPressed: _sendCode,
-                  child: const Text(
-                    'ناردنی کۆد',
-                    style: TextStyle(
+                  child: Text(
+                    S.of(context).translate('send_code'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

@@ -7,9 +7,15 @@ allprojects {
     }
 }
 
+<<<<<<< HEAD
 // Keep main Flutter APK output at <project>/build/app (Flutter tooling expects this).
 // Move *plugin* module intermediates to LOCALAPPDATA so OneDrive does not lock
 // build/firebase_auth, build/cloud_firestore, etc. during Gradle deletes.
+=======
+// Keep Flutter APK output at <project>/build/app/outputs/...
+// Move plugin modules (firebase_auth, cloud_firestore, etc.) to LOCALAPPDATA
+// so OneDrive/antivirus do not lock build/firebase_auth/... during Gradle deletes.
+>>>>>>> 4d879aa05e50f5d2db3a2e7c6a92215aa64c62e6
 val androidDir: File = rootProject.layout.projectDirectory.asFile
 val flutterProjectBuild: File = File(androidDir.parentFile, "build").apply { mkdirs() }
 val pluginBuildRoot: File =

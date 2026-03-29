@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-import '../app_rtl.dart';
-import '../main.dart';
+import '../locale/app_locale.dart';
+import '../patient/patient_home_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   const OtpVerificationScreen({super.key});
@@ -71,7 +71,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => const MainNavigationScreen(),
+        builder: (context) => const PatientHomeScreen(),
       ),
       (route) => false,
     );
@@ -90,7 +90,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         ),
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Column(

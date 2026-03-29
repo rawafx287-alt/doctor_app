@@ -1,16 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../main.dart'; // بۆ ئەوەی دوای لۆگین بچێت بۆ شاشەی سەرەکی
+import '../auth/auth_navigation.dart';
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
-import '../admin_panel/admin_dashboard.dart';
-import '../doctor/doctor_home_screen.dart';
-import '../patient/patient_home_screen.dart';
-import '../app_rtl.dart';
+
+String _authErrorMessage(BuildContext context, String code) {
+  final s = S.of(context);
+  switch (code) {
+    case 'invalid-email':
+      return s.translate('auth_err_invalid_email');
+    case 'invalid-credential':
+    case 'wrong-password':
+    case 'user-not-found':
+      return s.translate('auth_err_wrong_credential');
+    case 'user-disabled':
+      return s.translate('auth_err_user_disabled');
+    case 'too-many-requests':
+      return s.translate('auth_err_too_many_requests');
+    case 'network-request-failed':
+      return s.translate('auth_err_network');
+    default:
+      return s.translate('auth_err_generic');
+  }
+}
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.showBackButton = true});
+
+  /// When false (e.g. root [AuthGate]), hides back — nothing to pop.
+  final bool showBackButton;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -36,38 +57,41 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
       ),
       body: Directionality(
-        textDirection: kRtlTextDirection,
+        textDirection: AppLocaleScope.of(context).textDirection,
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text(
-                'بچۆ ژوورەوە',
-                style: TextStyle(
+              Text(
+                S.of(context).translate('login'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 35,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'تکایە زانیارییەکانت بنووسە بۆ بەردەوامبوون',
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+              Text(
+                S.of(context).translate('login_subtitle'),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
               const SizedBox(height: 50),
 
               // خانەی ژمارەی مۆبایل
               _buildTextField(
                 controller: _contactController,
-                hint: 'ئیمەیڵ یان ژمارەی مۆبایل',
+                hint: S.of(context).translate('hint_email_or_phone'),
                 icon: Icons.alternate_email,
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -76,13 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
               // خانەی وشەی نهێنی
               _buildTextField(
                 controller: _passwordController,
-                hint: 'وشەی نهێنی',
+                hint: S.of(context).translate('hint_password'),
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
               ),
 
               Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: TextButton(
                   onPressed: () {
                     Navigator.push(
@@ -92,9 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    'وشەی نهێنیت لەبیرچووە؟',
-                    style: TextStyle(color: Colors.blueAccent),
+                  child: Text(
+                    S.of(context).translate('forgot_password'),
+                    style: const TextStyle(color: Colors.blueAccent),
                   ),
                 ),
               ),
@@ -111,9 +135,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   elevation: 5,
                 ),
                 onPressed: _isLoading ? null : _handleLogin,
-                child: const Text(
-                  'چوونە ژوورەوە',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                child: Text(
+                  S.of(context).translate('sign_in'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               
@@ -123,7 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('هەژمارت نییە؟ ', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    S.of(context).translate('no_account'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -133,9 +164,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: const Text(
-                      'هەژمار دروست بکە',
-                      style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                    child: Text(
+                      S.of(context).translate('sign_up'),
+                      style: const TextStyle(
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -153,7 +187,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     if (emailOrPhone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تکایە زانیارییەکان پڕ بکەرەوە')),
+        SnackBar(
+          content: Text(
+            S.of(context).translate('fill_fields'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
       return;
     }
@@ -171,64 +210,36 @@ class _LoginScreenState extends State<LoginScreen> {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('هەژمار نەدۆزرایەوە')),
+          SnackBar(
+            content: Text(
+              S.of(context).translate('account_not_found'),
+              style: const TextStyle(fontFamily: 'KurdishFont'),
+            ),
+          ),
         );
         return;
       }
 
       final data = doc.data() ?? {};
-      final role = (data['role'] ?? '').toString();
-      final isApproved = data['isApproved'] == true;
-
-      if (role == 'Doctor' && !isApproved) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account pending approval')),
-        );
-        return;
-      }
-
       if (!mounted) return;
-      if (role == 'Admin') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminDashboard()),
-          (route) => false,
-        );
-      } else if (role == 'Doctor') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-          (route) => false,
-        );
-      } else if (role == 'Patient') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const PatientHomeScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-          (route) => false,
-        );
-      }
+      await navigateAfterLogin(context, data);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final msg = switch (e.code) {
-        'invalid-email' => 'ئیمەیڵەکە دروست نییە',
-        'invalid-credential' => 'ئیمەیڵ یان وشەی نهێنی هەڵەیە',
-        'user-not-found' => 'هەژمار نەدۆزرایەوە',
-        'wrong-password' => 'وشەی نهێنی هەڵەیە',
-        _ => 'هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final msg = _authErrorMessage(context, e.code);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg, style: const TextStyle(fontFamily: 'KurdishFont')),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هەڵەیەک ڕوویدا، دووبارە هەوڵ بدەرەوە')),
+        SnackBar(
+          content: Text(
+            S.of(context).translate('error_generic'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
