@@ -8,7 +8,6 @@ import '../firestore/available_days_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
-import 'my_appointments_screen.dart';
 
 /// Final step before committing an [available_days] booking (patient).
 /// Shows only **available vs booked** per slot (no other patients' names).
@@ -58,15 +57,25 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            content: Text(
-              s.translate(
-                'booking_time_confirm_prompt',
-                params: {'time': timeDisplay},
-              ),
-              style: const TextStyle(
-                fontFamily: 'KurdishFont',
-                color: Color(0xFF829AB1),
-                height: 1.45,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    s.translate(
+                      'booking_time_confirm_prompt',
+                      params: {'time': timeDisplay},
+                    ),
+                    style: const TextStyle(
+                      fontFamily: 'KurdishFont',
+                      color: Color(0xFF829AB1),
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _BookingConfirmLegalNotice(s: s),
+                ],
               ),
             ),
             actions: [
@@ -196,11 +205,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       );
 
       if (!mounted || !context.mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute<void>(builder: (_) => const MyAppointmentsScreen()),
-        (route) => false,
-      );
+      // Return to patient dashboard (home under AuthGate), not My Appointments.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -425,7 +431,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         'booking_summary_doctor',
                                       ),
                                       value: doctorName,
-                                      valueColor: const Color(0xFF7DD3FC),
+                                      valueColor: const Color(0xFFF59E0B),
                                       valueFontSize: 18,
                                     ),
                                   ),
@@ -597,6 +603,58 @@ String _localizedDigitString(BuildContext context, int n) {
   return '$n';
 }
 
+/// Legal warning: red border, gavel icon, bold red emphasis phrase (above Confirm).
+class _BookingConfirmLegalNotice extends StatelessWidget {
+  const _BookingConfirmLegalNotice({required this.s});
+
+  final AppLocalizations s;
+
+  static const Color _borderRed = Color(0xFFDC2626);
+  static const Color _emphasisRed = Color(0xFFE53935);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderRed, width: 2),
+        color: const Color(0xFF2A0A0A).withValues(alpha: 0.4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.gavel, color: _borderRed, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: Color(0xFFE2E8F0),
+                  height: 1.55,
+                  fontSize: 13.5,
+                ),
+                children: [
+                  TextSpan(text: s.translate('booking_confirm_legal_notice_prefix')),
+                  TextSpan(
+                    text: s.translate('booking_confirm_legal_notice_emphasis'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: _emphasisRed,
+                    ),
+                  ),
+                  TextSpan(text: s.translate('booking_confirm_legal_notice_suffix')),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Booked (red) + `/` total capacity (green), with remaining-spots sentence below.
 class _BookingCapacityStats extends StatelessWidget {
   const _BookingCapacityStats({
@@ -609,7 +667,7 @@ class _BookingCapacityStats extends StatelessWidget {
   final String totalText;
   final String sublabel;
 
-  static const Color _bookedRed = Color(0xFFDC2626);
+  static const Color _bookedRed = Color(0xFFB91C1C);
   static const Color _capGreen = Color(0xFF22C55E);
 
   @override
@@ -628,8 +686,8 @@ class _BookingCapacityStats extends StatelessWidget {
                 bookedText,
                 style: const TextStyle(
                   fontFamily: 'KurdishFont',
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
                   color: _bookedRed,
                   height: 1,
                 ),
@@ -638,7 +696,7 @@ class _BookingCapacityStats extends StatelessWidget {
                 ' / ',
                 style: TextStyle(
                   fontFamily: 'KurdishFont',
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF64748B),
                   height: 1,
@@ -648,7 +706,7 @@ class _BookingCapacityStats extends StatelessWidget {
                 totalText,
                 style: const TextStyle(
                   fontFamily: 'KurdishFont',
-                  fontSize: 30,
+                  fontSize: 34,
                   fontWeight: FontWeight.w800,
                   color: _capGreen,
                   height: 1,

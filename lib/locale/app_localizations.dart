@@ -1609,6 +1609,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'سيكون موعدك في الساعة ({time}). هل تؤكد الحجز؟',
     'en': 'Your slot will be at {time}. Confirm booking?',
   },
+  'booking_confirm_legal_notice_prefix': {
+    'ckb':
+        'تێبینی: تۆمارکردنی نۆرەی وەهمی و بێمانا بە سیستەمەکە، دەبێتە هۆی بلۆککردنی هەمیشەیی ژمارەکەت و ڕووبەڕووی ',
+    'ar':
+        'ملاحظة: إن حجز موعد وهمي وبلا مبرر عبر النظام قد يؤدي إلى حظر رقمك نهائيًا ومواجهة ',
+    'en':
+        'Note: Booking a fraudulent or meaningless appointment through the system may result in permanent blocking of your number and facing ',
+  },
+  'booking_confirm_legal_notice_emphasis': {
+    'ckb': 'لێپرسینەوەی یاسایی',
+    'ar': 'المساءلة القانونية',
+    'en': 'legal consequences',
+  },
+  'booking_confirm_legal_notice_suffix': {
+    'ckb': ' دەبیتەوە.',
+    'ar': '.',
+    'en': '.',
+  },
   'patient_booking_slots_privacy_title': {
     'ckb': 'کاتەکان — تەنها بەتاڵ / گیراوە',
     'ar': 'المواعيد — متاح أو محجوز فقط',

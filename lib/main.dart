@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'bootstrap/ensure_shared_preferences_registered.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
-import 'package:flutter_application_1/nawarok/norakanimn.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -169,7 +168,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const ListiDoctorakanScreen(),
-    const NorekaniMinScreen(),
     const NotificationsScreen(),
     const ProfileScreen(),
   ];
@@ -203,10 +201,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             BottomNavigationBarItem(
               icon: const Icon(Icons.home_filled),
               label: S.of(context).translate('home'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.calendar_month),
-              label: S.of(context).translate('appointments'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.notifications),

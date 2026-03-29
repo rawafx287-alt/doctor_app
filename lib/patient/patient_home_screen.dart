@@ -8,7 +8,6 @@ import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
-import 'my_appointments_screen.dart';
 import 'patient_doctor_card.dart';
 import 'patient_hospitals_browse_tab.dart';
 import 'patient_profile_screen.dart';
@@ -27,7 +26,7 @@ class PatientHomeScreen extends StatefulWidget {
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  /// Bottom nav: 0 home, 1 appointments, 2 hospitals, 3 profile
+  /// Bottom nav: 0 home, 1 hospitals, 2 profile
   int _bottomNavIndex = 0;
 
   String _selectedCategory = kPatientSpecialtyAllKey;
@@ -356,8 +355,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             _bottomNavIndex == 0
                 ? S.of(context).translate('app_display_name')
                 : _bottomNavIndex == 1
-                ? S.of(context).translate('appointments')
-                : _bottomNavIndex == 2
                 ? S.of(context).translate('hospitals_section')
                 : S.of(context).translate('profile'),
             style: _bottomNavIndex == 0
@@ -385,7 +382,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               },
               icon: const Icon(Icons.chat_outlined),
             ),
-            if (_bottomNavIndex != 3)
+            if (_bottomNavIndex != 2)
               IconButton(
                 tooltip: S.of(context).translate('tooltip_logout'),
                 onPressed: _logout,
@@ -398,7 +395,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             index: _bottomNavIndex,
             children: [
               PatientHomeContent._(this),
-              const PatientAppointmentsScreen(embedded: true),
               const PatientHospitalsBrowseTab(),
               const PatientProfileScreen(),
             ],
@@ -433,10 +429,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               BottomNavigationBarItem(
                 icon: const Icon(Icons.home_filled),
                 label: S.of(context).translate('home'),
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.calendar_month),
-                label: S.of(context).translate('appointments'),
               ),
               BottomNavigationBarItem(
                 icon: const Icon(Icons.local_hospital_rounded),

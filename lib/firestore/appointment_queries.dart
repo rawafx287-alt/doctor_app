@@ -15,6 +15,9 @@ abstract final class AppointmentFields {
   static const String status = 'status';
   static const String patientId = 'patientId';
 
+  /// Same value as [patientId] for patient-owned rows; matches composite indexes using `userId`.
+  static const String userId = 'userId';
+
   /// Other document keys (not part of the default composite index).
   static const String doctorName = 'doctorName';
   static const String patientName = 'patientName';
@@ -181,39 +184,35 @@ Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
   });
 }
 
-/// Patient's appointments: optional filter to one **local** calendar [dateLocalDay].
+/// When `true`, only `where('userId', isEqualTo: uid)` (no `orderBy`) — use if
+/// `failed-precondition` still appears with the indexed query below.
+const bool kPatientAppointmentsWhereOnlyNoOrderBy = false;
+
+/// Patient appointments for the signed-in user.
 ///
-/// [AppointmentFields.date] in this app is stored as [Timestamp] (local midnight per
-/// [create_patient_appointment] / doctor flows). Filter: start of day … end of day inclusive.
+/// Matches composite index: **`userId` (Asc), `date` (Asc), `time` (Asc)**:
 ///
-/// Firebase composite index (if prompted): collection `appointments` —
-/// `patientId` Ascending, `date` Ascending.
+/// ```dart
+/// collection('appointments')
+///   .where('userId', isEqualTo: patientUid)
+///   .orderBy('date', descending: false)
+///   .orderBy('time', descending: false)
+/// ```
 ///
-/// Legacy string dates (`yyyy/MM/dd`) are not matched by this query; use “هەموو نۆرەکان”
-/// or migrate documents to [Timestamp].
+/// [dateLocalDay] is **not** applied in Firestore (range + `orderBy` can require a
+/// different index). Filter “today” in [PatientAppointmentsScreen] instead.
+///
+/// Legacy docs without [userId]: backfill from [patientId] or they will not appear.
 Query<Map<String, dynamic>> patientAppointmentsQuery({
   required String patientUid,
   DateTime? dateLocalDay,
 }) {
-  var q = FirebaseFirestore.instance
-      .collection(AppointmentFields.collection)
-      .where(AppointmentFields.patientId, isEqualTo: patientUid);
-  if (dateLocalDay != null) {
-    final y = dateLocalDay.year;
-    final m = dateLocalDay.month;
-    final d = dateLocalDay.day;
-    final startOfToday = DateTime(y, m, d);
-    final endOfToday = DateTime(y, m, d, 23, 59, 59, 999);
-    q = q
-        .where(
-          AppointmentFields.date,
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday),
-        )
-        .where(
-          AppointmentFields.date,
-          isLessThanOrEqualTo: Timestamp.fromDate(endOfToday),
-        )
-        .orderBy(AppointmentFields.date, descending: false);
+  final col = FirebaseFirestore.instance.collection(AppointmentFields.collection);
+  final w = col.where(AppointmentFields.userId, isEqualTo: patientUid);
+  if (kPatientAppointmentsWhereOnlyNoOrderBy) {
+    return w;
   }
-  return q;
+  return w
+      .orderBy(AppointmentFields.date, descending: false)
+      .orderBy(AppointmentFields.time, descending: false);
 }

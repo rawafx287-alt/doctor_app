@@ -41,6 +41,9 @@ DateTime? _parseAppointmentDate(dynamic value) {
   }
 }
 
+bool _isSameCalendarDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
 /// Minutes from midnight for [AppointmentFields.time] keys like `09:30`; unknown → large value (last).
 int _appointmentTimeSortMinutes(dynamic timeVal) {
   final s = (timeVal ?? '').toString().trim();
@@ -768,7 +771,7 @@ void _openTicketPreview(
 }
 
 /// Patient view: نۆرەکانم — lists [appointments] for the signed-in user.
-/// Set [embedded] to true when used inside [PatientHomeScreen] bottom tab (no [Scaffold]/[AppBar]).
+/// Set [embedded] to true when used inside a parent shell without a root [Scaffold]/[AppBar].
 class PatientAppointmentsScreen extends StatefulWidget {
   const PatientAppointmentsScreen({super.key, this.embedded = false});
 
@@ -851,6 +854,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            // Indexed query: `userId` + `orderBy(date).orderBy(time)` — see [patientAppointmentsQuery].
             stream: patientAppointmentsQuery(
               patientUid: uid,
               dateLocalDay: _todayOnly ? _todayAnchor : null,
@@ -879,7 +883,16 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   ),
                 );
               }
-              final docs = snapshot.data?.docs ?? [];
+              var docs =
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                snapshot.data?.docs ?? [],
+              );
+              if (_todayOnly) {
+                docs = docs.where((d) {
+                  final day = _parseAppointmentDate(d.data()[AppointmentFields.date]);
+                  return day != null && _isSameCalendarDay(day, _todayAnchor);
+                }).toList();
+              }
               final sorted =
                   List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
               if (_todayOnly) {
