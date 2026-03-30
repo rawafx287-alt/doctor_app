@@ -41,7 +41,23 @@ class PatientDoctorCard extends StatelessWidget {
       child: InkWell(
         onTap: onOpenDetails,
         borderRadius: BorderRadius.circular(20),
-        child: ClipRRect(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
@@ -153,6 +169,7 @@ class PatientDoctorCard extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

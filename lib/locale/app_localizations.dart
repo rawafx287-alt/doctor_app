@@ -846,6 +846,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الدعم',
     'en': 'Support',
   },
+  'patient_home_menu_feedback': {
+    'ckb': 'بۆچوونەکان',
+    'ar': 'ملاحظات',
+    'en': 'Feedback',
+  },
   'tooltip_logout': {
     'ckb': 'چوونەدەرەوە',
     'ar': 'تسجيل الخروج',

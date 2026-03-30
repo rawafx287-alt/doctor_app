@@ -16,9 +16,68 @@ import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'my_appointments_screen.dart';
 
-/// Sticky header heights for [NestedScrollView] + [SliverPersistentHeader].
+/// Sticky header heights for [SliverPersistentHeader].
 const double _kHomeSearchHeaderExtent = 56;
-const double _kHomeSpecialtiesHeaderExtent = 104;
+const double _kHomeSpecialtiesHeaderExtent = 110;
+
+/// Soft tinted glass per specialty chip (distinct hue, still frosted).
+Color _categorySoftTint(String catKey) {
+  switch (catKey) {
+    case kPatientSpecialtyAllKey:
+      return const Color(0xFF80CBC4);
+    case 'dentist_specialty':
+      return const Color(0xFF90CAF9);
+    case 'cardiology_specialty':
+      return const Color(0xFFEF9A9A);
+    case 'orthopedics_specialty':
+      return const Color(0xFFFFCC80);
+    case 'pediatrics_specialty':
+      return const Color(0xFFF48FB1);
+    case 'ent_specialty':
+      return const Color(0xFFCE93D8);
+    case 'ophthalmology_specialty':
+      return const Color(0xFF9FA8DA);
+    case 'dermatology_specialty':
+      return const Color(0xFFF8BBD9);
+    case 'neurology_specialty':
+      return const Color(0xFFB39DDB);
+    case 'obgyn_specialty':
+      return const Color(0xFFFFAB91);
+    case 'gastroenterology_specialty':
+      return const Color(0xFFA5D6A7);
+    default:
+      return const Color(0xFFB3E5FC);
+  }
+}
+
+Color _categoryAccentIcon(String catKey) {
+  switch (catKey) {
+    case kPatientSpecialtyAllKey:
+      return const Color(0xFF00796B);
+    case 'dentist_specialty':
+      return const Color(0xFF1565C0);
+    case 'cardiology_specialty':
+      return const Color(0xFFC62828);
+    case 'orthopedics_specialty':
+      return const Color(0xFFEF6C00);
+    case 'pediatrics_specialty':
+      return const Color(0xFFAD1457);
+    case 'ent_specialty':
+      return const Color(0xFF6A1B9A);
+    case 'ophthalmology_specialty':
+      return const Color(0xFF283593);
+    case 'dermatology_specialty':
+      return const Color(0xFFC2185B);
+    case 'neurology_specialty':
+      return const Color(0xFF4527A0);
+    case 'obgyn_specialty':
+      return const Color(0xFFD84315);
+    case 'gastroenterology_specialty':
+      return const Color(0xFF2E7D32);
+    default:
+      return const Color(0xFF1976D2);
+  }
+}
 
 /// Sky blue glass patient shell.
 const Color _kSkyTop = Color(0xFFE1F5FE);
@@ -35,19 +94,17 @@ class _GlassPanel extends StatelessWidget {
   const _GlassPanel({
     required this.borderRadius,
     required this.child,
-    this.blurSigma = 22,
   });
 
   final BorderRadius borderRadius;
   final Widget child;
-  final double blurSigma;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: borderRadius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: _kGlassWhite,
@@ -180,31 +237,33 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 92,
+          height: 68,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             scrollDirection: Axis.horizontal,
             itemCount: patientSpecialtyFilterCategoryKeys.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (context, index) => const SizedBox(width: 6),
             itemBuilder: (context, index) {
               final catKey = patientSpecialtyFilterCategoryKeys[index];
               final selected = _selectedCategory == catKey;
-              const accent = _kVibrantBlue;
+              final soft = _categorySoftTint(catKey);
+              final acc = _categoryAccentIcon(catKey);
               return InkWell(
                 onTap: () => setState(() => _selectedCategory = catKey),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
-                  width: 72,
+                  width: 58,
                   child: Column(
                     children: [
                       _CategoryGlassOrb(
                         icon: iconForSpecialtyCategoryKey(catKey),
                         selected: selected,
-                        accent: accent,
+                        softTint: soft,
+                        accent: acc,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         S.of(context).translate(catKey),
                         maxLines: 1,
@@ -215,8 +274,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                           fontWeight: selected
                               ? FontWeight.w700
                               : FontWeight.w500,
-                          fontSize: 10,
-                          color: selected ? _kDarkBlue : _kMutedGrey,
+                          fontSize: 9,
+                          color: selected ? acc : _kMutedGrey,
                         ),
                       ),
                     ],
@@ -398,82 +457,108 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     return parts.isNotEmpty ? parts.first : '—';
   }
 
-  Widget _buildPatientWelcomeHeader(BuildContext context) {
-    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
-    if (docId.isEmpty) return const SizedBox.shrink();
+  /// Centered app title + overflow menu (profile / feedback / sign out).
+  Widget _buildAppTopBar(BuildContext context) {
+    final s = S.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('users').doc(docId).snapshots(),
-        builder: (context, snap) {
-          final first = _firstNameFromProfile(snap.data?.data());
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
+      padding: const EdgeInsets.fromLTRB(0, 2, 4, 6),
+      child: Row(
+        children: [
+          const SizedBox(width: 44),
+          Expanded(
+            child: Text(
+              s.translate('app_display_name'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                letterSpacing: 0.5,
+                color: _kDarkBlue,
+              ),
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
+            onSelected: (value) async {
+              if (!context.mounted) return;
+              if (value == 'profile') {
+                setState(() => _bottomNavIndex = 2);
+              } else if (value == 'feedback') {
+                await Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const ContactSupportScreen(),
+                  ),
+                );
+              } else if (value == 'logout') {
+                await _logout();
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'profile',
                 child: Text(
-                  S.of(context).translate(
-                    'patient_home_greeting',
-                    params: {'name': first},
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  s.translate('profile'),
+                  style: const TextStyle(fontFamily: 'KurdishFont'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'feedback',
+                child: Text(
+                  s.translate('patient_home_menu_feedback'),
+                  style: const TextStyle(fontFamily: 'KurdishFont'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'logout',
+                child: Text(
+                  s.translate('logout'),
                   style: const TextStyle(
-                    color: _kDarkBlue,
                     fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    letterSpacing: 0.15,
-                    height: 1.2,
+                    color: Color(0xFFB91C1C),
                   ),
-                ),
-              ),
-              IconButton(
-                tooltip: S.of(context).translate('tooltip_support'),
-                onPressed: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) => const ContactSupportScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.chat_outlined,
-                  color: _kVibrantBlue,
-                ),
-              ),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _bottomNavIndex = 2),
-                  borderRadius: BorderRadius.circular(28),
-                  child: _GlassPanel(
-                    borderRadius: BorderRadius.circular(28),
-                    blurSigma: 18,
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: _kVibrantBlue,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: S.of(context).translate('tooltip_logout'),
-                onPressed: _logout,
-                icon: const Icon(
-                  Icons.logout_rounded,
-                  color: _kMutedGrey,
                 ),
               ),
             ],
-          );
-        },
+          ),
+        ],
       ),
+    );
+  }
+
+  /// Greeting above search (scrolls with home content).
+  Widget _buildHomeGreetingBanner(BuildContext context) {
+    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    if (docId.isEmpty) return const SizedBox.shrink();
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(docId)
+          .snapshots(),
+      builder: (context, snap) {
+        final first = _firstNameFromProfile(snap.data?.data());
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              S.of(context).translate(
+                'patient_home_greeting',
+                params: {'name': first},
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _kCharcoal,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                height: 1.25,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -562,27 +647,26 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             ),
           ),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SafeArea(
-              bottom: false,
-              child: _bottomNavIndex == 0
-                  ? _buildPatientWelcomeHeader(context)
-                  : const SizedBox.shrink(),
-            ),
-            Expanded(
-              child: IndexedStack(
-                index: _bottomNavIndex,
-                children: [
-                  PatientHomeContent._(this),
-                  const PatientAppointmentsScreen(embedded: true),
-                  const PatientProfileScreen(),
-                ],
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SafeArea(
+                bottom: false,
+                child: _buildAppTopBar(context),
               ),
-            ),
-            _buildGlassBottomNav(context),
-          ],
-        ),
+              Expanded(
+                child: IndexedStack(
+                  index: _bottomNavIndex,
+                  sizing: StackFit.expand,
+                  children: [
+                    PatientHomeContent._(this),
+                    const PatientAppointmentsScreen(embedded: true),
+                    const PatientProfileScreen(),
+                  ],
+                ),
+              ),
+              _buildGlassBottomNav(context),
+            ],
+          ),
         ),
       ),
     );
@@ -597,6 +681,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           key: const ValueKey<String>('home_doctors_scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            SliverToBoxAdapter(child: _buildHomeGreetingBanner(context)),
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickySectionDelegate(
@@ -679,40 +764,52 @@ class PatientHomeContent extends StatelessWidget {
   Widget build(BuildContext context) => _state._buildHomeContent();
 }
 
-/// Circular glass orb (same language-flag language as language picker).
+/// Circular glass orb with per-category soft tint.
 class _CategoryGlassOrb extends StatelessWidget {
   const _CategoryGlassOrb({
     required this.icon,
     required this.selected,
+    required this.softTint,
     required this.accent,
   });
 
   final IconData icon;
   final bool selected;
+  final Color softTint;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    final base = Colors.white.withValues(alpha: selected ? 0.4 : 0.26);
+    final fill = Color.alphaBlend(
+      softTint.withValues(alpha: selected ? 0.48 : 0.34),
+      base,
+    );
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: 44,
+      height: 44,
       child: ClipOval(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: selected
-                  ? Colors.white.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.35),
+              color: fill,
               border: Border.all(
                 color: selected ? accent : _kGlassBorder,
                 width: selected ? 2 : 0.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.07),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Icon(
               icon,
-              size: 26,
+              size: 20,
               color: selected ? accent : _kMutedGrey,
             ),
           ),
