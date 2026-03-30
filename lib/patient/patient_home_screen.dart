@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../auth/app_logout.dart';
 import '../auth/firestore_user_doc_id.dart';
@@ -176,41 +177,46 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   Widget _buildThinSearchBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: _GlassPanel(
-        borderRadius: BorderRadius.circular(14),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (_) => setState(() {}),
-          textAlign: TextAlign.start,
-          style: const TextStyle(
-            color: _kCharcoal,
-            fontFamily: 'KurdishFont',
-            fontSize: 14,
-            height: 1.2,
-          ),
-          cursorColor: _kVibrantBlue,
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: S.of(context).translate('search_doctors_hint'),
-            hintStyle: TextStyle(
-              color: _kMutedGrey.withValues(alpha: 0.9),
-              fontFamily: 'KurdishFont',
-              fontSize: 13,
-            ),
-            prefixIcon: const Icon(
-              Icons.search_rounded,
-              color: _kVibrantBlue,
-              size: 20,
-            ),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 40,
-              minHeight: 36,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 10,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: _GlassPanel(
+            borderRadius: BorderRadius.circular(14),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              textAlign: TextAlign.start,
+              style: const TextStyle(
+                color: _kCharcoal,
+                fontFamily: 'KurdishFont',
+                fontSize: 14,
+                height: 1.2,
+              ),
+              cursorColor: _kVibrantBlue,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: S.of(context).translate('search_doctors_hint'),
+                hintStyle: TextStyle(
+                  color: _kMutedGrey.withValues(alpha: 0.9),
+                  fontFamily: 'KurdishFont',
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: _kVibrantBlue,
+                  size: 20,
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 36,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+              ),
             ),
           ),
         ),
@@ -460,66 +466,111 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   /// Centered app title + overflow menu (profile / feedback / sign out).
   Widget _buildAppTopBar(BuildContext context) {
     final s = S.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 2, 4, 6),
-      child: Row(
-        children: [
-          const SizedBox(width: 44),
-          Expanded(
-            child: Text(
-              s.translate('app_display_name'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-                letterSpacing: 0.5,
-                color: _kDarkBlue,
+    final title = s.translate('app_display_name');
+    final titleStyle = GoogleFonts.poppins(
+      fontWeight: FontWeight.w900,
+      fontSize: 22,
+      letterSpacing: 0.2,
+      color: _kDarkBlue,
+    );
+
+    Widget menuRow({
+      required IconData icon,
+      required String text,
+      required Color iconColor,
+      required Color textColor,
+    }) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 10),
+            Text(
+              text,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textColor,
               ),
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
-            onSelected: (value) async {
-              if (!context.mounted) return;
-              if (value == 'profile') {
-                setState(() => _bottomNavIndex = 2);
-              } else if (value == 'feedback') {
-                await Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (context) => const ContactSupportScreen(),
-                  ),
-                );
-              } else if (value == 'logout') {
-                await _logout();
-              }
-            },
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Text(
-                  s.translate('profile'),
-                  style: const TextStyle(fontFamily: 'KurdishFont'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'feedback',
-                child: Text(
-                  s.translate('patient_home_menu_feedback'),
-                  style: const TextStyle(fontFamily: 'KurdishFont'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'logout',
-                child: Text(
-                  s.translate('logout'),
-                  style: const TextStyle(
-                    fontFamily: 'KurdishFont',
-                    color: Color(0xFFB91C1C),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 12, 6),
+      child: Row(
+        children: [
+          Text(title, style: titleStyle),
+          const Spacer(),
+          Theme(
+            data: Theme.of(context).copyWith(
+              popupMenuTheme: PopupMenuThemeData(
+                color: Colors.white.withValues(alpha: 0.92),
+                elevation: 12,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    width: 0.5,
                   ),
                 ),
               ),
-            ],
+            ),
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
+              offset: const Offset(0, 46),
+              onSelected: (value) async {
+                if (!context.mounted) return;
+                if (value == 'profile') {
+                  setState(() => _bottomNavIndex = 2);
+                } else if (value == 'feedback') {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const ContactSupportScreen(),
+                    ),
+                  );
+                } else if (value == 'logout') {
+                  await _logout();
+                }
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem<String>(
+                  value: 'profile',
+                  padding: EdgeInsets.zero,
+                  child: menuRow(
+                    icon: Icons.person_rounded,
+                    text: s.translate('profile'),
+                    iconColor: _kDarkBlue,
+                    textColor: _kDarkBlue,
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'feedback',
+                  padding: EdgeInsets.zero,
+                  child: menuRow(
+                    icon: Icons.feedback_outlined,
+                    text: s.translate('patient_home_menu_feedback'),
+                    iconColor: _kDarkBlue,
+                    textColor: _kDarkBlue,
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'logout',
+                  padding: EdgeInsets.zero,
+                  child: menuRow(
+                    icon: Icons.logout_rounded,
+                    text: s.translate('logout'),
+                    iconColor: const Color(0xFFB91C1C),
+                    textColor: const Color(0xFFB91C1C),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -134,7 +134,7 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
       fontWeight: FontWeight.w600,
     );
     return DropdownButtonFormField<String>(
-      value: value != null && kDoctorSpecialtyOptions.contains(value) ? value : null,
+      initialValue: value != null && kDoctorSpecialtyOptions.contains(value) ? value : null,
       isExpanded: true,
       alignment: AlignmentDirectional.centerEnd,
       icon: Icon(Icons.arrow_drop_down_rounded, color: accentColor),

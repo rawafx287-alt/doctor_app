@@ -21,20 +21,34 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isObscured = true;
   bool _isLoading = false;
+  late final AnimationController _loadingPulseController;
   static const Color _text = Color(0xFFE7EEF7);
   static const Color _muted = Color(0xFFAEC0D8);
+  /// Matches patient shell sky blue (e.g. `#B3E5FC` family) for loading indicator.
+  static const Color _skyBlueLoading = Color(0xFF4FC3F7);
 
   static const String _kLoginCredentialError =
       'ژمارەی مۆبایل یان وشەی نهێنی هەڵەیە';
 
   @override
+  void initState() {
+    super.initState();
+    _loadingPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+  }
+
+  @override
   void dispose() {
+    _loadingPulseController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -127,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
+    _loadingPulseController.repeat(reverse: true);
     try {
       final phone = normalizePhoneDigits(_phoneController.text);
       final password = _passwordController.text.trim();
@@ -260,6 +275,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } finally {
+      _loadingPulseController.stop();
+      _loadingPulseController.reset();
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -387,27 +404,68 @@ class _LoginScreenState extends State<LoginScreen> {
         if (_isLoading) ...[
           ModalBarrier(
             dismissible: false,
-            color: Colors.black.withValues(alpha: 0.45),
+            color: Colors.black.withValues(alpha: 0.38),
           ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(color: Colors.white),
-                const SizedBox(height: 16),
-                Text(
-                  S.of(context).translate('splash_loading'),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Center(child: _buildLoginLoadingGlassCard()),
         ],
       ],
+    );
+  }
+
+  /// Glassmorphic loading card: sky-blue progress + pulsing Kurdish “please wait” text.
+  Widget _buildLoginLoadingGlassCard() {
+    final pulse = CurvedAnimation(
+      parent: _loadingPulseController,
+      curve: Curves.easeInOut,
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 26),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(
+                  color: _skyBlueLoading,
+                  strokeWidth: 3.2,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FadeTransition(
+                opacity: Tween<double>(begin: 0.62, end: 1.0).animate(pulse),
+                child: Text(
+                  S.of(context).translate('splash_loading'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _text.withValues(alpha: 0.95),
+                    fontFamily: 'KurdishFont',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
