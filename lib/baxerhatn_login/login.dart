@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/auth_navigation.dart';
@@ -412,7 +413,13 @@ class _LoginScreenState extends State<LoginScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: _isLoading ? null : _handleLogin,
+          onTap: _isLoading
+              ? null
+              : () async {
+                  await HapticFeedback.lightImpact();
+                  if (!mounted) return;
+                  await _handleLogin();
+                },
           child: SizedBox(
             height: 54,
             child: Center(

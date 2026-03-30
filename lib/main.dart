@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
@@ -38,6 +39,45 @@ class HrNoraAppRoot extends StatelessWidget {
         const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       ),
     );
+    final baseTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
+      primaryColor: HrNoraColors.primary,
+      colorScheme: ColorScheme.dark(
+        primary: HrNoraColors.primary,
+        onPrimary: Colors.white,
+        secondary: HrNoraColors.accentLight,
+        onSecondary: const Color(0xFF0D1B2A),
+        surface: HrNoraColors.primaryDeep,
+        onSurface: HrNoraColors.textSoft,
+        error: const Color(0xFFEF4444),
+        onError: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: HrNoraColors.primaryDeep,
+        foregroundColor: HrNoraColors.textSoft,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      cardColor: HrNoraColors.primaryDeep,
+      dividerColor: const Color(0xFF334E68),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: HrNoraColors.textSoft),
+        bodyMedium: TextStyle(color: HrNoraColors.textSoft),
+        titleLarge: TextStyle(
+          color: HrNoraColors.textSoft,
+          fontWeight: FontWeight.w600,
+        ),
+        labelLarge: TextStyle(color: HrNoraColors.textSoft),
+      ),
+    );
+    final kurdishTextTheme = GoogleFonts.notoSansArabicTextTheme(
+      baseTheme.textTheme,
+    ).apply(
+      bodyColor: HrNoraColors.textSoft,
+      displayColor: HrNoraColors.textSoft,
+    );
 
     return ListenableBuilder(
       listenable: localeController,
@@ -64,38 +104,8 @@ class HrNoraAppRoot extends StatelessWidget {
               ),
             );
           },
-          theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
-        primaryColor: HrNoraColors.primary,
-        colorScheme: ColorScheme.dark(
-          primary: HrNoraColors.primary,
-          onPrimary: Colors.white,
-          secondary: HrNoraColors.accentLight,
-          onSecondary: const Color(0xFF0D1B2A),
-          surface: HrNoraColors.primaryDeep,
-          onSurface: HrNoraColors.textSoft,
-          error: const Color(0xFFEF4444),
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: HrNoraColors.primaryDeep,
-          foregroundColor: HrNoraColors.textSoft,
-          elevation: 0,
-          centerTitle: false,
-        ),
-        cardColor: HrNoraColors.primaryDeep,
-        dividerColor: const Color(0xFF334E68),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: HrNoraColors.textSoft),
-          bodyMedium: TextStyle(color: HrNoraColors.textSoft),
-          titleLarge: TextStyle(
-            color: HrNoraColors.textSoft,
-            fontWeight: FontWeight.w600,
-          ),
-          labelLarge: TextStyle(color: HrNoraColors.textSoft),
-        ),
+          theme: baseTheme.copyWith(
+        textTheme: kurdishTextTheme,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: baseButtons.copyWith(
             backgroundColor: WidgetStateProperty.resolveWith((states) {

@@ -52,6 +52,7 @@ dependencies:
   shared_preferences_windows: ^2.4.1
   url_launcher: ^6.3.1
   table_calendar: ^3.2.0
+  google_fonts: ^8.0.2
 
 dev_dependencies:
   flutter_test:
@@ -90,7 +91,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/
+    - assets/images/kurd_flag.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

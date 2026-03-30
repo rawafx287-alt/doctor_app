@@ -477,7 +477,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: _isLoading ? null : _onSignUpPressed,
+          onTap: _isLoading
+              ? null
+              : () async {
+                  await HapticFeedback.lightImpact();
+                  if (!mounted) return;
+                  await _onSignUpPressed();
+                },
           child: SizedBox(
             height: 56,
             child: Center(
@@ -769,7 +775,7 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFE6EEF8);
   static const Color _muted = Color(0xFFB7C6DA);
-  static const Color _warning = Color(0xFFDC5C6F);
+  static const Color _warning = Colors.redAccent;
 
   final TextEditingController _controller = TextEditingController();
 
@@ -817,6 +823,14 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                   color: Colors.white.withValues(alpha: 0.2),
                   width: 1.5,
                 ),
+                // Very subtle inner-edge pop for glass depth.
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    spreadRadius: -2,
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -832,120 +846,25 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontFamily: 'KurdishFont',
-                        color: _warning.withValues(alpha: 0.9),
-                        fontSize: 13,
-                        height: 1.5,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'ئاگاداری: ',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        TextSpan(
-                          text: warningBody,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                  _DoctorWarningText(
+                    body: warningBody,
+                    color: _warning.withValues(alpha: 0.92),
                   ),
                   const SizedBox(height: 18),
-                  TextField(
+                  _DoctorCodeInput(
                     controller: _controller,
-                    style: const TextStyle(
-                      color: _text,
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: s.translate('signup_doctor_security_hint'),
-                      labelStyle: const TextStyle(
-                        color: _muted,
-                        fontFamily: 'KurdishFont',
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.05),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.16),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: _teal,
-                          width: 1.2,
-                        ),
-                      ),
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    autocorrect: false,
+                    hintText: s.translate('signup_doctor_security_hint'),
+                    textColor: _text,
+                    mutedColor: _muted,
+                    focusColor: _teal,
                   ),
                   const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _closeWith(false),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.22),
-                            ),
-                            foregroundColor: _muted,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            s.translate('action_cancel'),
-                            style: const TextStyle(
-                              fontFamily: 'KurdishFont',
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _onSubmit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _teal,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            s.translate('signup_doctor_security_confirm'),
-                            style: const TextStyle(
-                              fontFamily: 'KurdishFont',
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  _DoctorDialogActions(
+                    cancelText: s.translate('action_cancel'),
+                    confirmText: s.translate('signup_doctor_security_confirm'),
+                    onCancel: () => _closeWith(false),
+                    onConfirm: _onSubmit,
+                    mutedColor: _muted,
                   ),
                 ],
               ),
@@ -953,6 +872,223 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DoctorWarningText extends StatelessWidget {
+  const _DoctorWarningText({required this.body, required this.color});
+
+  final String body;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final warningColor = Colors.orangeAccent;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: warningColor.withValues(alpha: 0.28),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.warning_rounded,
+                  size: 18,
+                  color: warningColor.withValues(alpha: 0.95),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: RichText(
+                  textAlign: TextAlign.right,
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontFamily: 'KurdishFont',
+                      color: warningColor.withValues(alpha: 0.95),
+                      fontSize: 13,
+                      height: 1.6,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'ئاگاداری: ',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: warningColor.withValues(alpha: 1),
+                        ),
+                      ),
+                      TextSpan(
+                        text: body,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DoctorCodeInput extends StatelessWidget {
+  const _DoctorCodeInput({
+    required this.controller,
+    required this.hintText,
+    required this.textColor,
+    required this.mutedColor,
+    required this.focusColor,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final Color textColor;
+  final Color mutedColor;
+  final Color focusColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        style: TextStyle(
+          color: textColor,
+          fontFamily: 'KurdishFont',
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          labelText: hintText,
+          labelStyle: TextStyle(
+            color: mutedColor,
+            fontFamily: 'KurdishFont',
+          ),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.05),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.14),
+              width: 0.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.16),
+              width: 0.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: focusColor,
+              width: 0.5,
+            ),
+          ),
+        ),
+        textCapitalization: TextCapitalization.characters,
+        autocorrect: false,
+      ),
+    );
+  }
+}
+
+class _DoctorDialogActions extends StatelessWidget {
+  const _DoctorDialogActions({
+    required this.cancelText,
+    required this.confirmText,
+    required this.onCancel,
+    required this.onConfirm,
+    required this.mutedColor,
+  });
+
+  final String cancelText;
+  final String confirmText;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final Color mutedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 0.5),
+              foregroundColor: mutedColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              cancelText,
+              style: const TextStyle(
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4FC3F7), Color(0xFF42A5F5)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ElevatedButton(
+              onPressed: onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                confirmText,
+                style: const TextStyle(
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
