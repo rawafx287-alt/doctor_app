@@ -58,22 +58,23 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     precacheImage(const AssetImage('assets/images/british_flag.png'), context);
   }
 
-  void _select(HrNoraLanguage language) {
+  Future<void> _select(HrNoraLanguage language) async {
     if (_isSwitching) return;
     final locale = AppLocaleScope.of(context);
-    HapticFeedback.lightImpact();
+    final navigator = Navigator.of(context, rootNavigator: true);
+    await HapticFeedback.lightImpact();
     setState(() {
       _isSwitching = true;
       _selectedLanguage = language;
     });
 
-    // Save preference in parallel with route transition (no artificial delay).
+    // Save preference in parallel with route transition.
     unawaited(locale.setLanguage(language));
 
-    Navigator.pushReplacement(
-      context,
-      _loginRoute(),
-    );
+    // Short delay lets the glass overlay appear smoothly before transition.
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    if (!mounted) return;
+    navigator.pushReplacement(_loginRoute());
   }
 
   PageRouteBuilder<void> _loginRoute() {
@@ -171,6 +172,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                 ),
               ),
             ),
+            if (_isSwitching) ...[
+              Positioned.fill(
+                child: AbsorbPointer(
+                  absorbing: true,
+                  child: const _LoadingOverlay(),
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -439,6 +448,60 @@ class _LanguageBadge extends StatelessWidget {
                 width: _flagDiameter,
                 height: _flagDiameter,
                 fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingOverlay extends StatelessWidget {
+  const _LoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.26),
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF46B4FF),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

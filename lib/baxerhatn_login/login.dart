@@ -286,6 +286,7 @@ class _LoginScreenState extends State<LoginScreen>
     return Stack(
       children: [
         Scaffold(
+          extendBodyBehindAppBar: true,
           resizeToAvoidBottomInset: false,
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -304,98 +305,113 @@ class _LoginScreenState extends State<LoginScreen>
             child: Stack(
               children: [
                 _buildBackground(),
-                SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      _buildHeader(),
-                      const SizedBox(height: 24),
-                      Form(
-                        key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: _buildGlassContainer(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Center(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _buildInputField(
-                                controller: _phoneController,
-                                icon: Icons.phone_iphone_outlined,
-                                label: S.of(context).translate('signup_mobile'),
-                                keyboardType: TextInputType.phone,
-                                validator: _validatePhone,
-                                maxLength: 11,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              _buildInputField(
-                                controller: _passwordController,
-                                icon: Icons.lock_outline_rounded,
-                                label: S.of(context).translate('hint_password'),
-                                validator: _validatePassword,
-                                isPassword: true,
-                              ),
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute<void>(
-                                        builder: (context) => const ForgotPasswordScreen(),
+                              _buildHeader(),
+                              const SizedBox(height: 24),
+                              Form(
+                                key: _formKey,
+                                autovalidateMode: AutovalidateMode.onUserInteraction,
+                                child: _buildGlassContainer(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildInputField(
+                                        controller: _phoneController,
+                                        icon: Icons.phone_iphone_outlined,
+                                        label: S.of(context).translate('signup_mobile'),
+                                        keyboardType: TextInputType.phone,
+                                        validator: _validatePhone,
+                                        maxLength: 11,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly,
+                                        ],
                                       ),
-                                    );
-                                  },
-                                  child: Text(
-                                    S.of(context).translate('forgot_password'),
-                                    style: TextStyle(
-                                      color: _muted.withValues(alpha: 0.95),
-                                      fontFamily: 'KurdishFont',
-                                    ),
+                                      const SizedBox(height: 14),
+                                      _buildInputField(
+                                        controller: _passwordController,
+                                        icon: Icons.lock_outline_rounded,
+                                        label: S.of(context).translate('hint_password'),
+                                        validator: _validatePassword,
+                                        isPassword: true,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Align(
+                                        alignment: AlignmentDirectional.centerStart,
+                                        child: TextButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute<void>(
+                                                builder: (context) =>
+                                                    const ForgotPasswordScreen(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            S.of(context).translate('forgot_password'),
+                                            style: TextStyle(
+                                              color: _muted.withValues(alpha: 0.95),
+                                              fontFamily: 'KurdishFont',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      _buildLoginButton(),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            S.of(context).translate('no_account'),
+                                            style: TextStyle(
+                                              color: _muted.withValues(alpha: 0.9),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          GestureDetector(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute<void>(
+                                                  builder: (context) =>
+                                                      const SignUpScreen(),
+                                                ),
+                                              );
+                                            },
+                                            child: Text(
+                                              S.of(context).translate('sign_up'),
+                                              style: const TextStyle(
+                                                color: Color(0xFFCFD9EA),
+                                                fontWeight: FontWeight.w700,
+                                                fontFamily: 'KurdishFont',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 14),
-                              _buildLoginButton(),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    S.of(context).translate('no_account'),
-                                    style: TextStyle(color: _muted.withValues(alpha: 0.9)),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute<void>(
-                                          builder: (context) => const SignUpScreen(),
-                                        ),
-                                      );
-                                    },
-                                    child: Text(
-                                      S.of(context).translate('sign_up'),
-                                      style: const TextStyle(
-                                        color: Color(0xFFCFD9EA),
-                                        fontWeight: FontWeight.w700,
-                                        fontFamily: 'KurdishFont',
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -412,57 +428,38 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  /// Glassmorphic loading card: sky-blue progress + pulsing Kurdish “please wait” text.
+  /// Glassmorphic loading card: centered, text-free professional loader.
   Widget _buildLoginLoadingGlassCard() {
-    final pulse = CurvedAnimation(
-      parent: _loadingPulseController,
-      curve: Curves.easeInOut,
-    );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 26),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 44,
-                height: 44,
-                child: CircularProgressIndicator(
-                  color: _skyBlueLoading,
-                  strokeWidth: 3.2,
+    return Material(
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            width: 112,
+            height: 112,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
+              ],
+            ),
+            child: const SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                color: _skyBlueLoading,
+                strokeWidth: 2,
               ),
-              const SizedBox(height: 20),
-              FadeTransition(
-                opacity: Tween<double>(begin: 0.62, end: 1.0).animate(pulse),
-                child: Text(
-                  S.of(context).translate('splash_loading'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _text.withValues(alpha: 0.95),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

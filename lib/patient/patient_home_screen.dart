@@ -1,12 +1,10 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../auth/app_logout.dart';
-import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
@@ -126,11 +124,16 @@ class PatientHomeScreen extends StatefulWidget {
   State<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends State<PatientHomeScreen> {
+class _PatientHomeScreenState extends State<PatientHomeScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
 
   /// Bottom nav: 0 home, 1 appointments, 2 profile
   int _bottomNavIndex = 0;
+
+  /// Full-screen frosted dim behind the overflow menu.
+  late final AnimationController _menuDimController;
+  late final Animation<double> _menuDimCurve;
 
   String _selectedCategory = kPatientSpecialtyAllKey;
 
@@ -444,23 +447,33 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _menuDimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _menuDimCurve = CurvedAnimation(
+      parent: _menuDimController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+  }
+
+  @override
   void dispose() {
+    _menuDimController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _logout() async {
-    await performAppLogout(context);
+  void _dismissMenuDim() {
+    if (_menuDimController.isDismissed) return;
+    _menuDimController.reverse();
   }
 
-  String _firstNameFromProfile(Map<String, dynamic>? data) {
-    if (data == null) return '—';
-    final first = (data['firstName'] ?? '').toString().trim();
-    if (first.isNotEmpty) return first;
-    final full = (data['fullName'] ?? '').toString().trim();
-    if (full.isEmpty) return '—';
-    final parts = full.split(RegExp(r'\s+'));
-    return parts.isNotEmpty ? parts.first : '—';
+  Future<void> _logout() async {
+    await performAppLogout(context);
   }
 
   /// Centered app title + overflow menu (profile / feedback / sign out).
@@ -480,19 +493,37 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       required Color iconColor,
       required Color textColor,
     }) {
+      final softShadow = [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.22),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ];
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: iconColor),
-            const SizedBox(width: 10),
-            Text(
-              text,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+            Icon(
+              icon,
+              size: 22,
+              color: iconColor,
+              shadows: softShadow,
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                text,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                  color: textColor,
+                  height: 1.25,
+                  decoration: TextDecoration.none,
+                  shadows: softShadow,
+                ),
               ),
             ),
           ],
@@ -500,54 +531,92 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       );
     }
 
+    /// Faint, short horizontal rule between menu rows.
+    Widget faintMenuDivider() {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Center(
+          child: Container(
+            width: 96,
+            height: 0.5,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              color: Colors.white.withValues(alpha: 0.28),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Snug to the ⋮; small negative dx keeps the panel near the right edge; dy aligns
+    // vertically so it reads as opening from the icon.
+    const menuOffset = Offset(-10, 45);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 12, 6),
       child: Row(
+        // LTR keeps "HR Nora" on the left and the ⋮ menu on the right in RTL apps.
+        textDirection: TextDirection.ltr,
         children: [
           Text(title, style: titleStyle),
           const Spacer(),
-          Theme(
-            data: Theme.of(context).copyWith(
-              popupMenuTheme: PopupMenuThemeData(
-                color: Colors.white.withValues(alpha: 0.92),
-                elevation: 12,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    width: 0.5,
-                  ),
-                ),
+          PopupMenuButton<String>(
+            tooltip: '',
+            color: Colors.white.withValues(alpha: 0.15),
+            elevation: 10,
+            shadowColor: Colors.black.withValues(alpha: 0.14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.3),
+                width: 0.8,
               ),
             ),
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
-              offset: const Offset(0, 46),
-              onSelected: (value) async {
-                if (!context.mounted) return;
-                if (value == 'profile') {
-                  setState(() => _bottomNavIndex = 2);
-                } else if (value == 'feedback') {
-                  await Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) => const ContactSupportScreen(),
-                    ),
-                  );
-                } else if (value == 'logout') {
-                  await _logout();
-                }
-              },
-              itemBuilder: (ctx) => [
+            offset: menuOffset,
+            icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
+            onOpened: () {
+              _menuDimController.forward();
+            },
+            onCanceled: _dismissMenuDim,
+            onSelected: (value) async {
+              _dismissMenuDim();
+              if (!context.mounted) return;
+              if (value == '_div1' || value == '_div2') return;
+              if (value == 'profile') {
+                setState(() => _bottomNavIndex = 2);
+              } else if (value == 'feedback') {
+                await Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const ContactSupportScreen(),
+                  ),
+                );
+              } else if (value == 'logout') {
+                await _logout();
+              }
+            },
+            itemBuilder: (ctx) {
+              const iconSoft = Color(0xFFE3F2FD);
+              const textSoft = Color(0xFFFFFFFF);
+              const logoutIcon = Color(0xFFFFCCBC);
+              const logoutText = Color(0xFFFFE0E0);
+              return [
                 PopupMenuItem<String>(
                   value: 'profile',
                   padding: EdgeInsets.zero,
                   child: menuRow(
                     icon: Icons.person_rounded,
                     text: s.translate('profile'),
-                    iconColor: _kDarkBlue,
-                    textColor: _kDarkBlue,
+                    iconColor: iconSoft,
+                    textColor: textSoft,
                   ),
+                ),
+                PopupMenuItem<String>(
+                  value: '_div1',
+                  padding: EdgeInsets.zero,
+                  height: 28,
+                  enabled: false,
+                  child: faintMenuDivider(),
                 ),
                 PopupMenuItem<String>(
                   value: 'feedback',
@@ -555,9 +624,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   child: menuRow(
                     icon: Icons.feedback_outlined,
                     text: s.translate('patient_home_menu_feedback'),
-                    iconColor: _kDarkBlue,
-                    textColor: _kDarkBlue,
+                    iconColor: iconSoft,
+                    textColor: textSoft,
                   ),
+                ),
+                PopupMenuItem<String>(
+                  value: '_div2',
+                  padding: EdgeInsets.zero,
+                  height: 28,
+                  enabled: false,
+                  child: faintMenuDivider(),
                 ),
                 PopupMenuItem<String>(
                   value: 'logout',
@@ -565,51 +641,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   child: menuRow(
                     icon: Icons.logout_rounded,
                     text: s.translate('logout'),
-                    iconColor: const Color(0xFFB91C1C),
-                    textColor: const Color(0xFFB91C1C),
+                    iconColor: logoutIcon,
+                    textColor: logoutText,
                   ),
                 ),
-              ],
-            ),
+              ];
+            },
           ),
         ],
       ),
-    );
-  }
-
-  /// Greeting above search (scrolls with home content).
-  Widget _buildHomeGreetingBanner(BuildContext context) {
-    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
-    if (docId.isEmpty) return const SizedBox.shrink();
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(docId)
-          .snapshots(),
-      builder: (context, snap) {
-        final first = _firstNameFromProfile(snap.data?.data());
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              S.of(context).translate(
-                'patient_home_greeting',
-                params: {'name': first},
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _kCharcoal,
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w700,
-                fontSize: 17,
-                height: 1.25,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -697,25 +737,50 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               colors: [_kSkyTop, _kSkyBottom],
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              SafeArea(
-                bottom: false,
-                child: _buildAppTopBar(context),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SafeArea(
+                    bottom: false,
+                    child: _buildAppTopBar(context),
+                  ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: _bottomNavIndex,
+                      sizing: StackFit.expand,
+                      children: [
+                        PatientHomeContent._(this),
+                        const PatientAppointmentsScreen(embedded: true),
+                        const PatientProfileScreen(),
+                      ],
+                    ),
+                  ),
+                  _buildGlassBottomNav(context),
+                ],
               ),
-              Expanded(
-                child: IndexedStack(
-                  index: _bottomNavIndex,
-                  sizing: StackFit.expand,
-                  children: [
-                    PatientHomeContent._(this),
-                    const PatientAppointmentsScreen(embedded: true),
-                    const PatientProfileScreen(),
-                  ],
+              Positioned.fill(
+                child: ListenableBuilder(
+                  listenable: _menuDimController,
+                  builder: (context, _) {
+                    return IgnorePointer(
+                      ignoring: _menuDimController.value < 0.001,
+                      child: FadeTransition(
+                        opacity: _menuDimCurve,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              _buildGlassBottomNav(context),
             ],
           ),
         ),
@@ -732,7 +797,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           key: const ValueKey<String>('home_doctors_scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _buildHomeGreetingBanner(context)),
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickySectionDelegate(
