@@ -766,11 +766,10 @@ class _DoctorSecurityCodeDialog extends StatefulWidget {
 }
 
 class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
-  static const Color _surface = Color(0xFF1D1E33);
-  static const Color _bg = Color(0xFF0A0E21);
   static const Color _teal = Color(0xFF42A5F5);
-  static const Color _text = Color(0xFFD9E2EC);
-  static const Color _muted = Color(0xFF829AB1);
+  static const Color _text = Color(0xFFE6EEF8);
+  static const Color _muted = Color(0xFFB7C6DA);
+  static const Color _warning = Color(0xFFDC5C6F);
 
   final TextEditingController _controller = TextEditingController();
 
@@ -796,91 +795,163 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final rawWarning = s.translate('signup_doctor_security_warning').trim();
+    final warningBody = rawWarning.startsWith('ئاگاداری:')
+        ? rawWarning.substring('ئاگاداری:'.length).trim()
+        : rawWarning;
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
-      child: AlertDialog(
-        backgroundColor: _surface,
-        title: Text(
-          s.translate('signup_doctor_security_title'),
-          style: const TextStyle(
-            fontFamily: 'KurdishFont',
-            color: _text,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                s.translate('signup_doctor_security_warning'),
-                style: TextStyle(
-                  fontFamily: 'KurdishFont',
-                  color: _muted.withValues(alpha: 0.95),
-                  fontSize: 13,
-                  height: 1.45,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 1.5,
                 ),
               ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _controller,
-                style: const TextStyle(
-                  color: _text,
-                  fontFamily: 'KurdishFont',
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: InputDecoration(
-                  labelText: s.translate('signup_doctor_security_hint'),
-                  labelStyle: const TextStyle(
-                    color: _muted,
-                    fontFamily: 'KurdishFont',
-                  ),
-                  filled: true,
-                  fillColor: _bg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: _teal,
-                      width: 1.5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    s.translate('signup_doctor_security_title'),
+                    style: const TextStyle(
+                      fontFamily: 'KurdishFont',
+                      color: _text,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
                     ),
                   ),
-                ),
-                textCapitalization: TextCapitalization.characters,
-                autocorrect: false,
+                  const SizedBox(height: 14),
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'KurdishFont',
+                        color: _warning.withValues(alpha: 0.9),
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'ئاگاداری: ',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        TextSpan(
+                          text: warningBody,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: _controller,
+                    style: const TextStyle(
+                      color: _text,
+                      fontFamily: 'KurdishFont',
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: s.translate('signup_doctor_security_hint'),
+                      labelStyle: const TextStyle(
+                        color: _muted,
+                        fontFamily: 'KurdishFont',
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.16),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: _teal,
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    autocorrect: false,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _closeWith(false),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.22),
+                            ),
+                            foregroundColor: _muted,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            s.translate('action_cancel'),
+                            style: const TextStyle(
+                              fontFamily: 'KurdishFont',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _onSubmit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _teal,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            s.translate('signup_doctor_security_confirm'),
+                            style: const TextStyle(
+                              fontFamily: 'KurdishFont',
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => _closeWith(false),
-            child: Text(
-              s.translate('action_cancel'),
-              style: const TextStyle(
-                color: _muted,
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: _onSubmit,
-            child: Text(
-              s.translate('signup_doctor_security_confirm'),
-              style: const TextStyle(
-                color: _teal,
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
