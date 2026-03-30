@@ -42,9 +42,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
   String? _doctorSpecialty;
 
-  static const Color _bg = Color(0xFF0A0E21);
-  static const Color _surface = Color(0xFF1D1E33);
   static const Color _teal = Color(0xFF42A5F5);
+  static const Color _roleBlue = Color(0xFF42A5F5);
+  static const Color _roleGreen = Color(0xFF66BB6A);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
 
@@ -73,6 +73,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   bool get _isDoctor => _selectedRole == UserRole.doctor;
+  Color get _primaryRoleColor => _isDoctor ? _roleBlue : _roleGreen;
 
   /// Doctor registration dialog; treat as UX gate only—enforce rules in backend for real security.
   static const String _doctorActivationCode = 'HR64';
@@ -281,9 +282,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent.withValues(alpha: 0.2),
         elevation: 0,
         foregroundColor: _text,
         leading: IconButton(
@@ -293,14 +294,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       body: Directionality(
         textDirection: AppLocaleScope.of(context).textDirection,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+        child: Stack(
+          children: [
+            _buildBackground(),
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 Text(
                   S.of(context).translate('sign_up_title'),
                   textAlign: TextAlign.center,
@@ -421,32 +425,77 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       _addressFieldKey.currentState?.validate(),
                 ),
                 const SizedBox(height: 28),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
-                    foregroundColor: const Color(0xFF102A43),
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: _isLoading ? null : _onSignUpPressed,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2.4),
-                        )
-                      : Text(
-                          S.of(context).translate('register'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'KurdishFont',
-                          ),
-                        ),
-                ),
+                _buildRegisterButton(),
               ],
+            ),
+          ),
+        ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackground() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A1330), Color(0xFF05070E), Color(0xFF020306)],
+        ),
+      ),
+      child: Stack(
+        children: const [
+          _SignBgBlob(
+            alignment: Alignment(-1.0, -0.75),
+            size: 240,
+            color: Color(0xFF29B6F6),
+          ),
+          _SignBgBlob(
+            alignment: Alignment(1.0, -0.35),
+            size: 200,
+            color: Color(0xFF7C4DFF),
+          ),
+          _SignBgBlob(
+            alignment: Alignment(0.15, 0.95),
+            size: 240,
+            color: Color(0xFF66BB6A),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _primaryRoleColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _isLoading ? null : _onSignUpPressed,
+          child: SizedBox(
+            height: 56,
+            child: Center(
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    )
+                  : Text(
+                      S.of(context).translate('register'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'KurdishFont',
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -473,18 +522,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: _surface,
+      fillColor: Colors.white.withValues(alpha: 0.10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.white10),
+        borderSide: const BorderSide(color: Color(0x40FFFFFF)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _teal, width: 1.5),
+        borderSide: const BorderSide(color: Color(0x90FFFFFF), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -500,6 +549,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     required IconData icon,
   }) {
     final isSelected = _selectedRole == role;
+    final selectedColor = role == UserRole.doctor ? _roleBlue : _roleGreen;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -509,10 +559,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color: _surface,
+            color: Colors.white.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? _teal : Colors.white12,
+              color: isSelected ? selectedColor : const Color(0x40FFFFFF),
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -521,7 +571,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             children: [
               Icon(
                 icon,
-                color: isSelected ? _teal : _muted,
+                color: isSelected ? selectedColor : _muted,
                 size: 28,
               ),
               const SizedBox(height: 8),
@@ -529,7 +579,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: isSelected ? _text : _muted,
+                  color: isSelected ? _text : _muted.withValues(alpha: 0.95),
                   fontFamily: 'KurdishFont',
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 14,
@@ -583,7 +633,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final baseDecoration = _fieldDecoration(
       alignLabelWithHint: maxLines > 1,
       labelText: label,
-      prefixIcon: Icon(icon, color: _teal),
+      prefixIcon: Icon(icon, color: _primaryRoleColor),
       suffixIcon: isPassword
           ? IconButton(
               icon: Icon(
@@ -604,27 +654,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ? baseDecoration.copyWith(counterText: '')
         : baseDecoration;
 
-    return TextFormField(
-      key: key,
-      controller: controller,
-      focusNode: focusNode,
-      obscureText: isPassword && obscure,
-      keyboardType: keyboardType,
-      maxLines: isPassword ? 1 : maxLines,
-      maxLength: maxLength,
-      inputFormatters: formatters.isEmpty ? null : formatters,
-      textCapitalization: textCapitalization,
-      onChanged: onChanged,
-      style: const TextStyle(
-        color: _text,
-        fontFamily: 'KurdishFont',
-        fontWeight: FontWeight.w600,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: TextFormField(
+          key: key,
+          controller: controller,
+          focusNode: focusNode,
+          obscureText: isPassword && obscure,
+          keyboardType: keyboardType,
+          maxLines: isPassword ? 1 : maxLines,
+          maxLength: maxLength,
+          inputFormatters: formatters.isEmpty ? null : formatters,
+          textCapitalization: textCapitalization,
+          onChanged: onChanged,
+          style: const TextStyle(
+            color: _text,
+            fontFamily: 'KurdishFont',
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: decoration,
+          validator: validator ??
+              (value) => value == null || value.trim().isEmpty
+                  ? S.of(context).translate('validation_field_required')
+                  : null,
+        ),
       ),
-      decoration: decoration,
-      validator: validator ??
-          (value) => value == null || value.trim().isEmpty
-              ? S.of(context).translate('validation_field_required')
-              : null,
+    );
+  }
+}
+
+class _SignBgBlob extends StatelessWidget {
+  const _SignBgBlob({
+    required this.alignment,
+    required this.size,
+    required this.color,
+  });
+
+  final Alignment alignment;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: IgnorePointer(
+        child: ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 58, sigmaY: 58),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.30),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
