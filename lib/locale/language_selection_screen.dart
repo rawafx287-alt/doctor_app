@@ -53,7 +53,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     super.didChangeDependencies();
     if (_didPrecacheFlags) return;
     _didPrecacheFlags = true;
-    precacheImage(const AssetImage('assets/images/kurd_flag.jpg'), context);
+    precacheImage(const AssetImage('assets/images/kurd_flag.png'), context);
+    precacheImage(const AssetImage('assets/images/iraq_flag.png'), context);
+    precacheImage(const AssetImage('assets/images/british_flag.png'), context);
   }
 
   void _select(HrNoraLanguage language) {
@@ -99,18 +101,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     final cards = [
       (
         language: HrNoraLanguage.ckb,
-        flagAsset: 'assets/images/kurd_flag.jpg',
-        flagEmoji: null,
+        flagAsset: 'assets/images/kurd_flag.png',
       ),
       (
         language: HrNoraLanguage.ar,
-        flagAsset: null,
-        flagEmoji: '🇮🇶',
+        flagAsset: 'assets/images/iraq_flag.png',
       ),
       (
         language: HrNoraLanguage.en,
-        flagAsset: null,
-        flagEmoji: '🇬🇧',
+        flagAsset: 'assets/images/british_flag.png',
       ),
     ];
 
@@ -158,7 +157,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                     index: i,
                                     language: cards[i].language,
                                     flagAsset: cards[i].flagAsset,
-                                    flagEmoji: cards[i].flagEmoji,
                                   ),
                                   if (i != cards.length - 1)
                                     const SizedBox(height: 16),
@@ -182,8 +180,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   Widget _buildAnimatedCard({
     required int index,
     required HrNoraLanguage language,
-    required String? flagAsset,
-    required String? flagEmoji,
+    required String flagAsset,
   }) {
     final start = 0.08 + (index * 0.16);
     final end = (start + 0.38).clamp(0.0, 1.0);
@@ -204,7 +201,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
           title: language.nativeTitle,
           subtitle: language.nativeSubtitle,
           flagAsset: flagAsset,
-          flagEmoji: flagEmoji,
           accentColor: accent,
           selected: _selectedLanguage == language,
           enabled: !_isSwitching,
@@ -297,7 +293,6 @@ class _LanguageCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.flagAsset,
-    required this.flagEmoji,
     required this.accentColor,
     required this.selected,
     required this.onTap,
@@ -306,8 +301,7 @@ class _LanguageCard extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final String? flagAsset;
-  final String? flagEmoji;
+  final String flagAsset;
   final Color accentColor;
   final bool selected;
   final VoidCallback onTap;
@@ -352,7 +346,6 @@ class _LanguageCard extends StatelessWidget {
                   children: [
                     _LanguageBadge(
                       flagAsset: flagAsset,
-                      flagEmoji: flagEmoji,
                       accentColor: accentColor,
                     ),
                     const SizedBox(width: 18),
@@ -405,59 +398,48 @@ class _LanguageCard extends StatelessWidget {
 class _LanguageBadge extends StatelessWidget {
   const _LanguageBadge({
     required this.flagAsset,
-    required this.flagEmoji,
     required this.accentColor,
   });
 
-  final String? flagAsset;
-  final String? flagEmoji;
+  final String flagAsset;
   final Color accentColor;
+
+  static const double _flagW = 36;
+  static const double _flagH = 24;
+  static final BorderRadius _flagRadius = BorderRadius.circular(4);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: accentColor.withValues(alpha: 0.15),
-        border: Border.all(color: accentColor.withValues(alpha: 0.46), width: 1),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 36,
-            height: 24,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: flagAsset != null
-                  ? Image.asset(
-                      flagAsset!,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      alignment: Alignment.center,
-                      color: Colors.white.withValues(alpha: 0.08),
-                      child: Text(
-                        flagEmoji ?? '',
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                    ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: _flagW,
+          height: _flagH,
+          decoration: BoxDecoration(
+            borderRadius: _flagRadius,
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.46),
+              width: 1,
             ),
           ),
-          Positioned(
-            bottom: 2,
-            right: 2,
-            child: Icon(
-              Icons.translate_rounded,
-              size: 13,
-              color: accentColor.withValues(alpha: 0.95),
+          child: ClipRRect(
+            borderRadius: _flagRadius,
+            child: Image.asset(
+              flagAsset,
+              width: _flagW,
+              height: _flagH,
+              fit: BoxFit.cover,
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        Icon(
+          Icons.translate_rounded,
+          size: 18,
+          color: accentColor.withValues(alpha: 0.95),
+        ),
+      ],
     );
   }
 }

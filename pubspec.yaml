@@ -91,9 +91,9 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/kurd_flag.jpg
-    - assets/images/iraq_flag.jpg
-    - assets/images/british_flag.jpg
+    - assets/images/kurdish_flag.png
+    - assets/images/iraq_flag.png
+    - assets/images/british_flag.png
 
 
 
