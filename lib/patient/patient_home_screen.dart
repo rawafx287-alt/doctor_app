@@ -88,6 +88,17 @@ const Color _kGlassWhite = Color(0x66FFFFFF);
 const Color _kGlassBorder = Color(0xE6FFFFFF);
 const Color _kVibrantBlue = Color(0xFF1976D2);
 
+/// Near-clear crystal: barely-there blur (sigma 0.5 — tiny glass hint).
+const double _kPopupMenuBlurSigma = 0.5;
+
+/// Readable label on very light glass (darker for contrast).
+const Color _kMenuPopupText = Color(0xFF0D1117);
+
+/// Deep red frame: menu outline, logout side stripe, and logout icon (Material Red 700).
+const Color _kMenuPopupDeepRed = Color(0xFFD32F2F);
+/// Crisp outline on crystal-clear glass (readable shape).
+const double _kMenuPopupFrameWidth = 2.0;
+
 /// Frosted glass: blur + semi-transparent fill + hairline white border.
 class _GlassPanel extends StatelessWidget {
   const _GlassPanel({
@@ -115,6 +126,73 @@ class _GlassPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One overflow menu row: light blur, gradient strip, [accentBorder] on start edge.
+Widget _patientOverflowMenuTile({
+  required Color accentBorder,
+  required IconData iconData,
+  required Color iconColor,
+  required String text,
+}) {
+  return Material(
+    type: MaterialType.transparency,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: _kPopupMenuBlurSigma,
+          sigmaY: _kPopupMenuBlurSigma,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.centerStart,
+              end: AlignmentDirectional.centerEnd,
+              colors: [
+                Colors.white.withValues(alpha: 0.02),
+                Colors.transparent,
+              ],
+            ),
+            border: BorderDirectional(
+              start: BorderSide(color: accentBorder, width: 3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontFamily: 'KurdishFont',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    height: 1.25,
+                    color: _kMenuPopupText,
+                    shadows: [
+                      Shadow(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        blurRadius: 1.5,
+                        offset: const Offset(0, 0.5),
+                      ),
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class PatientHomeScreen extends StatefulWidget {
@@ -487,67 +565,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       color: _kDarkBlue,
     );
 
-    Widget menuRow({
-      required IconData icon,
-      required String text,
-      required Color iconColor,
-      required Color textColor,
-    }) {
-      final softShadow = [
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.22),
-          blurRadius: 4,
-          offset: const Offset(0, 1),
-        ),
-      ];
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: iconColor,
-              shadows: softShadow,
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                text,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                  color: textColor,
-                  height: 1.25,
-                  decoration: TextDecoration.none,
-                  shadows: softShadow,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    /// Faint, short horizontal rule between menu rows.
-    Widget faintMenuDivider() {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Center(
-          child: Container(
-            width: 96,
-            height: 0.5,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(2),
-              color: Colors.white.withValues(alpha: 0.28),
-            ),
-          ),
-        ),
-      );
-    }
-
     // Snug to the ⋮; small negative dx keeps the panel near the right edge; dy aligns
     // vertically so it reads as opening from the icon.
     const menuOffset = Offset(-10, 45);
@@ -560,93 +577,93 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         children: [
           Text(title, style: titleStyle),
           const Spacer(),
-          PopupMenuButton<String>(
-            tooltip: '',
-            color: Colors.white.withValues(alpha: 0.15),
-            elevation: 10,
-            shadowColor: Colors.black.withValues(alpha: 0.14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: BorderSide(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 0.8,
+          Theme(
+            data: Theme.of(context).copyWith(
+              popupMenuTheme: PopupMenuThemeData(
+                color: Colors.transparent,
+                elevation: 12,
+                surfaceTintColor: Colors.transparent,
+                shadowColor: _kMenuPopupDeepRed.withValues(alpha: 0.42),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(
+                    color: _kMenuPopupDeepRed,
+                    width: _kMenuPopupFrameWidth,
+                  ),
+                ),
               ),
             ),
-            offset: menuOffset,
-            icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
-            onOpened: () {
-              _menuDimController.forward();
-            },
-            onCanceled: _dismissMenuDim,
-            onSelected: (value) async {
-              _dismissMenuDim();
-              if (!context.mounted) return;
-              if (value == '_div1' || value == '_div2') return;
-              if (value == 'profile') {
-                setState(() => _bottomNavIndex = 2);
-              } else if (value == 'feedback') {
-                await Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (context) => const ContactSupportScreen(),
+            child: PopupMenuButton<String>(
+              tooltip: '',
+              color: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 12,
+              shadowColor: _kMenuPopupDeepRed.withValues(alpha: 0.42),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(
+                  color: _kMenuPopupDeepRed,
+                  width: _kMenuPopupFrameWidth,
+                ),
+              ),
+              constraints: const BoxConstraints(minWidth: 232),
+              offset: menuOffset,
+              icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
+              onOpened: () {
+                _menuDimController.forward();
+              },
+              onCanceled: _dismissMenuDim,
+              onSelected: (value) async {
+                _dismissMenuDim();
+                if (!context.mounted) return;
+                if (value == 'profile') {
+                  setState(() => _bottomNavIndex = 2);
+                } else if (value == 'feedback') {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const ContactSupportScreen(),
+                    ),
+                  );
+                } else if (value == 'logout') {
+                  await _logout();
+                }
+              },
+              itemBuilder: (ctx) {
+                return [
+                  PopupMenuItem<String>(
+                    value: 'profile',
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+                    child: _patientOverflowMenuTile(
+                      accentBorder: Colors.blueAccent,
+                      iconData: Icons.person_rounded,
+                      iconColor: Colors.blueAccent,
+                      text: s.translate('profile'),
+                    ),
                   ),
-                );
-              } else if (value == 'logout') {
-                await _logout();
-              }
-            },
-            itemBuilder: (ctx) {
-              const iconSoft = Color(0xFFE3F2FD);
-              const textSoft = Color(0xFFFFFFFF);
-              const logoutIcon = Color(0xFFFFCCBC);
-              const logoutText = Color(0xFFFFE0E0);
-              return [
-                PopupMenuItem<String>(
-                  value: 'profile',
-                  padding: EdgeInsets.zero,
-                  child: menuRow(
-                    icon: Icons.person_rounded,
-                    text: s.translate('profile'),
-                    iconColor: iconSoft,
-                    textColor: textSoft,
+                  PopupMenuItem<String>(
+                    value: 'feedback',
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                    child: _patientOverflowMenuTile(
+                      accentBorder: Colors.tealAccent,
+                      iconData: Icons.feedback_outlined,
+                      iconColor: Colors.tealAccent,
+                      text: s.translate('patient_home_menu_feedback'),
+                    ),
                   ),
-                ),
-                PopupMenuItem<String>(
-                  value: '_div1',
-                  padding: EdgeInsets.zero,
-                  height: 28,
-                  enabled: false,
-                  child: faintMenuDivider(),
-                ),
-                PopupMenuItem<String>(
-                  value: 'feedback',
-                  padding: EdgeInsets.zero,
-                  child: menuRow(
-                    icon: Icons.feedback_outlined,
-                    text: s.translate('patient_home_menu_feedback'),
-                    iconColor: iconSoft,
-                    textColor: textSoft,
+                  PopupMenuItem<String>(
+                    value: 'logout',
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                    child: _patientOverflowMenuTile(
+                      accentBorder: _kMenuPopupDeepRed,
+                      iconData: Icons.logout_rounded,
+                      iconColor: _kMenuPopupDeepRed,
+                      text: s.translate('logout'),
+                    ),
                   ),
-                ),
-                PopupMenuItem<String>(
-                  value: '_div2',
-                  padding: EdgeInsets.zero,
-                  height: 28,
-                  enabled: false,
-                  child: faintMenuDivider(),
-                ),
-                PopupMenuItem<String>(
-                  value: 'logout',
-                  padding: EdgeInsets.zero,
-                  child: menuRow(
-                    icon: Icons.logout_rounded,
-                    text: s.translate('logout'),
-                    iconColor: logoutIcon,
-                    textColor: logoutText,
-                  ),
-                ),
-              ];
-            },
+                ];
+              },
+            ),
           ),
         ],
       ),
