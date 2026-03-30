@@ -141,11 +141,21 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
       dropdownColor: const Color(0xFF1D1E33),
       style: textStyle,
       decoration: InputDecoration(
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        isDense: false,
         labelText: s.translate('dropdown_specialty_label'),
         labelStyle: TextStyle(
           color: const Color(0xFF829AB1),
           fontFamily: useKurdishFont ? 'KurdishFont' : null,
           fontSize: dense ? 13 : 14,
+          height: 1.25,
+        ),
+        floatingLabelStyle: TextStyle(
+          color: const Color(0xFF829AB1),
+          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontSize: dense ? 11.5 : 12,
+          height: 1.15,
+          fontWeight: FontWeight.w600,
         ),
         hintText: s.translate('dropdown_specialty_hint'),
         hintStyle: TextStyle(
@@ -159,9 +169,19 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
           borderRadius: BorderRadius.circular(dense ? 14 : 15),
           borderSide: BorderSide.none,
         ),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: dense ? 14 : 16,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dense ? 14 : 15),
+          borderSide: const BorderSide(color: Color(0x40FFFFFF)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dense ? 14 : 15),
+          borderSide: BorderSide(color: accentColor.withValues(alpha: 0.85), width: 1.2),
+        ),
+        contentPadding: EdgeInsets.fromLTRB(
+          14,
+          dense ? 18 : 20,
+          14,
+          dense ? 14 : 16,
         ),
       ),
       items: kDoctorSpecialtyDefinitions

@@ -56,7 +56,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     precacheImage(const AssetImage('assets/images/kurd_flag.jpg'), context);
   }
 
-  Future<void> _select(HrNoraLanguage language) async {
+  void _select(HrNoraLanguage language) {
     if (_isSwitching) return;
     final locale = AppLocaleScope.of(context);
     HapticFeedback.lightImpact();
@@ -65,31 +65,32 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       _selectedLanguage = language;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
+    // Save preference in parallel with route transition (no artificial delay).
+    unawaited(locale.setLanguage(language));
 
     Navigator.pushReplacement(
       context,
-      _smoothRoute(const LoginScreen(showBackButton: false)),
+      _loginRoute(),
     );
-    unawaited(locale.setLanguage(language));
   }
 
-  PageRouteBuilder<void> _smoothRoute(Widget nextScreen) {
+  PageRouteBuilder<void> _loginRoute() {
     return PageRouteBuilder<void>(
-      pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          const LoginScreen(showBackButton: false),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
           parent: animation,
-          curve: Curves.easeInOutCubic,
+          curve: Curves.easeInOutQuart,
         );
+        final scale = Tween<double>(begin: 0.95, end: 1.0).animate(curved);
         return FadeTransition(
           opacity: curved,
-          child: child,
+          child: ScaleTransition(scale: scale, child: child),
         );
       },
-      transitionDuration: const Duration(milliseconds: 800),
-      reverseTransitionDuration: const Duration(milliseconds: 800),
+      transitionDuration: const Duration(milliseconds: 600),
+      reverseTransitionDuration: const Duration(milliseconds: 600),
     );
   }
 
@@ -426,20 +427,26 @@ class _LanguageBadge extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (flagAsset != null)
-            ClipOval(
-              child: Image.asset(
-                flagAsset!,
-                width: 24,
-                height: 24,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Text(
-              flagEmoji ?? '',
-              style: const TextStyle(fontSize: 20),
+          SizedBox(
+            width: 36,
+            height: 24,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: flagAsset != null
+                  ? Image.asset(
+                      flagAsset!,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      alignment: Alignment.center,
+                      color: Colors.white.withValues(alpha: 0.08),
+                      child: Text(
+                        flagEmoji ?? '',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
             ),
+          ),
           Positioned(
             bottom: 2,
             right: 2,

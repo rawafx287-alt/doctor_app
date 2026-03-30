@@ -123,12 +123,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return null;
   }
 
+  static const String _kPhoneMustBe11Digits = 'پێویستە ژمارەی مۆبایل ١١ ژمارە بێت';
+
   String? _validatePhone(String? value) {
     final s = S.of(context);
     final v = value?.trim() ?? '';
     if (v.isEmpty) return s.translate('validation_phone_required');
     if (!_digitsOnly.hasMatch(v)) {
       return s.translate('validation_phone_digits_only');
+    }
+    if (v.length != 11) {
+      return _kPhoneMustBe11Digits;
     }
     return null;
   }
@@ -368,8 +373,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _phoneController,
                   label: S.of(context).translate('signup_mobile'),
                   icon: Icons.phone_android_rounded,
-                  keyboardType: TextInputType.number,
+                  keyboardType: TextInputType.phone,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 11,
                   validator: _validatePhone,
                 ),
                 const SizedBox(height: 14),
@@ -515,12 +521,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
     Widget? suffixIcon,
     String? hintText,
     bool alignLabelWithHint = false,
+    bool multiline = false,
   }) {
     return InputDecoration(
       alignLabelWithHint: alignLabelWithHint,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+      isDense: false,
       labelText: labelText,
       hintText: hintText,
-      labelStyle: const TextStyle(color: _muted, fontFamily: 'KurdishFont'),
+      labelStyle: const TextStyle(
+        color: _muted,
+        fontFamily: 'KurdishFont',
+        fontSize: 14,
+        height: 1.25,
+      ),
+      floatingLabelStyle: const TextStyle(
+        color: _muted,
+        fontFamily: 'KurdishFont',
+        fontSize: 12,
+        height: 1.15,
+        fontWeight: FontWeight.w600,
+      ),
       hintStyle: TextStyle(
         color: _muted.withValues(alpha: 0.65),
         fontFamily: 'KurdishFont',
@@ -529,6 +550,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.10),
+      contentPadding: multiline
+          ? const EdgeInsets.fromLTRB(14, 22, 14, 18)
+          : const EdgeInsets.fromLTRB(14, 18, 14, 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -544,6 +568,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
       ),
     );
   }
@@ -638,6 +666,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final baseDecoration = _fieldDecoration(
       alignLabelWithHint: maxLines > 1,
+      multiline: maxLines > 1,
       labelText: label,
       prefixIcon: Icon(icon, color: _primaryRoleColor),
       suffixIcon: isPassword
@@ -656,15 +685,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
             )
           : null,
     );
-    final decoration = maxLength != null
-        ? baseDecoration.copyWith(counterText: '')
-        : baseDecoration;
+    final decoration = (maxLength != null
+            ? baseDecoration.copyWith(counterText: '')
+            : baseDecoration)
+        .copyWith(
+      // Glass blur sits behind the field; keep field fill transparent so labels aren't clipped.
+      fillColor: Colors.transparent,
+    );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: TextFormField(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+        TextFormField(
           key: key,
           controller: controller,
           focusNode: focusNode,
@@ -686,7 +732,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ? S.of(context).translate('validation_field_required')
                   : null,
         ),
-      ),
+      ],
     );
   }
 }
@@ -983,14 +1029,25 @@ class _DoctorCodeInput extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+          isDense: false,
           labelText: hintText,
           labelStyle: TextStyle(
             color: mutedColor,
             fontFamily: 'KurdishFont',
+            fontSize: 14,
+            height: 1.25,
+          ),
+          floatingLabelStyle: TextStyle(
+            color: mutedColor,
+            fontFamily: 'KurdishFont',
+            fontSize: 12,
+            height: 1.15,
+            fontWeight: FontWeight.w600,
           ),
           filled: true,
           fillColor: Colors.white.withValues(alpha: 0.05),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(
