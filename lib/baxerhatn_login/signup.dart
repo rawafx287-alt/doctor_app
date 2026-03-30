@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,7 +13,7 @@ import '../specialty_categories.dart';
 enum UserRole { patient, doctor }
 
 /// Email/password registration: [createUserWithEmailAndPassword], Firestore `users` doc.
-/// Doctor role requires a security code dialog before Firebase; patients register directly.
+/// Doctor role requires a security code dialog at role selection time.
 /// User stays signed in; [Navigator.pop] dismisses this route so [AuthGate] shows home.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -137,34 +139,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return null;
   }
 
-  Future<void> _onSignUpPressed() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  Future<void> _onRoleSelected(UserRole role) async {
+    if (_isLoading) return;
+    if (role == _selectedRole) return;
 
-    if (_isDoctor) {
-      final ok = await _showDoctorSecurityDialog();
-      if (!mounted) return;
-      if (!ok) return;
-      // Let the dialog route finish tearing down before Firebase / overlay updates.
-      await Future<void>.delayed(Duration.zero);
-      if (!mounted) return;
+    if (role == UserRole.patient) {
+      setState(() {
+        _selectedRole = UserRole.patient;
+        _doctorSpecialty = null;
+      });
+      return;
     }
 
+    final result = await _showDoctorSecurityDialog();
+    if (!mounted) return;
+
+    if (result == true) {
+      setState(() => _selectedRole = UserRole.doctor);
+      return;
+    }
+
+    setState(() {
+      _selectedRole = UserRole.patient;
+      _doctorSpecialty = null;
+    });
+    if (result == false) {
+      _showSnackBar(S.of(context).translate('signup_doctor_security_wrong'));
+    }
+  }
+
+  Future<void> _onSignUpPressed() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     await _registerWithFirebase();
   }
 
-  /// Returns `true` only when the user submits the correct activation code.
-  Future<bool> _showDoctorSecurityDialog() async {
-    if (!mounted) return false;
-    final result = await showDialog<bool>(
+  /// Returns `true` for success, `false` for wrong code, `null` for cancel.
+  Future<bool?> _showDoctorSecurityDialog() async {
+    if (!mounted) return null;
+    final result = await showDialog<bool?>(
       context: context,
       useRootNavigator: true,
       barrierDismissible: false,
-      builder: (_) => _DoctorSecurityCodeDialog(
-        requiredCode: _doctorActivationCode,
+      barrierColor: Colors.transparent,
+      builder: (_) => _DoctorSecurityDialogShell(
+        child: _DoctorSecurityCodeDialog(
+          requiredCode: _doctorActivationCode,
+        ),
       ),
     );
-    if (!mounted) return false;
-    return result ?? false;
+    if (!mounted) return null;
+    return result;
   }
 
   Future<void> _registerWithFirebase() async {
@@ -479,10 +503,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => setState(() {
-          _selectedRole = role;
-          if (role == UserRole.patient) _doctorSpecialty = null;
-        }),
+        onTap: _isLoading ? null : () => _onRoleSelected(role),
         borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -608,6 +629,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 }
 
+/// Blurred + dimmed backdrop behind the security code dialog.
+class _DoctorSecurityDialogShell extends StatelessWidget {
+  const _DoctorSecurityDialogShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      builder: (context, t, _) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 5 * t,
+                    sigmaY: 5 * t,
+                  ),
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.5 * t),
+                  ),
+                ),
+              ),
+            ),
+            Center(child: child),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// Owns [TextEditingController] so it is disposed with the dialog route (avoids
 /// `_dependents.isEmpty` if the controller is disposed while the overlay is closing).
 class _DoctorSecurityCodeDialog extends StatefulWidget {
@@ -628,7 +685,6 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
   static const Color _muted = Color(0xFF829AB1);
 
   final TextEditingController _controller = TextEditingController();
-  String? _error;
 
   @override
   void dispose() {
@@ -645,9 +701,7 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
     if (_controller.text.trim() == widget.requiredCode) {
       _closeWith(true);
     } else {
-      setState(() {
-        _error = S.of(context).translate('signup_doctor_security_wrong');
-      });
+      _closeWith(false);
     }
   }
 
@@ -695,11 +749,6 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                     color: _muted,
                     fontFamily: 'KurdishFont',
                   ),
-                  errorText: _error,
-                  errorStyle: const TextStyle(
-                    fontFamily: 'KurdishFont',
-                    fontSize: 12,
-                  ),
                   filled: true,
                   fillColor: _bg,
                   border: OutlineInputBorder(
@@ -716,11 +765,6 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                 ),
                 textCapitalization: TextCapitalization.characters,
                 autocorrect: false,
-                onChanged: (_) {
-                  if (_error != null) {
-                    setState(() => _error = null);
-                  }
-                },
               ),
             ],
           ),
