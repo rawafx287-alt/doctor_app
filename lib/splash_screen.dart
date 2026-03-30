@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 
 import 'auth/auth_gate.dart';
 import 'locale/app_locale.dart';
-import 'locale/app_localizations.dart';
 import 'locale/language_selection_screen.dart';
 import 'theme/hr_nora_colors.dart';
 
@@ -21,9 +20,10 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Timer? _timer;
   late final AnimationController _ambientController;
+  bool _isExiting = false;
 
   @override
   void initState() {
@@ -35,15 +35,33 @@ class _SplashScreenState extends State<SplashScreen>
     _timer = Timer(SplashScreen.displayDuration, _goToAuthGate);
   }
 
-  void _goToAuthGate() {
+  Future<void> _goToAuthGate() async {
+    if (!mounted) return;
+    setState(() => _isExiting = true);
+    await Future<void>.delayed(const Duration(milliseconds: 260));
     if (!mounted) return;
     final locale = AppLocaleScope.of(context);
     final next = locale.hasCompletedLanguageSelection
         ? const AuthGate()
         : const LanguageSelectionScreen();
-    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => next),
-      (route) => false,
+    Navigator.of(context, rootNavigator: true).pushReplacement(_smoothRoute(next));
+  }
+
+  PageRouteBuilder<void> _smoothRoute(Widget nextScreen) {
+    return PageRouteBuilder<void>(
+      pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 800),
+      reverseTransitionDuration: const Duration(milliseconds: 800),
     );
   }
 
@@ -83,47 +101,20 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _BreathingLogo(progress: t),
-                        const SizedBox(height: 24),
-                        ShaderMask(
-                          shaderCallback: (rect) {
-                            return const LinearGradient(
-                              colors: [Color(0xFFEFF4FF), Color(0xFFC4D7FF)],
-                            ).createShader(rect);
-                          },
-                          child: const Directionality(
-                            textDirection: TextDirection.ltr,
-                            child: Text(
-                              'HR Nora',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 42,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 2.2,
-                                height: 1.1,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 34),
-                        _LoadingDots(progress: t),
-                        const SizedBox(height: 14),
-                        Text(
-                          S.of(context).translate('splash_loading'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.70),
-                            fontSize: 14,
-                            fontFamily: 'KurdishFont',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    opacity: _isExiting ? 0 : 1,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _BreathingLogo(progress: t),
+                          const SizedBox(height: 30),
+                          _LoadingDots(progress: t),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../auth/auth_gate.dart';
+import '../baxerhatn_login/login.dart';
 import '../theme/hr_nora_colors.dart';
 import 'app_locale.dart';
 import 'app_localizations.dart';
@@ -22,6 +23,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     with TickerProviderStateMixin {
   bool _isSwitching = false;
   HrNoraLanguage? _selectedLanguage;
+  bool _didPrecacheFlags = false;
 
   late final AnimationController _entryController;
   late final AnimationController _ambientController;
@@ -46,9 +48,16 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didPrecacheFlags) return;
+    _didPrecacheFlags = true;
+    precacheImage(const AssetImage('assets/images/kurd_flag.jpg'), context);
+  }
+
   Future<void> _select(HrNoraLanguage language) async {
     if (_isSwitching) return;
-    final nav = Navigator.of(context, rootNavigator: true);
     final locale = AppLocaleScope.of(context);
     HapticFeedback.lightImpact();
     setState(() {
@@ -56,20 +65,31 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       _selectedLanguage = language;
     });
 
-    await locale.setLanguage(language);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
-    nav.pushAndRemoveUntil(
-      PageRouteBuilder<void>(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const AuthGate(),
-        transitionDuration: const Duration(milliseconds: 220),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-      (route) => false,
+    Navigator.pushReplacement(
+      context,
+      _smoothRoute(const LoginScreen(showBackButton: false)),
+    );
+    unawaited(locale.setLanguage(language));
+  }
+
+  PageRouteBuilder<void> _smoothRoute(Widget nextScreen) {
+    return PageRouteBuilder<void>(
+      pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 800),
+      reverseTransitionDuration: const Duration(milliseconds: 800),
     );
   }
 
@@ -78,7 +98,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     final cards = [
       (
         language: HrNoraLanguage.ckb,
-        flagAsset: 'assets/images/kurdistan_flag.png',
+        flagAsset: 'assets/images/kurd_flag.jpg',
         flagEmoji: null,
       ),
       (
@@ -100,63 +120,54 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
         return Stack(
           children: [
             _LangBackdrop(progress: t),
-            Scaffold(
-              backgroundColor: Colors.transparent,
-              body: SafeArea(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 12),
-                      Text(
-                        'HR Nora',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 36,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              color: HrNoraColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 2),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              opacity: _isSwitching ? 0.7 : 1,
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  backgroundColor: Colors.transparent,
+                  body: SafeArea(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 18),
+                          Text(
+                            S.of(context).translate('choose_language'),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: HrNoraColors.textSoft,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'KurdishFont',
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 36),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                for (var i = 0; i < cards.length; i++) ...[
+                                  _buildAnimatedCard(
+                                    index: i,
+                                    language: cards[i].language,
+                                    flagAsset: cards[i].flagAsset,
+                                    flagEmoji: cards[i].flagEmoji,
+                                  ),
+                                  if (i != cards.length - 1)
+                                    const SizedBox(height: 16),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        S.of(context).translate('choose_language'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: HrNoraColors.textSoft,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: 'KurdishFont',
-                        ),
-                      ),
-                      const SizedBox(height: 36),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (var i = 0; i < cards.length; i++) ...[
-                              _buildAnimatedCard(
-                                index: i,
-                                language: cards[i].language,
-                                flagAsset: cards[i].flagAsset,
-                                flagEmoji: cards[i].flagEmoji,
-                              ),
-                              if (i != cards.length - 1)
-                                const SizedBox(height: 16),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

@@ -99,7 +99,7 @@ class HrNoraAppRoot extends StatelessWidget {
             return AppLocaleScope(
               notifier: localeController,
               child: Directionality(
-                textDirection: localeController.textDirection,
+                textDirection: TextDirection.rtl,
                 child: child ?? const SizedBox.shrink(),
               ),
             );

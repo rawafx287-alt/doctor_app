@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/auth_navigation.dart';
-import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
@@ -147,6 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Stack(
       children: [
         Scaffold(
+          resizeToAvoidBottomInset: false,
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
@@ -160,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 : null,
           ),
           body: Directionality(
-            textDirection: AppLocaleScope.of(context).textDirection,
+            textDirection: TextDirection.rtl,
             child: Stack(
               children: [
                 _buildBackground(),
