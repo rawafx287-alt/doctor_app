@@ -2,32 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../auth/auth_navigation.dart';
+import '../auth/phone_auth_config.dart';
+import '../auth/phone_normalization.dart';
 import '../locale/app_localizations.dart';
+import '../patient/patient_home_screen.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
-
-String _authErrorMessage(BuildContext context, String code) {
-  final s = S.of(context);
-  switch (code) {
-    case 'invalid-email':
-      return s.translate('auth_err_invalid_email');
-    case 'invalid-credential':
-    case 'wrong-password':
-    case 'user-not-found':
-      return s.translate('auth_err_wrong_credential');
-    case 'user-disabled':
-      return s.translate('auth_err_user_disabled');
-    case 'too-many-requests':
-      return s.translate('auth_err_too_many_requests');
-    case 'network-request-failed':
-      return s.translate('auth_err_network');
-    default:
-      return s.translate('auth_err_generic');
-  }
-}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.showBackButton = true});
@@ -47,6 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color _text = Color(0xFFE7EEF7);
   static const Color _muted = Color(0xFFAEC0D8);
 
+  static const String _kLoginCredentialError =
+      'ژمارەی مۆبایل یان وشەی نهێنی هەڵەیە';
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -55,20 +41,86 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return S.of(context).translate('validation_password_required');
     }
     return null;
   }
 
+  /// Firestore may store `phone` as [String] or [int] depending on legacy data.
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _lookupUserByPhone(
+    String phoneDigits,
+  ) async {
+    final col = FirebaseFirestore.instance.collection('users');
+    var snap = await col
+        .where('phone', isEqualTo: phoneDigits)
+        .limit(1)
+        .get();
+    if (snap.docs.isNotEmpty) return snap.docs.first;
+
+    final asInt = int.tryParse(phoneDigits);
+    if (asInt != null) {
+      snap = await col.where('phone', isEqualTo: asInt).limit(1).get();
+      if (snap.docs.isNotEmpty) return snap.docs.first;
+    }
+    return null;
+  }
+
   String? _validatePhone(String? value) {
-    final v = value?.trim() ?? '';
+    final v = normalizePhoneDigits(value ?? '');
     if (v.isEmpty) return S.of(context).translate('validation_phone_required');
     final digitsOnly = RegExp(r'^[0-9]+$');
     if (!digitsOnly.hasMatch(v)) {
       return S.of(context).translate('validation_phone_digits_only');
     }
+    if (v.length != 11) {
+      return S.of(context).translate('validation_phone_must_be_11');
+    }
     return null;
+  }
+
+  void _showLoginCredentialError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _kLoginCredentialError,
+          style: const TextStyle(fontFamily: 'KurdishFont'),
+        ),
+      ),
+    );
+  }
+
+  static String _passwordStringFromFirestore(dynamic raw) {
+    if (raw == null) return '';
+    return raw.toString().trim();
+  }
+
+  /// Replaces the stack so home appears immediately (AuthGate stream can lag one frame).
+  Future<void> _navigateToHomeAfterSignIn(User user) async {
+    if (!mounted) return;
+    final email = user.email ?? '';
+    final Widget home;
+    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
+      home = const PatientHomeScreen();
+    } else {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server));
+      final roleHome = homeWidgetForUserData(snap.data() ?? {});
+      if (roleHome == null) {
+        await FirebaseAuth.instance.signOut();
+        if (mounted) _showLoginCredentialError();
+        return;
+      }
+      home = roleHome;
+    }
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => home),
+      (route) => false,
+    );
   }
 
   Future<void> _handleLogin() async {
@@ -76,57 +128,128 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final phone = _phoneController.text.trim();
-      final password = _passwordController.text;
-      final byPhone = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
-      if (byPhone.docs.isEmpty) {
-        throw FirebaseAuthException(code: 'user-not-found');
+      final phone = normalizePhoneDigits(_phoneController.text);
+      final password = _passwordController.text.trim();
+
+      Map<String, dynamic>? phoneDocData;
+      var firestoreUsersReadable = false;
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(phone)
+            .get(const GetOptions(source: Source.server));
+        firestoreUsersReadable = true;
+        if (snap.exists) {
+          phoneDocData = snap.data();
+        }
+      } on FirebaseException catch (e) {
+        debugPrint('[Login] users/$phone read: code=${e.code}');
+        if (e.code == 'permission-denied') {
+          firestoreUsersReadable = false;
+          phoneDocData = null;
+        } else {
+          rethrow;
+        }
       }
-      final data = byPhone.docs.first.data();
-      final email = (data['email'] ?? '').toString().trim();
-      if (email.isEmpty) {
-        throw FirebaseAuthException(code: 'invalid-email');
+
+      if (firestoreUsersReadable) {
+        if (phoneDocData == null) {
+          debugPrint('[Login] No Firestore doc users/$phone');
+          _showLoginCredentialError();
+          return;
+        }
+        final storedPw = _passwordStringFromFirestore(phoneDocData['password']);
+        if (storedPw != password) {
+          _showLoginCredentialError();
+          return;
+        }
       }
 
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final user = credential.user;
-      if (user == null) throw FirebaseAuthException(code: 'user-null');
-
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (!doc.exists) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              S.of(context).translate('account_not_found'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
-            ),
-          ),
+      try {
+        final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: phoneAuthEmail(phone),
+          password: password,
         );
+        final signedUser = cred.user;
+        if (signedUser != null) {
+          await _navigateToHomeAfterSignIn(signedUser);
+        }
         return;
-      }
+      } on FirebaseAuthException catch (e) {
+        // ignore: avoid_print
+        print(
+          '[Login] FirebaseAuthException: code=${e.code} message=${e.message}',
+        );
+        debugPrint(
+          '[Login] FirebaseAuthException: code=${e.code} message=${e.message}',
+        );
 
-      final userData = doc.data() ?? {};
+        if (firestoreUsersReadable) {
+          _showLoginCredentialError();
+          return;
+        }
+
+        final legacy = await _lookupUserByPhone(phone);
+        if (legacy == null) {
+          debugPrint(
+            '[Login] No Firestore profile for phone=$phone (doc or query)',
+          );
+          _showLoginCredentialError();
+          return;
+        }
+        final legacyData = legacy.data();
+        final email = (legacyData['email'] ?? '').toString().trim();
+        if (email.isEmpty) {
+          _showLoginCredentialError();
+          return;
+        }
+        try {
+          final credential =
+              await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          final user = credential.user;
+          if (user != null && user.uid != legacy.id) {
+            debugPrint(
+              '[Login] UID mismatch: Auth uid=${user.uid} vs profile id=${legacy.id}',
+            );
+            await FirebaseAuth.instance.signOut();
+            _showLoginCredentialError();
+          } else if (user != null) {
+            await _navigateToHomeAfterSignIn(user);
+          }
+        } on FirebaseAuthException catch (e2) {
+          // ignore: avoid_print
+          print(
+            '[Login] FirebaseAuthException (legacy): code=${e2.code} message=${e2.message}',
+          );
+          debugPrint(
+            '[Login] FirebaseAuthException (legacy): code=${e2.code} message=${e2.message}',
+          );
+          _showLoginCredentialError();
+        }
+      }
+    } on FirebaseException catch (e) {
+      // ignore: avoid_print
+      print(
+        '[Login] FirebaseException: code=${e.code} message=${e.message}',
+      );
+      debugPrint('[Login] FirebaseException: code=${e.code} message=${e.message}');
       if (!mounted) return;
-      await navigateAfterLogin(context, userData);
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      final msg = _authErrorMessage(context, e.code);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg, style: const TextStyle(fontFamily: 'KurdishFont')),
+          content: Text(
+            '${S.of(context).translate('error_generic')} [${e.code}]',
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
         ),
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      // ignore: avoid_print
+      print('[Login] Error: $e');
+      debugPrint('[Login] Error: $e');
+      debugPrint('[Login] Stack: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -184,6 +307,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 label: S.of(context).translate('signup_mobile'),
                                 keyboardType: TextInputType.phone,
                                 validator: _validatePhone,
+                                maxLength: 11,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                               ),
                               const SizedBox(height: 14),
                               _buildInputField(
@@ -262,8 +389,22 @@ class _LoginScreenState extends State<LoginScreen> {
             dismissible: false,
             color: Colors.black.withValues(alpha: 0.45),
           ),
-          const Center(
-            child: CircularProgressIndicator(color: Colors.white),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: Colors.white),
+                const SizedBox(height: 16),
+                Text(
+                  S.of(context).translate('splash_loading'),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontFamily: 'KurdishFont',
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ],
@@ -357,14 +498,19 @@ class _LoginScreenState extends State<LoginScreen> {
     required String? Function(String?) validator,
     TextInputType keyboardType = TextInputType.text,
     bool isPassword = false,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
       obscureText: isPassword ? _isObscured : false,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
       style: const TextStyle(color: _text, fontFamily: 'KurdishFont'),
       decoration: InputDecoration(
+        counterText: maxLength != null ? '' : null,
         labelText: label,
         labelStyle: const TextStyle(color: _muted, fontSize: 14),
         hintText: label,

@@ -5,10 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../auth/phone_auth_config.dart';
+import '../auth/phone_normalization.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../specialty_categories.dart';
+import 'registration_success_page.dart';
 
 enum UserRole { patient, doctor }
 
@@ -87,6 +91,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   static final RegExp _digitsOnly = RegExp(r'^[0-9]+$');
 
   String? _validateEmail(String? value) {
+    if (!_isDoctor) return null;
     final s = S.of(context);
     final v = value?.trim() ?? '';
     if (v.isEmpty) return s.translate('validation_email_required');
@@ -108,9 +113,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validateConfirmPassword(String? value) {
     final s = S.of(context);
-    final v = value ?? '';
+    final v = (value ?? '').trim();
     if (v.isEmpty) return s.translate('validation_password_required');
-    if (v != _passwordController.text) {
+    if (v != _passwordController.text.trim()) {
       return s.translate('validation_password_mismatch');
     }
     return null;
@@ -127,7 +132,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validatePhone(String? value) {
     final s = S.of(context);
-    final v = value?.trim() ?? '';
+    final v = normalizePhoneDigits(value ?? '');
     if (v.isEmpty) return s.translate('validation_phone_required');
     if (!_digitsOnly.hasMatch(v)) {
       return s.translate('validation_phone_digits_only');
@@ -139,6 +144,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validateAddress(String? value) {
+    if (!_isDoctor) return null;
     if (value == null || value.trim().isEmpty) {
       return S.of(context).translate('validation_address_required');
     }
@@ -197,20 +203,166 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return result;
   }
 
+  Future<void> _rollbackNewAuthUser(User? user) async {
+    if (user == null) return;
+    try {
+      await user.delete();
+    } catch (_) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+  }
+
+  void _goRegistrationSuccess() {
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const RegistrationSuccessPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          );
+          return FadeTransition(opacity: curved, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+      (route) => false,
+    );
+  }
+
   Future<void> _registerWithFirebase() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp();
       }
+      if (!_isDoctor) {
+        await _registerPatientPhoneKeyed();
+      } else {
+        await _registerDoctorWithEmail();
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
+  /// Phone = Firestore doc id; Firebase Auth uses [phoneAuthEmail].
+  /// If Auth already has this phone email, signs in and [SetOptions.merge] writes Firestore.
+  Future<void> _registerPatientPhoneKeyed() async {
+    UserCredential? userCred;
+    var profileSavedToFirestore = false;
+    var linkedExistingAuthUser = false;
+    try {
+      final phone = normalizePhoneDigits(_phoneController.text);
+      final password = _passwordController.text.trim();
+      final first = _firstNameController.text.trim();
+      final last = _lastNameController.text.trim();
+      final fullName = '$first $last'.trim();
+
+      final profilePayload = <String, dynamic>{
+        'phone': phone,
+        'password': password,
+        'role': 'patient',
+        'fullName': fullName.isEmpty ? first : fullName,
+      };
+
+      try {
+        userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: phoneAuthEmail(phone),
+          password: password,
+        );
+      } on FirebaseAuthException catch (e) {
+        debugPrint(
+          '[SignUp] createUser: code=${e.code} message=${e.message}',
+        );
+        if (e.code == 'email-already-in-use') {
+          try {
+            userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: phoneAuthEmail(phone),
+              password: password,
+            );
+            linkedExistingAuthUser = true;
+          } on FirebaseAuthException catch (e2) {
+            debugPrint(
+              '[SignUp] signIn (existing auth): code=${e2.code} message=${e2.message}',
+            );
+            if (!mounted) return;
+            final s = S.of(context);
+            final wrongPw = e2.code == 'wrong-password' ||
+                e2.code == 'invalid-credential';
+            _showSnackBar(
+              wrongPw
+                  ? s.translate('auth_err_wrong_credential')
+                  : '${s.translate('signup_err_email_in_use')} (${e2.code})',
+            );
+            return;
+          }
+        } else {
+          if (!mounted) return;
+          final s = S.of(context);
+          String msg = s.translate('signup_err_generic');
+          if (e.code == 'invalid-email') {
+            msg = s.translate('validation_email_invalid');
+          }
+          if (e.code == 'weak-password') {
+            msg = s.translate('validation_password_short');
+          }
+          if (e.code == 'network-request-failed') {
+            msg = s.translate('auth_err_network');
+          }
+          _showSnackBar('$msg (${e.code})');
+          return;
+        }
+      }
+
+      if (userCred.user == null) {
+        if (!mounted) return;
+        _showSnackBar(S.of(context).translate('signup_err_generic'));
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(phone)
+          .set(profilePayload, SetOptions(merge: true));
+      profileSavedToFirestore = true;
+
+      if (!mounted) return;
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      _goRegistrationSuccess();
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[SignUp] FirebaseException (Firestore): code=${e.code} message=${e.message}',
+      );
+      if (!linkedExistingAuthUser) {
+        await _rollbackNewAuthUser(userCred?.user);
+      }
+      if (!mounted) return;
+      _showSnackBar(
+        '${S.of(context).translate('signup_err_firestore')} (${e.code})',
+      );
+    } catch (e) {
+      debugPrint('[SignUp] Unexpected error: $e');
+      if (!profileSavedToFirestore && !linkedExistingAuthUser) {
+        await _rollbackNewAuthUser(userCred?.user);
+      }
+      if (!mounted) return;
+      _showSnackBar('${S.of(context).translate('signup_err_generic')}: $e');
+    }
+  }
+
+  Future<void> _registerDoctorWithEmail() async {
+    UserCredential? userCred;
+    var profileSavedToFirestore = false;
+    try {
       final email = _emailController.text.trim();
-      final password = _passwordController.text;
+      final password = _passwordController.text.trim();
 
-      final userCred =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -221,7 +373,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final first = _firstNameController.text.trim();
       final last = _lastNameController.text.trim();
       final fullName = '$first $last'.trim();
-      final phone = _phoneController.text.trim();
+      final phone = normalizePhoneDigits(_phoneController.text);
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'firstName': first,
@@ -230,23 +382,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'email': email,
         'phone': phone,
         'address': _addressController.text.trim(),
-        'role': _isDoctor ? 'Doctor' : 'Patient',
-        'specialty': _isDoctor ? (_doctorSpecialty ?? '').trim() : '',
-        'isApproved': _isDoctor ? false : true,
+        'role': 'Doctor',
+        'specialty': (_doctorSpecialty ?? '').trim(),
+        'isApproved': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      profileSavedToFirestore = true;
 
       if (!mounted) return;
-      // Signed in; defer pop until after this frame so routes/InheritedWidgets settle.
-      await Future<void>.delayed(Duration.zero);
+      await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.microtask(() {
-          if (!mounted) return;
-          Navigator.of(context, rootNavigator: true).pop();
-        });
-      });
+      _goRegistrationSuccess();
     } on FirebaseAuthException catch (e) {
+      debugPrint(
+        '[SignUp] FirebaseAuthException: code=${e.code} message=${e.message}',
+      );
       if (!mounted) return;
       final s = S.of(context);
       String msg = s.translate('signup_err_generic');
@@ -264,15 +414,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
       _showSnackBar('$msg (${e.code})');
     } on FirebaseException catch (e) {
+      debugPrint(
+        '[SignUp] FirebaseException (Firestore): code=${e.code} message=${e.message}',
+      );
+      await _rollbackNewAuthUser(userCred?.user);
       if (!mounted) return;
       _showSnackBar(
         '${S.of(context).translate('signup_err_firestore')} (${e.code})',
       );
     } catch (e) {
+      debugPrint('[SignUp] Unexpected error: $e');
+      if (!profileSavedToFirestore) {
+        await _rollbackNewAuthUser(userCred?.user);
+      }
       if (!mounted) return;
       _showSnackBar('${S.of(context).translate('signup_err_generic')}: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -303,31 +459,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
           children: [
             _buildBackground(),
             SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                Text(
-                  S.of(context).translate('sign_up_title'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: _text,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    fontFamily: 'KurdishFont',
+                ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) {
+                    return const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white,
+                        Color(0xFFE2E8F0),
+                      ],
+                    ).createShader(
+                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                    );
+                  },
+                  child: Text(
+                    S.of(context).translate('sign_up_title'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vazirmatn(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.85,
+                      height: 1.25,
+                      shadows: [
+                        Shadow(
+                          color: Colors.cyan.withValues(alpha: 0.5),
+                          blurRadius: 15,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   S.of(context).translate('sign_up_subtitle'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _muted.withValues(alpha: 0.95),
-                    fontSize: 14,
-                    fontFamily: 'KurdishFont',
+                  style: GoogleFonts.vazirmatn(
+                    color: Colors.white.withValues(alpha: 0.58),
+                    fontSize: 13,
+                    height: 1.45,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 const SizedBox(height: 22),

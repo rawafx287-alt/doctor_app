@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 
@@ -56,8 +57,9 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
     setState(() => _sending = true);
     try {
+      final profileDocId = firestoreUserDocId(user);
       final userSnap =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          await FirebaseFirestore.instance.collection('users').doc(profileDocId).get();
       final data = userSnap.data() ?? {};
       final name = (data['fullName'] ?? s.translate('patient_default')).toString().trim();
       final emailFromProfile = (data['email'] ?? '').toString().trim();

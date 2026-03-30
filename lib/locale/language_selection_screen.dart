@@ -404,42 +404,46 @@ class _LanguageBadge extends StatelessWidget {
   final String flagAsset;
   final Color accentColor;
 
-  static const double _flagW = 36;
-  static const double _flagH = 24;
-  static final BorderRadius _flagRadius = BorderRadius.circular(4);
+  /// Outer glass bubble; circular flag sits inside with inset padding.
+  static const double _bubbleSize = 56;
+  static const double _flagInset = 8;
+  static const double _flagDiameter = 36;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: _flagW,
-          height: _flagH,
-          decoration: BoxDecoration(
-            borderRadius: _flagRadius,
-            border: Border.all(
-              color: accentColor.withValues(alpha: 0.46),
-              width: 1,
-            ),
+    return SizedBox(
+      width: _bubbleSize,
+      height: _bubbleSize,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.10),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.26),
+            width: 1.1,
           ),
-          child: ClipRRect(
-            borderRadius: _flagRadius,
-            child: Image.asset(
-              flagAsset,
-              width: _flagW,
-              height: _flagH,
-              fit: BoxFit.cover,
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.12),
+              blurRadius: 10,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(_flagInset),
+            child: ClipOval(
+              child: Image.asset(
+                flagAsset,
+                width: _flagDiameter,
+                height: _flagDiameter,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Icon(
-          Icons.translate_rounded,
-          size: 18,
-          color: accentColor.withValues(alpha: 0.95),
-        ),
-      ],
+      ),
     );
   }
 }

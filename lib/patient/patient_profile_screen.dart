@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/app_logout.dart';
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
@@ -28,12 +29,12 @@ class PatientProfileScreen extends StatelessWidget {
       applicationIcon: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF42A5F5).withValues(alpha: 0.2),
+          color: const Color(0xFF00838F).withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(
           Icons.medical_services_rounded,
-          color: Color(0xFF42A5F5),
+          color: Color(0xFF00838F),
           size: 32,
         ),
       ),
@@ -43,7 +44,7 @@ class PatientProfileScreen extends StatelessWidget {
           child: Text(
             S.of(context).translate('about_description'),
             style: const TextStyle(
-              color: Color(0xFF829AB1),
+              color: Color(0xFF666666),
               fontFamily: 'KurdishFont',
               height: 1.45,
             ),
@@ -55,18 +56,19 @@ class PatientProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    final docId = firestoreUserDocId(user);
 
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: ColoredBox(
-        color: const Color(0xFF0A0E21),
-        child: uid == null
+        color: Colors.transparent,
+        child: user == null || docId.isEmpty
             ? Center(
                 child: Text(
                   S.of(context).translate('profile_guest'),
                   style: const TextStyle(
-                    color: Color(0xFF829AB1),
+                    color: Color(0xFF666666),
                     fontFamily: 'KurdishFont',
                   ),
                 ),
@@ -74,7 +76,7 @@ class PatientProfileScreen extends StatelessWidget {
             : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(uid)
+                    .doc(docId)
                     .snapshots(),
                 builder: (context, snap) {
                   final data = snap.data?.data();
@@ -90,15 +92,27 @@ class PatientProfileScreen extends StatelessWidget {
                       : (authEmail.isNotEmpty ? authEmail : '—');
 
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      28 + MediaQuery.paddingOf(context).bottom,
+                    ),
                     children: [
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1D1E33),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: const Color(0xFFE8E8E0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,13 +122,13 @@ class PatientProfileScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF42A5F5)
-                                        .withValues(alpha: 0.15),
+                                    color: const Color(0xFF00838F)
+                                        .withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: const Icon(
                                     Icons.person_rounded,
-                                    color: Color(0xFF42A5F5),
+                                    color: Color(0xFF00838F),
                                     size: 36,
                                   ),
                                 ),
@@ -128,7 +142,7 @@ class PatientProfileScreen extends StatelessWidget {
                                         name,
                                         textAlign: TextAlign.right,
                                         style: const TextStyle(
-                                          color: Color(0xFFD9E2EC),
+                                          color: Color(0xFF333333),
                                           fontSize: 20,
                                           fontWeight: FontWeight.w800,
                                           fontFamily: 'KurdishFont',
@@ -143,7 +157,7 @@ class PatientProfileScreen extends StatelessWidget {
                                           const Icon(
                                             Icons.alternate_email_rounded,
                                             size: 18,
-                                            color: Color(0xFF627D98),
+                                            color: Color(0xFF1565C0),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
@@ -151,7 +165,7 @@ class PatientProfileScreen extends StatelessWidget {
                                               email,
                                               textAlign: TextAlign.right,
                                               style: const TextStyle(
-                                                color: Color(0xFF9FB3C8),
+                                                color: Color(0xFF666666),
                                                 fontSize: 14,
                                                 fontFamily: 'KurdishFont',
                                               ),
@@ -186,7 +200,7 @@ class PatientProfileScreen extends StatelessWidget {
                               );
                             },
                           ),
-                          const Divider(height: 1, color: Colors.white10),
+                          const Divider(height: 1, color: Color(0xFFE8E8E0)),
                           _tile(
                             context,
                             icon: Icons.language_rounded,
@@ -197,7 +211,7 @@ class PatientProfileScreen extends StatelessWidget {
                                 '—',
                             onTap: () => _showLanguageSheet(context),
                           ),
-                          const Divider(height: 1, color: Colors.white10),
+                          const Divider(height: 1, color: Color(0xFFE8E8E0)),
                           _tile(
                             context,
                             icon: Icons.info_outline_rounded,
@@ -206,14 +220,14 @@ class PatientProfileScreen extends StatelessWidget {
                                 S.of(context).translate('about_app_subtitle'),
                             onTap: () => _showAbout(context),
                           ),
-                          const Divider(height: 1, color: Colors.white10),
+                          const Divider(height: 1, color: Color(0xFFE8E8E0)),
                           _tile(
                             context,
                             icon: Icons.logout_rounded,
                             title: S.of(context).translate('logout'),
                             subtitle: null,
                             iconColor: const Color(0xFFEF4444),
-                            titleColor: const Color(0xFFFCA5A5),
+                            titleColor: const Color(0xFFB91C1C),
                             onTap: () => _logout(context),
                           ),
                         ],
@@ -236,9 +250,16 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1D1E33),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: const Color(0xFFE8E8E0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(children: children),
     );
@@ -259,13 +280,13 @@ Widget _tile(
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     leading: Icon(
       icon,
-      color: iconColor ?? const Color(0xFF42A5F5),
+      color: iconColor ?? const Color(0xFF00838F),
       size: 26,
     ),
     title: Text(
       title,
       style: TextStyle(
-        color: titleColor ?? const Color(0xFFD9E2EC),
+        color: titleColor ?? const Color(0xFF333333),
         fontFamily: 'KurdishFont',
         fontWeight: FontWeight.w600,
         fontSize: 16,
@@ -276,14 +297,14 @@ Widget _tile(
         : Text(
             subtitle,
             style: const TextStyle(
-              color: Color(0xFF829AB1),
+              color: Color(0xFF666666),
               fontFamily: 'KurdishFont',
               fontSize: 12,
             ),
           ),
     trailing: Icon(
       rtl ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-      color: const Color(0xFF627D98),
+      color: const Color(0xFF999999),
       size: 22,
     ),
     onTap: onTap,

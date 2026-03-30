@@ -25,7 +25,7 @@ Widget? homeWidgetForUserData(Map<String, dynamic> data) {
   if (role == 'Doctor') {
     return const DoctorHomeScreen();
   }
-  if (role == 'Patient') {
+  if (role.toLowerCase() == 'patient') {
     return const PatientHomeScreen();
   }
   return null;

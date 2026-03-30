@@ -246,6 +246,30 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'تسجيل',
     'en': 'Register',
   },
+  'registration_success_message': {
+    'ckb': 'هەژمارەکەت بە سەرکەوتوویی دروستکرا',
+    'ar': 'تم إنشاء حسابك بنجاح',
+    'en': 'Your account was created successfully',
+  },
+  'registration_success_next': {
+    'ckb': 'دواتر',
+    'ar': 'التالي',
+    'en': 'Next',
+  },
+  'registration_success_instruction': {
+    'ckb':
+        'تکایە لە پەڕەی داهاتوو ئەو ژمارەی مۆبایل و وشەی نهێنییە بەکاربهێنەوە کە لە کاتی تۆماربوون نووسیبووت.',
+    'ar':
+        'يُرجى استخدام رقم الجوال وكلمة المرور التي أدخلتها عند التسجيل في الصفحة التالية.',
+    'en':
+        'On the next screen, use the same mobile number and password you entered when you registered.',
+  },
+  'login_hint_after_registration': {
+    'ckb':
+        'تکایە ژمارەی مۆبایل و وشەی نهێنییە بەکاربهێنەوە کە لە کاتی تۆماربوون نووسیبووت.',
+    'ar': 'استخدم رقم الجوال وكلمة المرور التي سجّلت بها.',
+    'en': 'Sign in with the phone number and password you used when you registered.',
+  },
   'forgot_password_title': {
     'ckb': 'لەبیرکردنەوەی وشەی نهێنی',
     'ar': 'نسيت كلمة المرور',
@@ -656,6 +680,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'بەخێربێیت، {name}',
     'ar': 'مرحباً، {name}',
     'en': 'Welcome, {name}',
+  },
+  'patient_home_greeting': {
+    'ckb': 'سڵاو، {name}',
+    'ar': 'مرحباً، {name}',
+    'en': 'Hello, {name}',
   },
   'search_doctors_hint': {
     'ckb': 'گەڕان بە پزیشک یان پسپۆڕی...',

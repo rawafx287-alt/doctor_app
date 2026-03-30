@@ -6,6 +6,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../baxerhatn_login/login.dart';
 import 'auth_navigation.dart';
+import 'firestore_user_doc_id.dart';
 
 /// Root widget: listens to auth + Firestore role and shows login or the correct home.
 class AuthGate extends StatelessWidget {
@@ -15,48 +16,75 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
+      initialData: FirebaseAuth.instance.currentUser,
       builder: (context, authSnapshot) {
-        if (authSnapshot.connectionState == ConnectionState.waiting) {
+        final user = authSnapshot.data ?? FirebaseAuth.instance.currentUser;
+        final waiting = authSnapshot.connectionState == ConnectionState.waiting;
+        if (waiting && user == null) {
           return const _AuthLoadingScaffold();
         }
 
-        final user = authSnapshot.data;
-        if (user == null) {
-          return const LoginScreen(showBackButton: false);
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 420),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: user == null
+              ? const LoginScreen(
+                  key: ValueKey<String>('auth_login'),
+                  showBackButton: false,
+                )
+              : _AuthenticatedShell(
+                  key: ValueKey<String>('auth_uid_${user.uid}'),
+                  user: user,
+                ),
+        );
+      },
+    );
+  }
+}
+
+/// Firestore role resolution after [FirebaseAuth] has a signed-in user.
+class _AuthenticatedShell extends StatelessWidget {
+  const _AuthenticatedShell({super.key, required this.user});
+
+  final User user;
+
+  @override
+  Widget build(BuildContext context) {
+    final docId = firestoreUserDocId(user);
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(docId)
+          .snapshots(),
+      builder: (context, docSnapshot) {
+        if (docSnapshot.connectionState == ConnectionState.waiting &&
+            !docSnapshot.hasData) {
+          return const _AuthLoadingScaffold();
         }
 
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .snapshots(),
-          builder: (context, docSnapshot) {
-            if (docSnapshot.connectionState == ConnectionState.waiting &&
-                !docSnapshot.hasData) {
-              return const _AuthLoadingScaffold();
-            }
+        final doc = docSnapshot.data;
+        if (doc == null || !doc.exists) {
+          return _FirestoreMissingProfileHandler(uid: user.uid);
+        }
 
-            final doc = docSnapshot.data;
-            if (doc == null || !doc.exists) {
-              return _FirestoreMissingProfileHandler(uid: user.uid);
-            }
+        final data = doc.data() ?? {};
+        final role = (data['role'] ?? '').toString();
+        final isApproved = data['isApproved'] == true;
 
-            final data = doc.data() ?? {};
-            final role = (data['role'] ?? '').toString();
-            final isApproved = data['isApproved'] == true;
+        if (role == 'Doctor' && !isApproved) {
+          return const DoctorPendingApprovalScreen();
+        }
 
-            if (role == 'Doctor' && !isApproved) {
-              return const DoctorPendingApprovalScreen();
-            }
+        final home = homeWidgetForUserData(data);
+        if (home != null) {
+          return home;
+        }
 
-            final home = homeWidgetForUserData(data);
-            if (home != null) {
-              return home;
-            }
-
-            return const UnknownRoleScreen();
-          },
-        );
+        return const UnknownRoleScreen();
       },
     );
   }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 
 /// Edit patient [fullName] and [phone] in Firestore [users].
@@ -27,14 +28,14 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }
 
   Future<void> _load() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
+    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    if (docId.isEmpty) {
       setState(() => _loading = false);
       return;
     }
     try {
       final snap =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+          await FirebaseFirestore.instance.collection('users').doc(docId).get();
       final data = snap.data();
       if (data != null) {
         _nameController.text = (data['fullName'] ?? '').toString();
@@ -54,12 +55,12 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    if (docId.isEmpty) return;
 
     setState(() => _saving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      await FirebaseFirestore.instance.collection('users').doc(docId).update({
         'fullName': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
       });

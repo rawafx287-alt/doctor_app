@@ -11,11 +11,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'locale/app_locale.dart';
 import 'locale/app_localizations.dart';
 import 'splash_screen.dart';
+// Auth routing: [AuthGate] listens to FirebaseAuth.instance.authStateChanges;
+// patient login also uses Navigator.pushAndRemoveUntil to [PatientHomeScreen] for instant UI.
 import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ensureSharedPreferencesRegistered();
+  // Android: place `google-services.json` in `android/app/` (see Firebase console).
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

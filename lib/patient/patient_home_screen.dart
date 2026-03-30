@@ -1,7 +1,11 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/app_logout.dart';
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
@@ -9,12 +13,53 @@ import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
 import 'patient_doctor_card.dart';
-import 'patient_hospitals_browse_tab.dart';
 import 'patient_profile_screen.dart';
+import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [NestedScrollView] + [SliverPersistentHeader].
 const double _kHomeSearchHeaderExtent = 56;
-const double _kHomeSpecialtiesHeaderExtent = 92;
+const double _kHomeSpecialtiesHeaderExtent = 104;
+
+/// Sky blue glass patient shell.
+const Color _kSkyTop = Color(0xFFE1F5FE);
+const Color _kSkyBottom = Color(0xFFB3E5FC);
+const Color _kCharcoal = Color(0xFF333333);
+const Color _kDarkBlue = Color(0xFF0D47A1);
+const Color _kMutedGrey = Color(0xFF546E7A);
+const Color _kGlassWhite = Color(0x66FFFFFF);
+const Color _kGlassBorder = Color(0xE6FFFFFF);
+const Color _kVibrantBlue = Color(0xFF1976D2);
+
+/// Frosted glass: blur + semi-transparent fill + hairline white border.
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({
+    required this.borderRadius,
+    required this.child,
+    this.blurSigma = 22,
+  });
+
+  final BorderRadius borderRadius;
+  final Widget child;
+  final double blurSigma;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _kGlassWhite,
+            borderRadius: borderRadius,
+            border: Border.all(color: _kGlassBorder, width: 0.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -26,7 +71,7 @@ class PatientHomeScreen extends StatefulWidget {
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  /// Bottom nav: 0 home, 1 hospitals, 2 profile
+  /// Bottom nav: 0 home, 1 appointments, 2 profile
   int _bottomNavIndex = 0;
 
   String _selectedCategory = kPatientSpecialtyAllKey;
@@ -72,38 +117,33 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     }).toList();
   }
 
-  /// Slim search field used under the app bar (sticky).
   Widget _buildThinSearchBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF15182C),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-        ),
+      child: _GlassPanel(
+        borderRadius: BorderRadius.circular(14),
         child: TextField(
           controller: _searchController,
           onChanged: (_) => setState(() {}),
           textAlign: TextAlign.start,
           style: const TextStyle(
-            color: Color(0xFFD9E2EC),
+            color: _kCharcoal,
             fontFamily: 'KurdishFont',
             fontSize: 14,
             height: 1.2,
           ),
-          cursorColor: const Color(0xFF42A5F5),
+          cursorColor: _kVibrantBlue,
           decoration: InputDecoration(
             isDense: true,
             hintText: S.of(context).translate('search_doctors_hint'),
             hintStyle: TextStyle(
-              color: const Color(0xFF829AB1).withValues(alpha: 0.9),
+              color: _kMutedGrey.withValues(alpha: 0.9),
               fontFamily: 'KurdishFont',
               fontSize: 13,
             ),
             prefixIcon: const Icon(
               Icons.search_rounded,
-              color: Color(0xFF42A5F5),
+              color: _kVibrantBlue,
               size: 20,
             ),
             prefixIconConstraints: const BoxConstraints(
@@ -132,7 +172,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             child: Text(
               S.of(context).translate('specialties'),
               style: const TextStyle(
-                color: Color(0xFFD9E2EC),
+                color: _kDarkBlue,
                 fontFamily: 'KurdishFont',
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -140,68 +180,46 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         SizedBox(
-          height: 46,
+          height: 92,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
             itemCount: patientSpecialtyFilterCategoryKeys.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final catKey = patientSpecialtyFilterCategoryKeys[index];
               final selected = _selectedCategory == catKey;
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _selectedCategory = catKey),
-                  borderRadius: BorderRadius.circular(12),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? const Color(0xFF42A5F5).withValues(alpha: 0.22)
-                          : const Color(0xFF1D1E33),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected
-                            ? const Color(0xFF42A5F5)
-                            : Colors.white24,
-                        width: selected ? 2 : 1,
+              const accent = _kVibrantBlue;
+              return InkWell(
+                onTap: () => setState(() => _selectedCategory = catKey),
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  width: 72,
+                  child: Column(
+                    children: [
+                      _CategoryGlassOrb(
+                        icon: iconForSpecialtyCategoryKey(catKey),
+                        selected: selected,
+                        accent: accent,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      textDirection: AppLocaleScope.of(context).textDirection,
-                      children: [
-                        Icon(
-                          iconForSpecialtyCategoryKey(catKey),
-                          size: 18,
-                          color: selected
-                              ? const Color(0xFF42A5F5)
-                              : const Color(0xFF829AB1),
+                      const SizedBox(height: 6),
+                      Text(
+                        S.of(context).translate(catKey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'KurdishFont',
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          fontSize: 10,
+                          color: selected ? _kDarkBlue : _kMutedGrey,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          S.of(context).translate(catKey),
-                          style: TextStyle(
-                            fontFamily: 'KurdishFont',
-                            fontWeight: selected
-                                ? FontWeight.w800
-                                : FontWeight.w500,
-                            fontSize: 13,
-                            color: selected
-                                ? const Color(0xFFD9E2EC)
-                                : const Color(0xFF829AB1),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -213,23 +231,32 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-  Widget _buildDoctorsListBody(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _approvedDoctorsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const Center(
+  /// Doctor section as slivers (single scroll with pinned headers — avoids bottom overflow).
+  List<Widget> _buildDoctorSlivers(
+    BuildContext context,
+    AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting &&
+        !snapshot.hasData) {
+      return [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
             child: Padding(
               padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              child: CircularProgressIndicator(color: _kVibrantBlue),
             ),
-          );
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+          ),
+        ),
+      ];
+    }
+    if (snapshot.hasError) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
               child: Text(
                 S
                     .of(context)
@@ -244,91 +271,111 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
               ),
             ),
-          );
-        }
-        final docs = snapshot.data?.docs ?? [];
-        final filtered = _applyLocalFilters(docs);
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          itemCount: filtered.isEmpty ? 2 : filtered.length + 1,
-          separatorBuilder: (context, index) {
-            if (index == 0) return const SizedBox(height: 8);
-            return const SizedBox(height: 12);
-          },
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    S.of(context).translate('recommended_doctors'),
-                    textAlign: TextAlign.start,
-                    style: const TextStyle(
-                      color: Color(0xFFD9E2EC),
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    S.of(context).translate('recommended_doctors_sub'),
-                    textAlign: TextAlign.start,
-                    style: TextStyle(
-                      color: const Color(0xFF829AB1).withValues(alpha: 0.9),
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+          ),
+        ),
+      ];
+    }
+    final docs = snapshot.data?.docs ?? [];
+    final filtered = _applyLocalFilters(docs);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final padBottom = 24.0 + bottomInset + 8;
+
+    final header = SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              S.of(context).translate('recommended_doctors'),
+              textAlign: TextAlign.start,
+              style: const TextStyle(
+                color: _kDarkBlue,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              S.of(context).translate('recommended_doctors_sub'),
+              textAlign: TextAlign.start,
+              style: TextStyle(
+                color: _kMutedGrey.withValues(alpha: 0.95),
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (filtered.isEmpty) {
+      return [
+        header,
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
+            child: Text(
+              S.of(context).translate('doctors_empty_search'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _kMutedGrey,
+                fontFamily: 'KurdishFont',
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      header,
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, padBottom),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final doc = filtered[index];
+              final data = doc.data();
+              final lang = AppLocaleScope.of(context).effectiveLanguage;
+              var name = localizedDoctorFullName(data, lang);
+              if (name.isEmpty) {
+                name = (data['fullName'] ?? '—').toString();
+              }
+              final specialtyRaw = (data['specialty'] ?? '—').toString();
+              final specialty = translatedSpecialtyForFirestore(
+                context,
+                specialtyRaw,
               );
-            }
-            if (filtered.isEmpty) {
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  S.of(context).translate('doctors_empty_search'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 16,
-                  ),
+                padding: EdgeInsets.only(top: index == 0 ? 0 : 12),
+                child: PatientDoctorCard(
+                  name: name,
+                  specialty: specialty,
+                  onOpenDetails: () {
+                    Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (context) => DoctorDetailsScreen(
+                          doctorId: doc.id,
+                          doctorData: Map<String, dynamic>.from(data),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
-            }
-            final doc = filtered[index - 1];
-            final data = doc.data();
-            final lang = AppLocaleScope.of(context).effectiveLanguage;
-            var name = localizedDoctorFullName(data, lang);
-            if (name.isEmpty) {
-              name = (data['fullName'] ?? '—').toString();
-            }
-            final specialtyRaw = (data['specialty'] ?? '—').toString();
-            final specialty = translatedSpecialtyForFirestore(
-              context,
-              specialtyRaw,
-            );
-            return PatientDoctorCard(
-              name: name,
-              specialty: specialty,
-              onOpenDetails: () {
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (context) => DoctorDetailsScreen(
-                      doctorId: doc.id,
-                      doctorData: Map<String, dynamic>.from(data),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
+            },
+            childCount: filtered.length,
+          ),
+        ),
+      ),
+    ];
   }
 
   @override
@@ -341,151 +388,249 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     await performAppLogout(context);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: AppLocaleScope.of(context).textDirection,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
-          foregroundColor: const Color(0xFFD9E2EC),
-          elevation: 0,
-          title: Text(
-            _bottomNavIndex == 0
-                ? S.of(context).translate('app_display_name')
-                : _bottomNavIndex == 1
-                ? S.of(context).translate('hospitals_section')
-                : S.of(context).translate('profile'),
-            style: _bottomNavIndex == 0
-                ? const TextStyle(
+  String _firstNameFromProfile(Map<String, dynamic>? data) {
+    if (data == null) return '—';
+    final first = (data['firstName'] ?? '').toString().trim();
+    if (first.isNotEmpty) return first;
+    final full = (data['fullName'] ?? '').toString().trim();
+    if (full.isEmpty) return '—';
+    final parts = full.split(RegExp(r'\s+'));
+    return parts.isNotEmpty ? parts.first : '—';
+  }
+
+  Widget _buildPatientWelcomeHeader(BuildContext context) {
+    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    if (docId.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('users').doc(docId).snapshots(),
+        builder: (context, snap) {
+          final first = _firstNameFromProfile(snap.data?.data());
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  S.of(context).translate(
+                    'patient_home_greeting',
+                    params: {'name': first},
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _kDarkBlue,
                     fontFamily: 'KurdishFont',
                     fontWeight: FontWeight.w800,
-                    fontSize: 19,
-                    letterSpacing: 0.35,
-                  )
-                : const TextStyle(
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    letterSpacing: 0.15,
+                    height: 1.2,
                   ),
-          ),
-          actions: [
-            IconButton(
-              tooltip: S.of(context).translate('tooltip_support'),
-              onPressed: () {
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (context) => const ContactSupportScreen(),
+                ),
+              ),
+              IconButton(
+                tooltip: S.of(context).translate('tooltip_support'),
+                onPressed: () {
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const ContactSupportScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.chat_outlined,
+                  color: _kVibrantBlue,
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => setState(() => _bottomNavIndex = 2),
+                  borderRadius: BorderRadius.circular(28),
+                  child: _GlassPanel(
+                    borderRadius: BorderRadius.circular(28),
+                    blurSigma: 18,
+                    child: const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: _kVibrantBlue,
+                        size: 26,
+                      ),
+                    ),
                   ),
-                );
-              },
-              icon: const Icon(Icons.chat_outlined),
-            ),
-            if (_bottomNavIndex != 2)
+                ),
+              ),
               IconButton(
                 tooltip: S.of(context).translate('tooltip_logout'),
                 onPressed: _logout,
-                icon: const Icon(Icons.logout_rounded),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  color: _kMutedGrey,
+                ),
               ),
-          ],
-        ),
-        body: SafeArea(
-          child: IndexedStack(
-            index: _bottomNavIndex,
-            children: [
-              PatientHomeContent._(this),
-              const PatientHospitalsBrowseTab(),
-              const PatientProfileScreen(),
             ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGlassBottomNav(BuildContext context) {
+    final s = S.of(context);
+    Widget item(int index, IconData icon, String label) {
+      final selected = _bottomNavIndex == index;
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _bottomNavIndex = index),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 26,
+                    color: selected ? _kVibrantBlue : _kMutedGrey,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: 'KurdishFont',
+                      fontSize: 11,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? _kDarkBlue : _kMutedGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        bottomNavigationBar: Container(
+      );
+    }
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
           decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.42),
             border: Border(
               top: BorderSide(
-                color: const Color(0xFF829AB1).withValues(alpha: 0.35),
+                color: Colors.white.withValues(alpha: 0.85),
                 width: 0.5,
               ),
             ),
           ),
-          child: BottomNavigationBar(
-            currentIndex: _bottomNavIndex,
-            onTap: (index) => setState(() => _bottomNavIndex = index),
-            backgroundColor: const Color(0xFF1A237E),
-            selectedItemColor: const Color(0xFF42A5F5),
-            unselectedItemColor: const Color(0xFF829AB1),
-            showUnselectedLabels: true,
-            type: BottomNavigationBarType.fixed,
-            selectedLabelStyle: const TextStyle(
-              fontFamily: 'KurdishFont',
-              fontSize: 12,
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+              child: Row(
+                children: [
+                  item(0, Icons.home_rounded, s.translate('home')),
+                  item(1, Icons.calendar_month_rounded, s.translate('appointments')),
+                  item(2, Icons.person_rounded, s.translate('profile')),
+                ],
+              ),
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontFamily: 'KurdishFont',
-              fontSize: 12,
-            ),
-            items: [
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.home_filled),
-                label: S.of(context).translate('home'),
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.local_hospital_rounded),
-                label: S.of(context).translate('hospitals_section'),
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.person),
-                label: S.of(context).translate('profile'),
-              ),
-            ],
           ),
         ),
       ),
     );
   }
 
-  /// Sticky search + specialties; doctor list scrolls below.
-  Widget _buildHomeContent() {
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) {
-        return [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _StickySectionDelegate(
-              extent: _kHomeSearchHeaderExtent,
-              builder: (context, shrinkOffset, overlapsContent) {
-                return Material(
-                  color: const Color(0xFF0A0E21),
-                  surfaceTintColor: Colors.transparent,
-                  elevation: overlapsContent ? 3 : 0,
-                  shadowColor: Colors.black54,
-                  child: _buildThinSearchBar(context),
-                );
-              },
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: AppLocaleScope.of(context).textDirection,
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        backgroundColor: _kSkyTop,
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_kSkyTop, _kSkyBottom],
             ),
           ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _StickySectionDelegate(
-              extent: _kHomeSpecialtiesHeaderExtent,
-              builder: (context, shrinkOffset, overlapsContent) {
-                return Material(
-                  color: const Color(0xFF0A0E21),
-                  surfaceTintColor: Colors.transparent,
-                  elevation: overlapsContent ? 2 : 0,
-                  shadowColor: Colors.black45,
-                  child: _buildPinnedSpecialtiesSection(context),
-                );
-              },
+          child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SafeArea(
+              bottom: false,
+              child: _bottomNavIndex == 0
+                  ? _buildPatientWelcomeHeader(context)
+                  : const SizedBox.shrink(),
             ),
-          ),
-        ];
-      },
-      body: KeyedSubtree(
-        key: const ValueKey<String>('home_doctors_list'),
-        child: _buildDoctorsListBody(context),
+            Expanded(
+              child: IndexedStack(
+                index: _bottomNavIndex,
+                children: [
+                  PatientHomeContent._(this),
+                  const PatientAppointmentsScreen(embedded: true),
+                  const PatientProfileScreen(),
+                ],
+              ),
+            ),
+            _buildGlassBottomNav(context),
+          ],
+        ),
+        ),
       ),
+    );
+  }
+
+  /// Single [CustomScrollView]: pinned headers + doctor slivers (no nested scroll overflow).
+  Widget _buildHomeContent() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _approvedDoctorsStream,
+      builder: (context, snapshot) {
+        return CustomScrollView(
+          key: const ValueKey<String>('home_doctors_scroll'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickySectionDelegate(
+                extent: _kHomeSearchHeaderExtent,
+                builder: (context, shrinkOffset, overlapsContent) {
+                  return Material(
+                    color: _kSkyTop,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: overlapsContent ? 2 : 0,
+                    shadowColor: Colors.black26,
+                    child: _buildThinSearchBar(context),
+                  );
+                },
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickySectionDelegate(
+                extent: _kHomeSpecialtiesHeaderExtent,
+                builder: (context, shrinkOffset, overlapsContent) {
+                  return Material(
+                    color: _kSkyTop,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: overlapsContent ? 2 : 0,
+                    shadowColor: Colors.black26,
+                    child: _buildPinnedSpecialtiesSection(context),
+                  );
+                },
+              ),
+            ),
+            ..._buildDoctorSlivers(context, snapshot),
+          ],
+        );
+      },
     );
   }
 }
@@ -533,3 +678,47 @@ class PatientHomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _state._buildHomeContent();
 }
+
+/// Circular glass orb (same language-flag language as language picker).
+class _CategoryGlassOrb extends StatelessWidget {
+  const _CategoryGlassOrb({
+    required this.icon,
+    required this.selected,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: selected
+                  ? Colors.white.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.35),
+              border: Border.all(
+                color: selected ? accent : _kGlassBorder,
+                width: selected ? 2 : 0.5,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 26,
+              color: selected ? accent : _kMutedGrey,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

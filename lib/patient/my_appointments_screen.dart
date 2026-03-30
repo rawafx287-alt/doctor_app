@@ -784,9 +784,16 @@ class PatientAppointmentsScreen extends StatefulWidget {
 
 class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   static const Color _bg = Color(0xFF0A0E21);
+  static const Color _skyHole = Color(0xFFE1F5FE);
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _text = Color(0xFFD9E2EC);
   static const Color _muted = Color(0xFF829AB1);
+
+  Color get _holeColor => widget.embedded ? _skyHole : _bg;
+  Color get _uiAccent =>
+      widget.embedded ? const Color(0xFF1976D2) : _teal;
+  Color get _uiMuted =>
+      widget.embedded ? const Color(0xFF546E7A) : _muted;
 
   bool _todayOnly = true;
   late DateTime _todayAnchor;
@@ -825,14 +832,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           icon: Icon(
             _todayOnly ? Icons.list_alt_outlined : Icons.today_outlined,
             size: 20,
-            color: _teal,
+            color: _uiAccent,
           ),
           label: Text(
             _todayOnly
                 ? s.translate('appointments_show_all')
                 : s.translate('appointments_show_today'),
-            style: const TextStyle(
-              color: _teal,
+            style: TextStyle(
+              color: _uiAccent,
               fontFamily: 'KurdishFont',
               fontWeight: FontWeight.w600,
             ),
@@ -850,7 +857,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         ? Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
-              style: const TextStyle(color: _muted, fontFamily: 'KurdishFont'),
+              style: TextStyle(color: _uiMuted, fontFamily: 'KurdishFont'),
             ),
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -861,8 +868,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ).snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: _teal),
+                return Center(
+                  child: CircularProgressIndicator(color: _uiAccent),
                 );
               }
               if (snapshot.hasError) {
@@ -912,8 +919,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             : 'appointments_empty',
                       ),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: _muted,
+                      style: TextStyle(
+                        color: _uiMuted,
                         fontFamily: 'KurdishFont',
                         fontSize: 16,
                         height: 1.4,
@@ -923,8 +930,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                 );
               }
 
+              final padBottom =
+                  24 + MediaQuery.paddingOf(context).bottom + (widget.embedded ? 8 : 0);
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+                padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
                 itemCount: sorted.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
@@ -968,7 +977,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       status: status,
                       queueLabel: queueLabel,
                       daysStyle: daysStyle,
-                      holeColor: _bg,
+                      holeColor: _holeColor,
                     ),
                     behavior: HitTestBehavior.opaque,
                     child: Hero(
@@ -983,7 +992,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           status: status,
                           queueLabel: queueLabel,
                           daysStyle: daysStyle,
-                          holeColor: _bg,
+                          holeColor: _holeColor,
                           isPreview: false,
                         ),
                       ),
@@ -1012,7 +1021,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     if (widget.embedded) {
       return Directionality(
         textDirection: pageDir,
-        child: ColoredBox(color: _bg, child: body),
+        child: ColoredBox(color: Colors.transparent, child: body),
       );
     }
 
