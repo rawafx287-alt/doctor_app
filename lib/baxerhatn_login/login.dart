@@ -75,10 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // Values from the email / password fields above (چوونە ژوورەوە).
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -86,25 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = credential.user;
       if (user == null) throw FirebaseAuthException(code: 'user-null');
 
-      await user.reload();
-      final fresh = FirebaseAuth.instance.currentUser;
-      if (fresh == null || !fresh.emailVerified) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              S.of(context).translate('auth_err_email_not_verified'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
-            ),
-          ),
-        );
-        return;
-      }
-
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(fresh.uid)
+          .doc(user.uid)
           .get();
       if (!doc.exists) {
         await FirebaseAuth.instance.signOut();
@@ -148,29 +134,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: widget.showBackButton,
-        leading: widget.showBackButton
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
-      ),
-      body: Directionality(
-        textDirection: AppLocaleScope.of(context).textDirection,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: const Color(0xFF0A0E21),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            automaticallyImplyLeading: widget.showBackButton,
+            leading: widget.showBackButton
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  )
+                : null,
+          ),
+          body: Directionality(
+            textDirection: AppLocaleScope.of(context).textDirection,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Form(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 const SizedBox(height: 20),
                 Text(
                   S.of(context).translate('login'),
@@ -217,23 +205,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     elevation: 5,
                   ),
                   onPressed: _isLoading ? null : _handleLogin,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 26,
-                          width: 26,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.6,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          S.of(context).translate('sign_in'),
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                  child: Text(
+                    S.of(context).translate('sign_in'),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white.withValues(
+                        alpha: _isLoading ? 0.65 : 1,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 25),
                 Row(
@@ -262,11 +243,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      ),
+        if (_isLoading) ...[
+          ModalBarrier(
+            dismissible: false,
+            color: Colors.black.withValues(alpha: 0.45),
+          ),
+          const Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ],
     );
   }
 

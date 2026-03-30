@@ -51,10 +51,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Email',
   },
   'auth_err_email_not_verified': {
-    'ckb':
-        'تکایە سندوقی نامەی ئەلیکترۆنی پشتڕاست بکەرەوە پێش چوونە ژوورەوە.',
-    'ar': 'يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول.',
-    'en': 'Please verify your email before signing in.',
+    'ckb': 'تکایە سەرەتا ئیمەیڵەکەت دڵنیا بکەرەوە',
+    'ar': 'يرجى تأكيد بريدك الإلكتروني أولاً.',
+    'en': 'Please verify your email first.',
   },
   'auth_verify_email_title': {
     'ckb': 'ئیمەیڵەکەت پشتڕاست بکەرەوە',
@@ -63,11 +62,11 @@ const Map<String, Map<String, String>> kAppStrings = {
   },
   'auth_verify_email_body': {
     'ckb':
-        'لینکی پشتڕاستکردنەوەمان بۆ ئەم ئیمەیڵە ناردووە. دوای کرتەکردن لەسەر لینکەکە، «دووبارە پشکنین» بکە.',
+        'ئیمەیڵێکی دڵنیابوونەوەمان بۆ ناردوویت، تکایە کلیک لەو لینکە بکە کە لە ناو ئیمەیڵەکەدایە',
     'ar':
-        'أرسلنا رابط التحقق إلى بريدك. بعد فتح الرابط، اضغط «تحديث الحالة».',
+        'أرسلنا بريد تحقق. يرجى النقر على الرابط داخل البريد.',
     'en':
-        'We sent a verification link to your inbox. After you open it, tap “I’ve verified”.',
+        'We sent a verification email. Please tap the link inside the email.',
   },
   'auth_resend_verification': {
     'ckb': 'دووبارە ناردنی ئیمەیڵی پشتڕاستکردنەوە',
@@ -75,14 +74,54 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Resend verification email',
   },
   'auth_verify_email_recheck': {
-    'ckb': 'دووبارە پشکنین',
-    'ar': 'تحديث الحالة',
-    'en': "I've verified — refresh",
+    'ckb': 'من لینکەکەم چالاک کرد',
+    'ar': 'لقد فعّلت الرابط',
+    'en': 'I have verified',
+  },
+  'auth_verify_email_link_not_active': {
+    'ckb': 'تکایە سەرەتا لینکەکە چالاک بکە',
+    'ar': 'يرجى تفعيل الرابط أولاً.',
+    'en': 'Please activate the link in your email first.',
+  },
+  'auth_resend_in_seconds': {
+    'ckb': 'دووبارە ناردن لە {n} چرکە',
+    'ar': 'إعادة الإرسال خلال {n} ث',
+    'en': 'Resend in {n}s',
   },
   'auth_verify_email_resent': {
     'ckb': 'ئیمەیڵی پشتڕاستکردنەوە دووبارە نێردرا',
     'ar': 'تم إعادة إرسال بريد التحقق',
     'en': 'Verification email sent again',
+  },
+  'verify_email_sent_heading': {
+    'ckb': 'ئیمەیڵ نێردرا',
+    'ar': 'تم إرسال البريد',
+    'en': 'Email sent',
+  },
+  'verify_email_activate_prompt': {
+    'ckb': 'تکایە ئیمەیڵەکەت چالاک بکە',
+    'ar': 'يرجى تفعيل بريدك الإلكتروني',
+    'en': 'Please verify your email',
+  },
+  'verify_email_check_again': {
+    'ckb': 'دووبارە پشکنین',
+    'ar': 'تحقق مرة أخرى',
+    'en': 'Check again',
+  },
+  'verify_email_open_email_app': {
+    'ckb': 'کردنەوەی ئیمەیڵ',
+    'ar': 'فتح البريد',
+    'en': 'Open email (Gmail)',
+  },
+  'verify_email_launch_failed': {
+    'ckb': 'نەتوانرا ئیمەیڵ بکرێتەوە',
+    'ar': 'تعذر فتح التطبيق',
+    'en': 'Could not open email',
+  },
+  'auth_email_not_activated_snack': {
+    'ckb': 'ئیمەیڵەکەت چالاک نەکراوە',
+    'ar': 'لم يتم تفعيل بريدك الإلكتروني',
+    'en': 'Your email has not been verified',
   },
   'signup_verify_email_dialog_title': {
     'ckb': 'سندوقی نامەکەت بپشکنە',
@@ -269,9 +308,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Passwords do not match',
   },
   'validation_phone_required': {
-    'ckb': 'ژمارەی مۆبایل پێویستە',
-    'ar': 'رقم الجوال مطلوب',
-    'en': 'Mobile number is required',
+    'ckb': 'تکایە ژمارەی مۆبایل بنووسە',
+    'ar': 'يرجى إدخال رقم الجوال',
+    'en': 'Please enter your mobile number',
   },
   'validation_phone_digits_only': {
     'ckb': 'تەنها ژمارە بنووسە',
@@ -564,6 +603,34 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'نەخۆش',
     'ar': 'مريض',
     'en': 'Patient',
+  },
+  'signup_doctor_security_title': {
+    'ckb': 'کۆدی چالاککردنی ئاسایش',
+    'ar': 'رمز تفعيل الأمان',
+    'en': 'Security activation code',
+  },
+  'signup_doctor_security_warning': {
+    'ckb':
+        'ئاگاداری: ئەم کۆدە تایبەتە بە پزیشکانی ڕێپێدراو. بڵاوکردنەوەی ئەم کۆدە بەرپرسیارێتی یاسایی لەسەرە و دەبێتە هۆی سڕینەوەی هەژمارەکەت.',
+    'ar':
+        'تحذير: هذا الرمز مخصص للأطباء المصرّح لهم. نشره ينطوي على مسؤولية قانونية وقد يؤدي إلى حذف حسابك.',
+    'en':
+        'Warning: This code is for authorized physicians only. Sharing it may carry legal liability and can result in deletion of your account.',
+  },
+  'signup_doctor_security_hint': {
+    'ckb': 'کۆدی چالاککردن بنووسە',
+    'ar': 'أدخل رمز التفعيل',
+    'en': 'Enter activation code',
+  },
+  'signup_doctor_security_wrong': {
+    'ckb': 'کۆدەکە هەڵەیە، تکایە پەیوەندی بە بەڕێوەبەر بکە.',
+    'ar': 'الرمز غير صحيح، يرجى التواصل مع المشرف.',
+    'en': 'The code is incorrect. Please contact the administrator.',
+  },
+  'signup_doctor_security_confirm': {
+    'ckb': 'پشتڕاستکردنەوە',
+    'ar': 'تأكيد',
+    'en': 'Verify',
   },
   'signup_err_email_in_use': {
     'ckb': 'ئەم ئیمەیڵە پێشتر بەکارهاتووە',

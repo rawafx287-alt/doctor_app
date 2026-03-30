@@ -10,8 +10,9 @@ import '../specialty_categories.dart';
 
 enum UserRole { patient, doctor }
 
-/// Email/password registration: [createUserWithEmailAndPassword], [User.sendEmailVerification],
-/// Firestore `users` doc, then sign-out and prompt to check inbox before login.
+/// Email/password registration: [createUserWithEmailAndPassword], Firestore `users` doc.
+/// Doctor role requires a security code dialog before Firebase; patients register directly.
+/// User stays signed in; [Navigator.pop] dismisses this route so [AuthGate] shows home.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -71,6 +72,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   bool get _isDoctor => _selectedRole == UserRole.doctor;
 
+  /// Doctor registration dialog; treat as UX gate only—enforce rules in backend for real security.
+  static const String _doctorActivationCode = 'HR64';
+
   /// Requires `@` and a domain ending in `.com` (case-insensitive).
   static final RegExp _emailRegex = RegExp(
     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$',
@@ -119,7 +123,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _validatePhone(String? value) {
     final s = S.of(context);
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return null;
+    if (v.isEmpty) return s.translate('validation_phone_required');
     if (!_digitsOnly.hasMatch(v)) {
       return s.translate('validation_phone_digits_only');
     }
@@ -136,6 +140,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _onSignUpPressed() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    if (_isDoctor) {
+      final ok = await _showDoctorSecurityDialog();
+      if (!mounted) return;
+      if (!ok) return;
+      // Let the dialog route finish tearing down before Firebase / overlay updates.
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+    }
+
+    await _registerWithFirebase();
+  }
+
+  /// Returns `true` only when the user submits the correct activation code.
+  Future<bool> _showDoctorSecurityDialog() async {
+    if (!mounted) return false;
+    final result = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => _DoctorSecurityCodeDialog(
+        requiredCode: _doctorActivationCode,
+      ),
+    );
+    if (!mounted) return false;
+    return result ?? false;
+  }
+
+  Future<void> _registerWithFirebase() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -155,8 +188,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final user = userCred.user;
       if (user == null) throw Exception('User ID is null');
 
-      await user.sendEmailVerification();
-
       final first = _firstNameController.text.trim();
       final last = _lastNameController.text.trim();
       final fullName = '$first $last'.trim();
@@ -175,55 +206,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      await FirebaseAuth.instance.signOut();
-
       if (!mounted) return;
-
-      final s = S.of(context);
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) {
-          return Directionality(
-            textDirection: AppLocaleScope.of(ctx).textDirection,
-            child: AlertDialog(
-              backgroundColor: const Color(0xFF1D1E33),
-              title: Text(
-                s.translate('signup_verify_email_dialog_title'),
-                style: const TextStyle(
-                  fontFamily: 'KurdishFont',
-                  color: Color(0xFFD9E2EC),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              content: Text(
-                s.translate('signup_verify_email_dialog_body'),
-                style: const TextStyle(
-                  fontFamily: 'KurdishFont',
-                  color: Color(0xFF829AB1),
-                  height: 1.4,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: Text(
-                    s.translate('ok'),
-                    style: const TextStyle(
-                      color: Color(0xFF42A5F5),
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+      // Signed in; defer pop until after this frame so routes/InheritedWidgets settle.
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.microtask(() {
+          if (!mounted) return;
+          Navigator.of(context, rootNavigator: true).pop();
+        });
+      });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       final s = S.of(context);
@@ -346,7 +338,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 14),
                 _buildTextField(
                   controller: _phoneController,
-                  label: S.of(context).translate('signup_mobile_optional'),
+                  label: S.of(context).translate('signup_mobile'),
                   icon: Icons.phone_android_rounded,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -612,6 +604,152 @@ class _SignUpScreenState extends State<SignUpScreen> {
           (value) => value == null || value.trim().isEmpty
               ? S.of(context).translate('validation_field_required')
               : null,
+    );
+  }
+}
+
+/// Owns [TextEditingController] so it is disposed with the dialog route (avoids
+/// `_dependents.isEmpty` if the controller is disposed while the overlay is closing).
+class _DoctorSecurityCodeDialog extends StatefulWidget {
+  const _DoctorSecurityCodeDialog({required this.requiredCode});
+
+  final String requiredCode;
+
+  @override
+  State<_DoctorSecurityCodeDialog> createState() =>
+      _DoctorSecurityCodeDialogState();
+}
+
+class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
+  static const Color _surface = Color(0xFF1D1E33);
+  static const Color _bg = Color(0xFF0A0E21);
+  static const Color _teal = Color(0xFF42A5F5);
+  static const Color _text = Color(0xFFD9E2EC);
+  static const Color _muted = Color(0xFF829AB1);
+
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _closeWith(bool value) {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(value);
+  }
+
+  void _onSubmit() {
+    if (_controller.text.trim() == widget.requiredCode) {
+      _closeWith(true);
+    } else {
+      setState(() {
+        _error = S.of(context).translate('signup_doctor_security_wrong');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Directionality(
+      textDirection: AppLocaleScope.of(context).textDirection,
+      child: AlertDialog(
+        backgroundColor: _surface,
+        title: Text(
+          s.translate('signup_doctor_security_title'),
+          style: const TextStyle(
+            fontFamily: 'KurdishFont',
+            color: _text,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                s.translate('signup_doctor_security_warning'),
+                style: TextStyle(
+                  fontFamily: 'KurdishFont',
+                  color: _muted.withValues(alpha: 0.95),
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _controller,
+                style: const TextStyle(
+                  color: _text,
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  labelText: s.translate('signup_doctor_security_hint'),
+                  labelStyle: const TextStyle(
+                    color: _muted,
+                    fontFamily: 'KurdishFont',
+                  ),
+                  errorText: _error,
+                  errorStyle: const TextStyle(
+                    fontFamily: 'KurdishFont',
+                    fontSize: 12,
+                  ),
+                  filled: true,
+                  fillColor: _bg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: _teal,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                onChanged: (_) {
+                  if (_error != null) {
+                    setState(() => _error = null);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _closeWith(false),
+            child: Text(
+              s.translate('action_cancel'),
+              style: const TextStyle(
+                color: _muted,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _onSubmit,
+            child: Text(
+              s.translate('signup_doctor_security_confirm'),
+              style: const TextStyle(
+                color: _teal,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

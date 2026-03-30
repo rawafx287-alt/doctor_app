@@ -6,18 +6,11 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../baxerhatn_login/login.dart';
 import 'auth_navigation.dart';
-import 'email_verification_screen.dart';
 
-/// Root widget: listens to auth + Firestore role and shows the correct screen.
-/// Requires [User.emailVerified] before loading the user profile / home.
-class AuthGate extends StatefulWidget {
+/// Root widget: listens to auth + Firestore role and shows login or the correct home.
+class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -32,16 +25,11 @@ class _AuthGateState extends State<AuthGate> {
           return const LoginScreen(showBackButton: false);
         }
 
-        if (!user.emailVerified) {
-          return EmailVerificationPendingScreen(
-            onRecheck: () {
-              if (mounted) setState(() {});
-            },
-          );
-        }
-
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots(),
           builder: (context, docSnapshot) {
             if (docSnapshot.connectionState == ConnectionState.waiting &&
                 !docSnapshot.hasData) {
