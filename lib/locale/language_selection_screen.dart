@@ -53,7 +53,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     super.didChangeDependencies();
     if (_didPrecacheFlags) return;
     _didPrecacheFlags = true;
-    precacheImage(const AssetImage('assets/images/kurd_flag.png'), context);
+    precacheImage(const AssetImage('assets/images/kurdish_flag.png'), context);
     precacheImage(const AssetImage('assets/images/iraq_flag.png'), context);
     precacheImage(const AssetImage('assets/images/british_flag.png'), context);
   }
@@ -101,7 +101,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     final cards = [
       (
         language: HrNoraLanguage.ckb,
-        flagAsset: 'assets/images/kurd_flag.png',
+        flagAsset: 'assets/images/kurdish_flag.png',
       ),
       (
         language: HrNoraLanguage.ar,
