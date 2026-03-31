@@ -44,7 +44,6 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const Color _deepBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
-  static const double _outerBorderWidth = 0.5;
   static const double _innerRadius = 19.5;
 
   late AnimationController _pulseController;
@@ -76,9 +75,19 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    const colAlign = CrossAxisAlignment.end;
-    const textAlign = TextAlign.end;
-    const badgeAlign = AlignmentDirectional.centerEnd;
+    final colAlign =
+        rtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final textAlign = rtl ? TextAlign.end : TextAlign.start;
+    final badgeAlign =
+        rtl ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart;
+    final hasArabicScript = RegExp(
+      r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
+    ).hasMatch(widget.name);
+    final nameAlign = hasArabicScript ? TextAlign.right : TextAlign.left;
+    final nameDirection =
+        hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
+    final nameBoxAlignment =
+        hasArabicScript ? Alignment.centerRight : Alignment.centerLeft;
 
     return RepaintBoundary(
       child: Material(
@@ -87,8 +96,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.92),
-              width: _outerBorderWidth,
+              color: _kLuxGold.withValues(alpha: 0.28),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
@@ -203,34 +212,23 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         CrossAxisAlignment.stretch,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Row(
-                                        textDirection: Directionality.of(context),
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        mainAxisAlignment: MainAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              widget.name,
-                                              textAlign: textAlign,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: _navyText,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                                fontFamily: 'KurdishFont',
-                                                height: 1.2,
-                                                letterSpacing: 0.25,
-                                              ),
-                                            ),
+                                      Align(
+                                        alignment: nameBoxAlignment,
+                                        child: Text(
+                                          widget.name,
+                                          textDirection: nameDirection,
+                                          textAlign: nameAlign,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: _navyText,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            fontFamily: 'KurdishFont',
+                                            height: 1.2,
+                                            letterSpacing: 0.25,
                                           ),
-                                          const SizedBox(width: 4),
-                                          Icon(
-                                            Icons.verified_rounded,
-                                            size: 16,
-                                            color: _kLuxGold.withValues(alpha: 0.9),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ],
                                   ),
