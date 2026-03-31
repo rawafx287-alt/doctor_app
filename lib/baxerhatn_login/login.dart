@@ -7,6 +7,7 @@ import '../admin_panel/admin_dashboard.dart';
 import '../doctor/doctor_home_screen.dart';
 import '../auth/phone_normalization.dart';
 import '../auth/doctor_session_cache.dart';
+import '../auth/patient_session_cache.dart';
 import '../locale/app_localizations.dart';
 import '../patient/patient_home_screen.dart';
 import 'forgot_password.dart';
@@ -217,6 +218,7 @@ class _LoginScreenState extends State<LoginScreen>
           });
         }
         await DoctorSessionCache.saveDoctorRefId(approvedDoctorDoc.id);
+        await PatientSessionCache.clearPatientRefId();
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const DoctorHomeScreen()),
@@ -227,6 +229,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (adminMatches.isNotEmpty) {
         await DoctorSessionCache.clearDoctorRefId();
+        await PatientSessionCache.clearPatientRefId();
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const AdminDashboard()),
@@ -236,6 +239,9 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       if (userMatches.isNotEmpty || matchedDocs.isNotEmpty) {
+        final patientDoc =
+            userMatches.isNotEmpty ? userMatches.first : matchedDocs.first;
+        await PatientSessionCache.savePatientRefId(patientDoc.id);
         await DoctorSessionCache.clearDoctorRefId();
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(

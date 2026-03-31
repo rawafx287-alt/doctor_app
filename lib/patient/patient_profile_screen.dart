@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/app_logout.dart';
 import '../auth/firestore_user_doc_id.dart';
+import '../auth/patient_session_cache.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
@@ -22,6 +23,31 @@ const Color _kLogoutRedDeep = Color(0xFFC62828);
 /// Patient profile tab: glass header + mini glass tiles; logout uses [performAppLogout].
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
+
+  Future<String?> _resolvePatientDocId(User user) async {
+    final users = FirebaseFirestore.instance.collection('users');
+    final cached = (await PatientSessionCache.readPatientRefId() ?? '').trim();
+    final candidates = <String>{
+      cached,
+      firestoreUserDocId(user).trim(),
+      user.uid.trim(),
+    }..removeWhere((e) => e.isEmpty);
+
+    for (final id in candidates) {
+      final doc = await users.doc(id).get(const GetOptions(source: Source.server));
+      if (doc.exists) return id;
+    }
+
+    final email = (user.email ?? '').trim();
+    if (email.isNotEmpty) {
+      final byEmail = await users
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+      if (byEmail.docs.isNotEmpty) return byEmail.docs.first.id;
+    }
+    return null;
+  }
 
   Future<void> _logout(BuildContext context) async {
     await performAppLogout(context);
@@ -66,9 +92,6 @@ class PatientProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final docId = firestoreUserDocId(user);
-
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: DecoratedBox(
@@ -79,8 +102,19 @@ class PatientProfileScreen extends StatelessWidget {
             colors: [_kSkyTop, _kSkyBottom],
           ),
         ),
-        child: user == null || docId.isEmpty
-            ? Center(
+        child: StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          initialData: FirebaseAuth.instance.currentUser,
+          builder: (context, authSnap) {
+            final user = authSnap.data ?? FirebaseAuth.instance.currentUser;
+            if (authSnap.connectionState == ConnectionState.waiting &&
+                user == null) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              );
+            }
+            if (user == null) {
+              return Center(
                 child: Text(
                   S.of(context).translate('profile_guest'),
                   style: const TextStyle(
@@ -89,35 +123,69 @@ class PatientProfileScreen extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              )
-            : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(docId)
-                    .snapshots(),
-                builder: (context, snap) {
-                  final data = snap.data?.data();
-                  final name = (data?['fullName'] ??
-                          S.of(context).translate('patient_default'))
-                      .toString();
-                  final emailFromDoc =
-                      (data?['email'] ?? '').toString().trim();
-                  final authEmail =
-                      FirebaseAuth.instance.currentUser?.email?.trim() ?? '';
-                  final email = emailFromDoc.isNotEmpty
-                      ? emailFromDoc
-                      : (authEmail.isNotEmpty ? authEmail : '—');
-
-                  return ListView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      28 + MediaQuery.paddingOf(context).bottom,
+              );
+            }
+            return FutureBuilder<String?>(
+              future: _resolvePatientDocId(user),
+              builder: (context, idSnap) {
+                if (idSnap.connectionState == ConnectionState.waiting &&
+                    !idSnap.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                  );
+                }
+                final docId = (idSnap.data ?? '').trim();
+                if (docId.isEmpty) {
+                  return Center(
+                    child: Text(
+                      S.of(context).translate('profile_guest'),
+                      style: const TextStyle(
+                        color: _kMutedGrey,
+                        fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    itemCount: 5,
-                    itemBuilder: (context, index) {
-                      switch (index) {
+                  );
+                }
+                return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(docId)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data();
+                    final role = (data?['role'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase();
+                    if (data != null &&
+                        role.isNotEmpty &&
+                        role != 'patient' &&
+                        role != 'user') {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                      );
+                    }
+                    final name = (data?['fullName'] ??
+                            S.of(context).translate('patient_default'))
+                        .toString();
+                    final emailFromDoc =
+                        (data?['email'] ?? '').toString().trim();
+                    final authEmail = user.email?.trim() ?? '';
+                    final email = emailFromDoc.isNotEmpty
+                        ? emailFromDoc
+                        : (authEmail.isNotEmpty ? authEmail : '—');
+
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        16,
+                        16,
+                        28 + MediaQuery.paddingOf(context).bottom,
+                      ),
+                      itemCount: 5,
+                      itemBuilder: (context, index) {
+                        switch (index) {
                         case 0:
                           return _ProfileGlassHeader(name: name, email: email);
                         case 1:
@@ -172,11 +240,15 @@ class PatientProfileScreen extends StatelessWidget {
                               onTap: () => _logout(context),
                             ),
                           );
-                      }
-                    },
-                  );
-                },
-              ),
+                        }
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

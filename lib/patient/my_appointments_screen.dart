@@ -8,6 +8,8 @@ import '../firestore/appointment_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../auth/firestore_user_doc_id.dart';
+import '../auth/patient_session_cache.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -821,6 +823,80 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
   void _toggleTodayOnly() => setState(() => _todayOnly = !_todayOnly);
 
+  Set<String> _patientIdsForQueries(User user) {
+    final ids = <String>{
+      user.uid.trim(),
+      firestoreUserDocId(user).trim(),
+    };
+    ids.removeWhere((e) => e.isEmpty);
+    return ids;
+  }
+
+  Future<Set<String>> _resolvePatientIds() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final ids = <String>{};
+    final cached = (await PatientSessionCache.readPatientRefId() ?? '').trim();
+    if (cached.isNotEmpty) ids.add(cached);
+    if (user != null) {
+      ids.addAll(_patientIdsForQueries(user));
+    }
+    ids.removeWhere((e) => e.isEmpty);
+    return ids;
+  }
+
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      _watchAppointmentsForPatientIds(Set<String> ids) {
+    final streams = <Stream<QuerySnapshot<Map<String, dynamic>>>>[];
+    for (final id in ids) {
+      streams.add(
+        FirebaseFirestore.instance
+            .collection(AppointmentFields.collection)
+            .where(AppointmentFields.patientId, isEqualTo: id)
+            .snapshots(),
+      );
+      streams.add(
+        FirebaseFirestore.instance
+            .collection(AppointmentFields.collection)
+            .where(AppointmentFields.userId, isEqualTo: id)
+            .snapshots(),
+      );
+    }
+
+    return Stream.multi((controller) {
+      final latest = List<QuerySnapshot<Map<String, dynamic>>?>.filled(
+        streams.length,
+        null,
+      );
+      void emitMerged() {
+        final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+        for (final snap in latest) {
+          for (final d in snap?.docs ?? const []) {
+            byId[d.id] = d;
+          }
+        }
+        controller.add(byId.values.toList());
+      }
+
+      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (var i = 0; i < streams.length; i++) {
+        subs.add(
+          streams[i].listen(
+            (event) {
+              latest[i] = event;
+              emitMerged();
+            },
+            onError: controller.addError,
+          ),
+        );
+      }
+      controller.onCancel = () async {
+        for (final s in subs) {
+          await s.cancel();
+        }
+      };
+    });
+  }
+
   Widget _filterToggleBar(BuildContext context) {
     final s = S.of(context);
     return Padding(
@@ -851,21 +927,26 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    final listBody = uid == null
-        ? Center(
+    final listBody = FutureBuilder<Set<String>>(
+      future: _resolvePatientIds(),
+      builder: (context, idsSnap) {
+        if (idsSnap.connectionState == ConnectionState.waiting &&
+            !idsSnap.hasData) {
+          return Center(
+            child: CircularProgressIndicator(color: _uiAccent),
+          );
+        }
+        final patientIds = idsSnap.data ?? const <String>{};
+        if (patientIds.isEmpty) {
+          return Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
               style: TextStyle(color: _uiMuted, fontFamily: 'KurdishFont'),
             ),
-          )
-        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            // Indexed query: `userId` + `orderBy(date).orderBy(time)` — see [patientAppointmentsQuery].
-            stream: patientAppointmentsQuery(
-              patientUid: uid,
-              dateLocalDay: _todayOnly ? _todayAnchor : null,
-            ).snapshots(),
+          );
+        }
+        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            stream: _watchAppointmentsForPatientIds(patientIds),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(
@@ -892,7 +973,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               }
               var docs =
                   List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-                snapshot.data?.docs ?? [],
+                snapshot.data ?? [],
               );
               if (_todayOnly) {
                 docs = docs.where((d) {
@@ -1007,10 +1088,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               );
             },
           );
+      },
+    );
 
-    final body = uid == null
-        ? listBody
-        : widget.embedded
+    final body = widget.embedded
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1056,18 +1137,17 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           ),
           actions: [
-            if (uid != null)
-              IconButton(
-                icon: Icon(
-                  _todayOnly
-                      ? Icons.calendar_view_month_outlined
-                      : Icons.today_outlined,
-                ),
-                tooltip: _todayOnly
-                    ? S.of(context).translate('appointments_show_all')
-                    : S.of(context).translate('appointments_show_today'),
-                onPressed: _toggleTodayOnly,
+            IconButton(
+              icon: Icon(
+                _todayOnly
+                    ? Icons.calendar_view_month_outlined
+                    : Icons.today_outlined,
               ),
+              tooltip: _todayOnly
+                  ? S.of(context).translate('appointments_show_all')
+                  : S.of(context).translate('appointments_show_today'),
+              onPressed: _toggleTodayOnly,
+            ),
           ],
         ),
         body: body,

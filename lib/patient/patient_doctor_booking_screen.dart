@@ -23,7 +23,17 @@ class PatientDoctorBookingScreen extends StatelessWidget {
   final String doctorId;
   final Map<String, dynamic> doctorData;
 
-  String get _doctorUid => doctorId.trim();
+  String get _doctorUid {
+    final direct = doctorId.trim();
+    if (direct.isNotEmpty) return direct;
+    final fallback = (doctorData['uid'] ??
+            doctorData['doctorId'] ??
+            doctorData['id'] ??
+            '')
+        .toString()
+        .trim();
+    return fallback;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +74,11 @@ class PatientDoctorBookingScreen extends StatelessWidget {
         ),
         body: DecoratedBox(
           decoration: patientSkyGradientDecoration(),
-          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          child: _doctorUid.isEmpty
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                )
+              : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
                 .collection('users')
                 .doc(_doctorUid)

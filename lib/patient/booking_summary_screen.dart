@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
 import '../firestore/available_days_queries.dart';
+import '../auth/patient_session_cache.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
@@ -37,6 +38,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   bool _submitting = false;
 
   String get _doctorUid => widget.doctorId.trim();
+
+  String get _resolvedDoctorUid {
+    final direct = widget.doctorId.trim();
+    if (direct.isNotEmpty) return direct;
+    final fromMap = (widget.mergedDoctorData['uid'] ??
+            widget.mergedDoctorData['doctorId'] ??
+            widget.mergedDoctorData['id'] ??
+            '')
+        .toString()
+        .trim();
+    return fromMap;
+  }
 
   Future<void> _confirmWithPreview(BuildContext context, String timeDisplay) async {
     final s = S.of(context);
@@ -112,8 +125,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
   Future<void> _commitBooking(BuildContext context) async {
     final s = S.of(context);
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    final uid = (FirebaseAuth.instance.currentUser?.uid ??
+            await PatientSessionCache.readPatientRefId())
+        ?.trim();
+    if (uid == null || uid.isEmpty) return;
 
     setState(() => _submitting = true);
     try {
@@ -129,7 +144,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         availableDayDocId: widget.availableDayDocId,
         patientId: uid,
         patientName: widget.patientName,
-        doctorId: _doctorUid,
+        doctorId: _resolvedDoctorUid,
         doctorDisplayName: doctorName,
       );
 
