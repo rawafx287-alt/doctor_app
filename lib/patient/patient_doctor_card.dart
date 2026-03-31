@@ -41,8 +41,6 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
 
   static const Color _navyText = kPatientNavyText;
 
-  /// Darker than [_navyText] for badge contrast on frosted glass.
-  static const Color _badgeText = Color(0xFF050A14);
   static const Color _deepBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
@@ -265,32 +263,73 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                   const SizedBox(height: 8),
                                   Align(
                                     alignment: badgeAlign,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 11,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.38,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: BackdropFilter(
+                                        filter: ui.ImageFilter.blur(
+                                          sigmaX: 12,
+                                          sigmaY: 12,
                                         ),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: _deepBlue.withValues(
-                                            alpha: 0.5,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 13,
+                                            vertical: 6,
                                           ),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        widget.specialty,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: _badgeText,
-                                          fontSize: 13,
-                                          fontFamily: 'KurdishFont',
-                                          height: 1.25,
-                                          fontWeight: FontWeight.w700,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                const Color(
+                                                  0xFFF3D6C4,
+                                                ).withValues(alpha: 0.4),
+                                                Colors.white.withValues(
+                                                  alpha: 0.24,
+                                                ),
+                                                const Color(
+                                                  0xFFE9D5C7,
+                                                ).withValues(alpha: 0.34),
+                                              ],
+                                            ),
+                                            border: Border.all(
+                                              color: _kLuxGold.withValues(
+                                                alpha: 0.98,
+                                              ),
+                                              width: 1.1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: _kLuxGold.withValues(
+                                                  alpha: 0.26,
+                                                ),
+                                                blurRadius: 8,
+                                                spreadRadius: -2,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                              BoxShadow(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.5,
+                                                ),
+                                                blurRadius: 10,
+                                                spreadRadius: -4,
+                                                offset: const Offset(0, -2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            widget.specialty,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 13,
+                                              fontFamily: 'KurdishFont',
+                                              height: 1.2,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -366,7 +405,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
   final String label;
 
   static const double _r = 14;
-  static const Color _kDetailsTextNavy = Color(0xFF0D47A1);
+  static const Color _kDetailsTextColor = Colors.black;
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +437,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _kDetailsTextNavy.withValues(alpha: 0.96),
+                    color: _kDetailsTextColor.withValues(alpha: 0.92),
                     fontFamily: 'KurdishFont',
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -412,7 +451,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                     ? Icons.arrow_back_ios_new_rounded
                     : Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color: _kLuxGold.withValues(alpha: 0.95),
+                color: Colors.black.withValues(alpha: 0.9),
               ),
             ],
           ),
@@ -447,7 +486,15 @@ class _BookNowPrimaryButton extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_r),
-              color: _kLuxBottomBlue.withValues(alpha: 0.24),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  _kLuxGold.withValues(alpha: 0.95),
+                  _kLuxGoldLight.withValues(alpha: 0.98),
+                  _kLuxGold.withValues(alpha: 0.95),
+                ],
+              ),
               border: Border.all(
                 color: _kLuxGold.withValues(alpha: 0.95),
                 width: 1.2,
@@ -477,42 +524,26 @@ class _BookNowPrimaryButton extends StatelessWidget {
                       return Icon(
                         Icons.calendar_month_rounded,
                         size: 18,
-                        color: Color.lerp(
-                          _kLuxGold,
-                          _kLuxGoldLight,
-                          0.25 + 0.25 * pulse,
+                        color: Colors.black.withValues(
+                          alpha: 0.84 + 0.08 * pulse,
                         ),
                       );
                     },
                   ),
                   const SizedBox(width: 8),
                   Flexible(
-                    child: ShaderMask(
-                      blendMode: BlendMode.srcIn,
-                      shaderCallback: (bounds) {
-                        return LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            _kLuxGold,
-                            _kLuxGoldLight,
-                            _kLuxGold,
-                          ],
-                        ).createShader(bounds);
-                      },
-                      child: Text(
-                        bookCtaText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'KurdishFont',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14.5,
-                          height: 1.2,
-                          letterSpacing: 0.1,
-                          color: Colors.white,
-                        ),
+                    child: Text(
+                      bookCtaText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                        height: 1.2,
+                        letterSpacing: 0.1,
+                        color: Colors.black.withValues(alpha: 0.92),
                       ),
                     ),
                   ),
