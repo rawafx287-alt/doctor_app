@@ -277,8 +277,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  /// Phone = Firestore doc id; Firebase Auth uses [phoneAuthEmail].
-  /// If Auth already has this phone email, signs in and [SetOptions.merge] writes Firestore.
+  /// Patient registration uses Firebase Auth synthetic phone-email login.
+  /// Firestore document is saved under **uid** (not phone number).
   Future<void> _registerPatientPhoneKeyed() async {
     UserCredential? userCred;
     var profileSavedToFirestore = false;
@@ -352,9 +352,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return;
       }
 
+      final uid = userCred.user?.uid ?? '';
+      if (uid.isEmpty) {
+        if (!mounted) return;
+        _showSnackBar(S.of(context).translate('signup_err_generic'));
+        return;
+      }
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(phone)
+          .doc(uid)
           .set(profilePayload, SetOptions(merge: true));
       profileSavedToFirestore = true;
 
@@ -468,11 +474,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final emailRaw = _emailController.text.trim();
     final emailLower = emailRaw.toLowerCase();
 
-    // 1) Phone as document id.
-    final phoneDoc = await users.doc(phone).get();
-    if (phoneDoc.exists) return true;
-
-    // 2) Phone in field (string / int legacy).
+    // 1) Phone in field (string / int legacy).
     var byPhone = await users.where('phone', isEqualTo: phone).limit(1).get();
     if (byPhone.docs.isNotEmpty) return true;
     final phoneInt = int.tryParse(phone);

@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../auth/patient_session_cache.dart';
+import '../auth/phone_auth_config.dart';
+import '../auth/phone_normalization.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -824,9 +826,18 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   void _toggleTodayOnly() => setState(() => _todayOnly = !_todayOnly);
 
   Set<String> _patientIdsForQueries(User user) {
+    final phoneIds = <String>{};
+    final authPhone = normalizePhoneDigits((user.phoneNumber ?? '').trim());
+    if (authPhone.isNotEmpty) phoneIds.add(authPhone);
+    final email = (user.email ?? '').trim();
+    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
+      final p = normalizePhoneDigits(email.split('@').first);
+      if (p.isNotEmpty) phoneIds.add(p);
+    }
     final ids = <String>{
       user.uid.trim(),
       firestoreUserDocId(user).trim(),
+      ...phoneIds,
     };
     ids.removeWhere((e) => e.isEmpty);
     return ids;

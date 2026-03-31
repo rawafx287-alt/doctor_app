@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/patient_doc_resolver.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
@@ -62,7 +63,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
     final appTextDir = AppLocaleScope.of(context).textDirection;
     final s = S.of(context);
     final lang = AppLocaleScope.of(context).effectiveLanguage;
@@ -122,7 +123,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               final profileImageUrl = (merged['profileImageUrl'] ?? '')
                   .toString()
                   .trim();
-              return uid == null
+              return user == null
                   ? SingleChildScrollView(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -134,10 +135,33 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                         ),
                       ),
                     )
-                  : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  : FutureBuilder<String?>(
+                      future: resolvePatientUserDocId(user),
+                      builder: (context, idSnap) {
+                        if (idSnap.connectionState == ConnectionState.waiting &&
+                            !idSnap.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                          );
+                        }
+                        final pid = (idSnap.data ?? '').trim();
+                        if (pid.isEmpty) {
+                          return SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 18),
+                              child: PatientAvailableDaysList(
+                                doctorId: _doctorUid,
+                                patientName: s.translate('patient_default'),
+                                doctorDisplayName: doctorDisplayName,
+                                mergedDoctorData: merged,
+                              ),
+                            ),
+                          );
+                        }
+                        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                       stream: FirebaseFirestore.instance
                           .collection('users')
-                          .doc(uid.trim())
+                          .doc(pid)
                           .snapshots(),
                       builder: (context, patientSnap) {
                         final patientWaiting =
@@ -825,6 +849,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                             ],
                           ),
                         );
+                      },
+                    );
                       },
                     );
             },

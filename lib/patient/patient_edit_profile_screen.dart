@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../theme/patient_premium_theme.dart';
 
@@ -29,7 +28,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }
 
   Future<void> _load() async {
-    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    final docId = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
     if (docId.isEmpty) {
       setState(() => _loading = false);
       return;
@@ -56,7 +55,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final docId = firestoreUserDocId(FirebaseAuth.instance.currentUser);
+    final docId = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
     if (docId.isEmpty) return;
 
     setState(() => _saving = true);

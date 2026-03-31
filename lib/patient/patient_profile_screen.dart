@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/app_logout.dart';
-import '../auth/firestore_user_doc_id.dart';
-import '../auth/patient_session_cache.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
@@ -24,29 +22,149 @@ const Color _kLogoutRedDeep = Color(0xFFC62828);
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
 
-  Future<String?> _resolvePatientDocId(User user) async {
-    final users = FirebaseFirestore.instance.collection('users');
-    final cached = (await PatientSessionCache.readPatientRefId() ?? '').trim();
-    final candidates = <String>{
-      cached,
-      firestoreUserDocId(user).trim(),
-      user.uid.trim(),
-    }..removeWhere((e) => e.isEmpty);
+  bool _isProfileEmpty(Map<String, dynamic>? data, User user) {
+    final d = data ?? const <String, dynamic>{};
+    final name = (d['fullName'] ?? '').toString().trim();
+    final phone = (d['phone'] ?? '').toString().trim();
+    final emailFromDoc = (d['email'] ?? '').toString().trim();
+    final authEmail = (user.email ?? '').trim();
+    return name.isEmpty && phone.isEmpty && emailFromDoc.isEmpty && authEmail.isEmpty;
+  }
 
-    for (final id in candidates) {
-      final doc = await users.doc(id).get(const GetOptions(source: Source.server));
-      if (doc.exists) return id;
+  Widget _buildCompleteProfileState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'تکایە زانیارییەکانی پرۆفایلت تەواو بکە',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _kMutedGrey,
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PatientEditProfileScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text(
+                'تەواوکردنی پرۆفایل',
+                style: TextStyle(
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileList(
+    BuildContext context, {
+    required User user,
+    required Map<String, dynamic>? data,
+  }) {
+    final name =
+        (data?['fullName'] ?? S.of(context).translate('patient_default')).toString();
+    final phone = (data?['phone'] ?? '').toString().trim();
+    final emailFromDoc = (data?['email'] ?? '').toString().trim();
+    final authEmail = user.email?.trim() ?? '';
+    final email = emailFromDoc.isNotEmpty
+        ? emailFromDoc
+        : (authEmail.isNotEmpty ? authEmail : '—');
+
+    if (_isProfileEmpty(data, user)) {
+      return _buildCompleteProfileState(context);
     }
 
-    final email = (user.email ?? '').trim();
-    if (email.isNotEmpty) {
-      final byEmail = await users
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get(const GetOptions(source: Source.server));
-      if (byEmail.docs.isNotEmpty) return byEmail.docs.first.id;
-    }
-    return null;
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        28 + MediaQuery.paddingOf(context).bottom,
+      ),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        switch (index) {
+          case 0:
+            return _ProfileGlassHeader(
+              name: name,
+              email: email,
+              phone: phone,
+            );
+          case 1:
+            return Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: _GlassSettingsTile(
+                icon: Icons.edit_outlined,
+                title: S.of(context).translate('edit_profile'),
+                subtitle: S.of(context).translate('edit_profile_subtitle'),
+                onTap: () {
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PatientEditProfileScreen(),
+                    ),
+                  );
+                },
+              ),
+            );
+          case 2:
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _GlassSettingsTile(
+                icon: Icons.language_rounded,
+                title: S.of(context).translate('language'),
+                subtitle:
+                    AppLocaleScope.of(context).selectedLanguage?.nativeTitle ?? '—',
+                onTap: () => _showLanguageSheet(context),
+              ),
+            );
+          case 3:
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _GlassSettingsTile(
+                icon: Icons.info_outline_rounded,
+                title: S.of(context).translate('about_app'),
+                subtitle: S.of(context).translate('about_app_subtitle'),
+                onTap: () => _showAbout(context),
+              ),
+            );
+          case 4:
+          default:
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _GlassLogoutTile(
+                title: S.of(context).translate('logout'),
+                onTap: () => _logout(context),
+              ),
+            );
+        }
+      },
+    );
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -125,125 +243,23 @@ class PatientProfileScreen extends StatelessWidget {
                 ),
               );
             }
-            return FutureBuilder<String?>(
-              future: _resolvePatientDocId(user),
-              builder: (context, idSnap) {
-                if (idSnap.connectionState == ConnectionState.waiting &&
-                    !idSnap.hasData) {
+            debugPrint('Fetching data for UID: ${user.uid}');
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid.trim())
+                  .snapshots(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting &&
+                    !snap.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
                   );
                 }
-                final docId = (idSnap.data ?? '').trim();
-                if (docId.isEmpty) {
-                  return Center(
-                    child: Text(
-                      S.of(context).translate('profile_guest'),
-                      style: const TextStyle(
-                        color: _kMutedGrey,
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }
-                return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(docId)
-                      .snapshots(),
-                  builder: (context, snap) {
-                    final data = snap.data?.data();
-                    final role = (data?['role'] ?? '')
-                        .toString()
-                        .trim()
-                        .toLowerCase();
-                    if (data != null &&
-                        role.isNotEmpty &&
-                        role != 'patient' &&
-                        role != 'user') {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-                      );
-                    }
-                    final name = (data?['fullName'] ??
-                            S.of(context).translate('patient_default'))
-                        .toString();
-                    final emailFromDoc =
-                        (data?['email'] ?? '').toString().trim();
-                    final authEmail = user.email?.trim() ?? '';
-                    final email = emailFromDoc.isNotEmpty
-                        ? emailFromDoc
-                        : (authEmail.isNotEmpty ? authEmail : '—');
-
-                    return ListView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        16,
-                        16,
-                        28 + MediaQuery.paddingOf(context).bottom,
-                      ),
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        switch (index) {
-                        case 0:
-                          return _ProfileGlassHeader(name: name, email: email);
-                        case 1:
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: _GlassSettingsTile(
-                              icon: Icons.edit_outlined,
-                              title: S.of(context).translate('edit_profile'),
-                              subtitle: S.of(context)
-                                  .translate('edit_profile_subtitle'),
-                              onTap: () {
-                                Navigator.push<void>(
-                                  context,
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        const PatientEditProfileScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        case 2:
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: _GlassSettingsTile(
-                              icon: Icons.language_rounded,
-                              title: S.of(context).translate('language'),
-                              subtitle: AppLocaleScope.of(context)
-                                      .selectedLanguage
-                                      ?.nativeTitle ??
-                                  '—',
-                              onTap: () => _showLanguageSheet(context),
-                            ),
-                          );
-                        case 3:
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: _GlassSettingsTile(
-                              icon: Icons.info_outline_rounded,
-                              title: S.of(context).translate('about_app'),
-                              subtitle: S.of(context)
-                                  .translate('about_app_subtitle'),
-                              onTap: () => _showAbout(context),
-                            ),
-                          );
-                        case 4:
-                        default:
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: _GlassLogoutTile(
-                              title: S.of(context).translate('logout'),
-                              onTap: () => _logout(context),
-                            ),
-                          );
-                        }
-                      },
-                    );
-                  },
+                return _buildProfileList(
+                  context,
+                  user: user,
+                  data: snap.data?.data(),
                 );
               },
             );
@@ -258,10 +274,12 @@ class _ProfileGlassHeader extends StatelessWidget {
   const _ProfileGlassHeader({
     required this.name,
     required this.email,
+    required this.phone,
   });
 
   final String name;
   final String email;
+  final String phone;
 
   @override
   Widget build(BuildContext context) {
@@ -348,6 +366,30 @@ class _ProfileGlassHeader extends StatelessWidget {
                           Expanded(
                             child: Text(
                               email,
+                              textAlign: TextAlign.start,
+                              style: TextStyle(
+                                color: _kMutedGrey.withValues(alpha: 0.95),
+                                fontSize: 14,
+                                fontFamily: 'KurdishFont',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        textDirection: textDir,
+                        children: [
+                          Icon(
+                            Icons.phone_android_rounded,
+                            size: 18,
+                            color: _kPremiumDeepBlue.withValues(alpha: 0.85),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              phone.isEmpty ? '—' : phone,
                               textAlign: TextAlign.start,
                               style: TextStyle(
                                 color: _kMutedGrey.withValues(alpha: 0.95),

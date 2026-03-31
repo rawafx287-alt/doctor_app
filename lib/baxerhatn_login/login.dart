@@ -1,11 +1,13 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../admin_panel/admin_dashboard.dart';
 import '../doctor/doctor_home_screen.dart';
 import '../auth/phone_normalization.dart';
+import '../auth/phone_auth_config.dart';
 import '../auth/doctor_session_cache.dart';
 import '../auth/patient_session_cache.dart';
 import '../locale/app_localizations.dart';
@@ -241,7 +243,30 @@ class _LoginScreenState extends State<LoginScreen>
       if (userMatches.isNotEmpty || matchedDocs.isNotEmpty) {
         final patientDoc =
             userMatches.isNotEmpty ? userMatches.first : matchedDocs.first;
-        await PatientSessionCache.savePatientRefId(patientDoc.id);
+        final patientData = patientDoc.data();
+        final phoneForAuth = normalizePhoneDigits(
+          (patientData['phone'] ?? phoneText).toString(),
+        );
+        try {
+          if (phoneForAuth.isNotEmpty) {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: phoneAuthEmail(phoneForAuth),
+              password: passwordText,
+            );
+          }
+        } on FirebaseAuthException {
+          final emailFromDoc = (patientData['email'] ?? '').toString().trim();
+          if (emailFromDoc.isNotEmpty) {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: emailFromDoc,
+              password: passwordText,
+            );
+          }
+        }
+        final signedUid = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
+        await PatientSessionCache.savePatientRefId(
+          signedUid.isNotEmpty ? signedUid : patientDoc.id,
+        );
         await DoctorSessionCache.clearDoctorRefId();
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
