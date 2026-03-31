@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -123,7 +124,14 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                   ),
                 ],
               ),
-              child: Padding(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: _GoldDustOverlay(seed: widget.name.hashCode),
+                    ),
+                  ),
+                  Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -386,10 +394,83 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
+        ),
+          ),
+    );
+  }
+}
+
+/// Ultra-subtle luxury sparkle texture (tiny, sparse, warm gold particles).
+class _GoldDustPainter extends CustomPainter {
+  _GoldDustPainter({required this.seed});
+
+  final int seed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rng = math.Random(seed);
+    final area = size.width * size.height;
+    // Very sparse coverage to avoid distracting from content.
+    final count = math.max(12, (area * 0.00022).round());
+    const core = Color(0xFFD4AF37);
+
+    for (var i = 0; i < count; i++) {
+      final x = rng.nextDouble() * size.width;
+      // Bottom-heavy distribution (gold dust settled near the bottom).
+      final t = rng.nextDouble();
+      final y = size.height * (1 - (t * t));
+      final r = 0.3 + rng.nextDouble() * 0.7; // ~0.3px - 1.0px dots
+
+      // Soft shimmer halo
+      final glow = Paint()
+        ..color = core.withValues(alpha: 0.03 + rng.nextDouble() * 0.05)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
+      canvas.drawCircle(Offset(x, y), r * 1.6, glow);
+
+      // Tiny bright core
+      final dot = Paint()
+        ..color = core.withValues(alpha: 0.08 + rng.nextDouble() * 0.11)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(x, y), r, dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GoldDustPainter oldDelegate) =>
+      oldDelegate.seed != seed;
+}
+
+/// Applies a vertical fade so sparkles are denser near the bottom.
+class _GoldDustOverlay extends StatelessWidget {
+  const _GoldDustOverlay({required this.seed});
+
+  final int seed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) {
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: 0.0),
+            Colors.white.withValues(alpha: 0.05),
+            Colors.white.withValues(alpha: 0.28),
+            Colors.white.withValues(alpha: 0.75),
+          ],
+          stops: const [0.0, 0.35, 0.72, 1.0],
+        ).createShader(bounds);
+      },
+      child: CustomPaint(
+        painter: _GoldDustPainter(seed: seed),
+      ),
     );
   }
 }
