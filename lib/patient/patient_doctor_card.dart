@@ -7,10 +7,8 @@ import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
-const Color _kLuxSkyTop = Color(0xFFE3F2FD);
 const Color _kLuxGold = Color(0xFFD4AF37);
 const Color _kLuxGoldLight = Color(0xFFF6E7A6);
-const Color _kLuxBottomBlue = Color(0xFFB7D8F7);
 
 /// Doctor row used on patient home and hospital doctor list.
 class PatientDoctorCard extends StatefulWidget {
@@ -95,42 +93,14 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
-            border: Border.all(
-              color: _kLuxGold.withValues(alpha: 0.28),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 22,
-                spreadRadius: 1,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1.0),
           ),
           clipBehavior: Clip.antiAlias,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(_innerRadius),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    _kLuxBottomBlue,
-                    _kLuxSkyTop,
-                    Colors.white,
-                  ],
-                  stops: [0.0, 0.58, 1.0],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    blurRadius: 16,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: Colors.white,
               ),
               child: Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),

@@ -81,9 +81,9 @@ Color _categoryAccentIcon(String catKey) {
   }
 }
 
-/// Sky blue glass patient shell.
-const Color _kSkyTop = kPatientSkyTop;
-const Color _kSkyBottom = kPatientSkyBottom;
+/// Main patient background gradient: light blue -> white.
+const Color _kSkyTop = Color(0xFFE3F2FD);
+const Color _kSkyBottom = Color(0xFFFFFFFF);
 const Color _kCharcoal = Color(0xFF333333);
 const Color _kDarkBlue = Color(0xFF0D47A1);
 const Color _kMutedGrey = Color(0xFF546E7A);
