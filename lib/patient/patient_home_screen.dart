@@ -107,6 +107,34 @@ const Color _kIconGradientLight = Color(0xFF90CAF9);
 /// Near-clear crystal: barely-there blur (sigma 0.5 — tiny glass hint).
 const double _kPopupMenuBlurSigma = 0.5;
 
+double _inlineSpanLineWidth(InlineSpan span) {
+  final painter = TextPainter(
+    text: span,
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  return painter.width;
+}
+
+/// Always puts **HR** first and the rest as the second segment (handles "Nora HR" in strings).
+(String hr, String rest) _brandTitleHrFirst(String translatedTitle) {
+  final tokens = translatedTitle
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+  if (tokens.isEmpty) {
+    return ('HR', 'Nora');
+  }
+  final hrIndex = tokens.indexWhere((t) => t.toUpperCase() == 'HR');
+  if (hrIndex >= 0) {
+    final hrToken = tokens[hrIndex];
+    final restTokens = [...tokens]..removeAt(hrIndex);
+    return (hrToken, restTokens.join(' '));
+  }
+  return (tokens.first, tokens.length > 1 ? tokens.sublist(1).join(' ') : '');
+}
+
 /// Readable label on very light glass (darker for contrast).
 const Color _kMenuPopupText = Color(0xFF0D1117);
 
@@ -674,20 +702,59 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     await performAppLogout(context);
   }
 
-  /// Centered app title + overflow menu (profile / feedback / sign out).
+  /// **HR + Nora** wordmark (start-aligned) + overflow menu (profile / feedback / sign out).
   Widget _buildAppTopBar(BuildContext context) {
     final s = S.of(context);
     final title = s.translate('app_display_name');
-    final titleParts = title.split(RegExp(r'\s+'));
-    final hrPart = titleParts.isNotEmpty ? titleParts.first : title;
-    final restPart =
-        titleParts.length > 1 ? ' ${titleParts.sublist(1).join(' ')}' : '';
-    final baseTitleStyle = GoogleFonts.poppins(
+    final (hrRaw, noraRaw) = _brandTitleHrFirst(title);
+    final hrPart = hrRaw.isEmpty ? 'HR' : hrRaw;
+    final noraPart = noraRaw.trim().isEmpty ? 'Nora' : noraRaw.trim();
+
+    const titleBlue = _kPremiumDeepBlue;
+    const goldPlus = Color(0xFFFFD54F);
+    const tightKern = -0.18;
+    const titleShadow = <Shadow>[
+      Shadow(
+        color: Color(0x1F000000),
+        offset: Offset(0, 1.25),
+        blurRadius: 4.5,
+      ),
+    ];
+
+    final hrStyle = GoogleFonts.outfit(
       fontSize: 22,
-      letterSpacing: 1.2,
-      color: Colors.white,
+      letterSpacing: tightKern,
+      fontWeight: FontWeight.w900,
+      color: titleBlue,
       height: 1.0,
+      shadows: titleShadow,
     );
+    final plusStyle = GoogleFonts.outfit(
+      fontSize: 22,
+      letterSpacing: 0.15,
+      fontWeight: FontWeight.w900,
+      color: goldPlus,
+      height: 1.0,
+      shadows: titleShadow,
+    );
+    final noraStyle = GoogleFonts.outfit(
+      fontSize: 22,
+      letterSpacing: tightKern,
+      fontWeight: FontWeight.w700,
+      color: titleBlue,
+      height: 1.0,
+      shadows: titleShadow,
+    );
+
+    final titleSpan = TextSpan(
+      children: [
+        TextSpan(text: hrPart, style: hrStyle),
+        TextSpan(text: ' + ', style: plusStyle),
+        TextSpan(text: noraPart, style: noraStyle),
+      ],
+    );
+    final formulaWidth = _inlineSpanLineWidth(titleSpan);
+    final underlineW = (formulaWidth * 0.58).clamp(40.0, 72.0);
 
     // Snug to the ⋮; small negative dx keeps the panel near the right edge; dy aligns
     // vertically so it reads as opening from the icon.
@@ -696,37 +763,42 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 12, 6),
       child: Row(
-        // LTR keeps "HR Nora" on the left and the ⋮ menu on the right in RTL apps.
+        // LTR keeps the title on the left and the ⋮ menu on the right in RTL apps.
         textDirection: TextDirection.ltr,
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4),
-            child: ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) {
-                return const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xFF1A237E), Color(0xFF0288D1)],
-                ).createShader(bounds);
-              },
-              child: RichText(
-                text: TextSpan(
-                  style: baseTitleStyle,
-                  children: [
-                    TextSpan(
-                      text: hrPart,
-                      style: baseTitleStyle.copyWith(fontWeight: FontWeight.w900),
-                    ),
-                    if (restPart.isNotEmpty)
-                      TextSpan(
-                        text: restPart,
-                        style: baseTitleStyle.copyWith(
-                          fontWeight: FontWeight.w700,
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text.rich(titleSpan),
+                  const SizedBox(height: 3),
+                  SizedBox(
+                    width: formulaWidth,
+                    child: Center(
+                      child: SizedBox(
+                        width: underlineW,
+                        height: 2.5,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                const Color(0xFFD4AF37),
+                                const Color(0xFFD4AF37).withValues(alpha: 0),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
