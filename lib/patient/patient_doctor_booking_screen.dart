@@ -11,7 +11,6 @@ import 'patient_available_days_list.dart';
 
 const Color _kSkyTop = kPatientSkyTop;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
-const Color _kBodyGrey = Color(0xFF455A64);
 
 /// Patient: pick a date — calendar first, same data as [DoctorDetailsScreen] booking section.
 class PatientDoctorBookingScreen extends StatelessWidget {
@@ -80,14 +79,13 @@ class PatientDoctorBookingScreen extends StatelessWidget {
                 doctorDisplayName = (merged['fullName'] ?? doctorName).toString();
               }
               if (uid == null) {
-                return Center(
-                  child: Text(
-                    s.translate('login_required'),
-                    style: TextStyle(
-                      color: _kBodyGrey.withValues(alpha: 0.9),
-                      fontFamily: 'KurdishFont',
-                      fontWeight: FontWeight.w600,
-                    ),
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: PatientAvailableDaysList(
+                    doctorId: _doctorUid,
+                    patientName: s.translate('patient_default'),
+                    doctorDisplayName: doctorDisplayName,
+                    mergedDoctorData: merged,
                   ),
                 );
               }

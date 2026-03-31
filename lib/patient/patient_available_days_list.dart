@@ -13,7 +13,6 @@ import 'booking_summary_screen.dart';
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kDaysOfWeekBlue = Color(0xFF0D47A1);
 const Color _kHintGrey = Color(0xFF455A64);
-const Color _kCellText = Color(0xFF37474F);
 const Color _kCellMuted = Color(0xFF90A4AE);
 const Color _kToastTextGrey = Color(0xFF546E7A);
 
@@ -243,6 +242,18 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     Map<String, Map<String, dynamic>> openByDocId,
   ) {
     final s = S.of(context);
+    final status = (widget.mergedDoctorData['status'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (status != 'approved') {
+      _showCalendarToast(
+        context,
+        'دکتۆر هێشتا قبوڵ نەکراوە بۆ نۆرەگرتن',
+        icon: Icons.verified_user_outlined,
+      );
+      return;
+    }
     final today = _dateOnly(DateTime.now());
     final sel = _dateOnly(selected);
     if (sel.isBefore(today)) {
@@ -468,6 +479,10 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                           },
                           onDaySelected: (sel, foc) =>
                               _onDaySelected(context, sel, foc, openByDocId),
+                          enabledDayPredicate: (day) {
+                            final today = _dateOnly(DateTime.now());
+                            return !_dateOnly(day).isBefore(today);
+                          },
                           calendarBuilders: CalendarBuilders<void>(
                             defaultBuilder: (ctx, day, fDay) => _patientDayCell(
                               day: day,
@@ -520,6 +535,15 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     );
     final row = openByDocId[docId];
     final open = row != null && availableDayIsOpen(row);
+    final dayCapacity = row == null
+        ? 0
+        : maxBookableSlotsForDayData(row, _dateOnly(day));
+    final currentBookings = row == null
+        ? 0
+        : ((row[AvailableDayFields.currentBookings] as num?)?.toInt() ?? 0);
+    final fullyBooked =
+        row != null && dayCapacity > 0 && currentBookings >= dayCapacity;
+    final closedOrFull = !open || fullyBooked;
 
     final isOutside =
         isOutsideMonth ||
@@ -535,25 +559,27 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     double borderWidth;
 
     if (isSelected) {
-      fill = Colors.transparent;
-      borderColor = Colors.transparent;
-      borderWidth = 0;
+      fill = const Color(0xFF0D47A1);
+      borderColor = const Color(0xFF0B3C91);
+      borderWidth = 2.0;
     } else if (isOutside) {
       fill = const Color(0xFFEDEEF1);
       borderColor = const Color(0xFFB0BEC5).withValues(alpha: 0.35);
       borderWidth = 0.8;
     } else if (isPast) {
-      fill = const Color(0xFFE8EAED);
-      borderColor = const Color(0xFFCFD8DC).withValues(alpha: 0.6);
+      fill = Colors.grey.shade200;
+      borderColor = Colors.grey.shade300;
       borderWidth = 0.8;
-    } else if (open) {
-      fill = const Color(0xFFE3F5E8);
-      borderColor = const Color(0xFF66BB6A).withValues(alpha: 0.45);
+    } else if (!closedOrFull) {
+      // Open/available day: full teal square.
+      fill = Colors.teal.shade400;
+      borderColor = Colors.teal.shade500;
       borderWidth = 1.0;
     } else {
-      fill = const Color(0xFFF0F2F4);
-      borderColor = const Color(0xFFB0BEC5).withValues(alpha: 0.4);
-      borderWidth = 0.8;
+      // Closed/full day: full soft red square.
+      fill = Colors.red.shade400;
+      borderColor = Colors.red.shade500;
+      borderWidth = 1.0;
     }
 
     if (isToday && !isSelected) {
@@ -566,47 +592,63 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
       textColor = Colors.white;
     } else if (isOutside || isPast) {
       textColor = _kCellMuted;
-    } else if (open) {
-      textColor = const Color(0xFF1B5E20);
+    } else if (!closedOrFull) {
+      textColor = Colors.white;
     } else {
-      textColor = _kCellText;
+      textColor = Colors.white;
     }
 
-    final radius = BorderRadius.circular(10);
+    final radius = BorderRadius.circular(8);
 
     const kSelectedDeepBlue = Color(0xFF0D47A1);
-    Widget cellChild = Container(
-      decoration: BoxDecoration(
-        color: isSelected ? kSelectedDeepBlue : fill,
-        borderRadius: radius,
-        border: isSelected
-            ? Border.all(
-                color: kSelectedDeepBlue.withValues(alpha: 0.95),
-                width: 1.2,
-              )
-            : Border.all(color: borderColor, width: borderWidth),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: kSelectedDeepBlue.withValues(alpha: 0.38),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '${day.day}',
-        style: TextStyle(
-          fontFamily: 'KurdishFont',
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
-          color: textColor,
-        ),
+    final textWidget = Text(
+      '${day.day}',
+      style: TextStyle(
+        fontFamily: 'KurdishFont',
+        fontWeight: FontWeight.w800,
+        fontSize: 14,
+        color: textColor,
+        decoration: isPast ? TextDecoration.lineThrough : TextDecoration.none,
+        decorationColor: _kCellMuted,
+        decorationThickness: 2,
       ),
     );
 
-    return Padding(padding: const EdgeInsets.all(2), child: cellChild);
+    Widget cellChild = Container(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: Border.all(color: borderColor, width: borderWidth),
+      ),
+      alignment: Alignment.center,
+      child: textWidget,
+    );
+
+    if (isSelected) {
+      cellChild = Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: kSelectedDeepBlue.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Container(
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: radius,
+            border: Border.all(color: borderColor, width: borderWidth),
+          ),
+          alignment: Alignment.center,
+          child: textWidget,
+        ),
+      );
+    }
+
+    return Padding(padding: const EdgeInsets.all(2.0), child: cellChild);
   }
 }

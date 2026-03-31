@@ -123,13 +123,14 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   .toString()
                   .trim();
               return uid == null
-                  ? Center(
-                      child: Text(
-                        s.translate('login_required'),
-                        style: TextStyle(
-                          color: _kBodyGrey.withValues(alpha: 0.9),
-                          fontFamily: 'KurdishFont',
-                          fontWeight: FontWeight.w600,
+                  ? SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        child: PatientAvailableDaysList(
+                          doctorId: _doctorUid,
+                          patientName: s.translate('patient_default'),
+                          doctorDisplayName: doctorDisplayName,
+                          mergedDoctorData: merged,
                         ),
                       ),
                     )
