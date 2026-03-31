@@ -20,7 +20,8 @@ import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
-const double _kHomeSpecialtiesHeaderExtent = 130;
+/// Taller than content + soft glow so pinned header does not clip / overflow.
+const double _kHomeSpecialtiesHeaderExtent = 142;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -50,6 +51,14 @@ Color _categorySoftTint(String catKey) {
     default:
       return const Color(0xFFB3E5FC);
   }
+}
+
+/// Soft radiating glow color: heart (دڵ) = red; others = blue/teal aligned with accent.
+Color _categorySelectionGlow(String catKey, Color accent) {
+  if (catKey == 'cardiology_specialty') {
+    return const Color(0xFFFF8A80);
+  }
+  return Color.lerp(accent, const Color(0xFF26C6DA), 0.42) ?? accent;
 }
 
 Color _categoryAccentIcon(String catKey) {
@@ -405,9 +414,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 80,
+          height: 88,
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 5, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
             scrollDirection: Axis.horizontal,
             physics: patientPlatformScrollPhysics,
             clipBehavior: Clip.none,
@@ -429,8 +438,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 child: SizedBox(
                   width: 58,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _CategoryGlassOrb(
+                        categoryKey: catKey,
                         icon: iconForSpecialtyCategoryKey(catKey),
                         selected: selected,
                         softTint: soft,
@@ -1127,15 +1138,17 @@ class PatientHomeContent extends StatelessWidget {
   Widget build(BuildContext context) => _state._buildHomeContent();
 }
 
-/// Circular glass orb with per-category soft tint (hairline white rim + selected glow).
+/// Circular glass orb. Selected: soft radiating glow + light tint of glow on the circle.
 class _CategoryGlassOrb extends StatelessWidget {
   const _CategoryGlassOrb({
+    required this.categoryKey,
     required this.icon,
     required this.selected,
     required this.softTint,
     required this.accent,
   });
 
+  final String categoryKey;
   final IconData icon;
   final bool selected;
   final Color softTint;
@@ -1146,10 +1159,15 @@ class _CategoryGlassOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = Color.alphaBlend(
+    final glow = _categorySelectionGlow(categoryKey, accent);
+    final baseFill = Color.alphaBlend(
       softTint.withValues(alpha: selected ? 0.26 : 0.16),
       Colors.white.withValues(alpha: selected ? 0.38 : 0.28),
     );
+    final fill = selected
+        ? Color.alphaBlend(glow.withValues(alpha: 0.32), baseFill)
+        : baseFill;
+
     return SizedBox(
       width: _orbSize,
       height: _orbSize,
@@ -1159,23 +1177,12 @@ class _CategoryGlassOrb extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: accent.withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                  ),
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.14),
-                    blurRadius: 18,
+                    color: glow.withValues(alpha: 0.5),
+                    blurRadius: 20,
                     spreadRadius: 2,
                   ),
                 ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.07),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              : const [],
         ),
         child: ClipOval(
           child: BackdropFilter(
