@@ -1,21 +1,31 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'bootstrap/ensure_shared_preferences_registered.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
-import 'package:flutter_application_1/nawarok/norakanimn.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
 import 'locale/app_localizations.dart';
 import 'splash_screen.dart';
+// Auth routing: [AuthGate] listens to FirebaseAuth.instance.authStateChanges;
+// patient login also uses Navigator.pushAndRemoveUntil to [PatientHomeScreen] for instant UI.
 import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   ensureSharedPreferencesRegistered();
+  // Android: place `google-services.json` in `android/app/` (see Firebase console).
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -39,6 +49,45 @@ class HrNoraAppRoot extends StatelessWidget {
         const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       ),
     );
+    final baseTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
+      primaryColor: HrNoraColors.primary,
+      colorScheme: ColorScheme.dark(
+        primary: HrNoraColors.primary,
+        onPrimary: Colors.white,
+        secondary: HrNoraColors.accentLight,
+        onSecondary: const Color(0xFF0D1B2A),
+        surface: HrNoraColors.primaryDeep,
+        onSurface: HrNoraColors.textSoft,
+        error: const Color(0xFFEF4444),
+        onError: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: HrNoraColors.primaryDeep,
+        foregroundColor: HrNoraColors.textSoft,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      cardColor: HrNoraColors.primaryDeep,
+      dividerColor: const Color(0xFF334E68),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: HrNoraColors.textSoft),
+        bodyMedium: TextStyle(color: HrNoraColors.textSoft),
+        titleLarge: TextStyle(
+          color: HrNoraColors.textSoft,
+          fontWeight: FontWeight.w600,
+        ),
+        labelLarge: TextStyle(color: HrNoraColors.textSoft),
+      ),
+    );
+    final kurdishTextTheme = GoogleFonts.notoSansArabicTextTheme(
+      baseTheme.textTheme,
+    ).apply(
+      bodyColor: HrNoraColors.textSoft,
+      displayColor: HrNoraColors.textSoft,
+    );
 
     return ListenableBuilder(
       listenable: localeController,
@@ -60,43 +109,13 @@ class HrNoraAppRoot extends StatelessWidget {
             return AppLocaleScope(
               notifier: localeController,
               child: Directionality(
-                textDirection: localeController.textDirection,
+                textDirection: TextDirection.rtl,
                 child: child ?? const SizedBox.shrink(),
               ),
             );
           },
-          theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
-        primaryColor: HrNoraColors.primary,
-        colorScheme: ColorScheme.dark(
-          primary: HrNoraColors.primary,
-          onPrimary: Colors.white,
-          secondary: HrNoraColors.accentLight,
-          onSecondary: const Color(0xFF0D1B2A),
-          surface: HrNoraColors.primaryDeep,
-          onSurface: HrNoraColors.textSoft,
-          error: const Color(0xFFEF4444),
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: HrNoraColors.primaryDeep,
-          foregroundColor: HrNoraColors.textSoft,
-          elevation: 0,
-          centerTitle: false,
-        ),
-        cardColor: HrNoraColors.primaryDeep,
-        dividerColor: const Color(0xFF334E68),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: HrNoraColors.textSoft),
-          bodyMedium: TextStyle(color: HrNoraColors.textSoft),
-          titleLarge: TextStyle(
-            color: HrNoraColors.textSoft,
-            fontWeight: FontWeight.w600,
-          ),
-          labelLarge: TextStyle(color: HrNoraColors.textSoft),
-        ),
+          theme: baseTheme.copyWith(
+        textTheme: kurdishTextTheme,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: baseButtons.copyWith(
             backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -169,7 +188,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const ListiDoctorakanScreen(),
-    const NorekaniMinScreen(),
     const NotificationsScreen(),
     const ProfileScreen(),
   ];
@@ -203,10 +221,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             BottomNavigationBarItem(
               icon: const Icon(Icons.home_filled),
               label: S.of(context).translate('home'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.calendar_month),
-              label: S.of(context).translate('appointments'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.notifications),

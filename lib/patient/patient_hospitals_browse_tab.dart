@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -279,17 +280,19 @@ class _HospitalGridCard extends StatelessWidget {
                           color: Color(0xFF42A5F5),
                           size: 40,
                         )
-                      : Image.network(
-                          logoUrl,
+                      : CachedNetworkImage(
+                          imageUrl: logoUrl,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.local_hospital_rounded,
-                                color: Color(0xFF42A5F5),
-                                size: 40,
-                              ),
+                          memCacheWidth: 200,
+                          memCacheHeight: 200,
+                          fadeInDuration: Duration.zero,
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.local_hospital_rounded,
+                            color: Color(0xFF42A5F5),
+                            size: 40,
+                          ),
                         ),
                 ),
               ),

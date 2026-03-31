@@ -162,6 +162,7 @@ Future<String?> createPatientAppointment({
 
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: uid,
+    AppointmentFields.userId: uid,
     AppointmentFields.doctorId: did,
     AppointmentFields.doctorName: doctorNameToSave.isEmpty ? '—' : doctorNameToSave,
     AppointmentFields.patientName:
@@ -230,6 +231,7 @@ Future<String?> createStaffAppointment({
 
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: patientId,
+    if (patientId.trim().isNotEmpty) AppointmentFields.userId: patientId.trim(),
     AppointmentFields.doctorId: doctorId,
     AppointmentFields.doctorName: doctorNameToSave.isEmpty ? '—' : doctorNameToSave,
     AppointmentFields.patientName:

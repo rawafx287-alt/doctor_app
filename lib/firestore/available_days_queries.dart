@@ -450,6 +450,7 @@ Future<String?> bookAvailableDayTransaction({
             .doc();
         transaction.set(apptRef, {
           AppointmentFields.patientId: pid,
+          AppointmentFields.userId: pid,
           AppointmentFields.doctorId: did,
           AppointmentFields.doctorName:
               doctorDisplayName.trim().isEmpty ? '—' : doctorDisplayName.trim(),

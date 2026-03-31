@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -5,7 +7,142 @@ import 'package:table_calendar/table_calendar.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_localizations.dart';
+import '../theme/patient_premium_theme.dart';
 import 'booking_summary_screen.dart';
+
+const Color _kDoctorNameNavy = Color(0xFF0D2137);
+const Color _kDaysOfWeekBlue = Color(0xFF0D47A1);
+const Color _kHintGrey = Color(0xFF455A64);
+const Color _kCellText = Color(0xFF37474F);
+const Color _kCellMuted = Color(0xFF90A4AE);
+const Color _kToastTextGrey = Color(0xFF546E7A);
+
+class _PatientCalendarToast extends StatefulWidget {
+  const _PatientCalendarToast({
+    required this.message,
+    required this.icon,
+    required this.onDismissed,
+  });
+
+  final String message;
+  final IconData icon;
+  final VoidCallback onDismissed;
+
+  @override
+  State<_PatientCalendarToast> createState() => _PatientCalendarToastState();
+}
+
+class _PatientCalendarToastState extends State<_PatientCalendarToast>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.45),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _controller.forward();
+    Future<void>.delayed(const Duration(milliseconds: 2800), () async {
+      if (!mounted) return;
+      await _controller.reverse();
+      if (mounted) widget.onDismissed();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(
+        opacity: _fade,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: const Color(0xFFE57373).withValues(alpha: 0.45),
+                  width: 1,
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.78),
+                    const Color(0xFFFFE0B2).withValues(alpha: 0.42),
+                    const Color(0xFFFFCDD2).withValues(alpha: 0.38),
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD84315).withValues(alpha: 0.12),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 22,
+                      color: const Color(0xFFBF360C).withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        widget.message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          height: 1.35,
+                          color: _kToastTextGrey,
+                          letterSpacing: 0.12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Patient: [TableCalendar] — green open days, red closed; tap open day to book (no time picker).
 class PatientAvailableDaysList extends StatefulWidget {
@@ -30,10 +167,55 @@ class PatientAvailableDaysList extends StatefulWidget {
 class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  OverlayEntry? _calendarToastEntry;
 
   String get _doctorUid => widget.doctorId.trim();
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// Glass toast: fade + slide up from bottom (past / closed day feedback).
+  void _showCalendarToast(
+    BuildContext context,
+    String message, {
+    IconData icon = Icons.event_busy_rounded,
+  }) {
+    _calendarToastEntry?.remove();
+    _calendarToastEntry = null;
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) => Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Center(
+              child: _PatientCalendarToast(
+                message: message,
+                icon: icon,
+                onDismissed: () {
+                  entry.remove();
+                  if (_calendarToastEntry == entry) {
+                    _calendarToastEntry = null;
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    _calendarToastEntry = entry;
+    overlay.insert(entry);
+  }
+
+  @override
+  void dispose() {
+    _calendarToastEntry?.remove();
+    super.dispose();
+  }
 
   void _openSummary(
     BuildContext context, {
@@ -64,13 +246,10 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     final today = _dateOnly(DateTime.now());
     final sel = _dateOnly(selected);
     if (sel.isBefore(today)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('available_days_patient_past_day'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
+      _showCalendarToast(
+        context,
+        s.translate('available_days_patient_past_day'),
+        icon: Icons.schedule_rounded,
       );
       return;
     }
@@ -86,22 +265,15 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     );
     final data = openByDocId[docId];
     if (data == null || !availableDayIsOpen(data)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('available_days_patient_closed_day'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
+      _showCalendarToast(
+        context,
+        s.translate('available_days_patient_closed_day'),
+        icon: Icons.event_busy_rounded,
       );
       return;
     }
 
-    _openSummary(
-      context,
-      availableDayDocId: docId,
-      dateLocal: sel,
-    );
+    _openSummary(context, availableDayDocId: docId, dateLocal: sel);
   }
 
   @override
@@ -116,20 +288,23 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
         Text(
           s.translate('available_days_patient_title'),
           style: const TextStyle(
-            color: Color(0xFFE8EEF4),
+            color: _kDoctorNameNavy,
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w800,
             fontFamily: 'KurdishFont',
+            height: 1.2,
+            letterSpacing: 0.2,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           s.translate('available_days_patient_hint_calendar'),
           style: const TextStyle(
-            color: Color(0xFF829AB1),
+            color: _kHintGrey,
             fontSize: 13,
             fontFamily: 'KurdishFont',
-            height: 1.35,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
           ),
         ),
         const SizedBox(height: 12),
@@ -170,7 +345,8 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
               openByDocId[d.id] = d.data();
             }
 
-            final loading = daySnap.connectionState == ConnectionState.waiting &&
+            final loading =
+                daySnap.connectionState == ConnectionState.waiting &&
                 !daySnap.hasData;
 
             return Column(
@@ -184,13 +360,13 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                       color: Color(0xFF42A5F5),
                     ),
                   ),
-                DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF12152A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: Padding(
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: DecoratedBox(
+                    decoration: patientFrostedGlassDecoration(
+                      borderRadius: 18,
+                    ),
+                    child: Padding(
                         padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
                         child: TableCalendar<void>(
                           firstDay: DateTime.utc(2024, 1, 1),
@@ -206,20 +382,21 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                             CalendarFormat.month: 'Month',
                           },
                           startingDayOfWeek: StartingDayOfWeek.saturday,
-                          locale: Localizations.localeOf(context)
-                              .toLanguageTag(),
+                          locale: Localizations.localeOf(
+                            context,
+                          ).toLanguageTag(),
                           daysOfWeekStyle: DaysOfWeekStyle(
                             weekdayStyle: TextStyle(
-                              color: const Color(0xFF94A3B8),
+                              color: _kDaysOfWeekBlue,
                               fontFamily: 'KurdishFont',
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w800,
                             ),
                             weekendStyle: TextStyle(
-                              color: const Color(0xFF94A3B8),
+                              color: _kDaysOfWeekBlue,
                               fontFamily: 'KurdishFont',
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           headerStyle: HeaderStyle(
@@ -227,19 +404,19 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                             titleCentered: true,
                             headerPadding: EdgeInsets.zero,
                             titleTextStyle: const TextStyle(
-                              color: Color(0xFFE8EEF4),
+                              color: _kDoctorNameNavy,
                               fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               fontFamily: 'KurdishFont',
                             ),
                             leftChevronIcon: const Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF42A5F5),
+                              color: Color(0xFF1565C0),
                               size: 22,
                             ),
                             rightChevronIcon: const Icon(
                               Icons.chevron_right_rounded,
-                              color: Color(0xFF42A5F5),
+                              color: Color(0xFF1565C0),
                               size: 22,
                             ),
                           ),
@@ -247,18 +424,24 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                             outsideDaysVisible: true,
                             markersMaxCount: 0,
                             cellMargin: EdgeInsets.zero,
-                            defaultDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
-                            weekendDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
-                            outsideDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
-                            todayDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
-                            selectedDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
-                            disabledDecoration:
-                                BoxDecoration(shape: BoxShape.rectangle),
+                            defaultDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
+                            weekendDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
+                            outsideDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
+                            todayDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
+                            selectedDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
+                            disabledDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                            ),
                             defaultTextStyle: TextStyle(
                               fontSize: 0.1,
                               color: Colors.transparent,
@@ -283,15 +466,10 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                           onPageChanged: (focused) {
                             setState(() => _focusedDay = focused);
                           },
-                          onDaySelected: (sel, foc) => _onDaySelected(
-                            context,
-                            sel,
-                            foc,
-                            openByDocId,
-                          ),
+                          onDaySelected: (sel, foc) =>
+                              _onDaySelected(context, sel, foc, openByDocId),
                           calendarBuilders: CalendarBuilders<void>(
-                            defaultBuilder: (ctx, day, fDay) =>
-                                _patientDayCell(
+                            defaultBuilder: (ctx, day, fDay) => _patientDayCell(
                               day: day,
                               focusedDay: fDay,
                               openByDocId: openByDocId,
@@ -304,13 +482,12 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                             ),
                             selectedBuilder: (ctx, day, fDay) =>
                                 _patientDayCell(
-                              day: day,
-                              focusedDay: fDay,
-                              openByDocId: openByDocId,
-                              isSelected: true,
-                            ),
-                            outsideBuilder: (ctx, day, fDay) =>
-                                _patientDayCell(
+                                  day: day,
+                                  focusedDay: fDay,
+                                  openByDocId: openByDocId,
+                                  isSelected: true,
+                                ),
+                            outsideBuilder: (ctx, day, fDay) => _patientDayCell(
                               day: day,
                               focusedDay: fDay,
                               openByDocId: openByDocId,
@@ -320,8 +497,9 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                         ),
                       ),
                     ),
-                  ],
-                );
+                  ),
+              ],
+            );
           },
         ),
       ],
@@ -343,50 +521,92 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
     final row = openByDocId[docId];
     final open = row != null && availableDayIsOpen(row);
 
-    final isOutside = isOutsideMonth ||
+    final isOutside =
+        isOutsideMonth ||
         day.month != focusedDay.month ||
         day.year != focusedDay.year;
 
-    final fill = isOutside
-        ? const Color(0xFF151828)
-        : (open ? const Color(0xFF1A2E22) : const Color(0xFF2E1E20));
-    final stroke = isOutside
-        ? Colors.white10
-        : (open
-            ? const Color(0xFF34D399).withValues(alpha: 0.45)
-            : const Color(0xFFF87171).withValues(alpha: 0.35));
+    final today = _dateOnly(DateTime.now());
+    final dayOnly = _dateOnly(day);
+    final isPast = dayOnly.isBefore(today);
 
-    final borderColor = isSelected
-        ? const Color(0xFF7DD3FC)
-        : (isToday && !isSelected
-            ? const Color(0xFFFCD34D)
-            : stroke);
-    final double borderWidth =
-        isSelected ? 2.5 : (isToday && !isSelected ? 1.5 : 1.0);
+    Color fill;
+    Color borderColor;
+    double borderWidth;
 
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: Container(
-        decoration: BoxDecoration(
-          color: fill,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: borderColor,
-            width: borderWidth,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '${day.day}',
-          style: TextStyle(
-            fontFamily: 'KurdishFont',
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-            color:
-                isOutside ? const Color(0xFF64748B) : const Color(0xFFE8EEF4),
-          ),
+    if (isSelected) {
+      fill = Colors.transparent;
+      borderColor = Colors.transparent;
+      borderWidth = 0;
+    } else if (isOutside) {
+      fill = const Color(0xFFEDEEF1);
+      borderColor = const Color(0xFFB0BEC5).withValues(alpha: 0.35);
+      borderWidth = 0.8;
+    } else if (isPast) {
+      fill = const Color(0xFFE8EAED);
+      borderColor = const Color(0xFFCFD8DC).withValues(alpha: 0.6);
+      borderWidth = 0.8;
+    } else if (open) {
+      fill = const Color(0xFFE3F5E8);
+      borderColor = const Color(0xFF66BB6A).withValues(alpha: 0.45);
+      borderWidth = 1.0;
+    } else {
+      fill = const Color(0xFFF0F2F4);
+      borderColor = const Color(0xFFB0BEC5).withValues(alpha: 0.4);
+      borderWidth = 0.8;
+    }
+
+    if (isToday && !isSelected) {
+      borderColor = const Color(0xFF1565C0).withValues(alpha: 0.65);
+      borderWidth = 1.6;
+    }
+
+    Color textColor;
+    if (isSelected) {
+      textColor = Colors.white;
+    } else if (isOutside || isPast) {
+      textColor = _kCellMuted;
+    } else if (open) {
+      textColor = const Color(0xFF1B5E20);
+    } else {
+      textColor = _kCellText;
+    }
+
+    final radius = BorderRadius.circular(10);
+
+    const kSelectedDeepBlue = Color(0xFF0D47A1);
+    Widget cellChild = Container(
+      decoration: BoxDecoration(
+        color: isSelected ? kSelectedDeepBlue : fill,
+        borderRadius: radius,
+        border: isSelected
+            ? Border.all(
+                color: kSelectedDeepBlue.withValues(alpha: 0.95),
+                width: 1.2,
+              )
+            : Border.all(color: borderColor, width: borderWidth),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: kSelectedDeepBlue.withValues(alpha: 0.38),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '${day.day}',
+        style: TextStyle(
+          fontFamily: 'KurdishFont',
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+          color: textColor,
         ),
       ),
     );
+
+    return Padding(padding: const EdgeInsets.all(2), child: cellChild);
   }
 }

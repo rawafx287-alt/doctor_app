@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
@@ -97,7 +98,7 @@ class _ListiDoctorakanScreenState extends State<ListiDoctorakanScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF1D1E33),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.blueAccent.withOpacity(0.1)),
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.1)),
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(12),
@@ -105,9 +106,15 @@ class _ListiDoctorakanScreenState extends State<ListiDoctorakanScreen> {
                           tag: 'doc_img_$index',
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              'https://img.freepik.com/free-photo/smiling-doctor-with-white-coat_23-2148827750.jpg',
-                              width: 60, height: 60, fit: BoxFit.cover,
+                            child: CachedNetworkImage(
+                              imageUrl:
+                                  'https://img.freepik.com/free-photo/smiling-doctor-with-white-coat_23-2148827750.jpg',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 120,
+                              memCacheHeight: 120,
+                              fadeInDuration: Duration.zero,
                             ),
                           ),
                         ),
@@ -164,9 +171,15 @@ class _ListiDoctorakanScreenState extends State<ListiDoctorakanScreen> {
                 tag: 'doc_img_$index',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
-                  child: Image.network(
-                    'https://img.freepik.com/free-photo/smiling-doctor-with-white-coat_23-2148827750.jpg',
-                    width: 100, height: 100, fit: BoxFit.cover,
+                  child: CachedNetworkImage(
+                    imageUrl:
+                        'https://img.freepik.com/free-photo/smiling-doctor-with-white-coat_23-2148827750.jpg',
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 200,
+                    memCacheHeight: 200,
+                    fadeInDuration: Duration.zero,
                   ),
                 ),
               ),

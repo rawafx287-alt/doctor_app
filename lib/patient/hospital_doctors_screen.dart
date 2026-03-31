@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -8,7 +9,9 @@ import '../models/doctor_localized_content.dart';
 import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
+import 'patient_doctor_booking_screen.dart';
 import 'patient_doctor_card.dart';
+import 'patient_scroll_physics.dart';
 
 /// Hospital header + doctors with `users.hospitalId` == [hospitalId].
 class HospitalDoctorsScreen extends StatelessWidget {
@@ -199,30 +202,62 @@ class HospitalDoctorsScreen extends StatelessWidget {
                           ),
                         );
                       }
-                      return ListView.separated(
+                      final n = docs.length;
+                      return ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        itemCount: docs.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        physics: patientPlatformScrollPhysics,
+                        itemCount: n == 0 ? 0 : n * 2 - 1,
                         itemBuilder: (context, index) {
-                          final doc = docs[index];
+                          if (index.isOdd) {
+                            return const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(height: 8),
+                                DoctorCardGradientDivider(),
+                                SizedBox(height: 8),
+                              ],
+                            );
+                          }
+                          final docIndex = index ~/ 2;
+                          final doc = docs[docIndex];
                           final data = doc.data();
                           var dname = localizedDoctorFullName(data, lang);
                           if (dname.isEmpty) {
                             dname = (data['fullName'] ?? '—').toString();
                           }
-                          final specialtyRaw = (data['specialty'] ?? '—').toString();
-                          final specialty =
-                              translatedSpecialtyForFirestore(context, specialtyRaw);
+                          final specialtyRaw =
+                              (data['specialty'] ?? '—').toString();
+                          final specialty = translatedSpecialtyForFirestore(
+                            context,
+                            specialtyRaw,
+                          );
                           return PatientDoctorCard(
                             name: dname,
                             specialty: specialty,
+                            profileImageUrl:
+                                (data['profileImageUrl'] ?? '').toString(),
+                            onBook: () {
+                              Navigator.push<void>(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (context) =>
+                                      PatientDoctorBookingScreen(
+                                    doctorId: doc.id,
+                                    doctorData:
+                                        Map<String, dynamic>.from(data),
+                                  ),
+                                ),
+                              );
+                            },
                             onOpenDetails: () {
                               Navigator.push<void>(
                                 context,
                                 MaterialPageRoute<void>(
                                   builder: (context) => DoctorDetailsScreen(
                                     doctorId: doc.id,
-                                    doctorData: Map<String, dynamic>.from(data),
+                                    doctorData:
+                                        Map<String, dynamic>.from(data),
+                                    showBookingSection: false,
                                   ),
                                 ),
                               );
@@ -263,10 +298,13 @@ class _HospitalLogo extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: logoUrl.isEmpty
           ? const Icon(Icons.local_hospital_rounded, color: Color(0xFF42A5F5), size: 32)
-          : Image.network(
-              logoUrl,
+          : CachedNetworkImage(
+              imageUrl: logoUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(
+              memCacheWidth: 128,
+              memCacheHeight: 128,
+              fadeInDuration: Duration.zero,
+              errorWidget: (context, url, error) => const Icon(
                 Icons.local_hospital_rounded,
                 color: Color(0xFF42A5F5),
                 size: 32,

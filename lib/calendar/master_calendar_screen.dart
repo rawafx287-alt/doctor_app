@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -1010,6 +1012,15 @@ class _DayAgendaPanel extends StatelessWidget {
                 statusStripColor: _kCalRedBorder,
                 trailing: canManage
                     ? PopupMenuButton<String>(
+                        tooltip: '',
+                        color: Colors.transparent,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        // Anchor is on the right; shift left so the panel stays visible.
+                        offset: const Offset(-96, 0),
                         icon: const Icon(Icons.more_vert_rounded,
                             color: Color(0xFF829AB1)),
                         onSelected: (v) async {
@@ -1030,18 +1041,95 @@ class _DayAgendaPanel extends StatelessWidget {
                           if (context.mounted) Navigator.pop(context);
                         },
                         itemBuilder: (_) => [
-                          PopupMenuItem(
+                          PopupMenuItem<String>(
                             value: 'done',
-                            child: Text(
-                              s.translate('master_calendar_mark_complete'),
-                              style: const TextStyle(fontFamily: 'KurdishFont'),
+                            padding: EdgeInsets.zero,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(15),
+                              ),
+                              child: BackdropFilter(
+                                filter: ui.ImageFilter.blur(
+                                  sigmaX: 14,
+                                  sigmaY: 14,
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      child: Text(
+                                        s.translate(
+                                          'master_calendar_mark_complete',
+                                        ),
+                                        style: const TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1A237E),
+                                          decoration: TextDecoration.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          PopupMenuItem(
+                          PopupMenuItem<String>(
                             value: 'cancel',
-                            child: Text(
-                              s.translate('master_calendar_cancel_appt'),
-                              style: const TextStyle(fontFamily: 'KurdishFont'),
+                            padding: EdgeInsets.zero,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(15),
+                              ),
+                              child: BackdropFilter(
+                                filter: ui.ImageFilter.blur(
+                                  sigmaX: 14,
+                                  sigmaY: 14,
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      child: Text(
+                                        s.translate(
+                                          'master_calendar_cancel_appt',
+                                        ),
+                                        style: const TextStyle(
+                                          fontFamily: 'KurdishFont',
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFFB91C1C),
+                                          decoration: TextDecoration.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1111,6 +1199,8 @@ class _SlotTile extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
+              // LTR keeps the ⋮ menu on the trailing (right) side in RTL locales.
+              textDirection: ui.TextDirection.ltr,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (statusStripColor != null) ...[

@@ -36,14 +36,105 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Sign in',
   },
   'login_subtitle': {
-    'ckb': 'تکایە زانیارییەکانت بنووسە بۆ بەردەوامبوون',
-    'ar': 'أدخل بياناتك للمتابعة',
-    'en': 'Enter your details to continue',
+    'ckb': 'ئیمەیڵ و وشەی نهێنیت بنووسە',
+    'ar': 'أدخل بريدك وكلمة المرور',
+    'en': 'Enter your email and password',
   },
   'hint_email_or_phone': {
     'ckb': 'ئیمەیڵ یان ژمارەی مۆبایل',
     'ar': 'البريد أو رقم الجوال',
     'en': 'Email or mobile number',
+  },
+  'hint_email_login': {
+    'ckb': 'ئیمەیڵ',
+    'ar': 'البريد الإلكتروني',
+    'en': 'Email',
+  },
+  'auth_err_email_not_verified': {
+    'ckb': 'تکایە سەرەتا ئیمەیڵەکەت دڵنیا بکەرەوە',
+    'ar': 'يرجى تأكيد بريدك الإلكتروني أولاً.',
+    'en': 'Please verify your email first.',
+  },
+  'auth_verify_email_title': {
+    'ckb': 'ئیمەیڵەکەت پشتڕاست بکەرەوە',
+    'ar': 'تأكيد بريدك الإلكتروني',
+    'en': 'Verify your email',
+  },
+  'auth_verify_email_body': {
+    'ckb':
+        'ئیمەیڵێکی دڵنیابوونەوەمان بۆ ناردوویت، تکایە کلیک لەو لینکە بکە کە لە ناو ئیمەیڵەکەدایە',
+    'ar':
+        'أرسلنا بريد تحقق. يرجى النقر على الرابط داخل البريد.',
+    'en':
+        'We sent a verification email. Please tap the link inside the email.',
+  },
+  'auth_resend_verification': {
+    'ckb': 'دووبارە ناردنی ئیمەیڵی پشتڕاستکردنەوە',
+    'ar': 'إعادة إرسال بريد التحقق',
+    'en': 'Resend verification email',
+  },
+  'auth_verify_email_recheck': {
+    'ckb': 'من لینکەکەم چالاک کرد',
+    'ar': 'لقد فعّلت الرابط',
+    'en': 'I have verified',
+  },
+  'auth_verify_email_link_not_active': {
+    'ckb': 'تکایە سەرەتا لینکەکە چالاک بکە',
+    'ar': 'يرجى تفعيل الرابط أولاً.',
+    'en': 'Please activate the link in your email first.',
+  },
+  'auth_resend_in_seconds': {
+    'ckb': 'دووبارە ناردن لە {n} چرکە',
+    'ar': 'إعادة الإرسال خلال {n} ث',
+    'en': 'Resend in {n}s',
+  },
+  'auth_verify_email_resent': {
+    'ckb': 'ئیمەیڵی پشتڕاستکردنەوە دووبارە نێردرا',
+    'ar': 'تم إعادة إرسال بريد التحقق',
+    'en': 'Verification email sent again',
+  },
+  'verify_email_sent_heading': {
+    'ckb': 'ئیمەیڵ نێردرا',
+    'ar': 'تم إرسال البريد',
+    'en': 'Email sent',
+  },
+  'verify_email_activate_prompt': {
+    'ckb': 'تکایە ئیمەیڵەکەت چالاک بکە',
+    'ar': 'يرجى تفعيل بريدك الإلكتروني',
+    'en': 'Please verify your email',
+  },
+  'verify_email_check_again': {
+    'ckb': 'دووبارە پشکنین',
+    'ar': 'تحقق مرة أخرى',
+    'en': 'Check again',
+  },
+  'verify_email_open_email_app': {
+    'ckb': 'کردنەوەی ئیمەیڵ',
+    'ar': 'فتح البريد',
+    'en': 'Open email (Gmail)',
+  },
+  'verify_email_launch_failed': {
+    'ckb': 'نەتوانرا ئیمەیڵ بکرێتەوە',
+    'ar': 'تعذر فتح التطبيق',
+    'en': 'Could not open email',
+  },
+  'auth_email_not_activated_snack': {
+    'ckb': 'ئیمەیڵەکەت چالاک نەکراوە',
+    'ar': 'لم يتم تفعيل بريدك الإلكتروني',
+    'en': 'Your email has not been verified',
+  },
+  'signup_verify_email_dialog_title': {
+    'ckb': 'سندوقی نامەکەت بپشکنە',
+    'ar': 'تحقق من بريدك',
+    'en': 'Check your inbox',
+  },
+  'signup_verify_email_dialog_body': {
+    'ckb':
+        'ئیمەیڵێکی پشتڕاستکردنەوەمان نارد. تکایە سندوقی نامەکەت بکەرەوە و لینکەکە کرتە بکە، پاشان بچۆرە ژوورەوە.',
+    'ar':
+        'أرسلنا رسالة تحقق. افتح بريدك واضغط الرابط، ثم سجّل الدخول.',
+    'en':
+        'We sent a verification email. Open it, tap the link, then sign in.',
   },
   'hint_password': {
     'ckb': 'وشەی نهێنی',
@@ -100,6 +191,41 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الاسم الكامل',
     'en': 'Full name',
   },
+  'signup_first_name': {
+    'ckb': 'ناوی یەکەم',
+    'ar': 'الاسم الأول',
+    'en': 'First name',
+  },
+  'signup_last_name': {
+    'ckb': 'ناوی دووەم',
+    'ar': 'اسم العائلة',
+    'en': 'Last name',
+  },
+  'signup_mobile': {
+    'ckb': 'ژمارەی مۆبایل',
+    'ar': 'رقم الجوال',
+    'en': 'Mobile number',
+  },
+  'signup_mobile_optional': {
+    'ckb': 'ژمارەی مۆبایل (ئارەزوومەندانە)',
+    'ar': 'رقم الجوال (اختياري)',
+    'en': 'Mobile number (optional)',
+  },
+  'signup_mobile_mandatory': {
+    'ckb': 'ژمارەی مۆبایل (ناچاری)',
+    'ar': 'رقم الجوال (إلزامي)',
+    'en': 'Mobile number (required)',
+  },
+  'signup_address': {
+    'ckb': 'شوێنی نیشتەجێبوون',
+    'ar': 'عنوان السكن / المدينة',
+    'en': 'Address / city',
+  },
+  'password_confirm': {
+    'ckb': 'دووپاتکردنەوەی وشەی نهێنی',
+    'ar': 'تأكيد كلمة المرور',
+    'en': 'Confirm password',
+  },
   'email': {
     'ckb': 'ئیمەیڵ',
     'ar': 'البريد الإلكتروني',
@@ -111,14 +237,38 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Password',
   },
   'password_hint_signup': {
-    'ckb': 'وشەی نهێنی (لانیکەم ٦ پیت)',
-    'ar': 'كلمة المرور (٦ أحرف على الأقل)',
-    'en': 'Password (at least 6 characters)',
+    'ckb': 'وشەی نهێنی (لانیکەم ٨ پیت)',
+    'ar': 'كلمة المرور (٨ أحرف على الأقل)',
+    'en': 'Password (at least 8 characters)',
   },
   'register': {
     'ckb': 'تۆماربوون',
     'ar': 'تسجيل',
     'en': 'Register',
+  },
+  'registration_success_message': {
+    'ckb': 'هەژمارەکەت بە سەرکەوتوویی دروستکرا',
+    'ar': 'تم إنشاء حسابك بنجاح',
+    'en': 'Your account was created successfully',
+  },
+  'registration_success_next': {
+    'ckb': 'دواتر',
+    'ar': 'التالي',
+    'en': 'Next',
+  },
+  'registration_success_instruction': {
+    'ckb':
+        'تکایە لە پەڕەی داهاتوو ئەو ژمارەی مۆبایل و وشەی نهێنییە بەکاربهێنەوە کە لە کاتی تۆماربوون نووسیبووت.',
+    'ar':
+        'يُرجى استخدام رقم الجوال وكلمة المرور التي أدخلتها عند التسجيل في الصفحة التالية.',
+    'en':
+        'On the next screen, use the same mobile number and password you entered when you registered.',
+  },
+  'login_hint_after_registration': {
+    'ckb':
+        'تکایە ژمارەی مۆبایل و وشەی نهێنییە بەکاربهێنەوە کە لە کاتی تۆماربوون نووسیبووت.',
+    'ar': 'استخدم رقم الجوال وكلمة المرور التي سجّلت بها.',
+    'en': 'Sign in with the phone number and password you used when you registered.',
   },
   'forgot_password_title': {
     'ckb': 'لەبیرکردنەوەی وشەی نهێنی',
@@ -162,9 +312,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Email is required',
   },
   'validation_email_invalid': {
-    'ckb': 'ئیمەیڵەکە دروست نییە',
-    'ar': 'البريد غير صالح',
-    'en': 'Invalid email',
+    'ckb': 'ئیمەیڵێکی دروست بنووسە (@ و کۆتایی .com)',
+    'ar': 'أدخل بريدًا صالحًا (@ وينتهي بـ .com)',
+    'en': 'Enter a valid email (@ and a .com address)',
   },
   'validation_password_required': {
     'ckb': 'وشەی نهێنی پێویستە',
@@ -172,9 +322,99 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Password is required',
   },
   'validation_password_short': {
-    'ckb': 'وشەی نهێنی لانیکەم ٦ پیت بێت',
-    'ar': 'كلمة المرور ٦ أحرف على الأقل',
-    'en': 'Password must be at least 6 characters',
+    'ckb': 'وشەی نهێنی لانیکەم ٨ پیت بێت',
+    'ar': 'كلمة المرور ٨ أحرف على الأقل',
+    'en': 'Password must be at least 8 characters',
+  },
+  'validation_password_mismatch': {
+    'ckb': 'وشەکانی نهێنی یەک ناگرنەوە',
+    'ar': 'كلمتا المرور غير متطابقتين',
+    'en': 'Passwords do not match',
+  },
+  'validation_phone_required': {
+    'ckb': 'تکایە ژمارەی مۆبایل بنووسە',
+    'ar': 'يرجى إدخال رقم الجوال',
+    'en': 'Please enter your mobile number',
+  },
+  'validation_phone_digits_only': {
+    'ckb': 'تەنها ژمارە بنووسە',
+    'ar': 'أدخل أرقامًا فقط',
+    'en': 'Digits only',
+  },
+  'validation_phone_short': {
+    'ckb': 'ژمارەی مۆبایل کورتە',
+    'ar': 'رقم الجوال قصير جدًا',
+    'en': 'Mobile number is too short',
+  },
+  'validation_phone_must_be_11': {
+    'ckb': 'تکایە ١١ ژمارە بنووسە',
+    'ar': 'يرجى إدخال ١١ رقمًا',
+    'en': 'Please enter 11 digits',
+  },
+  'validation_phone_leading_zero': {
+    'ckb': 'ژمارە دەبێت بە ٠ دەست پێبکات (١١ ژمارە)',
+    'ar': 'يجب أن يبدأ الرقم بـ 0 (١١ رقمًا)',
+    'en': 'Number must start with 0 (11 digits)',
+  },
+  'signup_otp_title': {
+    'ckb': 'پشتڕاستکردنەوەی ژمارە',
+    'ar': 'التحقق من الرقم',
+    'en': 'Verify phone number',
+  },
+  'signup_otp_subtitle': {
+    'ckb': 'کۆدی ٦ ژمارەیی بنووسە کە بۆ ژمارەی ({phone}) نێردراوە.',
+    'ar': 'أدخل الرمز المكوّن من ٦ أرقام المرسل إلى ({phone}).',
+    'en': 'Enter the 6-digit code sent to ({phone}).',
+  },
+  'signup_otp_verify': {
+    'ckb': 'پشتڕاستکردنەوە',
+    'ar': 'تحقق',
+    'en': 'Verify',
+  },
+  'signup_otp_resend': {
+    'ckb': 'دووبارە ناردنەوەی کۆد',
+    'ar': 'إعادة إرسال الرمز',
+    'en': 'Resend code',
+  },
+  'signup_otp_resend_wait': {
+    'ckb': 'دووبارە ناردن لە {seconds} چرکە',
+    'ar': 'إعادة الإرسال خلال {seconds} ث',
+    'en': 'Resend in {seconds}s',
+  },
+  'signup_otp_resend_hint': {
+    'ckb': 'کۆد نەگەیشت؟',
+    'ar': 'لم يصلك الرمز؟',
+    'en': "Didn't get a code?",
+  },
+  'signup_otp_wrong_code': {
+    'ckb': 'کۆدەکە هەڵەیە، تکایە دووبارە تاقی بکەرەوە',
+    'ar': 'الرمز غير صحيح، حاول مرة أخرى',
+    'en': 'The code is wrong, please try again',
+  },
+  'signup_otp_incomplete': {
+    'ckb': 'تکایە کۆدی ٦ ژمارەیی بە تەواوی بنووسە',
+    'ar': 'أدخل الرمز المكوّن من ٦ أرقام',
+    'en': 'Enter all 6 digits',
+  },
+  'signup_otp_no_verification_id': {
+    'ckb': 'هەڵە لە ناردنی کۆد، دووبارە هەوڵ بدەرەوە',
+    'ar': 'خطأ في الجلسة، أعد المحاولة',
+    'en': 'Session error, try again',
+  },
+  'signup_otp_resent': {
+    'ckb': 'کۆدێکی نوێ نێردرا',
+    'ar': 'تم إرسال رمز جديد',
+    'en': 'A new code was sent',
+  },
+  'signup_phone_send_failed': {
+    'ckb': 'ناردنی کۆد سەرکەوتوو نەبوو',
+    'ar': 'فشل إرسال الرمز',
+    'en': 'Failed to send verification code',
+  },
+  'validation_address_required': {
+    'ckb': 'شوێنی نیشتەجێبوون پێویستە',
+    'ar': 'عنوان السكن مطلوب',
+    'en': 'Address is required',
   },
   'validation_name_required': {
     'ckb': 'ناو پێویستە',
@@ -205,6 +445,17 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'کرتە بکە بۆ ووردەکاری',
     'ar': 'اضغط للتفاصيل',
     'en': 'Click for details',
+  },
+  'patient_doctor_card_book_cta': {
+    'ckb': 'نۆرە بگرە',
+    'ar': 'احجز موعداً',
+    'en': 'Book an appointment',
+  },
+  /// Compact label for doctor card details chip (avoids overflow next to book CTA).
+  'patient_doctor_card_details_short': {
+    'ckb': 'وردەکاری',
+    'ar': 'التفاصيل',
+    'en': 'Details',
   },
   'language': {
     'ckb': 'زمان',
@@ -388,6 +639,34 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'مريض',
     'en': 'Patient',
   },
+  'signup_doctor_security_title': {
+    'ckb': 'کۆدی چالاککردنی ئاسایش',
+    'ar': 'رمز تفعيل الأمان',
+    'en': 'Security activation code',
+  },
+  'signup_doctor_security_warning': {
+    'ckb':
+        'ئاگاداری: ئەم کۆدە تایبەتە بە پزیشکانی ڕێپێدراو. بڵاوکردنەوەی ئەم کۆدە بەرپرسیارێتی یاسایی لەسەرە و دەبێتە هۆی سڕینەوەی هەژمارەکەت.',
+    'ar':
+        'تحذير: هذا الرمز مخصص للأطباء المصرّح لهم. نشره ينطوي على مسؤولية قانونية وقد يؤدي إلى حذف حسابك.',
+    'en':
+        'Warning: This code is for authorized physicians only. Sharing it may carry legal liability and can result in deletion of your account.',
+  },
+  'signup_doctor_security_hint': {
+    'ckb': 'کۆدی چالاککردن بنووسە',
+    'ar': 'أدخل رمز التفعيل',
+    'en': 'Enter activation code',
+  },
+  'signup_doctor_security_wrong': {
+    'ckb': 'کۆدەکە هەڵەیە، تکایە پەیوەندی بە بەڕێوەبەر بکە.',
+    'ar': 'الرمز غير صحيح، يرجى التواصل مع المشرف.',
+    'en': 'The code is incorrect. Please contact the administrator.',
+  },
+  'signup_doctor_security_confirm': {
+    'ckb': 'پشتڕاستکردنەوە',
+    'ar': 'تأكيد',
+    'en': 'Verify',
+  },
   'signup_err_email_in_use': {
     'ckb': 'ئەم ئیمەیڵە پێشتر بەکارهاتووە',
     'ar': 'البريد مستخدم مسبقاً',
@@ -412,6 +691,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'بەخێربێیت، {name}',
     'ar': 'مرحباً، {name}',
     'en': 'Welcome, {name}',
+  },
+  'patient_home_greeting': {
+    'ckb': 'سڵاو، {name}',
+    'ar': 'مرحباً، {name}',
+    'en': 'Hello, {name}',
   },
   'search_doctors_hint': {
     'ckb': 'گەڕان بە پزیشک یان پسپۆڕی...',
@@ -572,6 +856,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'پشتگیری',
     'ar': 'الدعم',
     'en': 'Support',
+  },
+  'patient_home_menu_feedback': {
+    'ckb': 'بۆچوونەکان',
+    'ar': 'ملاحظات',
+    'en': 'Feedback',
   },
   'tooltip_logout': {
     'ckb': 'چوونەدەرەوە',
@@ -1608,6 +1897,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'نۆرەکەت کاتژمێر ({time}) دەبێت، دڵنیای لە جێگیرکردنی؟',
     'ar': 'سيكون موعدك في الساعة ({time}). هل تؤكد الحجز؟',
     'en': 'Your slot will be at {time}. Confirm booking?',
+  },
+  'booking_confirm_legal_notice_prefix': {
+    'ckb':
+        'تێبینی: تۆمارکردنی نۆرەی وەهمی و بێمانا بە سیستەمەکە، دەبێتە هۆی بلۆککردنی هەمیشەیی ژمارەکەت و ڕووبەڕووی ',
+    'ar':
+        'ملاحظة: إن حجز موعد وهمي وبلا مبرر عبر النظام قد يؤدي إلى حظر رقمك نهائيًا ومواجهة ',
+    'en':
+        'Note: Booking a fraudulent or meaningless appointment through the system may result in permanent blocking of your number and facing ',
+  },
+  'booking_confirm_legal_notice_emphasis': {
+    'ckb': 'لێپرسینەوەی یاسایی',
+    'ar': 'المساءلة القانونية',
+    'en': 'legal consequences',
+  },
+  'booking_confirm_legal_notice_suffix': {
+    'ckb': ' دەبیتەوە.',
+    'ar': '.',
+    'en': '.',
   },
   'patient_booking_slots_privacy_title': {
     'ckb': 'کاتەکان — تەنها بەتاڵ / گیراوە',

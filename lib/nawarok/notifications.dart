@@ -35,7 +35,7 @@ class NotificationsScreen extends StatelessWidget {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: index == 0 ? Colors.blueAccent : Colors.grey.withOpacity(0.2),
+                    backgroundColor: index == 0 ? Colors.blueAccent : Colors.grey.withValues(alpha: 0.2),
                     child: Icon(
                       index == 0 ? Icons.check : Icons.notifications_none,
                       color: Colors.white,
