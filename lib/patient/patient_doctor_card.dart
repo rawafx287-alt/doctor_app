@@ -2,14 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_localizations.dart';
+import '../theme/patient_premium_theme.dart';
 
-/// Premium black + polished gold palette.
-const Color _kObsidianBlack = Color(0xFF0B0B0C);
-const Color _kMatteBlack = Color(0xFF141415);
-const Color _kGraphiteBlack = Color(0xFF1F1F22);
-const Color _kPolishedGold = Color(0xFFD4AF37);
-const Color _kSoftGold = Color(0xFFE7C968);
-const Color _kDeepGold = Color(0xFF9C7A1A);
+/// Royal crimson primary CTA (deep → garnet).
+const Color _kCrimsonDeep = Color(0xFF6B141E);
+const Color _kCrimsonGarnet = Color(0xFFC62828);
+const Color _kCrimsonBorderLight = Color(0xFFFF8A80);
 
 /// Doctor row used on patient home and hospital doctor list.
 class PatientDoctorCard extends StatefulWidget {
@@ -38,10 +36,13 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
-  static const Color _nameGold = _kSoftGold;
-  static const Color _badgeText = Color(0xFFFFF4CC);
-  static const Color _avatarRingGold = _kDeepGold;
-  static const Color _verifiedGold = _kPolishedGold;
+  static const Color _navyText = kPatientNavyText;
+
+  /// Darker than [_navyText] for badge contrast on frosted glass.
+  static const Color _badgeText = Color(0xFF050A14);
+  static const Color _deepBlue = Color(0xFF1565C0);
+  static const Color _avatarRingBlue = Color(0xFF283593);
+  static const Color _verifiedBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
   static const double _outerBorderWidth = 0.5;
@@ -87,20 +88,14 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
             border: Border.all(
-              color: _kSoftGold.withValues(alpha: 0.78),
+              color: Colors.white.withValues(alpha: 0.92),
               width: _outerBorderWidth,
             ),
             boxShadow: [
               BoxShadow(
-                color: _kPolishedGold.withValues(alpha: 0.22),
-                blurRadius: 16,
+                color: Colors.grey.withValues(alpha: 0.35),
+                blurRadius: 12,
                 spreadRadius: 0,
-                offset: const Offset(0, 5),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.48),
-                blurRadius: 10,
-                spreadRadius: 1,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -110,18 +105,27 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             borderRadius: BorderRadius.circular(_innerRadius),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_kMatteBlack, _kGraphiteBlack, _kObsidianBlack],
-                  stops: [0.0, 0.45, 1.0],
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    _deepBlue,
+                    Color.lerp(
+                          _deepBlue,
+                          const Color(0xFFE8EEF5),
+                          0.72,
+                        ) ??
+                        const Color(0xFFE8EEF5),
+                    Colors.white.withValues(alpha: 0.96),
+                  ],
+                  stops: const [0.0, 0.42, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: _kSoftGold.withValues(alpha: 0.08),
-                    blurRadius: 16,
+                    color: Colors.white.withValues(alpha: 0.4),
+                    blurRadius: 10,
                     spreadRadius: -2,
-                    offset: const Offset(0, 1),
+                    offset: Offset.zero,
                   ),
                 ],
               ),
@@ -144,8 +148,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: _avatarRingGold,
-                                      width: 1.6,
+                                      color: _avatarRingBlue,
+                                      width: 2,
                                     ),
                                   ),
                                   child: ClipOval(
@@ -166,7 +170,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                           height: 22,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: _avatarRingGold,
+                                            color: _avatarRingBlue,
                                           ),
                                         ),
                                       ),
@@ -178,7 +182,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         alignment: Alignment.center,
                                         child: const Icon(
                                           Icons.medical_services_rounded,
-                                          color: _avatarRingGold,
+                                          color: _avatarRingBlue,
                                           size: 24,
                                         ),
                                       ),
@@ -210,7 +214,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                color: _nameGold,
+                                                color: _navyText,
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.w800,
                                                 fontFamily: 'KurdishFont',
@@ -218,15 +222,19 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                                 letterSpacing: 0.35,
                                                 shadows: [
                                                   Shadow(
-                                                    color: _kPolishedGold
-                                                        .withValues(alpha: 0.42),
-                                                    blurRadius: 12,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.65,
+                                                        ),
+                                                    blurRadius: 10,
                                                     offset: Offset.zero,
                                                   ),
                                                   Shadow(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.45),
-                                                    blurRadius: 5,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.45,
+                                                        ),
+                                                    blurRadius: 4,
                                                     offset: const Offset(0, 1),
                                                   ),
                                                 ],
@@ -237,13 +245,13 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                           Icon(
                                             Icons.verified_rounded,
                                             size: 22,
-                                            color: _verifiedGold,
+                                            color: _verifiedBlue,
                                             shadows: [
                                               Shadow(
-                                                color: _verifiedGold.withValues(
-                                                  alpha: 0.62,
+                                                color: _verifiedBlue.withValues(
+                                                  alpha: 0.45,
                                                 ),
-                                                blurRadius: 8,
+                                                blurRadius: 6,
                                                 offset: Offset.zero,
                                               ),
                                             ],
@@ -308,7 +316,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                       height: 1.1,
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'KurdishFont',
-                                      color: _kSoftGold.withValues(alpha: 0.86),
+                                      color: _navyText.withValues(alpha: 0.58),
                                     ),
                                   ),
                                   const SizedBox(height: 10),
@@ -320,15 +328,15 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         vertical: 7,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: _kObsidianBlack.withValues(
-                                          alpha: 0.76,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.38,
                                         ),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: _kSoftGold.withValues(
-                                            alpha: 0.72,
+                                          color: _deepBlue.withValues(
+                                            alpha: 0.5,
                                           ),
-                                          width: 0.8,
+                                          width: 1,
                                         ),
                                       ),
                                       child: Text(
@@ -430,12 +438,12 @@ class _DoctorCardDetailsButton extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              _kGraphiteBlack.withValues(alpha: 0.62),
-              _kObsidianBlack.withValues(alpha: 0.5),
+              Colors.white.withValues(alpha: 0.26),
+              Colors.white.withValues(alpha: 0.09),
             ],
           ),
           border: Border.all(
-            color: _kSoftGold.withValues(alpha: 0.5),
+            color: Colors.white.withValues(alpha: 0.38),
             width: 0.5,
           ),
         ),
@@ -451,7 +459,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _kSoftGold.withValues(alpha: 0.96),
+                  color: Colors.white.withValues(alpha: 0.96),
                   fontFamily: 'KurdishFont',
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -465,15 +473,15 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                   ? Icons.arrow_back_ios_new_rounded
                   : Icons.arrow_forward_ios_rounded,
               size: 12,
-              color: _kPolishedGold.withValues(alpha: 0.95),
+              color: Colors.white.withValues(alpha: 0.98),
               shadows: const [
                 Shadow(
-                  color: Color(0xE6D4AF37),
+                  color: Color(0xD9FFFFFF),
                   blurRadius: 6,
                   offset: Offset.zero,
                 ),
                 Shadow(
-                  color: Color(0x8CD4AF37),
+                  color: Color(0x59FFFFFF),
                   blurRadius: 10,
                   offset: Offset.zero,
                 ),
@@ -510,24 +518,24 @@ class _BookNowPrimaryButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_r),
             border: Border.all(
-              color: _kSoftGold.withValues(alpha: 0.9),
+              color: _kCrimsonBorderLight.withValues(alpha: 0.88),
               width: 1,
             ),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_kMatteBlack, _kGraphiteBlack, _kObsidianBlack],
+              colors: [_kCrimsonDeep, Color(0xFF8E1B2E), _kCrimsonGarnet],
               stops: [0.0, 0.48, 1.0],
             ),
             boxShadow: [
               BoxShadow(
-                color: _kPolishedGold.withValues(alpha: 0.22),
+                color: _kCrimsonDeep.withValues(alpha: 0.42),
                 blurRadius: 22,
                 spreadRadius: 0,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: _kDeepGold.withValues(alpha: 0.24),
+                color: _kCrimsonGarnet.withValues(alpha: 0.28),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -579,8 +587,8 @@ class _BookNowPrimaryButton extends StatelessWidget {
                         return Icon(
                           Icons.calendar_month_rounded,
                           size: 18,
-                          color: _kSoftGold.withValues(
-                            alpha: 0.92 + 0.06 * pulse,
+                          color: Colors.white.withValues(
+                            alpha: 0.94 + 0.05 * pulse,
                           ),
                           shadows: [
                             Shadow(
@@ -591,8 +599,8 @@ class _BookNowPrimaryButton extends StatelessWidget {
                               offset: const Offset(0, 1),
                             ),
                             Shadow(
-                              color: _kPolishedGold.withValues(
-                                alpha: 0.3 + 0.15 * pulse,
+                              color: Colors.white.withValues(
+                                alpha: 0.35 + 0.15 * pulse,
                               ),
                               blurRadius: 6,
                               offset: Offset.zero,
@@ -609,7 +617,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: _kSoftGold.withValues(alpha: 0.98),
+                          color: Colors.white.withValues(alpha: 0.97),
                           fontFamily: 'KurdishFont',
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -622,7 +630,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
                               offset: const Offset(0, 1),
                             ),
                             Shadow(
-                              color: _kPolishedGold.withValues(alpha: 0.28),
+                              color: Colors.white.withValues(alpha: 0.2),
                               blurRadius: 6,
                               offset: Offset.zero,
                             ),
@@ -645,7 +653,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
 class DoctorCardGradientDivider extends StatelessWidget {
   const DoctorCardGradientDivider({super.key});
 
-  static const Color _dividerRed = _kDeepGold;
+  static const Color _dividerRed = Color(0xFFC62828);
 
   @override
   Widget build(BuildContext context) {
