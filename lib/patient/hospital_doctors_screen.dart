@@ -202,7 +202,14 @@ class HospitalDoctorsScreen extends StatelessWidget {
                       return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                         itemCount: docs.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(height: 8),
+                            DoctorCardGradientDivider(),
+                            SizedBox(height: 8),
+                          ],
+                        ),
                         itemBuilder: (context, index) {
                           final doc = docs[index];
                           final data = doc.data();
