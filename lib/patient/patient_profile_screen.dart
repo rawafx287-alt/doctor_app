@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,16 +7,16 @@ import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
+import '../theme/patient_premium_theme.dart';
 import 'patient_edit_profile_screen.dart';
 
 /// Matches [PatientHomeScreen] shell.
-const Color _kSkyTop = Color(0xFFE1F5FE);
-const Color _kSkyBottom = Color(0xFFB3E5FC);
+const Color _kSkyTop = kPatientSkyTop;
+const Color _kSkyBottom = kPatientSkyBottom;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
 const Color _kChevronLightBlue = Color(0xFF90CAF9);
 const Color _kMutedGrey = Color(0xFF546E7A);
-const Color _kLogoutRedLight = Color(0xFFFF8A80);
 const Color _kLogoutRedDeep = Color(0xFFC62828);
 
 /// Patient profile tab: glass header + mini glass tiles; logout uses [performAppLogout].
@@ -110,55 +108,72 @@ class PatientProfileScreen extends StatelessWidget {
                       ? emailFromDoc
                       : (authEmail.isNotEmpty ? authEmail : '—');
 
-                  return ListView(
+                  return ListView.builder(
                     padding: EdgeInsets.fromLTRB(
                       16,
                       16,
                       16,
                       28 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    children: [
-                      _ProfileGlassHeader(name: name, email: email),
-                      const SizedBox(height: 16),
-                      _GlassSettingsTile(
-                        icon: Icons.edit_outlined,
-                        title: S.of(context).translate('edit_profile'),
-                        subtitle:
-                            S.of(context).translate('edit_profile_subtitle'),
-                        onTap: () {
-                          Navigator.push<void>(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  const PatientEditProfileScreen(),
+                    itemCount: 5,
+                    itemBuilder: (context, index) {
+                      switch (index) {
+                        case 0:
+                          return _ProfileGlassHeader(name: name, email: email);
+                        case 1:
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: _GlassSettingsTile(
+                              icon: Icons.edit_outlined,
+                              title: S.of(context).translate('edit_profile'),
+                              subtitle: S.of(context)
+                                  .translate('edit_profile_subtitle'),
+                              onTap: () {
+                                Navigator.push<void>(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const PatientEditProfileScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           );
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _GlassSettingsTile(
-                        icon: Icons.language_rounded,
-                        title: S.of(context).translate('language'),
-                        subtitle: AppLocaleScope.of(context)
-                                .selectedLanguage
-                                ?.nativeTitle ??
-                            '—',
-                        onTap: () => _showLanguageSheet(context),
-                      ),
-                      const SizedBox(height: 10),
-                      _GlassSettingsTile(
-                        icon: Icons.info_outline_rounded,
-                        title: S.of(context).translate('about_app'),
-                        subtitle:
-                            S.of(context).translate('about_app_subtitle'),
-                        onTap: () => _showAbout(context),
-                      ),
-                      const SizedBox(height: 10),
-                      _GlassLogoutTile(
-                        title: S.of(context).translate('logout'),
-                        onTap: () => _logout(context),
-                      ),
-                    ],
+                        case 2:
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: _GlassSettingsTile(
+                              icon: Icons.language_rounded,
+                              title: S.of(context).translate('language'),
+                              subtitle: AppLocaleScope.of(context)
+                                      .selectedLanguage
+                                      ?.nativeTitle ??
+                                  '—',
+                              onTap: () => _showLanguageSheet(context),
+                            ),
+                          );
+                        case 3:
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: _GlassSettingsTile(
+                              icon: Icons.info_outline_rounded,
+                              title: S.of(context).translate('about_app'),
+                              subtitle: S.of(context)
+                                  .translate('about_app_subtitle'),
+                              onTap: () => _showAbout(context),
+                            ),
+                          );
+                        case 4:
+                        default:
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: _GlassLogoutTile(
+                              title: S.of(context).translate('logout'),
+                              onTap: () => _logout(context),
+                            ),
+                          );
+                      }
+                    },
                   );
                 },
               ),
@@ -181,25 +196,9 @@ class _ProfileGlassHeader extends StatelessWidget {
     final textDir = AppLocaleScope.of(context).textDirection;
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.52),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.75),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _kPremiumDeepBlue.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(
+      child: DecoratedBox(
+        decoration: patientFrostedGlassDecoration(borderRadius: 22),
+        child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
             child: Row(
               textDirection: textDir,
@@ -222,23 +221,27 @@ class _ProfileGlassHeader extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.55),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            width: 1.2,
-                          ),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.72),
+                            Colors.white.withValues(alpha: 0.42),
+                          ],
                         ),
-                        child: const Icon(
-                          Icons.person_rounded,
-                          color: _kPremiumDeepBlue,
-                          size: 36,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          width: 0.5,
                         ),
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: _kPremiumDeepBlue,
+                        size: 36,
                       ),
                     ),
                   ),
@@ -291,7 +294,6 @@ class _ProfileGlassHeader extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -320,25 +322,9 @@ class _GlassSettingsTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  width: 0.8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kPremiumDeepBlue.withValues(alpha: 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
+          child: DecoratedBox(
+            decoration: patientFrostedGlassDecoration(borderRadius: 16),
+            child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
@@ -395,7 +381,6 @@ class _GlassSettingsTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -418,73 +403,56 @@ class _GlassLogoutTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.38),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _kLogoutRedDeep.withValues(alpha: 0.22),
-                  width: 0.8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kLogoutRedDeep.withValues(alpha: 0.08),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFFFEBEE).withValues(alpha: 0.98),
+                  const Color(0xFFFFCDD2).withValues(alpha: 0.45),
                 ],
               ),
-                child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
+              border: Border.all(
+                color: _kLogoutRedDeep.withValues(alpha: 0.22),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _kLogoutRedDeep.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                child: Directionality(
-                  textDirection:
-                      AppLocaleScope.of(context).textDirection,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ShaderMask(
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) =>
-                            const LinearGradient(
-                          colors: [
-                            _kLogoutRedLight,
-                            _kLogoutRedDeep,
-                          ],
-                        ).createShader(bounds),
-                        child: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              child: Directionality(
+                textDirection: AppLocaleScope.of(context).textDirection,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.logout_rounded,
+                      color: _kLogoutRedDeep.withValues(alpha: 0.88),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: _kLogoutRedDeep.withValues(alpha: 0.92),
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        height: 1.2,
                       ),
-                      const SizedBox(width: 10),
-                      ShaderMask(
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) =>
-                            const LinearGradient(
-                          colors: [
-                            _kLogoutRedLight,
-                            _kLogoutRedDeep,
-                          ],
-                        ).createShader(bounds),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'KurdishFont',
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

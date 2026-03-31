@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../theme/patient_premium_theme.dart';
 import 'doctor_details_screen.dart' show honorificDoctorDisplayName;
 import 'patient_available_days_list.dart';
 
-const Color _kSkyTop = Color(0xFFE1F5FE);
-const Color _kSkyBottom = Color(0xFFB3E5FC);
+const Color _kSkyTop = kPatientSkyTop;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kBodyGrey = Color(0xFF455A64);
 
@@ -64,13 +64,7 @@ class PatientDoctorBookingScreen extends StatelessWidget {
           ),
         ),
         body: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_kSkyTop, _kSkyBottom],
-            ),
-          ),
+          decoration: patientSkyGradientDecoration(),
           child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
                 .collection('users')

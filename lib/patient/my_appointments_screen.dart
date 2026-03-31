@@ -932,12 +932,17 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
               final padBottom =
                   24 + MediaQuery.paddingOf(context).bottom + (widget.embedded ? 8 : 0);
-              return ListView.separated(
+              return ListView.builder(
                 padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
-                itemCount: sorted.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 16),
+                itemCount: sorted.isEmpty
+                    ? 0
+                    : sorted.length * 2 - 1,
                 itemBuilder: (context, index) {
-                  final data = sorted[index].data();
+                  if (index.isOdd) {
+                    return const SizedBox(height: 16);
+                  }
+                  final cardIndex = index ~/ 2;
+                  final data = sorted[cardIndex].data();
                   final doctorName = (data[AppointmentFields.doctorName] ??
                           data[AppointmentFields.doctorId] ??
                           '—')
@@ -962,8 +967,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           parsedDay,
                         )
                       : null;
-                  final queueLabel = _appointmentQueueLabel(data, index);
-                  final docId = sorted[index].id;
+                  final queueLabel = _appointmentQueueLabel(data, cardIndex);
+                  final docId = sorted[cardIndex].id;
                   final heroTag = 'appointment_ticket_$docId';
 
                   return GestureDetector(

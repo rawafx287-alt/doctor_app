@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
+import '../theme/patient_premium_theme.dart';
 
 /// Edit patient [fullName] and [phone] in Firestore [users].
 class PatientEditProfileScreen extends StatefulWidget {
@@ -94,99 +95,116 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kPatientSkyTop,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
-          foregroundColor: const Color(0xFFD9E2EC),
+          backgroundColor: Colors.white.withValues(alpha: 0.92),
+          foregroundColor: kPatientNavyText,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
-          title: const Text(
+          title: Text(
             'گۆڕینی زانیارییەکان',
-            style: TextStyle(
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w700,
+            style: patientBoldTextStyle(
+              fontSize: 17,
+              weight: FontWeight.w700,
             ),
           ),
         ),
-        body: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-              )
-            : SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextFormField(
-                          controller: _nameController,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Color(0xFFD9E2EC),
-                            fontFamily: 'KurdishFont',
-                          ),
-                          decoration: _inputDecoration(
-                            label: 'ناوی تەواو',
-                            icon: Icons.person_outline_rounded,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'ناو پێویستە';
-                            }
-                            return null;
-                          },
+        body: DecoratedBox(
+          decoration: patientSkyGradientDecoration(),
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF1565C0)),
+                )
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: DecoratedBox(
+                        decoration: patientFrostedGlassDecoration(
+                          borderRadius: 20,
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _phoneController,
-                          textAlign: TextAlign.right,
-                          keyboardType: TextInputType.phone,
-                          style: const TextStyle(
-                            color: Color(0xFFD9E2EC),
-                            fontFamily: 'KurdishFont',
-                          ),
-                          decoration: _inputDecoration(
-                            label: 'ژمارەی مۆبایل',
-                            icon: Icons.phone_android_rounded,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF42A5F5),
-                              foregroundColor: const Color(0xFF102A43),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            onPressed: _saving ? null : _save,
-                            child: _saving
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Color(0xFF102A43),
-                                    ),
-                                  )
-                                : const Text(
-                                    'پاشەکەوتکردن',
-                                    style: TextStyle(
-                                      fontFamily: 'KurdishFont',
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 16,
-                                    ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                TextFormField(
+                                  controller: _nameController,
+                                  textAlign: TextAlign.right,
+                                  style: patientBoldTextStyle(
+                                    fontSize: 15,
+                                    weight: FontWeight.w600,
                                   ),
+                                  decoration: _inputDecoration(
+                                    label: 'ناوی تەواو',
+                                    icon: Icons.person_outline_rounded,
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'ناو پێویستە';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _phoneController,
+                                  textAlign: TextAlign.right,
+                                  keyboardType: TextInputType.phone,
+                                  style: patientBoldTextStyle(
+                                    fontSize: 15,
+                                    weight: FontWeight.w600,
+                                  ),
+                                  decoration: _inputDecoration(
+                                    label: 'ژمارەی مۆبایل',
+                                    icon: Icons.phone_android_rounded,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                SizedBox(
+                                  height: 52,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          const Color(0xFF1565C0),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    onPressed: _saving ? null : _save,
+                                    child: _saving
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            'پاشەکەوتکردن',
+                                            style: patientBoldTextStyle(
+                                              fontSize: 16,
+                                              weight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -197,24 +215,31 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(
-        color: Color(0xFF829AB1),
-        fontFamily: 'KurdishFont',
+      labelStyle: TextStyle(
+        color: kPatientNavyText.withValues(alpha: 0.55),
+        fontFamily: kPatientPrimaryFont,
+        fontWeight: FontWeight.w600,
       ),
-      prefixIcon: Icon(icon, color: const Color(0xFF42A5F5)),
+      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
       filled: true,
-      fillColor: const Color(0xFF1D1E33),
+      fillColor: Colors.white.withValues(alpha: 0.55),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.white12),
+        borderSide: BorderSide(
+          color: Colors.white.withValues(alpha: 0.75),
+          width: 0.5,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.white12),
+        borderSide: BorderSide(
+          color: Colors.white.withValues(alpha: 0.75),
+          width: 0.5,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF42A5F5), width: 1.4),
+        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.2),
       ),
     );
   }

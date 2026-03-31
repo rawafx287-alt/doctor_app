@@ -14,6 +14,8 @@ import 'doctor_details_screen.dart';
 import 'patient_doctor_booking_screen.dart';
 import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
+import 'patient_scroll_physics.dart';
+import '../theme/patient_premium_theme.dart';
 import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
@@ -80,8 +82,8 @@ Color _categoryAccentIcon(String catKey) {
 }
 
 /// Sky blue glass patient shell.
-const Color _kSkyTop = Color(0xFFE1F5FE);
-const Color _kSkyBottom = Color(0xFFB3E5FC);
+const Color _kSkyTop = kPatientSkyTop;
+const Color _kSkyBottom = kPatientSkyBottom;
 const Color _kCharcoal = Color(0xFF333333);
 const Color _kDarkBlue = Color(0xFF0D47A1);
 const Color _kMutedGrey = Color(0xFF546E7A);
@@ -278,7 +280,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   children: [
                     Positioned.fill(
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -404,13 +406,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         const SizedBox(height: 10),
         SizedBox(
           height: 74,
-          child: ListView.separated(
+          child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             scrollDirection: Axis.horizontal,
-            itemCount: patientSpecialtyFilterCategoryKeys.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            physics: patientPlatformScrollPhysics,
+            itemCount: patientSpecialtyFilterCategoryKeys.isEmpty
+                ? 0
+                : patientSpecialtyFilterCategoryKeys.length * 2 - 1,
             itemBuilder: (context, index) {
-              final catKey = patientSpecialtyFilterCategoryKeys[index];
+              if (index.isOdd) {
+                return const SizedBox(width: 8);
+              }
+              final catKey =
+                  patientSpecialtyFilterCategoryKeys[index ~/ 2];
               final selected = _selectedCategory == catKey;
               final soft = _categorySoftTint(catKey);
               final acc = _categoryAccentIcon(catKey);
@@ -434,7 +442,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: kPatientPrimaryFont,
                           fontWeight: selected
                               ? FontWeight.w800
                               : FontWeight.w600,
@@ -563,6 +571,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         padding: EdgeInsets.fromLTRB(16, 0, 16, padBottom),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
+            addRepaintBoundaries: false,
             (context, index) {
               final doc = filtered[index];
               final data = doc.data();
@@ -587,7 +596,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   PatientDoctorCard(
                     name: name,
                     specialty: specialty,
-                    profileImageUrl: (data['profileImageUrl'] ?? '').toString(),
+                    profileImageUrl:
+                        (data['profileImageUrl'] ?? '').toString(),
                     onBook: () {
                       Navigator.push<void>(
                         context,
@@ -1012,7 +1022,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       builder: (context, snapshot) {
         return CustomScrollView(
           key: const ValueKey<String>('home_doctors_scroll'),
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: patientHomePrimaryScrollPhysics,
           slivers: [
             SliverPersistentHeader(
               pinned: true,

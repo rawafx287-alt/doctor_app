@@ -1,5 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,10 +9,10 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
+import '../theme/patient_premium_theme.dart';
 import 'patient_available_days_list.dart';
 
-const Color _kSkyTop = Color(0xFFE1F5FE);
-const Color _kSkyBottom = Color(0xFFB3E5FC);
+const Color _kSkyTop = kPatientSkyTop;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
 const Color _kBodyGrey = Color(0xFF455A64);
@@ -100,13 +101,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           ),
         ),
         body: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_kSkyTop, _kSkyBottom],
-            ),
-          ),
+          decoration: patientSkyGradientDecoration(),
           child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
                 .collection('users')
@@ -272,31 +267,55 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                   color: Color(0xFFE3F2FD),
                                                 ),
                                                 child: ClipOval(
-                                                  child: Image.network(
-                                                    profileImageUrl.isNotEmpty
-                                                        ? profileImageUrl
-                                                        : _placeholderImageUrl,
+                                                  child: CachedNetworkImage(
+                                                    imageUrl:
+                                                        profileImageUrl.isNotEmpty
+                                                            ? profileImageUrl
+                                                            : _placeholderImageUrl,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) => Container(
-                                                          color: const Color(
-                                                            0xFFE3F2FD,
-                                                          ),
-                                                          alignment:
-                                                              Alignment.center,
-                                                          child: const Icon(
-                                                            Icons
-                                                                .medical_services_rounded,
-                                                            color: Color(
-                                                              0xFF1565C0,
-                                                            ),
-                                                            size: 30,
+                                                    memCacheWidth: 180,
+                                                    memCacheHeight: 180,
+                                                    fadeInDuration:
+                                                        Duration.zero,
+                                                    fadeOutDuration:
+                                                        Duration.zero,
+                                                    placeholder:
+                                                        (context, url) =>
+                                                            Container(
+                                                      color: const Color(
+                                                        0xFFE3F2FD,
+                                                      ),
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const SizedBox(
+                                                        width: 28,
+                                                        height: 28,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Color(
+                                                            0xFF1565C0,
                                                           ),
                                                         ),
+                                                      ),
+                                                    ),
+                                                    errorWidget:
+                                                        (context, url, error) =>
+                                                            Container(
+                                                      color: const Color(
+                                                        0xFFE3F2FD,
+                                                      ),
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const Icon(
+                                                        Icons
+                                                            .medical_services_rounded,
+                                                        color: Color(
+                                                          0xFF1565C0,
+                                                        ),
+                                                        size: 30,
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                               ),

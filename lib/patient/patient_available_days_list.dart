@@ -7,6 +7,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_localizations.dart';
+import '../theme/patient_premium_theme.dart';
 import 'booking_summary_screen.dart';
 
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
@@ -361,29 +362,11 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                   ),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(
-                            0xFF90CAF9,
-                          ).withValues(alpha: 0.55),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF1976D2,
-                            ).withValues(alpha: 0.08),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
+                  child: DecoratedBox(
+                    decoration: patientFrostedGlassDecoration(
+                      borderRadius: 18,
+                    ),
+                    child: Padding(
                         padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
                         child: TableCalendar<void>(
                           firstDay: DateTime.utc(2024, 1, 1),
@@ -515,7 +498,6 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
                       ),
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -592,31 +574,23 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList> {
 
     final radius = BorderRadius.circular(10);
 
+    const kSelectedDeepBlue = Color(0xFF0D47A1);
     Widget cellChild = Container(
       decoration: BoxDecoration(
-        color: isSelected ? null : fill,
-        gradient: isSelected
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF64B5F6),
-                  Color(0xFF1976D2),
-                  Color(0xFF0D47A1),
-                ],
-                stops: [0.0, 0.45, 1.0],
-              )
-            : null,
+        color: isSelected ? kSelectedDeepBlue : fill,
         borderRadius: radius,
         border: isSelected
-            ? null
+            ? Border.all(
+                color: kSelectedDeepBlue.withValues(alpha: 0.95),
+                width: 1.2,
+              )
             : Border.all(color: borderColor, width: borderWidth),
         boxShadow: isSelected
             ? [
                 BoxShadow(
-                  color: const Color(0xFF1976D2).withValues(alpha: 0.42),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  color: kSelectedDeepBlue.withValues(alpha: 0.38),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ]
             : null,

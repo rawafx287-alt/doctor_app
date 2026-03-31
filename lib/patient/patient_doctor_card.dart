@@ -1,8 +1,8 @@
-import 'dart:ui' show ImageFilter;
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_localizations.dart';
+import '../theme/patient_premium_theme.dart';
 
 /// Royal crimson primary CTA (deep → garnet).
 const Color _kCrimsonDeep = Color(0xFF6B141E);
@@ -36,8 +36,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
-  static const Color _cardBorder = Color(0xFF1A237E);
-  static const Color _navyText = Color(0xFF0D2137);
+  static const Color _navyText = kPatientNavyText;
 
   /// Darker than [_navyText] for badge contrast on frosted glass.
   static const Color _badgeText = Color(0xFF050A14);
@@ -46,8 +45,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const Color _verifiedBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
-  static const double _borderWidth = 1.5;
-  static const double _innerRadius = _radius - _borderWidth;
+  static const double _outerBorderWidth = 0.5;
+  static const double _innerRadius = 19.5;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseGlow;
@@ -82,43 +81,55 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
     const textAlign = TextAlign.end;
     const badgeAlign = AlignmentDirectional.centerEnd;
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(_radius),
-              border: Border.all(color: _cardBorder, width: _borderWidth),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+    return RepaintBoundary(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_radius),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.92),
+              width: _outerBorderWidth,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(_innerRadius),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [_deepBlue, Colors.white.withValues(alpha: 0.95)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        blurRadius: 10,
-                        spreadRadius: -2,
-                        offset: Offset.zero,
-                      ),
-                    ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.35),
+                blurRadius: 12,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(_innerRadius),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    _deepBlue,
+                    Color.lerp(
+                          _deepBlue,
+                          const Color(0xFFE8EEF5),
+                          0.72,
+                        ) ??
+                        const Color(0xFFE8EEF5),
+                    Colors.white.withValues(alpha: 0.96),
+                  ],
+                  stops: const [0.0, 0.42, 1.0],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    spreadRadius: -2,
+                    offset: Offset.zero,
                   ),
-                  child: Padding(
+                ],
+              ),
+              child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -142,25 +153,39 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                     ),
                                   ),
                                   child: ClipOval(
-                                    child: Image.network(
-                                      _avatarUrl,
+                                    child: CachedNetworkImage(
+                                      imageUrl: _avatarUrl,
                                       fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => Container(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.85,
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: const Icon(
-                                              Icons.medical_services_rounded,
-                                              color: _avatarRingBlue,
-                                              size: 24,
-                                            ),
+                                      memCacheWidth: 128,
+                                      memCacheHeight: 128,
+                                      fadeInDuration: Duration.zero,
+                                      fadeOutDuration: Duration.zero,
+                                      placeholder: (context, url) => Container(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _avatarRingBlue,
                                           ),
+                                        ),
+                                      ),
+                                      errorWidget: (context, url, error) =>
+                                          Container(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.medical_services_rounded,
+                                          color: _avatarRingBlue,
+                                          size: 24,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -403,62 +428,66 @@ class _DoctorCardDetailsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(_r),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-        child: Container(
-          width: double.infinity,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(_r),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            textDirection: TextDirection.ltr,
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.96),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.05,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(
-                rtl
-                    ? Icons.arrow_back_ios_new_rounded
-                    : Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: Colors.white.withValues(alpha: 0.98),
-                shadows: [
-                  Shadow(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    blurRadius: 6,
-                    offset: Offset.zero,
-                  ),
-                  Shadow(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: Offset.zero,
-                  ),
-                ],
-              ),
+      child: Container(
+        width: double.infinity,
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_r),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withValues(alpha: 0.26),
+              Colors.white.withValues(alpha: 0.09),
             ],
           ),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.38),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          textDirection: TextDirection.ltr,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.96),
+                  fontFamily: 'KurdishFont',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.05,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              rtl
+                  ? Icons.arrow_back_ios_new_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              size: 12,
+              color: Colors.white.withValues(alpha: 0.98),
+              shadows: const [
+                Shadow(
+                  color: Color(0xD9FFFFFF),
+                  blurRadius: 6,
+                  offset: Offset.zero,
+                ),
+                Shadow(
+                  color: Color(0x59FFFFFF),
+                  blurRadius: 10,
+                  offset: Offset.zero,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -485,9 +514,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
       height: _buttonHeight,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_r),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: DecoratedBox(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_r),
             border: Border.all(
@@ -618,7 +645,6 @@ class _BookNowPrimaryButton extends StatelessWidget {
           ),
         ),
       ),
-    ),
     );
   }
 }
