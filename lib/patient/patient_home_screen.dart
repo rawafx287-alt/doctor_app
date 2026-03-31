@@ -20,7 +20,7 @@ import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
-const double _kHomeSpecialtiesHeaderExtent = 122;
+const double _kHomeSpecialtiesHeaderExtent = 130;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -405,11 +405,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 74,
+          height: 80,
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.fromLTRB(12, 5, 12, 0),
             scrollDirection: Axis.horizontal,
             physics: patientPlatformScrollPhysics,
+            clipBehavior: Clip.none,
             itemCount: patientSpecialtyFilterCategoryKeys.isEmpty
                 ? 0
                 : patientSpecialtyFilterCategoryKeys.length * 2 - 1,
@@ -666,11 +667,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   Widget _buildAppTopBar(BuildContext context) {
     final s = S.of(context);
     final title = s.translate('app_display_name');
-    final titleStyle = GoogleFonts.poppins(
-      fontWeight: FontWeight.w900,
+    final titleParts = title.split(RegExp(r'\s+'));
+    final hrPart = titleParts.isNotEmpty ? titleParts.first : title;
+    final restPart =
+        titleParts.length > 1 ? ' ${titleParts.sublist(1).join(' ')}' : '';
+    final baseTitleStyle = GoogleFonts.poppins(
       fontSize: 22,
-      letterSpacing: 0.2,
-      color: _kDarkBlue,
+      letterSpacing: 1.2,
+      color: Colors.white,
+      height: 1.0,
     );
 
     // Snug to the ⋮; small negative dx keeps the panel near the right edge; dy aligns
@@ -683,7 +688,37 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         // LTR keeps "HR Nora" on the left and the ⋮ menu on the right in RTL apps.
         textDirection: TextDirection.ltr,
         children: [
-          Text(title, style: titleStyle),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF1A237E), Color(0xFF0288D1)],
+                ).createShader(bounds);
+              },
+              child: RichText(
+                text: TextSpan(
+                  style: baseTitleStyle,
+                  children: [
+                    TextSpan(
+                      text: hrPart,
+                      style: baseTitleStyle.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                    if (restPart.isNotEmpty)
+                      TextSpan(
+                        text: restPart,
+                        style: baseTitleStyle.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const Spacer(),
           Theme(
             data: Theme.of(context).copyWith(
@@ -1124,14 +1159,14 @@ class _CategoryGlassOrb extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: accent.withValues(alpha: 0.48),
-                    blurRadius: 16,
+                    color: accent.withValues(alpha: 0.35),
+                    blurRadius: 14,
                     spreadRadius: 1,
                   ),
                   BoxShadow(
-                    color: accent.withValues(alpha: 0.22),
-                    blurRadius: 22,
-                    spreadRadius: 3,
+                    color: accent.withValues(alpha: 0.14),
+                    blurRadius: 18,
+                    spreadRadius: 2,
                   ),
                 ]
               : [

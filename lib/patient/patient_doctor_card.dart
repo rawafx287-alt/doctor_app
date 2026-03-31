@@ -94,23 +94,9 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
             border: Border.all(
-              color: _kLuxGold.withValues(alpha: 0.42),
-              width: 0.5,
+              color: const Color(0xFFC0C0C0),
+              width: 1.0,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 22,
-                spreadRadius: 0.5,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: const Color(0xFF90CAF9).withValues(alpha: 0.2),
-                blurRadius: 16,
-                spreadRadius: -3,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: ClipRRect(
@@ -118,14 +104,13 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFFB3E5FC),
-                    Color(0xFFD6EEFC),
                     Colors.white,
+                    Color(0xFFB3E5FC),
                   ],
-                  stops: [0.0, 0.7, 1.0],
+                  stops: [0.35, 1.0],
                 ),
               ),
               child: Stack(
@@ -305,25 +290,6 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                                       ],
                                                     ),
                                                   ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: _kLuxGold.withValues(alpha: 0.35),
-                                                      blurRadius: 7,
-                                                      spreadRadius: 0.5,
-                                                      offset: const Offset(0, 1),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Icon(
-                                                  Icons.verified,
-                                                  size: 16,
-                                                  color: _kLuxGold.withValues(alpha: 0.92),
                                                 ),
                                               ),
                                             ],
