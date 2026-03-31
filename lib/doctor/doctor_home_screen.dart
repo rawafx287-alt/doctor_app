@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../auth/app_logout.dart';
+import '../auth/doctor_session_cache.dart';
+import '../auth/firestore_user_doc_id.dart';
 import 'appointments_screen.dart';
 import 'doctor_profile_screen.dart';
 import 'patient_list_screen.dart';
@@ -21,6 +23,25 @@ class DoctorHomeScreen extends StatefulWidget {
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   /// 0 = appointments, 1 = schedule, 2 = profile
   int _bottomNavIndex = 0;
+  String? _doctorUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    final fallback = firestoreUserDocId(FirebaseAuth.instance.currentUser).trim();
+    if (fallback.isNotEmpty) {
+      _doctorUserId = fallback;
+    }
+    _loadDoctorUserIdFromCache();
+  }
+
+  Future<void> _loadDoctorUserIdFromCache() async {
+    final cached = await DoctorSessionCache.readDoctorRefId();
+    if (!mounted) return;
+    final id = (cached ?? '').trim();
+    if (id.isEmpty) return;
+    setState(() => _doctorUserId = id);
+  }
 
   Future<void> _logout() async {
     await performAppLogout(context);
@@ -64,8 +85,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               IconButton(
                 tooltip: s.translate('master_calendar_tooltip'),
                 onPressed: () {
-                  final uid = FirebaseAuth.instance.currentUser?.uid;
-                  if (uid == null) return;
+                  final uid = (_doctorUserId ?? '').trim();
+                  if (uid.isEmpty) return;
                   Navigator.push<void>(
                     context,
                     MaterialPageRoute<void>(
@@ -102,9 +123,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           child: IndexedStack(
             index: _bottomNavIndex,
             children: [
-              const AppointmentsScreen(embedded: true),
-              const AvailableDaysScheduleScreen(embedded: true),
-              const DoctorProfileScreen(),
+              AppointmentsScreen(
+                embedded: true,
+                doctorUserId: _doctorUserId,
+              ),
+              AvailableDaysScheduleScreen(
+                embedded: true,
+                managedDoctorUserId: _doctorUserId,
+              ),
+              DoctorProfileScreen(doctorUserId: _doctorUserId),
             ],
           ),
         ),

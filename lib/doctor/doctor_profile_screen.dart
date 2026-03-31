@@ -7,12 +7,15 @@ import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
 import '../models/doctor_localized_content.dart';
 import '../auth/app_logout.dart';
+import '../auth/firestore_user_doc_id.dart';
+import '../auth/doctor_session_cache.dart';
 import '../specialty_categories.dart';
 import 'profile_settings_screen.dart';
 
 /// Doctor profile tab: name, email, specialty; edit, language, about, logout.
 class DoctorProfileScreen extends StatelessWidget {
-  const DoctorProfileScreen({super.key});
+  const DoctorProfileScreen({super.key, this.doctorUserId});
+  final String? doctorUserId;
 
   Future<void> _logout(BuildContext context) async {
     await performAppLogout(context);
@@ -58,7 +61,7 @@ class DoctorProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
     final s = S.of(context);
     final lang = AppLocaleScope.of(context).effectiveLanguage;
 
@@ -66,22 +69,38 @@ class DoctorProfileScreen extends StatelessWidget {
       textDirection: AppLocaleScope.of(context).textDirection,
       child: ColoredBox(
         color: const Color(0xFF0A0E21),
-        child: uid == null
-            ? Center(
-                child: Text(
-                  s.translate('doctor_profile_no_session'),
-                  style: const TextStyle(
-                    color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
-                  ),
-                ),
-              )
-            : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        child: FutureBuilder<String?>(
+          future: DoctorSessionCache.readDoctorRefId(),
+          builder: (context, cacheSnap) {
+            final fallbackUid = firestoreUserDocId(user).trim();
+            final fromTab = doctorUserId?.trim() ?? '';
+            final cachedUid = (cacheSnap.data ?? '').trim();
+            final uid = fromTab.isNotEmpty
+                ? fromTab
+                : (cachedUid.isNotEmpty ? cachedUid : fallbackUid);
+            if (cacheSnap.connectionState == ConnectionState.waiting &&
+                uid.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              );
+            }
+            if (uid.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+              );
+            }
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
                     .doc(uid)
                     .snapshots(),
                 builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting &&
+                      !snap.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+                    );
+                  }
                   final data = snap.data?.data();
                   final nameRaw = data ?? {};
                   var name = localizedDoctorFullName(nameRaw, lang);
@@ -90,6 +109,9 @@ class DoctorProfileScreen extends StatelessWidget {
                   }
                   final specialtyRaw =
                       (data?['specialty'] ?? '—').toString().trim();
+                  final city = (data?['city'] ?? data?['clinicLocation'] ?? '')
+                      .toString()
+                      .trim();
                   final specialtyDisplay = specialtyRaw.isEmpty || specialtyRaw == '—'
                       ? '—'
                       : translatedSpecialtyForFirestore(context, specialtyRaw);
@@ -191,6 +213,30 @@ class DoctorProfileScreen extends StatelessWidget {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        textDirection:
+                                            AppLocaleScope.of(context).textDirection,
+                                        children: [
+                                          const Icon(
+                                            Icons.location_city_rounded,
+                                            size: 18,
+                                            color: Color(0xFF627D98),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              city.isEmpty ? '—' : city,
+                                              textAlign: TextAlign.start,
+                                              style: const TextStyle(
+                                                color: Color(0xFF9FB3C8),
+                                                fontSize: 14,
+                                                fontFamily: 'KurdishFont',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -254,7 +300,9 @@ class DoctorProfileScreen extends StatelessWidget {
                     ],
                   );
                 },
-              ),
+              );
+          },
+        ),
       ),
     );
   }

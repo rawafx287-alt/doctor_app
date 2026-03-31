@@ -9,7 +9,14 @@ import 'login.dart';
 
 /// Shown after email/password sign-up and Firestore user document write.
 class RegistrationSuccessPage extends StatelessWidget {
-  const RegistrationSuccessPage({super.key});
+  const RegistrationSuccessPage({
+    super.key,
+    this.customMessage,
+    this.customInstruction,
+  });
+
+  final String? customMessage;
+  final String? customInstruction;
 
   void _goToLogin(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
@@ -92,8 +99,10 @@ class RegistrationSuccessPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 28),
                               Text(
-                                S.of(context)
-                                    .translate('registration_success_message'),
+                                customMessage ??
+                                    S.of(context).translate(
+                                      'registration_success_message',
+                                    ),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Color(0xFFE7EEF7),
@@ -105,9 +114,10 @@ class RegistrationSuccessPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                S.of(context).translate(
-                                  'registration_success_instruction',
-                                ),
+                                customInstruction ??
+                                    S.of(context).translate(
+                                      'registration_success_instruction',
+                                    ),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.72),

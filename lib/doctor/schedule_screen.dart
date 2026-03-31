@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../calendar/calendar_slot_logic.dart';
+import '../auth/doctor_session_cache.dart';
+import '../auth/firestore_user_doc_id.dart';
 import '../firestore/appointment_queries.dart';
 import '../firestore/calendar_block_queries.dart';
 import '../locale/app_locale.dart';
@@ -111,6 +115,13 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
+  String? _resolvedDoctorId;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _doctorDocSub;
+
+  String? _doctorRefId() {
+    return _resolvedDoctorId;
+  }
+
   Map<String, dynamic> _dateOverrides = {};
   Map<String, dynamic>? _cachedWeekly;
   DateTime _focusedDay = DateTime.now();
@@ -132,53 +143,61 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void initState() {
     super.initState();
     widget.reloadToken?.addListener(_onScheduleReloadSignal);
-    _loadSchedule();
+    _bindDoctorScheduleStream();
   }
 
   @override
   void dispose() {
+    _doctorDocSub?.cancel();
     widget.reloadToken?.removeListener(_onScheduleReloadSignal);
     super.dispose();
   }
 
   void _onScheduleReloadSignal() {
-    _loadSchedule();
+    _bindDoctorScheduleStream(forceRebind: true);
   }
 
-  Future<void> _loadSchedule() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
+  Future<void> _bindDoctorScheduleStream({bool forceRebind = false}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final cached = await DoctorSessionCache.readDoctorRefId();
+    final fallback = firestoreUserDocId(user).trim();
+    final uid = (cached ?? '').trim().isNotEmpty ? (cached ?? '').trim() : fallback;
+    if (uid.isEmpty) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final data = doc.data();
-      final weekly = data?['weekly_schedule'];
-      if (weekly is Map) {
-        _cachedWeekly = Map<String, dynamic>.from(
-          weekly.map((k, v) => MapEntry(k.toString(), v)),
-        );
-      } else {
-        _cachedWeekly = null;
-      }
-
-      _dateOverrides =
-          normalizeScheduleDateOverridesMap(data?['schedule_date_overrides']);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            S.of(context).translate('schedule_load_error'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (!forceRebind && _resolvedDoctorId == uid && _doctorDocSub != null) {
+      return;
     }
+    _resolvedDoctorId = uid;
+    _doctorDocSub?.cancel();
+    _doctorDocSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen(
+      (doc) {
+        final data = doc.data();
+        final weekly = data?['weekly_schedule'];
+        if (weekly is Map) {
+          _cachedWeekly = Map<String, dynamic>.from(
+            weekly.map((k, v) => MapEntry(k.toString(), v)),
+          );
+        } else {
+          _cachedWeekly = null;
+        }
+        _dateOverrides =
+            normalizeScheduleDateOverridesMap(data?['schedule_date_overrides']);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+      },
+    );
   }
 
   TimeOfDay? _fromMinutes(dynamic value) {
@@ -312,7 +331,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Future<void> _openDayEditor(DateTime day) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _doctorRefId();
     if (uid == null || !mounted) return;
 
     final s = S.of(context);
@@ -716,7 +735,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   /// Keys are normalized to `yyyy-MM-dd` via [normalizeScheduleDateOverridesMap] on load;
   /// this write keeps the in-memory map (already canonical keys).
   Future<bool> _saveSchedule() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _doctorRefId();
     final s = S.of(context);
     if (uid == null) {
       if (!mounted) return false;
@@ -785,7 +804,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final savePaddingBottom = widget.embedded ? 12.0 + bottomInset : 16.0 + bottomInset;
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _doctorRefId();
     final bodyContent = _isLoading
         ? const Center(child: CircularProgressIndicator(color: Color(0xFF42A5F5)))
         : Column(

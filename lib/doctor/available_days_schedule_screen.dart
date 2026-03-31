@@ -9,6 +9,7 @@ import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../auth/firestore_user_doc_id.dart';
 import 'day_management_screen.dart';
 
 /// Doctor / Secretary: [TableCalendar] for [available_days] — red closed, green open, badge = bookings (doctor only).
@@ -37,7 +38,10 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
   String? get _doctorUid {
     final m = widget.managedDoctorUserId?.trim();
     if (m != null && m.isNotEmpty) return m;
-    return FirebaseAuth.instance.currentUser?.uid;
+    final byDoc = firestoreUserDocId(FirebaseAuth.instance.currentUser).trim();
+    if (byDoc.isNotEmpty) return byDoc;
+    final byUid = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
+    return byUid.isEmpty ? null : byUid;
   }
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);

@@ -11,12 +11,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/patient_profile_read.dart';
+import '../auth/firestore_user_doc_id.dart';
 
 class AppointmentsScreen extends StatefulWidget {
-  const AppointmentsScreen({super.key, this.embedded = false});
+  const AppointmentsScreen({
+    super.key,
+    this.embedded = false,
+    this.doctorUserId,
+  });
 
   /// When true, used inside [IndexedStack] without an [AppBar] (parent supplies title).
   final bool embedded;
+  final String? doctorUserId;
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -274,27 +280,66 @@ class AppointmentsScreen extends StatefulWidget {
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  late DateTime _todayAnchor;
-  Timer? _dayTick;
-
-  @override
-  void initState() {
-    super.initState();
-    final n = DateTime.now();
-    _todayAnchor = DateTime(n.year, n.month, n.day);
-    _dayTick = Timer.periodic(const Duration(minutes: 1), (_) {
-      final now = DateTime.now();
-      final d = DateTime(now.year, now.month, now.day);
-      if (d != _todayAnchor) {
-        setState(() => _todayAnchor = d);
-      }
-    });
+  Set<String> _doctorIdsForQueries() {
+    final fromTab = widget.doctorUserId?.trim() ?? '';
+    if (fromTab.isNotEmpty) {
+      return <String>{fromTab};
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const <String>{};
+    final ids = <String>{};
+    final uid = user.uid.trim();
+    if (uid.isNotEmpty) ids.add(uid);
+    final docId = firestoreUserDocId(user).trim();
+    if (docId.isNotEmpty) ids.add(docId);
+    return ids;
   }
 
-  @override
-  void dispose() {
-    _dayTick?.cancel();
-    super.dispose();
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      _watchDoctorAppointmentsAnyAlias(Set<String> doctorIds) {
+    final start = DateTime(2020, 1, 1);
+    final end = DateTime(2100, 1, 1);
+    final streams = doctorIds
+        .map(
+          (id) => appointmentsForDoctorDateRange(
+            doctorUserId: id,
+            rangeStartInclusiveLocal: start,
+            rangeEndExclusiveLocal: end,
+          ).snapshots(),
+        )
+        .toList();
+
+    return Stream.multi((controller) {
+      final latest =
+          List<QuerySnapshot<Map<String, dynamic>>?>.filled(streams.length, null);
+      void emitMerged() {
+        final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+        for (final snap in latest) {
+          for (final d in snap?.docs ?? const []) {
+            byId[d.id] = d;
+          }
+        }
+        controller.add(byId.values.toList());
+      }
+
+      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (var i = 0; i < streams.length; i++) {
+        subs.add(
+          streams[i].listen(
+            (event) {
+              latest[i] = event;
+              emitMerged();
+            },
+            onError: controller.addError,
+          ),
+        );
+      }
+      controller.onCancel = () async {
+        for (final s in subs) {
+          await s.cancel();
+        }
+      };
+    });
   }
 
   Future<void> _setStatus(BuildContext context, String docId, String status) async {
@@ -335,10 +380,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final doctorIds = _doctorIdsForQueries();
     final s = S.of(context);
 
-    final body = uid == null
+    final body = doctorIds.isEmpty
         ? Center(
             child: Text(
               s.translate('login_required'),
@@ -346,10 +391,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ),
           )
         : StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-            stream: watchDoctorAppointmentsForLocalDay(
-              doctorUserId: uid,
-              dayLocal: _todayAnchor,
-            ),
+            stream: _watchDoctorAppointmentsAnyAlias(doctorIds),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -380,16 +422,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               final sorted = AppointmentsScreen._sortNewestFirst(docs);
 
               if (sorted.isEmpty) {
-                return Center(
-                  child: Text(
-                    s.translate('doctor_appointments_empty'),
-                    style: const TextStyle(
-                      color: Color(0xFF829AB1),
-                      fontFamily: 'KurdishFont',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
                 );
               }
 

@@ -18,6 +18,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
   Future<void> _approve(String uid, String name) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'isApproved': true,
+      'status': 'approved',
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

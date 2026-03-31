@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../firestore/hospital_queries.dart';
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/hospital_localized_content.dart';
@@ -97,8 +98,15 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       return;
     }
 
+    final docId = firestoreUserDocId(user).trim();
+    if (docId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      return;
+    }
+
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(docId).get();
       final data = doc.data() ?? <String, dynamic>{};
 
       _fullNameKuController.text = _firstOf(data, ['fullName_ku', 'fullName']);
@@ -168,6 +176,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       return;
     }
 
+    final docId = firestoreUserDocId(user).trim();
+    if (docId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('profile_user_missing'),
+            style: const TextStyle(fontFamily: 'KurdishFont'),
+          ),
+        ),
+      );
+      return;
+    }
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isSaving = true);
@@ -214,7 +235,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         payload['yearsExperience'] = 0;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+      await FirebaseFirestore.instance.collection('users').doc(docId).set(
             payload,
             SetOptions(merge: true),
           );
@@ -259,6 +280,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       return;
     }
 
+    final docId = firestoreUserDocId(user).trim();
+    if (docId.isEmpty) return;
+
     setState(() => _isUploadingImage = true);
     try {
       final storageRef = FirebaseStorage.instance
@@ -270,6 +294,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       final downloadUrl = await storageRef.getDownloadURL();
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        {'profileImageUrl': downloadUrl},
+        SetOptions(merge: true),
+      );
+      await FirebaseFirestore.instance.collection('users').doc(docId).set(
         {'profileImageUrl': downloadUrl},
         SetOptions(merge: true),
       );

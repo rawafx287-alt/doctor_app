@@ -44,6 +44,7 @@ class _AddDoctorScreenState extends State<AddDoctorScreen> {
         'workingHours': _hours.text.trim(),
         'role': 'Doctor',
         'isApproved': true,
+        'status': 'approved',
         'createdAt': FieldValue.serverTimestamp(),
         'createdByAdmin': true,
       };
