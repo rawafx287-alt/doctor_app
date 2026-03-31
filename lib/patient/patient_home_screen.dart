@@ -11,6 +11,7 @@ import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
+import 'patient_doctor_booking_screen.dart';
 import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'my_appointments_screen.dart';
@@ -586,6 +587,18 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   PatientDoctorCard(
                     name: name,
                     specialty: specialty,
+                    profileImageUrl: (data['profileImageUrl'] ?? '').toString(),
+                    onBook: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => PatientDoctorBookingScreen(
+                            doctorId: doc.id,
+                            doctorData: Map<String, dynamic>.from(data),
+                          ),
+                        ),
+                      );
+                    },
                     onOpenDetails: () {
                       Navigator.push<void>(
                         context,
@@ -593,6 +606,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                           builder: (context) => DoctorDetailsScreen(
                             doctorId: doc.id,
                             doctorData: Map<String, dynamic>.from(data),
+                            showBookingSection: false,
                           ),
                         ),
                       );

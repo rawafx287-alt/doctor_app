@@ -446,6 +446,17 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اضغط للتفاصيل',
     'en': 'Click for details',
   },
+  'patient_doctor_card_book_cta': {
+    'ckb': 'نۆرە بگرە',
+    'ar': 'احجز موعداً',
+    'en': 'Book an appointment',
+  },
+  /// Compact label for doctor card details chip (avoids overflow next to book CTA).
+  'patient_doctor_card_details_short': {
+    'ckb': 'وردەکاری',
+    'ar': 'التفاصيل',
+    'en': 'Details',
+  },
   'language': {
     'ckb': 'زمان',
     'ar': 'اللغة',

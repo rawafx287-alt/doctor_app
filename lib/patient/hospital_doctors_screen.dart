@@ -8,6 +8,7 @@ import '../models/doctor_localized_content.dart';
 import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
+import 'patient_doctor_booking_screen.dart';
 import 'patient_doctor_card.dart';
 
 /// Hospital header + doctors with `users.hospitalId` == [hospitalId].
@@ -223,13 +224,30 @@ class HospitalDoctorsScreen extends StatelessWidget {
                           return PatientDoctorCard(
                             name: dname,
                             specialty: specialty,
+                            profileImageUrl:
+                                (data['profileImageUrl'] ?? '').toString(),
+                            onBook: () {
+                              Navigator.push<void>(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (context) =>
+                                      PatientDoctorBookingScreen(
+                                    doctorId: doc.id,
+                                    doctorData:
+                                        Map<String, dynamic>.from(data),
+                                  ),
+                                ),
+                              );
+                            },
                             onOpenDetails: () {
                               Navigator.push<void>(
                                 context,
                                 MaterialPageRoute<void>(
                                   builder: (context) => DoctorDetailsScreen(
                                     doctorId: doc.id,
-                                    doctorData: Map<String, dynamic>.from(data),
+                                    doctorData:
+                                        Map<String, dynamic>.from(data),
+                                    showBookingSection: false,
                                   ),
                                 ),
                               );
