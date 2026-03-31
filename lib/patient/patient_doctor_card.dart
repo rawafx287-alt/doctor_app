@@ -8,8 +8,9 @@ import '../theme/patient_premium_theme.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
 const Color _kLuxSkyTop = Color(0xFFE3F2FD);
-const Color _kLuxSkyMid = Color(0xFFF5FAFF);
-const Color _kLuxGold = Color(0xFFFFD54F);
+const Color _kLuxGold = Color(0xFFD4AF37);
+const Color _kLuxGoldLight = Color(0xFFF6E7A6);
+const Color _kLuxBottomBlue = Color(0xFFB7D8F7);
 
 /// Doctor row used on patient home and hospital doctor list.
 class PatientDoctorCard extends StatefulWidget {
@@ -43,8 +44,6 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   /// Darker than [_navyText] for badge contrast on frosted glass.
   static const Color _badgeText = Color(0xFF050A14);
   static const Color _deepBlue = Color(0xFF1565C0);
-  static const Color _avatarRingBlue = Color(0xFF283593);
-  static const Color _verifiedBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
   static const double _outerBorderWidth = 0.5;
@@ -95,10 +94,10 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 22,
+                spreadRadius: 1,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -108,14 +107,14 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
                   colors: [
+                    _kLuxBottomBlue,
                     _kLuxSkyTop,
-                    _kLuxSkyMid,
                     Colors.white,
                   ],
-                  stops: [0.0, 0.55, 1.0],
+                  stops: [0.0, 0.58, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -127,7 +126,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                 ],
               ),
               child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -140,14 +139,22 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Container(
-                                  width: 52,
-                                  height: 52,
+                                  width: 48,
+                                  height: 48,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: _avatarRingBlue,
-                                      width: 2,
+                                      color: _kLuxGold.withValues(alpha: 0.95),
+                                      width: 1.5,
                                     ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.white.withValues(alpha: 0.42),
+                                        blurRadius: 8,
+                                        spreadRadius: -1,
+                                        offset: const Offset(0, -1),
+                                      ),
+                                    ],
                                   ),
                                   child: ClipOval(
                                     child: CachedNetworkImage(
@@ -167,7 +174,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                           height: 22,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: _avatarRingBlue,
+                                            color: _deepBlue,
                                           ),
                                         ),
                                       ),
@@ -179,7 +186,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         alignment: Alignment.center,
                                         child: const Icon(
                                           Icons.medical_services_rounded,
-                                          color: _avatarRingBlue,
+                                          color: _deepBlue,
                                           size: 24,
                                         ),
                                       ),
@@ -188,7 +195,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 30),
+                            const SizedBox(width: 18),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: colAlign,
@@ -198,66 +205,23 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         CrossAxisAlignment.stretch,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              widget.name,
-                                              textAlign: textAlign,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: _navyText,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w800,
-                                                fontFamily: 'KurdishFont',
-                                                height: 1.2,
-                                                letterSpacing: 0.35,
-                                                shadows: [
-                                                  Shadow(
-                                                    color: Colors.white
-                                                        .withValues(
-                                                          alpha: 0.65,
-                                                        ),
-                                                    blurRadius: 10,
-                                                    offset: Offset.zero,
-                                                  ),
-                                                  Shadow(
-                                                    color: Colors.white
-                                                        .withValues(
-                                                          alpha: 0.45,
-                                                        ),
-                                                    blurRadius: 4,
-                                                    offset: const Offset(0, 1),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            Icons.verified_rounded,
-                                            size: 22,
-                                            color: _verifiedBlue,
-                                            shadows: [
-                                              Shadow(
-                                                color: _verifiedBlue.withValues(
-                                                  alpha: 0.45,
-                                                ),
-                                                blurRadius: 6,
-                                                offset: Offset.zero,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      Text(
+                                        widget.name,
+                                        textAlign: textAlign,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: _navyText,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          fontFamily: 'KurdishFont',
+                                          height: 1.2,
+                                          letterSpacing: 0.25,
+                                        ),
                                       ),
-                                      const SizedBox(height: 10),
+                                      const SizedBox(height: 8),
                                       Container(
-                                        height: 4,
+                                        height: 3,
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(
                                             2,
@@ -266,36 +230,18 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                             begin: Alignment.centerLeft,
                                             end: Alignment.centerRight,
                                             colors: [
-                                              Colors.white.withValues(
-                                                alpha: 0.0,
-                                              ),
-                                              Colors.white.withValues(
-                                                alpha: 0.72,
-                                              ),
-                                              Colors.white.withValues(
-                                                alpha: 0.92,
-                                              ),
-                                              Colors.white.withValues(
-                                                alpha: 0.72,
-                                              ),
-                                              Colors.white.withValues(
-                                                alpha: 0.0,
-                                              ),
+                                              _kLuxGold.withValues(alpha: 0.0),
+                                              _kLuxGoldLight.withValues(alpha: 0.9),
+                                              _kLuxGold.withValues(alpha: 1),
+                                              _kLuxGoldLight.withValues(alpha: 0.9),
+                                              _kLuxGold.withValues(alpha: 0.0),
                                             ],
-                                            stops: const [
-                                              0.0,
-                                              0.18,
-                                              0.5,
-                                              0.82,
-                                              1.0,
-                                            ],
+                                            stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.55,
-                                              ),
-                                              blurRadius: 12,
+                                              color: _kLuxGold.withValues(alpha: 0.55),
+                                              blurRadius: 10,
                                               spreadRadius: -1,
                                               offset: const Offset(0, 2),
                                             ),
@@ -304,25 +250,25 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 14),
                                   Text(
                                     S.of(context).translate('field_specialty'),
                                     textAlign: textAlign,
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 9.5,
                                       height: 1.1,
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'KurdishFont',
                                       color: _navyText.withValues(alpha: 0.58),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 8),
                                   Align(
                                     alignment: badgeAlign,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 7,
+                                        horizontal: 11,
+                                        vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white.withValues(
@@ -341,7 +287,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                           color: _badgeText,
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           fontFamily: 'KurdishFont',
                                           height: 1.25,
                                           fontWeight: FontWeight.w700,
@@ -354,7 +300,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           textDirection: TextDirection.ltr,
@@ -362,7 +308,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                             Expanded(
                               flex: 60,
                               child: SizedBox(
-                                height: 48,
+                                height: 42,
                                 child: GestureDetector(
                                   onTap: widget.onBook,
                                   behavior: HitTestBehavior.opaque,
@@ -381,7 +327,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                             Expanded(
                               flex: 35,
                               child: SizedBox(
-                                height: 48,
+                                height: 42,
                                 child: GestureDetector(
                                   onTap: widget.onOpenDetails,
                                   behavior: HitTestBehavior.opaque,
@@ -430,11 +376,11 @@ class _DoctorCardDetailsButton extends StatelessWidget {
         filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           width: double.infinity,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_r),
-            color: Colors.white.withValues(alpha: 0.12),
+            color: Colors.white.withValues(alpha: 0.18),
             border: Border.all(
               color: _kLuxGold.withValues(alpha: 0.9),
               width: 1.2,
@@ -454,7 +400,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                   style: TextStyle(
                     color: _kDetailsTextNavy.withValues(alpha: 0.96),
                     fontFamily: 'KurdishFont',
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
                   ),
@@ -487,8 +433,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
   final String bookCtaText;
 
   static const double _r = 14;
-  static const double _buttonHeight = 48;
-  static const Color _kBookTextNavy = Color(0xFF0D47A1);
+  static const double _buttonHeight = 42;
 
   @override
   Widget build(BuildContext context) {
@@ -502,23 +447,23 @@ class _BookNowPrimaryButton extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_r),
-              color: Colors.white.withValues(alpha: 0.14),
+              color: _kLuxBottomBlue.withValues(alpha: 0.24),
               border: Border.all(
                 color: _kLuxGold.withValues(alpha: 0.95),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical: 6,
+                vertical: 5,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -531,27 +476,43 @@ class _BookNowPrimaryButton extends StatelessWidget {
                       final pulse = pulseGlow.value;
                       return Icon(
                         Icons.calendar_month_rounded,
-                        size: 20,
-                        color: _kBookTextNavy.withValues(
-                          alpha: 0.85 + 0.1 * pulse,
+                        size: 18,
+                        color: Color.lerp(
+                          _kLuxGold,
+                          _kLuxGoldLight,
+                          0.25 + 0.25 * pulse,
                         ),
                       );
                     },
                   ),
                   const SizedBox(width: 8),
                   Flexible(
-                    child: Text(
-                      bookCtaText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _kBookTextNavy.withValues(alpha: 0.98),
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        height: 1.2,
-                        letterSpacing: 0.1,
+                    child: ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) {
+                        return LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            _kLuxGold,
+                            _kLuxGoldLight,
+                            _kLuxGold,
+                          ],
+                        ).createShader(bounds);
+                      },
+                      child: Text(
+                        bookCtaText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14.5,
+                          height: 1.2,
+                          letterSpacing: 0.1,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
