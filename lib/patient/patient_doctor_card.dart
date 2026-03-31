@@ -93,16 +93,55 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
-            border: Border.all(color: const Color(0xFFD4AF37), width: 1.0),
+            border: Border.all(
+              color: _kLuxGold.withValues(alpha: 0.42),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 22,
+                spreadRadius: 0.5,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: const Color(0xFF90CAF9).withValues(alpha: 0.2),
+                blurRadius: 16,
+                spreadRadius: -3,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(_innerRadius),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                gradient: const LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xFFB3E5FC),
+                    Color(0xFFD6EEFC),
+                    Colors.white,
+                  ],
+                  stops: [0.0, 0.7, 1.0],
+                ),
               ),
-              child: Padding(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(_innerRadius),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 2.8, sigmaY: 2.8),
+                        child: Container(
+                          color: Colors.white.withValues(alpha: 0.04),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -184,19 +223,136 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                     children: [
                                       Align(
                                         alignment: nameBoxAlignment,
-                                        child: Text(
-                                          widget.name,
-                                          textDirection: nameDirection,
-                                          textAlign: nameAlign,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: _navyText,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            fontFamily: 'KurdishFont',
-                                            height: 1.2,
-                                            letterSpacing: 0.25,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: hasArabicScript
+                                                ? const BorderRadius.only(
+                                                    topRight: Radius.circular(20),
+                                                    bottomRight: Radius.circular(20),
+                                                    bottomLeft: Radius.circular(20),
+                                                    topLeft: Radius.circular(0),
+                                                  )
+                                                : const BorderRadius.only(
+                                                    topLeft: Radius.circular(20),
+                                                    bottomLeft: Radius.circular(20),
+                                                    bottomRight: Radius.circular(20),
+                                                    topRight: Radius.circular(0),
+                                                  ),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                Colors.white.withValues(alpha: 0.9),
+                                                Colors.white.withValues(alpha: 0.84),
+                                              ],
+                                            ),
+                                            border: Border.all(
+                                              color: _kLuxGold.withValues(alpha: 0.34),
+                                              width: 0.6,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.06),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            textDirection: nameDirection,
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              Flexible(
+                                                child: ShaderMask(
+                                                  blendMode: BlendMode.srcIn,
+                                                  shaderCallback: (bounds) =>
+                                                      const LinearGradient(
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                    colors: [
+                                                      Color(0xFF1B365D),
+                                                      Color(0xFF2F3A45),
+                                                    ],
+                                                  ).createShader(
+                                                    Rect.fromLTWH(
+                                                      0,
+                                                      0,
+                                                      bounds.width,
+                                                      bounds.height,
+                                                    ),
+                                                  ),
+                                                  child: RichText(
+                                                    textDirection: nameDirection,
+                                                    textAlign: nameAlign,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    text: TextSpan(
+                                                      children: [
+                                                        TextSpan(
+                                                          text: widget.name.trim(),
+                                                          style: const TextStyle(
+                                                            fontFamily: 'KurdishFont',
+                                                            fontSize: 20,
+                                                            fontWeight: FontWeight.w700,
+                                                            height: 1.15,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: _kLuxGold.withValues(alpha: 0.35),
+                                                      blurRadius: 7,
+                                                      spreadRadius: 0.5,
+                                                      offset: const Offset(0, 1),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Icon(
+                                                  Icons.verified,
+                                                  size: 16,
+                                                  color: _kLuxGold.withValues(alpha: 0.92),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Align(
+                                        alignment: nameBoxAlignment,
+                                        child: FractionallySizedBox(
+                                          widthFactor: 0.62,
+                                          child: Container(
+                                            height: 1.5,
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(999),
+                                              gradient: LinearGradient(
+                                                begin: hasArabicScript
+                                                    ? Alignment.centerRight
+                                                    : Alignment.centerLeft,
+                                                end: hasArabicScript
+                                                    ? Alignment.centerLeft
+                                                    : Alignment.centerRight,
+                                                colors: [
+                                                  _kLuxGold.withValues(alpha: 0.92),
+                                                  _kLuxGold.withValues(alpha: 0.05),
+                                                ],
+                                                stops: const [0.0, 1.0],
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -340,6 +496,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                       ],
                     ),
                   ),
+                ],
+              ),
             ),
           ),
         ),

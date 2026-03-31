@@ -185,6 +185,8 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  static const Color _mainBgTop = Colors.white;
+  static const Color _mainBgBottom = Color(0xFFE3F2FD);
 
   final List<Widget> _screens = [
     const ListiDoctorakanScreen(),
@@ -194,43 +196,55 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: HrNoraColors.textMuted.withValues(alpha: 0.35),
-              width: 0.5,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [_mainBgBottom, _mainBgTop],
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: IndexedStack(index: _currentIndex, children: _screens),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.94),
+            border: Border(
+              top: BorderSide(
+                color: HrNoraColors.textMuted.withValues(alpha: 0.25),
+                width: 0.5,
+              ),
             ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          backgroundColor: HrNoraColors.primaryDeep,
-          selectedItemColor: HrNoraColors.accentLight,
-          unselectedItemColor: HrNoraColors.textMuted,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.home_filled),
-              label: S.of(context).translate('home'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.notifications),
-              label: S.of(context).translate('notifications'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.person),
-              label: S.of(context).translate('profile'),
-            ),
-          ],
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            selectedItemColor: const Color(0xFF1565C0),
+            unselectedItemColor: HrNoraColors.textMuted,
+            showUnselectedLabels: true,
+            type: BottomNavigationBarType.fixed,
+            items: [
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.home_filled),
+                label: S.of(context).translate('home'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.notifications),
+                label: S.of(context).translate('notifications'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.person),
+                label: S.of(context).translate('profile'),
+              ),
+            ],
+          ),
         ),
       ),
     );
