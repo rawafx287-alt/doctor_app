@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ImageFilter, MaskFilter, Path, PathOperation;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -99,13 +99,13 @@ const Color _kMutedGrey = Color(0xFF546E7A);
 const Color _kVibrantBlue = Color(0xFF1976D2);
 /// Matches doctor card border ([PatientDoctorCard]).
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
+/// Same as «نۆرە بگرە» CTA golds ([patient_doctor_card] `_kLuxGold` / `_kLuxGoldLight`).
+const Color _kBrandLuxGold = Color(0xFFD4AF37);
+const Color _kBrandLuxGoldLight = Color(0xFFF6E7A6);
 /// Same as doctor name text on cards ([PatientDoctorCard]).
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumBlueMid = Color(0xFF1565C0);
 const Color _kIconGradientLight = Color(0xFF90CAF9);
-
-/// Near-clear crystal: barely-there blur (sigma 0.5 — tiny glass hint).
-const double _kPopupMenuBlurSigma = 0.5;
 
 double _inlineSpanLineWidth(InlineSpan span) {
   final painter = TextPainter(
@@ -135,79 +135,126 @@ double _inlineSpanLineWidth(InlineSpan span) {
   return (tokens.first, tokens.length > 1 ? tokens.sublist(1).join(' ') : '');
 }
 
-/// Readable label on very light glass (darker for contrast).
-const Color _kMenuPopupText = Color(0xFF0D1117);
+/// Overflow menu row label (neutral charcoal).
+const Color _kGlassMenuCharcoal = Color(0xFF37474F);
 
-/// Deep red frame: menu outline, logout side stripe, and logout icon (Material Red 700).
-const Color _kMenuPopupDeepRed = Color(0xFFD32F2F);
-/// Crisp outline on crystal-clear glass (readable shape).
-const double _kMenuPopupFrameWidth = 2.0;
-
-/// One overflow menu row: light blur, gradient strip, [accentBorder] on start edge.
-Widget _patientOverflowMenuTile({
-  required Color accentBorder,
-  required IconData iconData,
+/// One row in the glass overflow menu (icon color + charcoal text).
+Widget _patientGlassMenuInkRow({
+  required BuildContext menuContext,
+  required IconData icon,
   required Color iconColor,
-  required String text,
+  required String label,
+  required String value,
 }) {
-  return Material(
-    type: MaterialType.transparency,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: _kPopupMenuBlurSigma,
-          sigmaY: _kPopupMenuBlurSigma,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: AlignmentDirectional.centerStart,
-              end: AlignmentDirectional.centerEnd,
-              colors: [
-                Colors.white.withValues(alpha: 0.02),
-                Colors.transparent,
-              ],
-            ),
-            border: BorderDirectional(
-              start: BorderSide(color: accentBorder, width: 3),
+  return InkWell(
+    onTap: () => Navigator.pop(menuContext, value),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: iconColor),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'KurdishFont',
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                height: 1.25,
+                color: _kGlassMenuCharcoal,
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(iconData, color: iconColor, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    height: 1.25,
-                    color: _kMenuPopupText,
-                    shadows: [
-                      Shadow(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        blurRadius: 1.5,
-                        offset: const Offset(0, 0.5),
-                      ),
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
+        ],
+      ),
+    ),
+  );
+}
+
+/// Staggered hamburger for patient home overflow; gold glow on press (matches medical +).
+class _StaggeredPopupMenuTrigger extends StatefulWidget {
+  const _StaggeredPopupMenuTrigger();
+
+  @override
+  State<_StaggeredPopupMenuTrigger> createState() =>
+      _StaggeredPopupMenuTriggerState();
+}
+
+class _StaggeredPopupMenuTriggerState extends State<_StaggeredPopupMenuTrigger> {
+  bool _pressed = false;
+
+  static const double _lineH = 5;
+  static const double _lineR = 5;
+  static const double _diameter = 42;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => setState(() => _pressed = true),
+      onPointerUp: (_) => setState(() => _pressed = false),
+      onPointerCancel: (_) => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        width: _diameter,
+        height: _diameter,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.82),
+          border: Border.all(
+            color: const Color(0xFFE8EEF4).withValues(alpha: 0.95),
+            width: 0.75,
+          ),
+          boxShadow: _pressed
+              ? [
+                  BoxShadow(
+                    color: _kBrandLuxGold.withValues(alpha: 0.48),
+                    blurRadius: 14,
+                    spreadRadius: 0.6,
                   ),
-                ),
-              ),
+                  BoxShadow(
+                    color: _kBrandLuxGoldLight.withValues(alpha: 0.32),
+                    blurRadius: 10,
+                    spreadRadius: -1,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _staggeredMenuLine(22),
+              const SizedBox(height: 3.5),
+              _staggeredMenuLine(16),
+              const SizedBox(height: 3.5),
+              _staggeredMenuLine(11),
             ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _staggeredMenuLine(double width) {
+    return Container(
+      width: width,
+      height: _lineH,
+      decoration: BoxDecoration(
+        color: _kPremiumDeepBlue,
+        borderRadius: BorderRadius.circular(_lineR),
+      ),
+    );
+  }
 }
 
 class PatientHomeScreen extends StatefulWidget {
@@ -272,13 +319,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   }
 
   Widget _buildThinSearchBar(BuildContext context) {
-    const radius = 20.0;
+    const radius = 18.0;
     const borderW = 0.8;
     final innerRadius = radius - borderW;
     const hintGrey = Color(0xFF455A64);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -287,10 +334,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               borderRadius: BorderRadius.circular(radius),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF90CAF9).withValues(alpha: 0.16),
-                  blurRadius: 20,
-                  spreadRadius: 3,
-                  offset: const Offset(0, 10),
+                  color: const Color(0xFF90CAF9).withValues(alpha: 0.2),
+                  blurRadius: 22,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.07),
+                  blurRadius: 16,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -711,7 +764,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final noraPart = noraRaw.trim().isEmpty ? 'Nora' : noraRaw.trim();
 
     const titleBlue = _kPremiumDeepBlue;
-    const goldPlus = Color(0xFFFFD54F);
     const tightKern = -0.18;
     const titleShadow = <Shadow>[
       Shadow(
@@ -729,14 +781,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       height: 1.0,
       shadows: titleShadow,
     );
-    final plusStyle = GoogleFonts.outfit(
-      fontSize: 22,
-      letterSpacing: 0.15,
-      fontWeight: FontWeight.w900,
-      color: goldPlus,
-      height: 1.0,
-      shadows: titleShadow,
-    );
     final noraStyle = GoogleFonts.outfit(
       fontSize: 22,
       letterSpacing: tightKern,
@@ -746,15 +790,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       shadows: titleShadow,
     );
 
-    final titleSpan = TextSpan(
-      children: [
-        TextSpan(text: hrPart, style: hrStyle),
-        TextSpan(text: ' + ', style: plusStyle),
-        TextSpan(text: noraPart, style: noraStyle),
-      ],
-    );
-    final formulaWidth = _inlineSpanLineWidth(titleSpan);
-    final underlineW = (formulaWidth * 0.58).clamp(40.0, 72.0);
+    const crossSize = 27.0;
+    const crossPadH = 8.0;
+    final hrW = _inlineSpanLineWidth(TextSpan(text: hrPart, style: hrStyle));
+    final noraW = _inlineSpanLineWidth(TextSpan(text: noraPart, style: noraStyle));
+    final crossSectionW = crossPadH + crossSize + crossPadH;
+    final formulaWidth = hrW + crossSectionW + noraW;
+    final crossCenterT = (hrW + crossSectionW / 2) / formulaWidth;
 
     // Snug to the ⋮; small negative dx keeps the panel near the right edge; dy aligns
     // vertically so it reads as opening from the icon.
@@ -765,6 +807,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       child: Row(
         // LTR keeps the title on the left and the ⋮ menu on the right in RTL apps.
         textDirection: TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4),
@@ -774,26 +817,46 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text.rich(titleSpan),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(hrPart, style: hrStyle),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: crossPadH),
+                        child: _BrandTitleMedicalCross(size: crossSize),
+                      ),
+                      Text(noraPart, style: noraStyle),
+                    ],
+                  ),
                   const SizedBox(height: 3),
                   SizedBox(
                     width: formulaWidth,
-                    child: Center(
-                      child: SizedBox(
-                        width: underlineW,
-                        height: 2.5,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                const Color(0xFFD4AF37),
-                                const Color(0xFFD4AF37).withValues(alpha: 0),
-                              ],
-                            ),
-                          ),
+                    height: 2.5,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops: [
+                            0.0,
+                            (crossCenterT - 0.24).clamp(0.04, 0.45),
+                            (crossCenterT - 0.08).clamp(0.08, 0.48),
+                            crossCenterT.clamp(0.12, 0.88),
+                            (crossCenterT + 0.08).clamp(0.52, 0.92),
+                            (crossCenterT + 0.24).clamp(0.55, 0.96),
+                            1.0,
+                          ],
+                          colors: [
+                            _kBrandLuxGold.withValues(alpha: 0.52),
+                            _kBrandLuxGold.withValues(alpha: 0.78),
+                            _kBrandLuxGoldLight.withValues(alpha: 0.92),
+                            _kBrandLuxGoldLight,
+                            _kBrandLuxGoldLight.withValues(alpha: 0.92),
+                            _kBrandLuxGold.withValues(alpha: 0.78),
+                            _kBrandLuxGold.withValues(alpha: 0.52),
+                          ],
                         ),
                       ),
                     ),
@@ -805,36 +868,28 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
           const Spacer(),
           Theme(
             data: Theme.of(context).copyWith(
-              popupMenuTheme: PopupMenuThemeData(
+              popupMenuTheme: const PopupMenuThemeData(
                 color: Colors.transparent,
-                elevation: 12,
+                elevation: 0,
+                shadowColor: Colors.transparent,
                 surfaceTintColor: Colors.transparent,
-                shadowColor: _kMenuPopupDeepRed.withValues(alpha: 0.42),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(
-                    color: _kMenuPopupDeepRed,
-                    width: _kMenuPopupFrameWidth,
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
                 ),
               ),
             ),
             child: PopupMenuButton<String>(
               tooltip: '',
+              padding: EdgeInsets.zero,
               color: Colors.transparent,
               surfaceTintColor: Colors.transparent,
-              elevation: 12,
-              shadowColor: _kMenuPopupDeepRed.withValues(alpha: 0.42),
+              elevation: 0,
+              shadowColor: Colors.transparent,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(
-                  color: _kMenuPopupDeepRed,
-                  width: _kMenuPopupFrameWidth,
-                ),
+                borderRadius: BorderRadius.circular(15),
               ),
               constraints: const BoxConstraints(minWidth: 232),
               offset: menuOffset,
-              icon: const Icon(Icons.more_vert_rounded, color: _kDarkBlue),
               onOpened: () {
                 _menuDimController.forward();
               },
@@ -842,6 +897,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               onSelected: (value) async {
                 _dismissMenuDim();
                 if (!context.mounted) return;
+                if (value.isEmpty) return;
                 if (value == 'profile') {
                   setState(() => _bottomNavIndex = 2);
                 } else if (value == 'feedback') {
@@ -856,39 +912,79 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 }
               },
               itemBuilder: (ctx) {
+                const profileBlue = Color(0xFF1565C0);
+                const feedbackTeal = Color(0xFF00897B);
+                const logoutCoral = Color(0xFFE57373);
+                final dividerColor = Colors.grey.withValues(alpha: 0.15);
                 return [
                   PopupMenuItem<String>(
-                    value: 'profile',
-                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-                    child: _patientOverflowMenuTile(
-                      accentBorder: Colors.blueAccent,
-                      iconData: Icons.person_rounded,
-                      iconColor: Colors.blueAccent,
-                      text: s.translate('profile'),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'feedback',
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-                    child: _patientOverflowMenuTile(
-                      accentBorder: Colors.tealAccent,
-                      iconData: Icons.feedback_outlined,
-                      iconColor: Colors.tealAccent,
-                      text: s.translate('patient_home_menu_feedback'),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'logout',
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                    child: _patientOverflowMenuTile(
-                      accentBorder: _kMenuPopupDeepRed,
-                      iconData: Icons.logout_rounded,
-                      iconColor: _kMenuPopupDeepRed,
-                      text: s.translate('logout'),
+                    padding: EdgeInsets.zero,
+                    value: '',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          width: 248,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withValues(alpha: 0.1),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _patientGlassMenuInkRow(
+                                menuContext: ctx,
+                                icon: Icons.person_rounded,
+                                iconColor: profileBlue,
+                                label: s.translate('profile'),
+                                value: 'profile',
+                              ),
+                              Divider(
+                                height: 1,
+                                thickness: 0.5,
+                                indent: 14,
+                                endIndent: 14,
+                                color: dividerColor,
+                              ),
+                              _patientGlassMenuInkRow(
+                                menuContext: ctx,
+                                icon: Icons.feedback_outlined,
+                                iconColor: feedbackTeal,
+                                label: s.translate('patient_home_menu_feedback'),
+                                value: 'feedback',
+                              ),
+                              Divider(
+                                height: 1,
+                                thickness: 0.5,
+                                indent: 14,
+                                endIndent: 14,
+                                color: dividerColor,
+                              ),
+                              _patientGlassMenuInkRow(
+                                menuContext: ctx,
+                                icon: Icons.logout_rounded,
+                                iconColor: logoutCoral,
+                                label: s.translate('logout'),
+                                value: 'logout',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ];
               },
+              child: const _StaggeredPopupMenuTrigger(),
             ),
           ),
         ],
@@ -1208,6 +1304,147 @@ class PatientHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _state._buildHomeContent();
+}
+
+/// Frosted-glass tile with deep-gold medical cross (app bar mark).
+class _BrandTitleMedicalCross extends StatelessWidget {
+  const _BrandTitleMedicalCross({required this.size});
+
+  final double size;
+
+  static const double _glassRadius = 12;
+  static const double _armCorner = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_glassRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 22,
+            spreadRadius: 1.2,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: _kBrandLuxGold.withValues(alpha: 0.08),
+            blurRadius: 18,
+            spreadRadius: 0,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_glassRadius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                ),
+              ),
+            ),
+            CustomPaint(
+              painter: _GoldMedicalCrossPainter(armCornerRadius: _armCorner),
+              size: Size(size, size),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(_glassRadius),
+                    border: Border.all(
+                      color: Color.alphaBlend(
+                        _kBrandLuxGold.withValues(alpha: 0.28),
+                        Colors.white.withValues(alpha: 0.62),
+                      ),
+                      width: 0.9,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GoldMedicalCrossPainter extends CustomPainter {
+  const _GoldMedicalCrossPainter({required this.armCornerRadius});
+
+  final double armCornerRadius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final armW = size.width * 0.31;
+    final armLen = size.width * 0.9;
+    final r = Radius.circular(armCornerRadius.clamp(1.0, 6.0));
+
+    final vPath = Path()..addRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: c, width: armW, height: armLen),
+            r,
+          ),
+        );
+    final hPath = Path()..addRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: c, width: armLen, height: armW),
+            r,
+          ),
+        );
+    final crossPath =
+        Path.combine(PathOperation.union, vPath, hPath);
+
+    final rect = Offset.zero & size;
+    // Brighter inner glow (matches lux light) so the symbol pops on glass
+    canvas.drawPath(
+      crossPath,
+      Paint()
+        ..color = _kBrandLuxGoldLight.withValues(alpha: 0.65)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      crossPath,
+      Paint()
+        ..color = _kBrandLuxGold.withValues(alpha: 0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.1)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Same horizontal lux gradient as «نۆرە بگرە» (full opacity for vibrancy)
+    final shader = const LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        _kBrandLuxGold,
+        _kBrandLuxGoldLight,
+        _kBrandLuxGold,
+      ],
+    ).createShader(rect);
+
+    canvas.drawPath(
+      crossPath,
+      Paint()
+        ..shader = shader
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GoldMedicalCrossPainter oldDelegate) =>
+      oldDelegate.armCornerRadius != armCornerRadius;
 }
 
 /// Circular glass orb. Selected: soft radiating glow + light tint of glow on the circle.
