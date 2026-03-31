@@ -203,41 +203,38 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                         CrossAxisAlignment.stretch,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        widget.name,
-                                        textAlign: textAlign,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: _navyText,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          fontFamily: 'KurdishFont',
-                                          height: 1.2,
-                                          letterSpacing: 0.25,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        height: 2.5,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          color: _kLuxGold.withValues(alpha: 0.95),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: _kLuxGold.withValues(alpha: 0.32),
-                                              blurRadius: 6,
-                                              spreadRadius: 0,
-                                              offset: Offset.zero,
+                                      Row(
+                                        textDirection: Directionality.of(context),
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              widget.name,
+                                              textAlign: textAlign,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: _navyText,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                                fontFamily: 'KurdishFont',
+                                                height: 1.2,
+                                                letterSpacing: 0.25,
+                                              ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.verified_rounded,
+                                            size: 16,
+                                            color: _kLuxGold.withValues(alpha: 0.9),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 16),
                                   Text(
                                     S.of(context).translate('field_specialty'),
                                     textAlign: textAlign,
