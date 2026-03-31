@@ -1,13 +1,15 @@
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
 
-/// Royal crimson primary CTA (deep → garnet).
-const Color _kCrimsonDeep = Color(0xFF6B141E);
-const Color _kCrimsonGarnet = Color(0xFFC62828);
-const Color _kCrimsonBorderLight = Color(0xFFFF8A80);
+/// Lux sky + gold palette for premium doctor cards.
+const Color _kLuxSkyTop = Color(0xFFE3F2FD);
+const Color _kLuxSkyMid = Color(0xFFF5FAFF);
+const Color _kLuxGold = Color(0xFFFFD54F);
 
 /// Doctor row used on patient home and hospital doctor list.
 class PatientDoctorCard extends StatefulWidget {
@@ -93,10 +95,10 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.35),
-                blurRadius: 12,
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 18,
                 spreadRadius: 0,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -105,27 +107,22 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             borderRadius: BorderRadius.circular(_innerRadius),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [
-                    _deepBlue,
-                    Color.lerp(
-                          _deepBlue,
-                          const Color(0xFFE8EEF5),
-                          0.72,
-                        ) ??
-                        const Color(0xFFE8EEF5),
-                    Colors.white.withValues(alpha: 0.96),
+                    _kLuxSkyTop,
+                    _kLuxSkyMid,
+                    Colors.white,
                   ],
-                  stops: const [0.0, 0.42, 1.0],
+                  stops: [0.0, 0.55, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    spreadRadius: -2,
-                    offset: Offset.zero,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -423,71 +420,56 @@ class _DoctorCardDetailsButton extends StatelessWidget {
   final String label;
 
   static const double _r = 14;
+  static const Color _kDetailsTextNavy = Color(0xFF0D47A1);
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(_r),
-      child: Container(
-        width: double.infinity,
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_r),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.26),
-              Colors.white.withValues(alpha: 0.09),
-            ],
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          width: double.infinity,
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_r),
+            color: Colors.white.withValues(alpha: 0.12),
+            border: Border.all(
+              color: _kLuxGold.withValues(alpha: 0.9),
+              width: 1.2,
+            ),
           ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.38),
-            width: 0.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          textDirection: TextDirection.ltr,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.96),
-                  fontFamily: 'KurdishFont',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.05,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            textDirection: TextDirection.ltr,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _kDetailsTextNavy.withValues(alpha: 0.96),
+                    fontFamily: 'KurdishFont',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Icon(
-              rtl
-                  ? Icons.arrow_back_ios_new_rounded
-                  : Icons.arrow_forward_ios_rounded,
-              size: 12,
-              color: Colors.white.withValues(alpha: 0.98),
-              shadows: const [
-                Shadow(
-                  color: Color(0xD9FFFFFF),
-                  blurRadius: 6,
-                  offset: Offset.zero,
-                ),
-                Shadow(
-                  color: Color(0x59FFFFFF),
-                  blurRadius: 10,
-                  offset: Offset.zero,
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(width: 6),
+              Icon(
+                rtl
+                    ? Icons.arrow_back_ios_new_rounded
+                    : Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: _kLuxGold.withValues(alpha: 0.95),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -506,6 +488,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
 
   static const double _r = 14;
   static const double _buttonHeight = 48;
+  static const Color _kBookTextNavy = Color(0xFF0D47A1);
 
   @override
   Widget build(BuildContext context) {
@@ -514,134 +497,67 @@ class _BookNowPrimaryButton extends StatelessWidget {
       height: _buttonHeight,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_r),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_r),
-            border: Border.all(
-              color: _kCrimsonBorderLight.withValues(alpha: 0.88),
-              width: 1,
-            ),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_kCrimsonDeep, Color(0xFF8E1B2E), _kCrimsonGarnet],
-              stops: [0.0, 0.48, 1.0],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _kCrimsonDeep.withValues(alpha: 0.42),
-                blurRadius: 22,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(_r),
+              color: Colors.white.withValues(alpha: 0.14),
+              border: Border.all(
+                color: _kLuxGold.withValues(alpha: 0.95),
+                width: 1.2,
               ),
-              BoxShadow(
-                color: _kCrimsonGarnet.withValues(alpha: 0.28),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 5,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.38),
-                        Colors.white.withValues(alpha: 0.08),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.45, 1.0],
-                    ),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
                 ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  textDirection: TextDirection.ltr,
-                  children: [
-                    AnimatedBuilder(
-                      animation: pulseGlow,
-                      builder: (context, child) {
-                        final pulse = pulseGlow.value;
-                        return Icon(
-                          Icons.calendar_month_rounded,
-                          size: 18,
-                          color: Colors.white.withValues(
-                            alpha: 0.94 + 0.05 * pulse,
-                          ),
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(
-                                alpha: 0.25 + 0.1 * pulse,
-                              ),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                            Shadow(
-                              color: Colors.white.withValues(
-                                alpha: 0.35 + 0.15 * pulse,
-                              ),
-                              blurRadius: 6,
-                              offset: Offset.zero,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        bookCtaText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.97),
-                          fontFamily: 'KurdishFont',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          height: 1.15,
-                          letterSpacing: 0.06,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.22),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                            Shadow(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              blurRadius: 6,
-                              offset: Offset.zero,
-                            ),
-                          ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                textDirection: TextDirection.ltr,
+                children: [
+                  AnimatedBuilder(
+                    animation: pulseGlow,
+                    builder: (context, child) {
+                      final pulse = pulseGlow.value;
+                      return Icon(
+                        Icons.calendar_month_rounded,
+                        size: 20,
+                        color: _kBookTextNavy.withValues(
+                          alpha: 0.85 + 0.1 * pulse,
                         ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      bookCtaText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _kBookTextNavy.withValues(alpha: 0.98),
+                        fontFamily: 'KurdishFont',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.2,
+                        letterSpacing: 0.1,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

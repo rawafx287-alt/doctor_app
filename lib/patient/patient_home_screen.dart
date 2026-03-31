@@ -780,10 +780,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
   Widget _buildGlassBottomNav(BuildContext context) {
     final s = S.of(context);
-    const topRadius = 25.0;
+    const dockRadius = 30.0;
 
     Widget navIcon(IconData iconData, bool selected) {
-      const size = 26.0;
+      const size = 23.0;
       if (!selected) {
         return Icon(
           iconData,
@@ -816,21 +816,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       return Expanded(
         child: Material(
           color: Colors.transparent,
-            child: InkWell(
+          child: InkWell(
             onTap: () => setState(() => _bottomNavIndex = index),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 11),
+              padding: const EdgeInsets.symmetric(vertical: 7),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    height: 10,
+                    height: 8,
                     child: selected
                         ? Center(
                             child: Container(
-                              width: 28,
-                              height: 3,
+                              width: 24,
+                              height: 2,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(2),
                                 gradient: const LinearGradient(
@@ -842,16 +842,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                 boxShadow: [
                                   BoxShadow(
                                     color: _kIconGradientLight.withValues(
-                                      alpha: 0.85,
+                                      alpha: 0.45,
                                     ),
-                                    blurRadius: 8,
+                                    blurRadius: 4,
                                     spreadRadius: 0,
                                   ),
                                   BoxShadow(
                                     color: _kPremiumDeepBlue.withValues(
-                                      alpha: 0.35,
+                                      alpha: 0.22,
                                     ),
-                                    blurRadius: 4,
+                                    blurRadius: 2,
                                   ),
                                 ],
                               ),
@@ -860,7 +860,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         : const SizedBox.shrink(),
                   ),
                   navIcon(icon, selected),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     label,
                     textAlign: TextAlign.center,
@@ -868,7 +868,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'KurdishFont',
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight:
                           selected ? FontWeight.w800 : FontWeight.w700,
                       letterSpacing: selected ? 0.25 : 0.12,
@@ -885,61 +885,47 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(topRadius),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 36,
-            offset: const Offset(0, -12),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: _kPremiumBlueMid.withValues(alpha: 0.38),
-            blurRadius: 28,
-            offset: const Offset(0, -8),
-            spreadRadius: -2,
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(topRadius),
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.8),
-              border: Border(
-                top: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  width: 1.2,
-                ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(dockRadius),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 16,
+                offset: Offset(0, 6),
+                spreadRadius: 0,
               ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
-                child: Row(
-                  children: [
-                    item(0, Icons.home_rounded, s.translate('home')),
-                    item(
-                      1,
-                      Icons.calendar_month_rounded,
-                      s.translate('appointments'),
-                    ),
-                    item(2, Icons.person_rounded, s.translate('profile')),
-                  ],
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(dockRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    width: 1,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Row(
+                    children: [
+                      item(0, Icons.home_rounded, s.translate('home')),
+                      item(
+                        1,
+                        Icons.calendar_month_rounded,
+                        s.translate('appointments'),
+                      ),
+                      item(2, Icons.person_rounded, s.translate('profile')),
+                    ],
+                  ),
                 ),
               ),
             ),
