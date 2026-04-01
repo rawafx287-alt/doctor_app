@@ -283,7 +283,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   late final Animation<Offset> _homeFabSlide;
 
   String _selectedCategory = kPatientSpecialtyAllKey;
-  int _pulseNavIndex = -1;
 
   /// Single subscription: all approved doctors (filter locally for category + search).
   late final Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -893,16 +892,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
   void _onBottomNavTap(int index) {
     HapticFeedback.lightImpact();
-    setState(() {
-      _bottomNavIndex = index;
-      _pulseNavIndex = index;
-    });
-    Future<void>.delayed(const Duration(milliseconds: 180), () {
-      if (!mounted) return;
-      if (_pulseNavIndex == index) {
-        setState(() => _pulseNavIndex = -1);
-      }
-    });
+    setState(() => _bottomNavIndex = index);
   }
 
   void _dismissMenuDim() {
@@ -1155,6 +1145,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final s = S.of(context);
     const dockRadius = 30.0;
     final hasActiveAppointments = _bottomNavIndex != 1;
+    const activeCircleSize = 52.0;
+    const activeGoldGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFFFFD700),
+        Color(0xFFB8860B),
+      ],
+    );
 
     Widget navItem({
       required int index,
@@ -1164,11 +1163,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       bool showDot = false,
     }) {
       final selected = _bottomNavIndex == index;
-      const softGrayActive = Color(0xFF6F7782);
-      final activeColor = highlightGold ? softGrayActive : softGrayActive;
-      final targetColor = selected ? activeColor : _kMutedGrey;
-      final pulsing = _pulseNavIndex == index;
-      return Expanded(
+      final targetColor = selected ? Colors.white : _kMutedGrey;
+      return SizedBox(
+        width: 86,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1182,27 +1179,67 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      TweenAnimationBuilder<Color?>(
-                        tween: ColorTween(end: targetColor),
-                        duration: const Duration(milliseconds: 220),
+                      AnimatedScale(
+                        scale: selected ? 1.2 : 1.0,
+                        duration: const Duration(milliseconds: 200),
                         curve: Curves.easeOutCubic,
-                        builder: (context, animatedColor, _) {
-                          return AnimatedScale(
-                            scale: pulsing ? 1.2 : 1.0,
-                            duration: const Duration(milliseconds: 180),
-                            curve: Curves.easeOutBack,
-                            child: Icon(
-                              icon,
-                              size: selected ? 22 : 21,
-                              color: animatedColor ?? targetColor,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          width: activeCircleSize,
+                          height: activeCircleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: selected ? activeGoldGradient : null,
+                            color: selected ? null : Colors.transparent,
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(
+                                    0xFFFFF8DC,
+                                  ).withValues(alpha: 0.78)
+                                  : Colors.transparent,
+                              width: 0.5,
                             ),
-                          );
-                        },
+                            boxShadow: selected
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFFFD700,
+                                      ).withValues(alpha: 0.34),
+                                      blurRadius: 16,
+                                      spreadRadius: 0.8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFB8860B,
+                                      ).withValues(alpha: 0.28),
+                                      blurRadius: 12,
+                                      spreadRadius: 0.25,
+                                    ),
+                                  ]
+                                : const [],
+                          ),
+                          child: Center(
+                            child: TweenAnimationBuilder<Color?>(
+                              tween: ColorTween(end: targetColor),
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, animatedColor, _) {
+                                return Icon(
+                                  icon,
+                                  size: selected ? 23 : 21,
+                                  color: animatedColor ?? targetColor,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
                       ),
                       if (showDot && hasActiveAppointments)
                         PositionedDirectional(
-                          top: -2,
-                          end: -3,
+                          top: 8,
+                          end: 7,
                           child: Container(
                             width: 7.5,
                             height: 7.5,
@@ -1218,11 +1255,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
+                      ],
+                    ),
+                  const SizedBox(height: 4),
                   TweenAnimationBuilder<Color?>(
-                    tween: ColorTween(end: targetColor),
+                    tween: ColorTween(end: selected ? _kBrandLuxGold : _kMutedGrey),
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
                     builder: (context, animatedColor, _) {
@@ -1234,7 +1271,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         style: GoogleFonts.notoSansArabic(
                           fontSize: 10.5,
                           fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          color: animatedColor ?? targetColor,
+                          color: animatedColor ?? _kMutedGrey,
                           height: 1.1,
                         ),
                       );
@@ -1248,151 +1285,153 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       );
     }
 
+    Widget homeFabItem() {
+      final selected = _bottomNavIndex == 0;
+      return SizedBox(
+        width: 86,
+        child: FadeTransition(
+          opacity: _homeFabFade,
+          child: SlideTransition(
+            position: _homeFabSlide,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _onBottomNavTap(0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedScale(
+                        scale: selected ? 1.2 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        child: Ink(
+                          width: activeCircleSize,
+                          height: activeCircleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: activeGoldGradient,
+                            border: Border.all(
+                              color: const Color(0xFFFFF8DC).withValues(alpha: 0.78),
+                              width: 0.5,
+                            ),
+                            boxShadow: selected
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFFFFD700).withValues(alpha: 0.34),
+                                      blurRadius: 16,
+                                      spreadRadius: 0.8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFFB8860B).withValues(alpha: 0.28),
+                                      blurRadius: 12,
+                                      spreadRadius: 0.25,
+                                    ),
+                                  ]
+                                : const [],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.home_rounded,
+                              size: 23,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        s.translate('home'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.notoSansArabic(
+                          fontSize: 10.5,
+                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                          color: selected ? _kBrandLuxGold : _kMutedGrey,
+                          height: 1.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(dockRadius),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 16,
-                    offset: Offset(0, 6),
-                    spreadRadius: 0,
-                  ),
-                ],
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(dockRadius),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 16,
+                offset: Offset(0, 6),
+                spreadRadius: 0,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(dockRadius),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.64),
-                      border: Border(
-                        top: BorderSide(
-                          color: _kBrandLuxGoldLight.withValues(alpha: 0.65),
-                          width: 1,
-                        ),
-                        left: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          width: 0.7,
-                        ),
-                        right: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          width: 0.7,
-                        ),
-                        bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 0.6,
-                        ),
-                      ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(dockRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.64),
+                  border: Border(
+                    top: BorderSide(
+                      color: _kBrandLuxGoldLight.withValues(alpha: 0.65),
+                      width: 1,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 86, 8),
-                      child: Row(
-                        children: [
-                          navItem(
-                            index: 1,
-                            icon: Icons.calendar_month_rounded,
-                            label: s.translate('appointments'),
-                            highlightGold: true,
-                            showDot: true,
-                          ),
-                          navItem(
-                            index: 2,
-                            icon: Icons.person_rounded,
-                            label: s.translate('profile'),
-                          ),
-                        ],
-                      ),
+                    left: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 0.7,
                     ),
+                    right: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 0.7,
+                    ),
+                    bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      width: 0.6,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  child: Row(
+                    textDirection: TextDirection.ltr,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      navItem(
+                        index: 2,
+                        icon: Icons.person_rounded,
+                        label: s.translate('profile'),
+                      ),
+                      navItem(
+                        index: 1,
+                        icon: Icons.calendar_month_rounded,
+                        label: s.translate('appointments'),
+                        highlightGold: true,
+                        showDot: true,
+                      ),
+                      homeFabItem(),
+                    ],
                   ),
                 ),
               ),
             ),
-            Positioned(
-              right: 12,
-              top: -8,
-              bottom: -8,
-              child: Center(
-                child: FadeTransition(
-                  opacity: _homeFabFade,
-                  child: SlideTransition(
-                    position: _homeFabSlide,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () => _onBottomNavTap(0),
-                        child: AnimatedScale(
-                          scale: _pulseNavIndex == 0 ? 1.2 : 1.0,
-                          duration: const Duration(milliseconds: 180),
-                          curve: Curves.easeOutBack,
-                          child: Ink(
-                            width: 62,
-                            height: 62,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color(0xFFFFD700),
-                                  Color(0xFFB8860B),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFFFD700).withValues(alpha: 0.34),
-                                  blurRadius: 16,
-                                  spreadRadius: 0.8,
-                                  offset: const Offset(0, 4),
-                                ),
-                                BoxShadow(
-                                  color: const Color(0xFFB8860B).withValues(alpha: 0.28),
-                                  blurRadius: 12,
-                                  spreadRadius: 0.25,
-                                ),
-                              ],
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.55),
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.home_rounded,
-                                  size: 27,
-                                  color: Colors.white,
-                                ),
-                                Text(
-                                  s.translate('home'),
-                                  style: GoogleFonts.notoSansArabic(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
