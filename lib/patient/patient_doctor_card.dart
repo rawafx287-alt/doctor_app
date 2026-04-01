@@ -2,13 +2,37 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
+import 'patient_grain_painter.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
 const Color _kLuxGold = Color(0xFFD4AF37);
 const Color _kLuxGoldLight = Color(0xFFF6E7A6);
+
+/// Layered elevation: soft ambient + deep lift + top highlight.
+const List<BoxShadow> _kDoctorCardLayeredShadows = [
+  BoxShadow(
+    color: Color(0x12000000),
+    blurRadius: 22,
+    spreadRadius: -2,
+    offset: Offset(0, 6),
+  ),
+  BoxShadow(
+    color: Color(0x0A000000),
+    blurRadius: 40,
+    spreadRadius: -8,
+    offset: Offset(0, 16),
+  ),
+  BoxShadow(
+    color: Color(0x18FFFFFF),
+    blurRadius: 12,
+    spreadRadius: -8,
+    offset: Offset(0, -3),
+  ),
+];
 
 /// Doctor row used on patient home and hospital doctor list.
 class PatientDoctorCard extends StatefulWidget {
@@ -42,7 +66,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const Color _deepBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
-  static const double _innerRadius = 19.5;
+  static const double _kLightLeakBorder = 1.35;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseGlow;
@@ -86,47 +110,67 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
     final nameBoxAlignment =
         hasArabicScript ? Alignment.centerRight : Alignment.centerLeft;
+    final innerR = _radius - _kLightLeakBorder;
 
     return RepaintBoundary(
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_radius),
-            border: Border.all(
-              color: const Color(0xFFC0C0C0),
-              width: 1.0,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(_innerRadius),
-            child: DecoratedBox(
+      child: Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                borderRadius: BorderRadius.circular(_radius),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [
-                    Colors.white,
-                    Color(0xFFB3E5FC),
+                    Colors.white.withValues(alpha: 0.0),
+                    Colors.white.withValues(alpha: 0.58),
+                    Colors.white.withValues(alpha: 0.22),
+                    Colors.white.withValues(alpha: 0.52),
+                    Colors.white.withValues(alpha: 0.0),
                   ],
-                  stops: [0.35, 1.0],
+                  stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
                 ),
+                boxShadow: _kDoctorCardLayeredShadows,
               ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(_innerRadius),
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 2.8, sigmaY: 2.8),
-                        child: Container(
-                          color: Colors.white.withValues(alpha: 0.04),
-                        ),
-                      ),
+              padding: const EdgeInsets.all(_kLightLeakBorder),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(innerR),
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white,
+                        Color(0xFFB3E5FC),
+                      ],
+                      stops: [0.35, 1.0],
                     ),
                   ),
-                  Padding(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(innerR),
+                          child: BackdropFilter(
+                            filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                            child: Container(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(innerR),
+                            child: CustomPaint(
+                              painter: PatientSubtleGrainPainter(
+                                seed: widget.name.hashCode,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -281,10 +325,12 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                                         TextSpan(
                                                           text: widget.name.trim(),
                                                           style: const TextStyle(
-                                                            fontFamily: 'KurdishFont',
-                                                            fontSize: 20,
-                                                            fontWeight: FontWeight.w700,
-                                                            height: 1.15,
+                                                            fontFamily:
+                                                                kPatientNrtBoldFont,
+                                                            fontSize: 18.5,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            height: 1.12,
                                                           ),
                                                         ),
                                                       ],
@@ -424,9 +470,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                               flex: 60,
                               child: SizedBox(
                                 height: 42,
-                                child: GestureDetector(
+                                child: _DoctorCardPressableButton(
                                   onTap: widget.onBook,
-                                  behavior: HitTestBehavior.opaque,
                                   child: _BookNowPrimaryButton(
                                     pulseGlow: _pulseGlow,
                                     bookCtaText: S
@@ -443,9 +488,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                               flex: 35,
                               child: SizedBox(
                                 height: 42,
-                                child: GestureDetector(
+                                child: _DoctorCardPressableButton(
                                   onTap: widget.onOpenDetails,
-                                  behavior: HitTestBehavior.opaque,
                                   child: _DoctorCardDetailsButton(
                                     rtl: rtl,
                                     label: S
@@ -467,7 +511,80 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             ),
           ),
         ),
-        ),
+    );
+  }
+}
+
+/// Book / Details CTAs: quick scale-down on press, snap back on release + light haptic.
+class _DoctorCardPressableButton extends StatefulWidget {
+  const _DoctorCardPressableButton({
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_DoctorCardPressableButton> createState() =>
+      _DoctorCardPressableButtonState();
+}
+
+class _DoctorCardPressableButtonState extends State<_DoctorCardPressableButton>
+    with SingleTickerProviderStateMixin {
+  static const double _kPressedScale = 0.96;
+
+  late final AnimationController _scaleController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 115),
+    reverseDuration: const Duration(milliseconds: 135),
+  );
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: _kPressedScale,
+  ).animate(
+    CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutBack,
+    ),
+  );
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _pressDown() {
+    HapticFeedback.lightImpact();
+    _scaleController.forward();
+  }
+
+  void _pressEnd() {
+    _scaleController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _pressDown(),
+      onTapUp: (_) => _pressEnd(),
+      onTapCancel: _pressEnd,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            alignment: Alignment.center,
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }
@@ -502,6 +619,20 @@ class _DoctorCardDetailsButton extends StatelessWidget {
               color: _kLuxGold.withValues(alpha: 0.9),
               width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.38),
+                blurRadius: 5,
+                spreadRadius: -2,
+                offset: const Offset(-0.5, -2),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 7,
+                spreadRadius: -2,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -516,10 +647,10 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _kDetailsTextColor.withValues(alpha: 0.92),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
+                    fontFamily: kPatientNrtBoldFont,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.15,
                   ),
                 ),
               ),
@@ -539,7 +670,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
   }
 }
 
-/// Primary «نۆرە بگرە» — left, royal crimson glass, rounded rect.
+/// Primary «نۆرە بگرە» — gold glass CTA.
 class _BookNowPrimaryButton extends StatelessWidget {
   const _BookNowPrimaryButton({
     required this.pulseGlow,
@@ -579,9 +710,21 @@ class _BookNowPrimaryButton extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 12,
+                  color: Colors.white.withValues(alpha: 0.45),
+                  blurRadius: 5,
+                  spreadRadius: -2,
+                  offset: const Offset(-0.5, -2),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  spreadRadius: -2,
                   offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -616,11 +759,11 @@ class _BookNowPrimaryButton extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.5,
-                        height: 1.2,
-                        letterSpacing: 0.1,
+                        fontFamily: kPatientNrtBoldFont,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        height: 1.15,
+                        letterSpacing: 0.08,
                         color: Colors.black.withValues(alpha: 0.92),
                       ),
                     ),

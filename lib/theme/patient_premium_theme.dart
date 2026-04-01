@@ -7,6 +7,10 @@ const Color kPatientSkyBottom = Color(0xFFB3E5FC);
 /// Primary UI font (Kurdish + Latin) — set on [TextStyle] via [patientBoldTextStyle].
 const String kPatientPrimaryFont = 'KurdishFont';
 
+/// Bold display face for specialty chip labels, doctor-list headers, doctor names, and card CTAs.
+/// Registered in [pubspec.yaml] as family `NRT Bold` (see assets/fonts/NRT_Bold.ttf).
+const String kPatientNrtBoldFont = 'NRT Bold';
+
 const Color kPatientNavyText = Color(0xFF0D2137);
 const Color kPatientDeepBlue = Color(0xFF1A237E);
 
@@ -66,4 +70,32 @@ TextStyle patientBoldTextStyle({
     height: height,
     letterSpacing: letterSpacing,
   );
+}
+
+/// Barely visible light-grey grid + diagonals (opacity 0.02) for main backgrounds.
+class PatientSubtleGeometricPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = const Color(0xFF757575).withValues(alpha: 0.02)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+    const step = 36.0;
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+    }
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    final diag = Paint()
+      ..color = const Color(0xFF9E9E9E).withValues(alpha: 0.02)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+    for (var i = -size.height; i < size.width + size.height; i += 52.0) {
+      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), diag);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

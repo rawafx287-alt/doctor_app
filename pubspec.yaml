@@ -99,7 +99,12 @@ flutter:
     - assets/images/british_flag.png
     - assets/images/stomach_medical.svg
 
-
+  # Family name is `NRT Bold`. Replace assets/fonts/NRT_Bold.ttf with the official NRT Bold TTF from
+  # kurdfonts.com when you have it; the bundled file is Noto Sans Arabic variable (OFL) for Arabic/Kurdish coverage.
+  fonts:
+    - family: NRT Bold
+      fonts:
+        - asset: assets/fonts/NRT_Bold.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

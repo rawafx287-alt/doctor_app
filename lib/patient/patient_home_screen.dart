@@ -12,6 +12,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
+import '../theme/patient_premium_theme.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
 import 'patient_doctor_booking_screen.dart';
@@ -22,8 +23,10 @@ import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
-/// Taller than content + soft glow so pinned header does not clip / overflow.
-const double _kHomeSpecialtiesHeaderExtent = 168;
+/// Fixed height for specialty block (title + chip row + padding) under search.
+const double _kHomeSpecialtiesHeaderExtent = 184;
+/// Pinned glass bar for the dynamic doctors category title (2 lines max + padding).
+const double _kHomeDoctorsCategoryHeaderExtent = 72;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -84,16 +87,13 @@ Color _categoryAccentIcon(String catKey) {
   }
 }
 
-/// Main patient background gradient: light blue -> white.
-const Color _kSkyTop = Color(0xFFE3F2FD);
-const Color _kSkyBottom = Color(0xFFFFFFFF);
 const Color _kCharcoal = Color(0xFF333333);
-const Color _kDarkBlue = Color(0xFF0D47A1);
 const Color _kMutedGrey = Color(0xFF546E7A);
 const Color _kVibrantBlue = Color(0xFF1976D2);
+const Color _kDarkBlue = Color(0xFF0D47A1);
 /// Matches doctor card border ([PatientDoctorCard]).
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
-/// Same as «نۆرە بگرە» CTA golds ([patient_doctor_card] `_kLuxGold` / `_kLuxGoldLight`).
+/// Classic blue/gold accents (CTAs, rules, cross).
 const Color _kBrandLuxGold = Color(0xFFD4AF37);
 const Color _kBrandLuxGoldLight = Color(0xFFF6E7A6);
 /// Same as doctor name text on cards ([PatientDoctorCard]).
@@ -261,6 +261,7 @@ class PatientHomeScreen extends StatefulWidget {
 class _PatientHomeScreenState extends State<PatientHomeScreen>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   /// Bottom nav: 0 home, 1 appointments, 2 profile
   int _bottomNavIndex = 0;
@@ -345,20 +346,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               ],
             ),
             child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(radius),
-                gradient: LinearGradient(
-                  begin: AlignmentDirectional.centerStart,
-                  end: AlignmentDirectional.centerEnd,
-                  colors: [
-                    _kPremiumDeepBlue,
-                    _kPremiumDeepBlue.withValues(alpha: 0.35),
-                    _kPremiumDeepBlue.withValues(alpha: 0.06),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.18, 0.42, 0.72],
-                ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: [
+                  _kPremiumDeepBlue,
+                  _kPremiumDeepBlue.withValues(alpha: 0.35),
+                  _kPremiumDeepBlue.withValues(alpha: 0.06),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.18, 0.42, 0.72],
               ),
+            ),
               padding: const EdgeInsets.all(borderW),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(innerRadius),
@@ -422,6 +423,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     ),
                     TextField(
                       controller: _searchController,
+                      focusNode: _searchFocusNode,
                       onChanged: (_) => setState(() {}),
                       textAlign: TextAlign.start,
                       style: const TextStyle(
@@ -518,10 +520,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     softWrap: true,
                     overflow: TextOverflow.fade,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.notoSansArabic(
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      fontSize: 12,
-                      height: 1.15,
+                    style: TextStyle(
+                      fontFamily: kPatientNrtBoldFont,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      height: 1.12,
                       color: selected
                           ? _categoryLabelDark(catKey)
                           : _categoryLabelDark(catKey).withValues(alpha: 0.82),
@@ -670,7 +673,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     borderRadius: BorderRadius.circular(16.5),
                     clipBehavior: Clip.antiAlias,
                     child: ColoredBox(
-                      color: _kSkyTop.withValues(alpha: 0.82),
+                      color: kPatientSkyTop.withValues(alpha: 0.82),
                       child: ListView.separated(
                         padding: const EdgeInsetsDirectional.fromSTEB(
                           12,
@@ -720,9 +723,26 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     BuildContext context,
     AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
   ) {
+    final selectedLabel = _selectedCategory == kPatientSpecialtyAllKey
+        ? null
+        : S.of(context).translate(_selectedCategory);
+    final dynamicDoctorsTitle = selectedLabel == null
+        ? 'هەموو پزیشکەکان'
+        : 'پزیشکانی $selectedLabel';
+
+    final categoryTitleSliver = SliverToBoxAdapter(
+      child: SizedBox(
+        height: _kHomeDoctorsCategoryHeaderExtent,
+        child: _DoctorsCategoryLightGlassHeaderBody(
+          title: dynamicDoctorsTitle,
+        ),
+      ),
+    );
+
     if (snapshot.connectionState == ConnectionState.waiting &&
         !snapshot.hasData) {
       return [
+        categoryTitleSliver,
         const SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
@@ -736,6 +756,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     }
     if (snapshot.hasError) {
       return [
+        categoryTitleSliver,
         SliverFillRemaining(
           hasScrollBody: false,
           child: Padding(
@@ -763,38 +784,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final filtered = _applyLocalFilters(docs);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final padBottom = 24.0 + bottomInset + 8;
-    final selectedLabel = _selectedCategory == kPatientSpecialtyAllKey
-        ? null
-        : S.of(context).translate(_selectedCategory);
-    final dynamicDoctorsTitle = selectedLabel == null
-        ? 'هەموو پزیشکەکان'
-        : 'پزیشکانی $selectedLabel';
-
-    final header = SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              dynamicDoctorsTitle,
-              textAlign: TextAlign.start,
-              style: GoogleFonts.notoSansArabic(
-                color: _kDarkBlue,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-                height: 1.15,
-              ),
-            ),
-            const SizedBox(height: 6),
-          ],
-        ),
-      ),
-    );
 
     if (filtered.isEmpty) {
       return [
-        header,
+        categoryTitleSliver,
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
@@ -813,9 +806,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     }
 
     return [
-      header,
+      categoryTitleSliver,
       SliverPadding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, padBottom),
+        padding: EdgeInsets.fromLTRB(16, 10, 16, padBottom),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             addRepaintBoundaries: false,
@@ -909,10 +902,17 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       ),
     );
     _homeFabIntroController.forward();
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchFocusNode.dispose();
     _menuDimController.dispose();
     _homeFabIntroController.dispose();
     _searchController.dispose();
@@ -921,6 +921,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
   void _onBottomNavTap(int index) {
     HapticFeedback.lightImpact();
+    if (index != 0) {
+      _searchFocusNode.unfocus();
+    }
     setState(() => _bottomNavIndex = index);
   }
 
@@ -1439,18 +1442,17 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         resizeToAvoidBottomInset: true,
-        backgroundColor: _kSkyTop,
+        backgroundColor: kPatientSkyTop,
         body: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_kSkyTop, _kSkyBottom],
-            ),
-          ),
+          decoration: patientSkyGradientDecoration(),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: PatientSubtleGeometricPatternPainter(),
+                ),
+              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1469,7 +1471,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       ],
                     ),
                   ),
-                  _buildGlassBottomNav(context),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.bottomCenter,
+                    child: _searchFocusNode.hasFocus && _bottomNavIndex == 0
+                        ? const SizedBox.shrink()
+                        : _buildGlassBottomNav(context),
+                  ),
                 ],
               ),
               Positioned.fill(
@@ -1499,46 +1508,58 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Single [CustomScrollView]: pinned headers + doctor slivers (no nested scroll overflow).
+  /// Home: fixed search + specialty strip; only category title + doctor list scroll (title passes under strip).
   Widget _buildHomeContent() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _approvedDoctorsStream,
       builder: (context, snapshot) {
-        return CustomScrollView(
-          key: const ValueKey<String>('home_doctors_scroll'),
-          physics: patientHomePrimaryScrollPhysics,
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickySectionDelegate(
-                extent: _kHomeSearchHeaderExtent,
-                builder: (context, shrinkOffset, overlapsContent) {
-                  return Material(
-                    color: _kSkyTop,
-                    surfaceTintColor: Colors.transparent,
-                    elevation: overlapsContent ? 2 : 0,
-                    shadowColor: Colors.black26,
-                    child: _buildThinSearchBar(context),
-                  );
-                },
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: kPatientSkyTop,
+              surfaceTintColor: Colors.transparent,
+              elevation: 2,
+              shadowColor: Colors.black26,
+              child: SizedBox(
+                height: _kHomeSearchHeaderExtent,
+                child: _buildThinSearchBar(context),
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickySectionDelegate(
-                extent: _kHomeSpecialtiesHeaderExtent,
-                builder: (context, shrinkOffset, overlapsContent) {
-                  return Material(
-                    color: _kSkyTop,
-                    surfaceTintColor: Colors.transparent,
-                    elevation: overlapsContent ? 2 : 0,
-                    shadowColor: Colors.black26,
-                    child: _buildPinnedSpecialtiesSection(context),
-                  );
-                },
+            Expanded(
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  CustomScrollView(
+                    key: const ValueKey<String>('home_doctors_scroll'),
+                    physics: patientHomePrimaryScrollPhysics,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: _kHomeSpecialtiesHeaderExtent,
+                        ),
+                      ),
+                      ..._buildDoctorSlivers(context, snapshot),
+                    ],
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: _kHomeSpecialtiesHeaderExtent,
+                    child: Material(
+                      color: kPatientSkyTop,
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 10,
+                      shadowColor: Colors.black26,
+                      child: ClipRect(
+                        child: _buildPinnedSpecialtiesSection(context),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ..._buildDoctorSlivers(context, snapshot),
           ],
         );
       },
@@ -1546,38 +1567,70 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   }
 }
 
-/// Fixed-height pinned block for [SliverPersistentHeader].
-class _StickySectionDelegate extends SliverPersistentHeaderDelegate {
-  _StickySectionDelegate({required this.extent, required this.builder});
+/// Light frosted sticky bar for the dynamic doctors category title.
+class _DoctorsCategoryLightGlassHeaderBody extends StatelessWidget {
+  const _DoctorsCategoryLightGlassHeaderBody({required this.title});
 
-  final double extent;
-  final Widget Function(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  )
-  builder;
+  final String title;
 
   @override
-  double get minExtent => extent;
-
-  @override
-  double get maxExtent => extent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox(
-      height: extent,
-      child: builder(context, shrinkOffset, overlapsContent),
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    width: 0.75,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              child: ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (Rect bounds) {
+                  return LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      _kDoctorNameNavy,
+                      _kPremiumBlueMid,
+                    ],
+                  ).createShader(bounds);
+                },
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: kPatientNrtBoldFont,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    height: 1.12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
-
-  @override
-  bool shouldRebuild(covariant _StickySectionDelegate oldDelegate) => true;
 }
 
 /// Home tab body for [PatientHomeScreen] (doctors browse only).
