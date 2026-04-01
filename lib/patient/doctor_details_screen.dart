@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../auth/patient_doc_resolver.dart';
 import '../locale/app_locale.dart';
@@ -12,28 +13,54 @@ import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import '../theme/patient_premium_theme.dart';
 import 'patient_available_days_list.dart';
+import 'patient_scroll_physics.dart';
 
-const Color _kSkyTop = kPatientSkyTop;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
 const Color _kBodyGrey = Color(0xFF455A64);
-const Color _kSectionTitle = Color(0xFF0D47A1);
-const Color _kHonorificGlowGold = Color(0xFFC9A227);
-const String _kDoctorHonorificPrefix = 'د. ';
+const Color _kGoldDark = Color(0xFF8B6914);
+const Color _kGoldMid = Color(0xFFD4AF37);
+const Color _kGoldLight = Color(0xFFF6E7A6);
+const Color _kGoldShine = Color(0xFFFFE082);
+/// Deep navy for text on bright gold (strong contrast).
+const Color _kSpecialtyBadgeTextNavy = Color(0xFF0A1931);
+const Color _kVerifiedShieldBlue = Color(0xFF0D47A1);
+const Color _kVerifiedShieldHighlight = Color(0xFF42A5F5);
 
-/// Prefixes [_kDoctorHonorificPrefix] when the name has no doctor-style prefix yet.
-String honorificDoctorDisplayName(String rawName) {
-  var t = rawName.trim();
-  if (t.isEmpty) return t;
-  final lower = t.toLowerCase();
-  if (lower.startsWith('د.') ||
-      lower.startsWith('د .') ||
-      lower.startsWith('dr.') ||
-      lower.startsWith('dr ')) {
-    return t;
-  }
-  return '$_kDoctorHonorificPrefix$t';
-}
+/// Kept for call sites; returns the name exactly as stored (no honorific prefix).
+String honorificDoctorDisplayName(String rawName) => rawName.trim();
+
+const LinearGradient _kMetallicGoldGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    _kGoldDark,
+    _kGoldMid,
+    _kGoldShine,
+    _kGoldLight,
+    _kGoldMid,
+    _kGoldDark,
+  ],
+  stops: [0.0, 0.22, 0.42, 0.55, 0.78, 1.0],
+);
+
+/// Richer gold: darker at edges, brighter band in the center (specialty pill).
+const LinearGradient _kSpecialtyBadgeGoldGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFF5C4810),
+    Color(0xFF7A5F12),
+    _kGoldMid,
+    Color(0xFFFFF4C2),
+    _kGoldShine,
+    Color(0xFFFFF4C2),
+    _kGoldMid,
+    Color(0xFF7A5F12),
+    Color(0xFF5C4810),
+  ],
+  stops: [0.0, 0.12, 0.28, 0.42, 0.5, 0.58, 0.72, 0.88, 1.0],
+);
 
 class DoctorDetailsScreen extends StatefulWidget {
   const DoctorDetailsScreen({
@@ -61,104 +88,564 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
   String get _doctorUid => widget.doctorId.trim();
 
+  Widget _ambientBackground() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: patientSkyGradientDecoration(),
+          child: const SizedBox.expand(),
+        ),
+        CustomPaint(
+          painter: PatientSubtleGeometricPatternPainter(),
+          child: const SizedBox.expand(),
+        ),
+        CustomPaint(
+          painter: _SubtleMedicalGlyphsPainter(),
+          child: const SizedBox.expand(),
+        ),
+      ],
+    );
+  }
+
+  Widget _sliverAppBar(
+    BuildContext context,
+    String displayName,
+    AppLocalizations s,
+  ) {
+    return SliverAppBar(
+      pinned: true,
+      stretch: true,
+      expandedHeight: 92,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      forceMaterialTransparency: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_forward_ios_rounded),
+        color: _kDoctorNameNavy,
+        onPressed: () => Navigator.pop(context),
+        tooltip: s.translate('tooltip_back'),
+      ),
+      flexibleSpace: ClipRect(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.34),
+                      Colors.white.withValues(alpha: 0.14),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            FlexibleSpaceBar(
+              centerTitle: false,
+              titlePadding: const EdgeInsetsDirectional.only(
+                start: 48,
+                bottom: 14,
+                end: 12,
+              ),
+              title: Text(
+                displayName,
+                style: const TextStyle(
+                  fontFamily: kPatientNrtBoldFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: _kDoctorNameNavy,
+                  letterSpacing: 0.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _goldIconBubble(IconData icon) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: _kMetallicGoldGradient,
+        boxShadow: [
+          BoxShadow(
+            color: _kGoldMid.withValues(alpha: 0.38),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: 22),
+    );
+  }
+
+  Widget _profileHeroCard({
+    required TextDirection appTextDir,
+    required String doctorDisplayName,
+    required String mergedSpecialty,
+    required String profileImageUrl,
+    required BuildContext context,
+  }) {
+    final s = S.of(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.72),
+                Colors.white.withValues(alpha: 0.42),
+                const Color(0xFFFFF8E1).withValues(alpha: 0.28),
+              ],
+            ),
+            border: Border.all(
+              color: _kGoldMid.withValues(alpha: 0.75),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+              BoxShadow(
+                color: _kGoldMid.withValues(alpha: 0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+            child: Row(
+              textDirection: appTextDir,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _kGoldMid.withValues(alpha: 0.9),
+                      width: 0.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kGoldMid.withValues(alpha: 0.22),
+                        blurRadius: 14,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFE3F2FD),
+                      ),
+                      child: ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: profileImageUrl.isNotEmpty
+                              ? profileImageUrl
+                              : _placeholderImageUrl,
+                          fit: BoxFit.cover,
+                          memCacheWidth: 180,
+                          memCacheHeight: 180,
+                          fadeInDuration: Duration.zero,
+                          fadeOutDuration: Duration.zero,
+                          placeholder: (context, url) => Container(
+                            color: const Color(0xFFE3F2FD),
+                            alignment: Alignment.center,
+                            child: const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF1565C0),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: const Color(0xFFE3F2FD),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.medical_services_rounded,
+                              color: Color(0xFF1565C0),
+                              size: 30,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        textDirection: appTextDir,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              doctorDisplayName,
+                              textAlign: TextAlign.start,
+                              style: const TextStyle(
+                                color: _kDoctorNameNavy,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: kPatientNrtBoldFont,
+                                height: 1.15,
+                                letterSpacing: 0.25,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.verified_user_rounded,
+                            color: _kVerifiedShieldBlue,
+                            size: 30,
+                            shadows: [
+                              Shadow(
+                                color: _kVerifiedShieldHighlight.withValues(
+                                  alpha: 0.65,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 1),
+                              ),
+                              Shadow(
+                                color: Colors.white.withValues(alpha: 0.45),
+                                blurRadius: 4,
+                                offset: const Offset(0, -0.5),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            gradient: _kSpecialtyBadgeGoldGradient,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kGoldDark.withValues(alpha: 0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 9,
+                            ),
+                            child: Text(
+                              s.translate(
+                                'specialty_colon',
+                                params: {
+                                  'value': translatedSpecialtyForFirestore(
+                                    context,
+                                    mergedSpecialty,
+                                  ),
+                                },
+                              ),
+                              textAlign: TextAlign.start,
+                              style: TextStyle(
+                                color: _kSpecialtyBadgeTextNavy,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: kPatientNrtBoldFont,
+                                height: 1.25,
+                                letterSpacing: 0.15,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.white.withValues(
+                                      alpha: 0.55,
+                                    ),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 0.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassInfoCard({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withValues(alpha: 0.48),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.82),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _kPremiumDeepBlue.withValues(alpha: 0.06),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _goldIconBubble(icon),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: kPatientNrtBoldFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                          color: _kDoctorNameNavy,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ...children,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _goldBookButton({
+    required BuildContext context,
+    required VoidCallback onTap,
+  }) {
+    final s = S.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: _DoctorDetailsPressableScale(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: _kMetallicGoldGradient,
+              border: Border.all(
+                color: _kGoldLight.withValues(alpha: 0.65),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _kGoldDark.withValues(alpha: 0.42),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: _kGoldMid.withValues(alpha: 0.28),
+                  blurRadius: 26,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: 18,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.calendar_month_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    s.translate('book_now'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: kPatientNrtBoldFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: Colors.white,
+                      height: 1.25,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildGuestSlivers({
+    required BuildContext context,
+    required String doctorDisplayName,
+    required AppLocalizations s,
+    required Widget bookingChild,
+  }) {
+    return [
+      _sliverAppBar(context, doctorDisplayName, s),
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        sliver: SliverToBoxAdapter(child: bookingChild),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final appTextDir = AppLocaleScope.of(context).textDirection;
     final s = S.of(context);
     final lang = AppLocaleScope.of(context).effectiveLanguage;
-    var doctorName = localizedDoctorFullName(widget.doctorData, lang);
-    if (doctorName.isEmpty) {
-      doctorName =
-          (widget.doctorData['fullName'] ?? s.translate('doctor_default'))
-              .toString();
-    }
-    final specialty = (widget.doctorData['specialty'] ?? '—').toString();
 
     return Directionality(
       textDirection: appTextDir,
       child: Scaffold(
-        backgroundColor: _kSkyTop,
-        appBar: AppBar(
-          backgroundColor: Colors.white.withValues(alpha: 0.92),
-          foregroundColor: _kDoctorNameNavy,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          shadowColor: Colors.black26,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded),
-            onPressed: () => Navigator.pop(context),
-            tooltip: s.translate('tooltip_back'),
-          ),
-          title: Text(
-            honorificDoctorDisplayName(doctorName),
-            style: const TextStyle(
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w800,
-              fontSize: 17,
-              color: _kDoctorNameNavy,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        body: DecoratedBox(
-          decoration: patientSkyGradientDecoration(),
-          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(_doctorUid)
-                .snapshots(),
-            builder: (context, snap) {
-              final merged = <String, dynamic>{
-                ...widget.doctorData,
-                if (snap.data?.data() != null) ...snap.data!.data()!,
-              };
-              final mergedSpecialty = (merged['specialty'] ?? specialty)
-                  .toString();
-              var doctorDisplayName = localizedDoctorFullName(merged, lang);
-              if (doctorDisplayName.isEmpty) {
-                doctorDisplayName = (merged['fullName'] ?? doctorName)
-                    .toString();
-              }
-              final profileImageUrl = (merged['profileImageUrl'] ?? '')
-                  .toString()
-                  .trim();
-              return user == null
-                  ? SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: PatientAvailableDaysList(
-                          doctorId: _doctorUid,
-                          patientName: s.translate('patient_default'),
-                          doctorDisplayName: doctorDisplayName,
-                          mergedDoctorData: merged,
-                        ),
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            _ambientBackground(),
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(_doctorUid)
+                  .snapshots(),
+              builder: (context, snap) {
+                final merged = <String, dynamic>{
+                  ...widget.doctorData,
+                  if (snap.data?.data() != null) ...snap.data!.data()!,
+                };
+                var doctorDisplayName =
+                    localizedDoctorFullName(merged, lang);
+                if (doctorDisplayName.isEmpty) {
+                  doctorDisplayName =
+                      (merged['fullName'] ?? s.translate('doctor_default'))
+                          .toString();
+                }
+                doctorDisplayName = doctorDisplayName.trim();
+                final mergedSpecialty =
+                    (merged['specialty'] ?? '—').toString();
+                final profileImageUrl =
+                    (merged['profileImageUrl'] ?? '').toString().trim();
+
+                if (user == null) {
+                  return CustomScrollView(
+                    physics: patientHomePrimaryScrollPhysics,
+                    slivers: _buildGuestSlivers(
+                      context: context,
+                      doctorDisplayName: doctorDisplayName,
+                      s: s,
+                      bookingChild: PatientAvailableDaysList(
+                        doctorId: _doctorUid,
+                        patientName: s.translate('patient_default'),
+                        doctorDisplayName: doctorDisplayName,
+                        mergedDoctorData: merged,
                       ),
-                    )
-                  : FutureBuilder<String?>(
-                      future: resolvePatientUserDocId(user),
-                      builder: (context, idSnap) {
-                        if (idSnap.connectionState == ConnectionState.waiting &&
-                            !idSnap.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-                          );
-                        }
-                        final pid = (idSnap.data ?? '').trim();
-                        if (pid.isEmpty) {
-                          return SingleChildScrollView(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 18),
-                              child: PatientAvailableDaysList(
-                                doctorId: _doctorUid,
-                                patientName: s.translate('patient_default'),
-                                doctorDisplayName: doctorDisplayName,
-                                mergedDoctorData: merged,
+                    ),
+                  );
+                }
+
+                return FutureBuilder<String?>(
+                  future: resolvePatientUserDocId(user),
+                  builder: (context, idSnap) {
+                    if (idSnap.connectionState == ConnectionState.waiting &&
+                        !idSnap.hasData) {
+                      return CustomScrollView(
+                        physics: patientHomePrimaryScrollPhysics,
+                        slivers: [
+                          _sliverAppBar(context, doctorDisplayName, s),
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF42A5F5),
                               ),
                             ),
-                          );
-                        }
-                        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          ),
+                        ],
+                      );
+                    }
+                    final pid = (idSnap.data ?? '').trim();
+                    if (pid.isEmpty) {
+                      return CustomScrollView(
+                        physics: patientHomePrimaryScrollPhysics,
+                        slivers: _buildGuestSlivers(
+                          context: context,
+                          doctorDisplayName: doctorDisplayName,
+                          s: s,
+                          bookingChild: PatientAvailableDaysList(
+                            doctorId: _doctorUid,
+                            patientName: s.translate('patient_default'),
+                            doctorDisplayName: doctorDisplayName,
+                            mergedDoctorData: merged,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return StreamBuilder<
+                        DocumentSnapshot<Map<String, dynamic>>>(
                       stream: FirebaseFirestore.instance
                           .collection('users')
                           .doc(pid)
@@ -166,17 +653,14 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                       builder: (context, patientSnap) {
                         final patientWaiting =
                             patientSnap.connectionState ==
-                                ConnectionState.waiting &&
-                            !patientSnap.hasData;
+                                    ConnectionState.waiting &&
+                                !patientSnap.hasData;
                         final patientName = patientWaiting
                             ? s.translate('patient_default')
                             : (patientSnap.data?.data()?['fullName'] ??
                                       s.translate('patient_default'))
                                   .toString();
 
-                        final lang = AppLocaleScope.of(
-                          context,
-                        ).effectiveLanguage;
                         final bio = localizedDoctorField(
                           merged,
                           lang,
@@ -219,643 +703,293 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           }
                         }
 
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(26),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 16,
-                                    sigmaY: 16,
-                                  ),
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.52,
-                                      ),
-                                      borderRadius: BorderRadius.circular(26),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.78,
-                                        ),
-                                        width: 1,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _kPremiumDeepBlue.withValues(
-                                            alpha: 0.08,
-                                          ),
-                                          blurRadius: 24,
-                                          offset: const Offset(0, 10),
-                                        ),
-                                      ],
+                        final bottomInset =
+                            MediaQuery.paddingOf(context).bottom;
+
+                        return CustomScrollView(
+                          physics: patientHomePrimaryScrollPhysics,
+                          slivers: [
+                            _sliverAppBar(context, doctorDisplayName, s),
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                16,
+                                8,
+                                16,
+                                24 + bottomInset,
+                              ),
+                              sliver: SliverToBoxAdapter(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _profileHeroCard(
+                                      appTextDir: appTextDir,
+                                      doctorDisplayName: doctorDisplayName,
+                                      mergedSpecialty: mergedSpecialty,
+                                      profileImageUrl: profileImageUrl,
+                                      context: context,
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        24,
-                                        26,
-                                        24,
-                                        26,
-                                      ),
-                                      child: Row(
-                                        textDirection: appTextDir,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
+                                    if (bio.isNotEmpty) ...[
+                                      const SizedBox(height: 18),
+                                      _glassInfoCard(
+                                        icon: Icons.health_and_safety_rounded,
+                                        title: s.translate(
+                                          'doctor_profile_about',
+                                        ),
                                         children: [
-                                          Container(
-                                            width: 76,
-                                            height: 76,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 3,
+                                          Text(
+                                            bio,
+                                            textAlign: TextAlign.start,
+                                            style: TextStyle(
+                                              color: _kBodyGrey.withValues(
+                                                alpha: 0.95,
                                               ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: const Color(
-                                                    0xFF90CAF9,
-                                                  ).withValues(alpha: 0.55),
-                                                  blurRadius: 16,
-                                                  spreadRadius: 1,
-                                                ),
-                                              ],
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(3),
-                                              child: DecoratedBox(
-                                                decoration: const BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: Color(0xFFE3F2FD),
-                                                ),
-                                                child: ClipOval(
-                                                  child: CachedNetworkImage(
-                                                    imageUrl:
-                                                        profileImageUrl.isNotEmpty
-                                                            ? profileImageUrl
-                                                            : _placeholderImageUrl,
-                                                    fit: BoxFit.cover,
-                                                    memCacheWidth: 180,
-                                                    memCacheHeight: 180,
-                                                    fadeInDuration:
-                                                        Duration.zero,
-                                                    fadeOutDuration:
-                                                        Duration.zero,
-                                                    placeholder:
-                                                        (context, url) =>
-                                                            Container(
-                                                      color: const Color(
-                                                        0xFFE3F2FD,
-                                                      ),
-                                                      alignment:
-                                                          Alignment.center,
-                                                      child: const SizedBox(
-                                                        width: 28,
-                                                        height: 28,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Color(
-                                                            0xFF1565C0,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    errorWidget:
-                                                        (context, url, error) =>
-                                                            Container(
-                                                      color: const Color(
-                                                        0xFFE3F2FD,
-                                                      ),
-                                                      alignment:
-                                                          Alignment.center,
-                                                      child: const Icon(
-                                                        Icons
-                                                            .medical_services_rounded,
-                                                        color: Color(
-                                                          0xFF1565C0,
-                                                        ),
-                                                        size: 30,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 18),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                  child: BackdropFilter(
-                                                    filter: ImageFilter.blur(
-                                                      sigmaX: 12,
-                                                      sigmaY: 12,
-                                                    ),
-                                                    child: DecoratedBox(
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white
-                                                            .withValues(
-                                                              alpha: 0.72,
-                                                            ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              16,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: Colors.white
-                                                              .withValues(
-                                                                alpha: 0.95,
-                                                              ),
-                                                          width: 1.2,
-                                                        ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color:
-                                                                _kHonorificGlowGold
-                                                                    .withValues(
-                                                                      alpha:
-                                                                          0.2,
-                                                                    ),
-                                                            blurRadius: 18,
-                                                            spreadRadius: 0,
-                                                            offset:
-                                                                const Offset(
-                                                                  0,
-                                                                  4,
-                                                                ),
-                                                          ),
-                                                          BoxShadow(
-                                                            color:
-                                                                const Color(
-                                                                  0xFF1565C0,
-                                                                ).withValues(
-                                                                  alpha: 0.22,
-                                                                ),
-                                                            blurRadius: 22,
-                                                            spreadRadius: -2,
-                                                            offset:
-                                                                const Offset(
-                                                                  0,
-                                                                  2,
-                                                                ),
-                                                          ),
-                                                          BoxShadow(
-                                                            color: Colors.black
-                                                                .withValues(
-                                                                  alpha: 0.05,
-                                                                ),
-                                                            blurRadius: 14,
-                                                            offset:
-                                                                const Offset(
-                                                                  0,
-                                                                  6,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 14,
-                                                              vertical: 12,
-                                                            ),
-                                                        child: Row(
-                                                          textDirection:
-                                                              appTextDir,
-                                                          children: [
-                                                            Flexible(
-                                                              child: Text(
-                                                                honorificDoctorDisplayName(
-                                                                  doctorDisplayName,
-                                                                ),
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .start,
-                                                                style: const TextStyle(
-                                                                  color:
-                                                                      _kDoctorNameNavy,
-                                                                  fontSize: 22,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w900,
-                                                                  fontFamily:
-                                                                      'KurdishFont',
-                                                                  height: 1.15,
-                                                                  letterSpacing:
-                                                                      0.4,
-                                                                  shadows: [
-                                                                    Shadow(
-                                                                      color: Color(
-                                                                        0x1AFFFFFF,
-                                                                      ),
-                                                                      blurRadius:
-                                                                          6,
-                                                                      offset:
-                                                                          Offset(
-                                                                            0,
-                                                                            1,
-                                                                          ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 8,
-                                                            ),
-                                                            Icon(
-                                                              Icons
-                                                                  .verified_user_rounded,
-                                                              color:
-                                                                  const Color(
-                                                                    0xFF1565C0,
-                                                                  ),
-                                                              size: 26,
-                                                              shadows: [
-                                                                Shadow(
-                                                                  color:
-                                                                      Color(
-                                                                        0xFF90CAF9,
-                                                                      ).withValues(
-                                                                        alpha:
-                                                                            0.65,
-                                                                      ),
-                                                                  blurRadius: 8,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 14),
-                                                Align(
-                                                  alignment:
-                                                      AlignmentDirectional
-                                                          .centerStart,
-                                                  child: DecoratedBox(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            24,
-                                                          ),
-                                                      gradient:
-                                                          const LinearGradient(
-                                                            begin: Alignment
-                                                                .centerLeft,
-                                                            end: Alignment
-                                                                .centerRight,
-                                                            colors: [
-                                                              Color(0xFF1976D2),
-                                                              Color(0xFF0D47A1),
-                                                            ],
-                                                          ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color:
-                                                              const Color(
-                                                                0xFF1976D2,
-                                                              ).withValues(
-                                                                alpha: 0.28,
-                                                              ),
-                                                          blurRadius: 10,
-                                                          offset: const Offset(
-                                                            0,
-                                                            4,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 14,
-                                                            vertical: 8,
-                                                          ),
-                                                      child: Text(
-                                                        s.translate(
-                                                          'specialty_colon',
-                                                          params: {
-                                                            'value':
-                                                                translatedSpecialtyForFirestore(
-                                                                  context,
-                                                                  mergedSpecialty,
-                                                                ),
-                                                          },
-                                                        ),
-                                                        textAlign:
-                                                            TextAlign.start,
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          fontFamily:
-                                                              'KurdishFont',
-                                                          height: 1.25,
-                                                          letterSpacing: 0.15,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                              fontSize: 15,
+                                              fontFamily: 'KurdishFont',
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.5,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (bio.isNotEmpty) ...[
-                                Text(
-                                  s.translate('doctor_profile_about'),
-                                  textAlign: TextAlign.start,
-                                  style: const TextStyle(
-                                    color: _kSectionTitle,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: 'KurdishFont',
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  bio,
-                                  textAlign: TextAlign.start,
-                                  style: TextStyle(
-                                    color: _kBodyGrey.withValues(alpha: 0.95),
-                                    fontSize: 15,
-                                    fontFamily: 'KurdishFont',
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.45,
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              if (experienceText.isNotEmpty) ...[
-                                Text(
-                                  s.translate('doctor_profile_experience'),
-                                  textAlign: TextAlign.start,
-                                  style: const TextStyle(
-                                    color: _kSectionTitle,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: 'KurdishFont',
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  experienceText,
-                                  textAlign: TextAlign.start,
-                                  style: TextStyle(
-                                    color: _kBodyGrey.withValues(alpha: 0.95),
-                                    fontSize: 15,
-                                    fontFamily: 'KurdishFont',
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.45,
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              if (hospital.isNotEmpty ||
-                                  address.isNotEmpty) ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: 12,
-                                      sigmaY: 12,
-                                    ),
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.48,
+                                    ],
+                                    if (experienceText.isNotEmpty) ...[
+                                      const SizedBox(height: 16),
+                                      _glassInfoCard(
+                                        icon: Icons.workspace_premium_rounded,
+                                        title: s.translate(
+                                          'doctor_profile_experience',
                                         ),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.75,
+                                        children: [
+                                          Text(
+                                            experienceText,
+                                            textAlign: TextAlign.start,
+                                            style: TextStyle(
+                                              color: _kBodyGrey.withValues(
+                                                alpha: 0.95,
+                                              ),
+                                              fontSize: 15,
+                                              fontFamily: 'KurdishFont',
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.5,
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
+                                    ],
+                                    if (hospital.isNotEmpty ||
+                                        address.isNotEmpty) ...[
+                                      const SizedBox(height: 16),
+                                      _glassInfoCard(
+                                        icon: Icons.location_on_rounded,
+                                        title: s.translate(
+                                          'doctor_profile_location',
+                                        ),
+                                        children: [
+                                          if (hospital.isNotEmpty) ...[
                                             Text(
                                               s.translate(
-                                                'doctor_profile_location',
+                                                'doctor_profile_hospital_label',
                                               ),
+                                              style: TextStyle(
+                                                color: _kGoldDark.withValues(
+                                                  alpha: 0.85,
+                                                ),
+                                                fontSize: 12,
+                                                fontFamily: kPatientNrtBoldFont,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              hospital,
                                               textAlign: TextAlign.start,
-                                              style: const TextStyle(
-                                                color: _kSectionTitle,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w800,
+                                              style: TextStyle(
+                                                color: _kBodyGrey.withValues(
+                                                  alpha: 0.95,
+                                                ),
+                                                fontSize: 15,
                                                 fontFamily: 'KurdishFont',
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.45,
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            if (hospital.isNotEmpty) ...[
-                                              Text(
-                                                s.translate(
-                                                  'doctor_profile_hospital_label',
-                                                ),
-                                                style: TextStyle(
-                                                  color: _kPremiumDeepBlue
-                                                      .withValues(alpha: 0.75),
-                                                  fontSize: 12,
-                                                  fontFamily: 'KurdishFont',
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                hospital,
-                                                textAlign: TextAlign.start,
-                                                style: TextStyle(
-                                                  color: _kBodyGrey.withValues(
-                                                    alpha: 0.95,
-                                                  ),
-                                                  fontSize: 15,
-                                                  fontFamily: 'KurdishFont',
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 12),
-                                            ],
-                                            if (address.isNotEmpty) ...[
-                                              Text(
-                                                s.translate(
-                                                  'doctor_profile_address_label',
-                                                ),
-                                                style: TextStyle(
-                                                  color: _kPremiumDeepBlue
-                                                      .withValues(alpha: 0.75),
-                                                  fontSize: 12,
-                                                  fontFamily: 'KurdishFont',
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                address,
-                                                textAlign: TextAlign.start,
-                                                style: TextStyle(
-                                                  color: _kBodyGrey.withValues(
-                                                    alpha: 0.95,
-                                                  ),
-                                                  fontSize: 15,
-                                                  fontFamily: 'KurdishFont',
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
                                           ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                              ],
-                              if (widget.showBookingSection) ...[
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Center(
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 400,
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () {
-                                            final ctx =
-                                                _bookingSectionKey
-                                                    .currentContext;
-                                            if (ctx != null) {
-                                              Scrollable.ensureVisible(
-                                                ctx,
-                                                duration: const Duration(
-                                                  milliseconds: 420,
-                                                ),
-                                                curve: Curves.easeOutCubic,
-                                                alignment: 0.12,
-                                              );
-                                            }
-                                          },
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          child: Ink(
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                16,
+                                          if (hospital.isNotEmpty &&
+                                              address.isNotEmpty)
+                                            const SizedBox(height: 14),
+                                          if (address.isNotEmpty) ...[
+                                            Text(
+                                              s.translate(
+                                                'doctor_profile_address_label',
                                               ),
-                                              gradient: const LinearGradient(
-                                                begin: Alignment.centerLeft,
-                                                end: Alignment.centerRight,
-                                                colors: [
-                                                  Color(0xFF1E88E5),
-                                                  Color(0xFF1565C0),
-                                                  Color(0xFF0D47A1),
-                                                ],
-                                                stops: [0.0, 0.45, 1.0],
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Color(
-                                                    0xFF1976D2,
-                                                  ).withValues(alpha: 0.48),
-                                                  blurRadius: 18,
-                                                  offset: const Offset(0, 8),
-                                                  spreadRadius: 0,
+                                              style: TextStyle(
+                                                color: _kGoldDark.withValues(
+                                                  alpha: 0.85,
                                                 ),
-                                                BoxShadow(
-                                                  color: Color(
-                                                    0xFF42A5F5,
-                                                  ).withValues(alpha: 0.22),
-                                                  blurRadius: 28,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical: 16,
-                                                horizontal: 18,
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  const Icon(
-                                                    Icons.calendar_month_rounded,
-                                                    color: Colors.white,
-                                                    size: 24,
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Flexible(
-                                                    child: Text(
-                                                      s.translate('book_now'),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: const TextStyle(
-                                                        fontFamily:
-                                                            'KurdishFont',
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        fontSize: 15,
-                                                        color: Colors.white,
-                                                        height: 1.25,
-                                                        letterSpacing: 0.2,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
+                                                fontSize: 12,
+                                                fontFamily: kPatientNrtBoldFont,
+                                                fontWeight: FontWeight.w700,
                                               ),
                                             ),
-                                          ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              address,
+                                              textAlign: TextAlign.start,
+                                              style: TextStyle(
+                                                color: _kBodyGrey.withValues(
+                                                  alpha: 0.95,
+                                                ),
+                                                fontSize: 15,
+                                                fontFamily: 'KurdishFont',
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.45,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                    if (widget.showBookingSection) ...[
+                                      const SizedBox(height: 22),
+                                      _goldBookButton(
+                                        context: context,
+                                        onTap: () {
+                                          final ctx = _bookingSectionKey
+                                              .currentContext;
+                                          if (ctx != null) {
+                                            Scrollable.ensureVisible(
+                                              ctx,
+                                              duration: const Duration(
+                                                milliseconds: 420,
+                                              ),
+                                              curve: Curves.easeOutCubic,
+                                              alignment: 0.12,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(height: 16),
+                                      KeyedSubtree(
+                                        key: _bookingSectionKey,
+                                        child: PatientAvailableDaysList(
+                                          doctorId: _doctorUid,
+                                          patientName: patientName,
+                                          doctorDisplayName: doctorDisplayName,
+                                          mergedDoctorData: merged,
                                         ),
                                       ),
-                                    ),
-                                  ),
+                                    ],
+                                  ],
                                 ),
-                                KeyedSubtree(
-                                  key: _bookingSectionKey,
-                                  child: PatientAvailableDaysList(
-                                    doctorId: _doctorUid,
-                                    patientName: patientName,
-                                    doctorDisplayName: doctorDisplayName,
-                                    mergedDoctorData: merged,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     );
-                      },
-                    );
-            },
-          ),
+                  },
+                );
+              },
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Faint medical cross motif at very low opacity.
+class _SubtleMedicalGlyphsPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.032)
+      ..strokeWidth = 1.1
+      ..style = PaintingStyle.stroke;
+    const spacing = 110.0;
+    const arm = 12.0;
+    for (var y = 50.0; y < size.height; y += spacing) {
+      for (var x = 40.0; x < size.width; x += spacing * 1.15) {
+        canvas.drawLine(Offset(x - arm, y), Offset(x + arm, y), paint);
+        canvas.drawLine(Offset(x, y - arm), Offset(x, y + arm), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Same scale-down / bounce-back interaction as doctor card CTAs.
+class _DoctorDetailsPressableScale extends StatefulWidget {
+  const _DoctorDetailsPressableScale({
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_DoctorDetailsPressableScale> createState() =>
+      _DoctorDetailsPressableScaleState();
+}
+
+class _DoctorDetailsPressableScaleState extends State<_DoctorDetailsPressableScale>
+    with SingleTickerProviderStateMixin {
+  static const double _kPressedScale = 0.96;
+
+  late final AnimationController _scaleController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 115),
+    reverseDuration: const Duration(milliseconds: 135),
+  );
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: _kPressedScale,
+  ).animate(
+    CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutBack,
+    ),
+  );
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _pressDown() {
+    HapticFeedback.lightImpact();
+    _scaleController.forward();
+  }
+
+  void _pressEnd() {
+    _scaleController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _pressDown(),
+      onTapUp: (_) => _pressEnd(),
+      onTapCancel: _pressEnd,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            alignment: Alignment.center,
+            child: child,
+          );
+        },
+        child: widget.child,
       ),
     );
   }

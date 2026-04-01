@@ -206,8 +206,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   static const Color _mainBgTop = Colors.white;
   static const Color _mainBgBottom = Color(0xFFE3F2FD);
-
-  final List<Widget> _screens = [
+025+
     const ListiDoctorakanScreen(),
     const NotificationsScreen(),
     const ProfileScreen(),

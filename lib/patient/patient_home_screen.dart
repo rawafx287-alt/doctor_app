@@ -24,9 +24,7 @@ import 'my_appointments_screen.dart';
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
 /// Fixed height for specialty block (title + chip row + padding) under search.
-const double _kHomeSpecialtiesHeaderExtent = 184;
-/// Pinned glass bar for the dynamic doctors category title (2 lines max + padding).
-const double _kHomeDoctorsCategoryHeaderExtent = 72;
+const double _kHomeSpecialtiesHeaderExtent = 174;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -712,7 +710,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
             ),
             ),
           ),
-          const SizedBox(height: 10),
         ],
       ),
     );
@@ -723,26 +720,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     BuildContext context,
     AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
   ) {
-    final selectedLabel = _selectedCategory == kPatientSpecialtyAllKey
-        ? null
-        : S.of(context).translate(_selectedCategory);
-    final dynamicDoctorsTitle = selectedLabel == null
-        ? 'هەموو پزیشکەکان'
-        : 'پزیشکانی $selectedLabel';
-
-    final categoryTitleSliver = SliverToBoxAdapter(
-      child: SizedBox(
-        height: _kHomeDoctorsCategoryHeaderExtent,
-        child: _DoctorsCategoryLightGlassHeaderBody(
-          title: dynamicDoctorsTitle,
-        ),
-      ),
-    );
-
     if (snapshot.connectionState == ConnectionState.waiting &&
         !snapshot.hasData) {
       return [
-        categoryTitleSliver,
         const SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
@@ -756,7 +736,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     }
     if (snapshot.hasError) {
       return [
-        categoryTitleSliver,
         SliverFillRemaining(
           hasScrollBody: false,
           child: Padding(
@@ -787,7 +766,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
     if (filtered.isEmpty) {
       return [
-        categoryTitleSliver,
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
@@ -806,9 +784,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     }
 
     return [
-      categoryTitleSliver,
       SliverPadding(
-        padding: EdgeInsets.fromLTRB(16, 10, 16, padBottom),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             addRepaintBoundaries: false,
@@ -1563,72 +1540,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
           ],
         );
       },
-    );
-  }
-}
-
-/// Light frosted sticky bar for the dynamic doctors category title.
-class _DoctorsCategoryLightGlassHeaderBody extends StatelessWidget {
-  const _DoctorsCategoryLightGlassHeaderBody({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.3),
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    width: 0.75,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              child: ShaderMask(
-                blendMode: BlendMode.srcIn,
-                shaderCallback: (Rect bounds) {
-                  return LinearGradient(
-                    begin: Alignment.centerRight,
-                    end: Alignment.centerLeft,
-                    colors: [
-                      _kDoctorNameNavy,
-                      _kPremiumBlueMid,
-                    ],
-                  ).createShader(bounds);
-                },
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: kPatientNrtBoldFont,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                    height: 1.12,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

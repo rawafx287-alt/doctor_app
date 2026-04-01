@@ -1749,9 +1749,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'This day was closed. Booking is disabled.',
   },
   'available_days_patient_hint_calendar': {
-    'ckb': 'ڕۆژی سەوز هەڵبژێرە؛ کات بە شێوەی ئۆتۆماتیک دیاری دەکرێت.',
-    'ar': 'اختر يوماً أخضر؛ يُحدد الوقت تلقائياً.',
-    'en': 'Choose a green day; your time is assigned automatically.',
+    'ckb':
+        'تکایە یەکێک لە ڕۆژە بەردەستەکان (سەوز) هەڵبژێرە بۆ نۆرەگرتن.',
+    'ar':
+        'يُرجى اختيار أحد الأيام المتاحة (الخضراء) لحجز موعدك.',
+    'en':
+        'Please choose one of the available (mint) days to book your appointment.',
   },
   'available_days_patient_past_day': {
     'ckb': 'ناتوانیت بۆ ڕۆژی ڕابردوو نۆرە بگری.',
@@ -2130,6 +2133,106 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'پسپۆڕی: {value}',
     'ar': 'التخصص: {value}',
     'en': 'Specialty: {value}',
+  },
+  'patient_calendar_selected_heading': {
+    'ckb': 'ڕۆژی هەڵبژێردراو',
+    'ar': 'التاريخ المحدد',
+    'en': 'Selected date',
+  },
+  'patient_calendar_date_subline': {
+    'ckb': '{weekday}، {day}ی {month}',
+    'ar': '{weekday}، {day} {month}',
+    'en': '{weekday}, {month} {day}',
+  },
+  'patient_calendar_no_selection': {
+    'ckb': 'ڕۆژێک لە ڕۆژژمێر هەڵبژێرە',
+    'ar': 'اختر يوماً من التقويم',
+    'en': 'Pick a day on the calendar',
+  },
+  'patient_calendar_pick_open_day': {
+    'ckb': 'تکایە ڕۆژێکی بەردەست (سەوز) هەڵبژێرە، پاشان دووپات بکەرەوە',
+    'ar': 'اختر يوماً متاحاً (أخضر) ثم أكّد الحجز',
+    'en': 'Choose an available (green) day, then confirm',
+  },
+  'patient_calendar_view_schedule': {
+    'ckb': 'بینینی خشتە',
+    'ar': 'عرض الجدول',
+    'en': 'View schedule',
+  },
+  'patient_calendar_status_available': {
+    'ckb': 'دۆخی ڕۆژ: بەردەستە',
+    'ar': 'حالة اليوم: متاح',
+    'en': 'Day status: Available',
+  },
+  'patient_calendar_status_unavailable': {
+    'ckb': 'دۆخی ڕۆژ: داخراوە',
+    'ar': 'حالة اليوم: غير متاح',
+    'en': 'Day status: Unavailable',
+  },
+  'patient_calendar_status_pick': {
+    'ckb': 'دۆخی ڕۆژ: —',
+    'ar': 'حالة اليوم: —',
+    'en': 'Day status: —',
+  },
+  'cal_month_1': {
+    'ckb': 'کانوونی دووەم',
+    'ar': 'يناير',
+    'en': 'January',
+  },
+  'cal_month_2': {
+    'ckb': 'شوبات',
+    'ar': 'فبراير',
+    'en': 'February',
+  },
+  'cal_month_3': {
+    'ckb': 'ئازار',
+    'ar': 'مارس',
+    'en': 'March',
+  },
+  'cal_month_4': {
+    'ckb': 'نیسان',
+    'ar': 'أبريل',
+    'en': 'April',
+  },
+  'cal_month_5': {
+    'ckb': 'ئایار',
+    'ar': 'مايو',
+    'en': 'May',
+  },
+  'cal_month_6': {
+    'ckb': 'حوزەیران',
+    'ar': 'يونيو',
+    'en': 'June',
+  },
+  'cal_month_7': {
+    'ckb': 'تەممووز',
+    'ar': 'يوليو',
+    'en': 'July',
+  },
+  'cal_month_8': {
+    'ckb': 'ئاب',
+    'ar': 'أغسطس',
+    'en': 'August',
+  },
+  'cal_month_9': {
+    'ckb': 'ئەیلوول',
+    'ar': 'سبتمبر',
+    'en': 'September',
+  },
+  'cal_month_10': {
+    'ckb': 'تشرینی یەکەم',
+    'ar': 'أكتوبر',
+    'en': 'October',
+  },
+  'cal_month_11': {
+    'ckb': 'تشرینی دووەم',
+    'ar': 'نوفمبر',
+    'en': 'November',
+  },
+  'cal_month_12': {
+    'ckb': 'کانوونی یەکەم',
+    'ar': 'ديسمبر',
+    'en': 'December',
   },
   'weekday_sat': {
     'ckb': 'شەممە',
