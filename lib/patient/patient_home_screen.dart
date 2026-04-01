@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter, MaskFilter, Path, PathOperation;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -268,7 +269,7 @@ class PatientHomeScreen extends StatefulWidget {
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
 
   /// Bottom nav: 0 home, 1 appointments, 2 profile
@@ -277,8 +278,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   /// Full-screen frosted dim behind the overflow menu.
   late final AnimationController _menuDimController;
   late final Animation<double> _menuDimCurve;
+  late final AnimationController _homeFabIntroController;
+  late final Animation<double> _homeFabFade;
+  late final Animation<Offset> _homeFabSlide;
 
   String _selectedCategory = kPatientSpecialtyAllKey;
+  int _pulseNavIndex = -1;
 
   /// Single subscription: all approved doctors (filter locally for category + search).
   late final Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -858,13 +863,46 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
+    _homeFabIntroController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    _homeFabFade = CurvedAnimation(
+      parent: _homeFabIntroController,
+      curve: Curves.easeOut,
+    );
+    _homeFabSlide = Tween<Offset>(
+      begin: const Offset(0, 0.35),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _homeFabIntroController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+    _homeFabIntroController.forward();
   }
 
   @override
   void dispose() {
     _menuDimController.dispose();
+    _homeFabIntroController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onBottomNavTap(int index) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _bottomNavIndex = index;
+      _pulseNavIndex = index;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (_pulseNavIndex == index) {
+        setState(() => _pulseNavIndex = -1);
+      }
+    });
   }
 
   void _dismissMenuDim() {
@@ -1116,101 +1154,91 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   Widget _buildGlassBottomNav(BuildContext context) {
     final s = S.of(context);
     const dockRadius = 30.0;
+    final hasActiveAppointments = _bottomNavIndex != 1;
 
-    Widget navIcon(IconData iconData, bool selected) {
-      const size = 23.0;
-      if (!selected) {
-        return Icon(
-          iconData,
-          size: size,
-          color: _kMutedGrey,
-        );
-      }
-      return ShaderMask(
-        blendMode: BlendMode.srcIn,
-        shaderCallback: (bounds) {
-          return const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _kIconGradientLight,
-              _kPremiumDeepBlue,
-            ],
-          ).createShader(bounds);
-        },
-        child: Icon(
-          iconData,
-          size: size,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    Widget item(int index, IconData icon, String label) {
+    Widget navItem({
+      required int index,
+      required IconData icon,
+      required String label,
+      bool highlightGold = false,
+      bool showDot = false,
+    }) {
       final selected = _bottomNavIndex == index;
+      const softGrayActive = Color(0xFF6F7782);
+      final activeColor = highlightGold ? softGrayActive : softGrayActive;
+      final targetColor = selected ? activeColor : _kMutedGrey;
+      final pulsing = _pulseNavIndex == index;
       return Expanded(
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => setState(() => _bottomNavIndex = index),
+            onTap: () => _onBottomNavTap(index),
             borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 7),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    height: 8,
-                    child: selected
-                        ? Center(
-                            child: Container(
-                              width: 24,
-                              height: 2,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(2),
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    _kIconGradientLight,
-                                    _kPremiumDeepBlue,
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _kIconGradientLight.withValues(
-                                      alpha: 0.45,
-                                    ),
-                                    blurRadius: 4,
-                                    spreadRadius: 0,
-                                  ),
-                                  BoxShadow(
-                                    color: _kPremiumDeepBlue.withValues(
-                                      alpha: 0.22,
-                                    ),
-                                    blurRadius: 2,
-                                  ),
-                                ],
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      TweenAnimationBuilder<Color?>(
+                        tween: ColorTween(end: targetColor),
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, animatedColor, _) {
+                          return AnimatedScale(
+                            scale: pulsing ? 1.2 : 1.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutBack,
+                            child: Icon(
+                              icon,
+                              size: selected ? 22 : 21,
+                              color: animatedColor ?? targetColor,
+                            ),
+                          );
+                        },
+                      ),
+                      if (showDot && hasActiveAppointments)
+                        PositionedDirectional(
+                          top: -2,
+                          end: -3,
+                          child: Container(
+                            width: 7.5,
+                            height: 7.5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: highlightGold
+                                  ? _kBrandLuxGold
+                                  : const Color(0xFFE53935),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                width: 1,
                               ),
                             ),
-                          )
-                        : const SizedBox.shrink(),
+                          ),
+                        ),
+                    ],
                   ),
-                  navIcon(icon, selected),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'KurdishFont',
-                      fontSize: 10,
-                      fontWeight:
-                          selected ? FontWeight.w800 : FontWeight.w700,
-                      letterSpacing: selected ? 0.25 : 0.12,
-                      color: selected
-                          ? _kPremiumDeepBlue
-                          : _kMutedGrey,
-                    ),
+                  const SizedBox(height: 3),
+                  TweenAnimationBuilder<Color?>(
+                    tween: ColorTween(end: targetColor),
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, animatedColor, _) {
+                      return Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.notoSansArabic(
+                          fontSize: 10.5,
+                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                          color: animatedColor ?? targetColor,
+                          height: 1.1,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1223,48 +1251,148 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(dockRadius),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 16,
-                offset: Offset(0, 6),
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(dockRadius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    width: 1,
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(dockRadius),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                    spreadRadius: 0,
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                  child: Row(
-                    children: [
-                      item(0, Icons.home_rounded, s.translate('home')),
-                      item(
-                        1,
-                        Icons.calendar_month_rounded,
-                        s.translate('appointments'),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(dockRadius),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.64),
+                      border: Border(
+                        top: BorderSide(
+                          color: _kBrandLuxGoldLight.withValues(alpha: 0.65),
+                          width: 1,
+                        ),
+                        left: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          width: 0.7,
+                        ),
+                        right: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          width: 0.7,
+                        ),
+                        bottom: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 0.6,
+                        ),
                       ),
-                      item(2, Icons.person_rounded, s.translate('profile')),
-                    ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 86, 8),
+                      child: Row(
+                        children: [
+                          navItem(
+                            index: 1,
+                            icon: Icons.calendar_month_rounded,
+                            label: s.translate('appointments'),
+                            highlightGold: true,
+                            showDot: true,
+                          ),
+                          navItem(
+                            index: 2,
+                            icon: Icons.person_rounded,
+                            label: s.translate('profile'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+            Positioned(
+              right: 12,
+              top: -8,
+              bottom: -8,
+              child: Center(
+                child: FadeTransition(
+                  opacity: _homeFabFade,
+                  child: SlideTransition(
+                    position: _homeFabSlide,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => _onBottomNavTap(0),
+                        child: AnimatedScale(
+                          scale: _pulseNavIndex == 0 ? 1.2 : 1.0,
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutBack,
+                          child: Ink(
+                            width: 62,
+                            height: 62,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(0xFFFFD700),
+                                  Color(0xFFB8860B),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFD700).withValues(alpha: 0.34),
+                                  blurRadius: 16,
+                                  spreadRadius: 0.8,
+                                  offset: const Offset(0, 4),
+                                ),
+                                BoxShadow(
+                                  color: const Color(0xFFB8860B).withValues(alpha: 0.28),
+                                  blurRadius: 12,
+                                  spreadRadius: 0.25,
+                                ),
+                              ],
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.home_rounded,
+                                  size: 27,
+                                  color: Colors.white,
+                                ),
+                                Text(
+                                  s.translate('home'),
+                                  style: GoogleFonts.notoSansArabic(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
