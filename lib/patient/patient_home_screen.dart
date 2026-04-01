@@ -23,7 +23,7 @@ import 'my_appointments_screen.dart';
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
 /// Taller than content + soft glow so pinned header does not clip / overflow.
-const double _kHomeSpecialtiesHeaderExtent = 156;
+const double _kHomeSpecialtiesHeaderExtent = 168;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -494,36 +494,39 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       return SizedBox(
         width: 74,
         child: SizedBox(
-          height: 108,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _CategoryGlassOrb(
-                  categoryKey: catKey,
-                  selected: selected,
-                  softTint: soft,
-                  accent: acc,
-                  floating: floating,
-                ),
-                const SizedBox(height: 7),
-                Text(
+          height: 114,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _CategoryGlassOrb(
+                categoryKey: catKey,
+                selected: selected,
+                softTint: soft,
+                accent: acc,
+                floating: floating,
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 72,
+                height: 34,
+                child: Text(
                   S.of(context).translate(catKey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.fade,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.notoSansArabic(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                     height: 1.15,
                     color: selected
                         ? _categoryLabelDark(catKey)
                         : _categoryLabelDark(catKey).withValues(alpha: 0.82),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
@@ -550,12 +553,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 122,
+            height: 130,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     InkWell(
                       onTap: () => setState(() => _selectedCategory = kPatientSpecialtyAllKey),
@@ -563,12 +566,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       child: SizedBox(
                         width: 74,
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Row(
                               mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _CategoryGlassOrb(
                                   categoryKey: kPatientSpecialtyAllKey,
@@ -604,21 +608,26 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 7),
-                            Text(
-                              S.of(context).translate(kPatientSpecialtyAllKey),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.notoSansArabic(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.5,
-                                height: 1.15,
-                                color: allSelected
-                                    ? _categoryLabelDark(kPatientSpecialtyAllKey)
-                                    : _categoryLabelDark(
-                                        kPatientSpecialtyAllKey,
-                                      ).withValues(alpha: 0.82),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: 72,
+                              height: 34,
+                              child: Text(
+                                S.of(context).translate(kPatientSpecialtyAllKey),
+                                maxLines: 2,
+                                softWrap: true,
+                                overflow: TextOverflow.fade,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.notoSansArabic(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  height: 1.15,
+                                  color: allSelected
+                                      ? _categoryLabelDark(kPatientSpecialtyAllKey)
+                                      : _categoryLabelDark(
+                                          kPatientSpecialtyAllKey,
+                                        ).withValues(alpha: 0.82),
+                                ),
                               ),
                             ),
                           ],
@@ -721,35 +730,30 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final filtered = _applyLocalFilters(docs);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final padBottom = 24.0 + bottomInset + 8;
+    final selectedLabel = _selectedCategory == kPatientSpecialtyAllKey
+        ? null
+        : S.of(context).translate(_selectedCategory);
+    final dynamicDoctorsTitle = selectedLabel == null
+        ? 'هەموو پزیشکەکان'
+        : 'پزیشکانی $selectedLabel';
 
     final header = SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              S.of(context).translate('recommended_doctors'),
+              dynamicDoctorsTitle,
               textAlign: TextAlign.start,
-              style: const TextStyle(
+              style: GoogleFonts.notoSansArabic(
                 color: _kDarkBlue,
-                fontFamily: 'KurdishFont',
                 fontWeight: FontWeight.w700,
-                fontSize: 16,
+                fontSize: 18,
+                height: 1.15,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              S.of(context).translate('recommended_doctors_sub'),
-              textAlign: TextAlign.start,
-              style: TextStyle(
-                color: _kMutedGrey.withValues(alpha: 0.95),
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 10),
           ],
         ),
       ),
