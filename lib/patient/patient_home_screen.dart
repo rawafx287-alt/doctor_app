@@ -18,7 +18,6 @@ import 'patient_doctor_booking_screen.dart';
 import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'patient_scroll_physics.dart';
-import '../theme/patient_premium_theme.dart';
 import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
@@ -54,14 +53,6 @@ Color _categorySoftTint(String catKey) {
     default:
       return const Color(0xFFB3E5FC);
   }
-}
-
-/// Soft radiating glow color: heart (دڵ) = red; others = blue/teal aligned with accent.
-Color _categorySelectionGlow(String catKey, Color accent) {
-  if (catKey == 'cardiology_specialty') {
-    return const Color(0xFFFF8A80);
-  }
-  return Color.lerp(accent, const Color(0xFF26C6DA), 0.42) ?? accent;
 }
 
 Color _categoryAccentIcon(String catKey) {
@@ -108,7 +99,6 @@ const Color _kBrandLuxGoldLight = Color(0xFFF6E7A6);
 /// Same as doctor name text on cards ([PatientDoctorCard]).
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumBlueMid = Color(0xFF1565C0);
-const Color _kIconGradientLight = Color(0xFF90CAF9);
 const Color _kSpecialtyGlass = Color(0x0DFFFFFF);
 
 double _inlineSpanLineWidth(InlineSpan span) {
@@ -497,40 +487,49 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     }) {
       return SizedBox(
         width: 74,
-        child: SizedBox(
-          height: 114,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _CategoryGlassOrb(
-                categoryKey: catKey,
-                selected: selected,
-                softTint: soft,
-                accent: acc,
-                floating: floating,
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: 72,
-                height: 34,
-                child: Text(
-                  S.of(context).translate(catKey),
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.fade,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSansArabic(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    height: 1.15,
-                    color: selected
-                        ? _categoryLabelDark(catKey)
-                        : _categoryLabelDark(catKey).withValues(alpha: 0.82),
+        height: 124,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: AnimatedScale(
+            scale: selected ? 1.15 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 10),
+                _CategoryGlassOrb(
+                  categoryKey: catKey,
+                  selected: selected,
+                  softTint: soft,
+                  accent: acc,
+                  floating: floating,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 72,
+                  height: 34,
+                  child: Text(
+                    S.of(context).translate(catKey),
+                    maxLines: 2,
+                    softWrap: true,
+                    overflow: TextOverflow.fade,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.notoSansArabic(
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      fontSize: 12,
+                      height: 1.15,
+                      color: selected
+                          ? _categoryLabelDark(catKey)
+                          : _categoryLabelDark(catKey).withValues(alpha: 0.82),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -556,128 +555,158 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
             ),
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 130,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () => setState(() => _selectedCategory = kPatientSpecialtyAllKey),
-                      borderRadius: BorderRadius.circular(22),
-                      child: SizedBox(
-                        width: 74,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: SizedBox(
+              height: 138,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () =>
+                            setState(() => _selectedCategory = kPatientSpecialtyAllKey),
+                        borderRadius: BorderRadius.circular(22),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _CategoryGlassOrb(
-                                  categoryKey: kPatientSpecialtyAllKey,
-                                  selected: allSelected,
-                                  softTint: allSoft,
-                                  accent: allAcc,
-                                  floating: true,
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 1.5,
-                                  height: _CategoryGlassOrb._cardH,
-                                  margin: EdgeInsets.zero,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        _kBrandLuxGoldLight.withValues(alpha: 0.22),
-                                        _kBrandLuxGold.withValues(alpha: 0.96),
-                                        _kBrandLuxGoldLight.withValues(alpha: 0.22),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _kBrandLuxGold.withValues(alpha: 0.24),
-                                        blurRadius: 6,
-                                        spreadRadius: 0.25,
+                            SizedBox(
+                              width: 96,
+                              height: 124,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 76,
+                                        height: _CategoryGlassOrb._cardH + 12,
+                                        child: Center(
+                                          child: AnimatedScale(
+                                            scale: allSelected ? 1.15 : 1.0,
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            curve: Curves.easeOut,
+                                            alignment: Alignment.center,
+                                            child: _CategoryGlassOrb(
+                                              categoryKey: kPatientSpecialtyAllKey,
+                                              selected: allSelected,
+                                              softTint: allSoft,
+                                              accent: allAcc,
+                                              floating: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Container(
+                                        width: 1.5,
+                                        height: _CategoryGlassOrb._cardH,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(10),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              _kBrandLuxGoldLight.withValues(
+                                                alpha: 0.22,
+                                              ),
+                                              _kBrandLuxGold.withValues(alpha: 0.96),
+                                              _kBrandLuxGoldLight.withValues(
+                                                alpha: 0.22,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: 72,
+                                    height: 34,
+                                    child: Text(
+                                      S.of(context).translate(kPatientSpecialtyAllKey),
+                                      maxLines: 2,
+                                      softWrap: true,
+                                      overflow: TextOverflow.fade,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.notoSansArabic(
+                                        fontWeight: allSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        fontSize: 12,
+                                        height: 1.15,
+                                        color: allSelected
+                                            ? _categoryLabelDark(
+                                                kPatientSpecialtyAllKey,
+                                              )
+                                            : _categoryLabelDark(
+                                                kPatientSpecialtyAllKey,
+                                              ).withValues(alpha: 0.82),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                             ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: 72,
-                              height: 34,
-                              child: Text(
-                                S.of(context).translate(kPatientSpecialtyAllKey),
-                                maxLines: 2,
-                                softWrap: true,
-                                overflow: TextOverflow.fade,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.notoSansArabic(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  height: 1.15,
-                                  color: allSelected
-                                      ? _categoryLabelDark(kPatientSpecialtyAllKey)
-                                      : _categoryLabelDark(
-                                          kPatientSpecialtyAllKey,
-                                        ).withValues(alpha: 0.82),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16.5),
+                    clipBehavior: Clip.antiAlias,
                     child: ColoredBox(
                       color: _kSkyTop.withValues(alpha: 0.82),
-                      child: ClipRect(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics(),
-                          ),
-                          clipBehavior: Clip.hardEdge,
-                          itemCount: scrollableCategoryKeys.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 10),
-                          itemBuilder: (context, index) {
-                            final catKey = scrollableCategoryKeys[index];
-                            final selected = _selectedCategory == catKey;
-                            final soft = _categorySoftTint(catKey);
-                            final acc = _categoryAccentIcon(catKey);
-                            return InkWell(
-                              onTap: () => setState(() => _selectedCategory = catKey),
-                              borderRadius: BorderRadius.circular(22),
-                              child: specialtyTile(
-                                catKey: catKey,
-                                selected: selected,
-                                soft: soft,
-                                acc: acc,
-                              ),
-                            );
-                          },
+                      child: ListView.separated(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          12,
+                          10,
+                          20,
+                          6,
                         ),
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        clipBehavior: Clip.none,
+                        itemCount: scrollableCategoryKeys.length,
+                        separatorBuilder: (context, _) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final catKey = scrollableCategoryKeys[index];
+                          final selected = _selectedCategory == catKey;
+                          final soft = _categorySoftTint(catKey);
+                          final acc = _categoryAccentIcon(catKey);
+                          return InkWell(
+                            onTap: () => setState(() => _selectedCategory = catKey),
+                            borderRadius: BorderRadius.circular(22),
+                            child: specialtyTile(
+                              catKey: catKey,
+                              selected: selected,
+                              soft: soft,
+                              acc: acc,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ),
               ],
+            ),
             ),
           ),
           const SizedBox(height: 10),
@@ -1732,25 +1761,16 @@ class _CategoryGlassOrb extends StatelessWidget {
       width: _cardW,
       height: _cardH,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            if (selected)
-              BoxShadow(
-                color: visual.glow.withValues(alpha: 0.5),
-                blurRadius: 15.0,
-                spreadRadius: 2.0,
-              ),
-            if (floating)
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
-                blurRadius: 10,
-                spreadRadius: 0.2,
-                offset: const Offset(0, 3),
-              ),
-          ],
+          border: Border.all(
+            color: selected
+                ? accent
+                : Colors.white.withValues(alpha: 0.12),
+            width: selected ? 2.0 : 0.8,
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -1766,10 +1786,6 @@ class _CategoryGlassOrb extends StatelessWidget {
                     Colors.white.withValues(alpha: 0.12),
                     baseFill,
                   ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  width: 0.6,
                 ),
               ),
               child: Container(
@@ -1803,34 +1819,27 @@ class _CategoryGlassOrb extends StatelessWidget {
                           center: const Alignment(-0.3, -0.35),
                           radius: 1.12,
                           colors: [
-                            visual.meshA.withValues(alpha: 0.98),
-                            visual.meshB.withValues(alpha: 0.95),
-                            visual.meshC.withValues(alpha: 0.82),
+                            visual.meshA.withValues(alpha: selected ? 1.0 : 0.98),
+                            visual.meshB.withValues(alpha: selected ? 1.0 : 0.95),
+                            visual.meshC.withValues(alpha: selected ? 0.95 : 0.82),
                           ],
                           stops: const [0.04, 0.58, 1.0],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: visual.glow.withValues(alpha: 0.4),
-                            blurRadius: 9,
-                            spreadRadius: 0,
-                          ),
-                        ],
                       ),
                       child: Center(
                         child: visual.svgAsset != null
                             ? SvgPicture.asset(
                                 visual.svgAsset!,
-                                width: _iconSize + 2,
-                                height: _iconSize + 2,
-                                colorFilter: const ColorFilter.mode(
+                                width: selected ? _iconSize + 4 : _iconSize + 2,
+                                height: selected ? _iconSize + 4 : _iconSize + 2,
+                                colorFilter: ColorFilter.mode(
                                   Colors.white,
                                   BlendMode.srcIn,
                                 ),
                               )
                             : FaIcon(
                                 visual.icon,
-                                size: _iconSize,
+                                size: selected ? _iconSize + 2 : _iconSize,
                                 color: Colors.white,
                               ),
                       ),
@@ -1995,4 +2004,3 @@ _SpecialtyVisual _specialtyVisual(String categoryKey) {
 
 Color _categoryLabelDark(String categoryKey) => _specialtyVisual(categoryKey).darkLabel;
 bool _isAllCategory(String categoryKey) => categoryKey == kPatientSpecialtyAllKey;
-
