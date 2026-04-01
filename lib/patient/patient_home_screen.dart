@@ -1145,15 +1145,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final s = S.of(context);
     const dockRadius = 30.0;
     final hasActiveAppointments = _bottomNavIndex != 1;
-    const activeCircleSize = 52.0;
-    const activeGoldGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        Color(0xFFFFD700),
-        Color(0xFFB8860B),
-      ],
-    );
+    final glowColor = Colors.amber.withValues(alpha: 0.35);
+    const activeIconColor = Color(0xFFB8860B);
 
     Widget navItem({
       required int index,
@@ -1163,7 +1156,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       bool showDot = false,
     }) {
       final selected = _bottomNavIndex == index;
-      final targetColor = selected ? Colors.white : _kMutedGrey;
+      final targetColor = selected ? activeIconColor : _kMutedGrey;
       return SizedBox(
         width: 86,
         child: Material(
@@ -1179,60 +1172,37 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      AnimatedScale(
-                        scale: selected ? 1.2 : 1.0,
-                        duration: const Duration(milliseconds: 200),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
                         curve: Curves.easeOutCubic,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: glowColor,
+                                    blurRadius: 10.0,
+                                    spreadRadius: 2.0,
+                                  ),
+                                ]
+                              : const [],
+                        ),
+                        child: AnimatedScale(
+                          scale: selected ? 1.2 : 1.0,
+                          duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOutCubic,
-                          width: activeCircleSize,
-                          height: activeCircleSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: selected ? activeGoldGradient : null,
-                            color: selected ? null : Colors.transparent,
-                            border: Border.all(
-                              color: selected
-                                  ? const Color(
-                                    0xFFFFF8DC,
-                                  ).withValues(alpha: 0.78)
-                                  : Colors.transparent,
-                              width: 0.5,
-                            ),
-                            boxShadow: selected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFFFD700,
-                                      ).withValues(alpha: 0.34),
-                                      blurRadius: 16,
-                                      spreadRadius: 0.8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFB8860B,
-                                      ).withValues(alpha: 0.28),
-                                      blurRadius: 12,
-                                      spreadRadius: 0.25,
-                                    ),
-                                  ]
-                                : const [],
-                          ),
-                          child: Center(
-                            child: TweenAnimationBuilder<Color?>(
-                              tween: ColorTween(end: targetColor),
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutCubic,
-                              builder: (context, animatedColor, _) {
-                                return Icon(
-                                  icon,
-                                  size: selected ? 23 : 21,
-                                  color: animatedColor ?? targetColor,
-                                );
-                              },
-                            ),
+                          child: TweenAnimationBuilder<Color?>(
+                            tween: ColorTween(end: targetColor),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, animatedColor, _) {
+                              return Icon(
+                                icon,
+                                size: selected ? 23 : 21,
+                                color: animatedColor ?? targetColor,
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -1259,7 +1229,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     ),
                   const SizedBox(height: 4),
                   TweenAnimationBuilder<Color?>(
-                    tween: ColorTween(end: selected ? _kBrandLuxGold : _kMutedGrey),
+                    tween: ColorTween(end: targetColor),
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
                     builder: (context, animatedColor, _) {
@@ -1306,37 +1276,34 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         scale: selected ? 1.2 : 1.0,
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeOutCubic,
-                        child: Ink(
-                          width: activeCircleSize,
-                          height: activeCircleSize,
-                          decoration: BoxDecoration(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          width: 50,
+                          height: 50,
+                          decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: activeGoldGradient,
-                            border: Border.all(
-                              color: const Color(0xFFFFF8DC).withValues(alpha: 0.78),
-                              width: 0.5,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFFFFD700),
+                                Color(0xFFB8860B),
+                              ],
                             ),
-                            boxShadow: selected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFFFFD700).withValues(alpha: 0.34),
-                                      blurRadius: 16,
-                                      spreadRadius: 0.8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFFB8860B).withValues(alpha: 0.28),
-                                      blurRadius: 12,
-                                      spreadRadius: 0.25,
-                                    ),
-                                  ]
-                                : const [],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.home_rounded,
-                              size: 23,
-                              color: Colors.white,
+                          child: Center(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOutCubic,
+                              opacity: selected ? 1.0 : 0.6,
+                              child: Icon(
+                                Icons.home_rounded,
+                                size: selected ? 23 : 21,
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFFF5E7A6),
+                              ),
                             ),
                           ),
                         ),
@@ -1350,7 +1317,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         style: GoogleFonts.notoSansArabic(
                           fontSize: 10.5,
                           fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          color: selected ? _kBrandLuxGold : _kMutedGrey,
+                          color: selected ? const Color(0xFFB8860B) : _kMutedGrey,
                           height: 1.1,
                         ),
                       ),
