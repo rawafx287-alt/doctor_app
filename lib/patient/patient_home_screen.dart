@@ -1,7 +1,9 @@
 import 'dart:ui' show ImageFilter, MaskFilter, Path, PathOperation;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../auth/app_logout.dart';
@@ -21,7 +23,7 @@ import 'my_appointments_screen.dart';
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 48;
 /// Taller than content + soft glow so pinned header does not clip / overflow.
-const double _kHomeSpecialtiesHeaderExtent = 142;
+const double _kHomeSpecialtiesHeaderExtent = 156;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -106,6 +108,7 @@ const Color _kBrandLuxGoldLight = Color(0xFFF6E7A6);
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumBlueMid = Color(0xFF1565C0);
 const Color _kIconGradientLight = Color(0xFF90CAF9);
+const Color _kSpecialtyGlass = Color(0x0DFFFFFF);
 
 double _inlineSpanLineWidth(InlineSpan span) {
   final painter = TextPainter(
@@ -475,84 +478,198 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   }
 
   Widget _buildPinnedSpecialtiesSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              S.of(context).translate('specialties'),
-              style: const TextStyle(
-                color: _kDarkBlue,
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
+    final scrollableCategoryKeys = patientSpecialtyFilterCategoryKeys
+        .where((k) => k != kPatientSpecialtyAllKey)
+        .toList();
+    final allSelected = _selectedCategory == kPatientSpecialtyAllKey;
+    final allSoft = _categorySoftTint(kPatientSpecialtyAllKey);
+    final allAcc = _categoryAccentIcon(kPatientSpecialtyAllKey);
+    Widget specialtyTile({
+      required String catKey,
+      required bool selected,
+      required Color soft,
+      required Color acc,
+      bool floating = false,
+    }) {
+      return SizedBox(
+        width: 74,
+        child: SizedBox(
+          height: 108,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _CategoryGlassOrb(
+                  categoryKey: catKey,
+                  selected: selected,
+                  softTint: soft,
+                  accent: acc,
+                  floating: floating,
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  S.of(context).translate(catKey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.notoSansArabic(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                    height: 1.15,
+                    color: selected
+                        ? _categoryLabelDark(catKey)
+                        : _categoryLabelDark(catKey).withValues(alpha: 0.82),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 88,
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
-            scrollDirection: Axis.horizontal,
-            physics: patientPlatformScrollPhysics,
-            clipBehavior: Clip.none,
-            itemCount: patientSpecialtyFilterCategoryKeys.isEmpty
-                ? 0
-                : patientSpecialtyFilterCategoryKeys.length * 2 - 1,
-            itemBuilder: (context, index) {
-              if (index.isOdd) {
-                return const SizedBox(width: 8);
-              }
-              final catKey =
-                  patientSpecialtyFilterCategoryKeys[index ~/ 2];
-              final selected = _selectedCategory == catKey;
-              final soft = _categorySoftTint(catKey);
-              final acc = _categoryAccentIcon(catKey);
-              return InkWell(
-                onTap: () => setState(() => _selectedCategory = catKey),
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  width: 58,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _CategoryGlassOrb(
-                        categoryKey: catKey,
-                        icon: iconForSpecialtyCategoryKey(catKey),
-                        selected: selected,
-                        softTint: soft,
-                        accent: acc,
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        S.of(context).translate(catKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: selected
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                          fontSize: 9.5,
-                          height: 1.15,
-                          color: selected ? acc : _kMutedGrey,
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                S.of(context).translate('specialties'),
+                style: const TextStyle(
+                  color: _kDarkBlue,
+                  fontFamily: 'KurdishFont',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 122,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _selectedCategory = kPatientSpecialtyAllKey),
+                      borderRadius: BorderRadius.circular(22),
+                      child: SizedBox(
+                        width: 74,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                _CategoryGlassOrb(
+                                  categoryKey: kPatientSpecialtyAllKey,
+                                  selected: allSelected,
+                                  softTint: allSoft,
+                                  accent: allAcc,
+                                  floating: true,
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  width: 1.5,
+                                  height: _CategoryGlassOrb._cardH,
+                                  margin: EdgeInsets.zero,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        _kBrandLuxGoldLight.withValues(alpha: 0.22),
+                                        _kBrandLuxGold.withValues(alpha: 0.96),
+                                        _kBrandLuxGoldLight.withValues(alpha: 0.22),
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _kBrandLuxGold.withValues(alpha: 0.24),
+                                        blurRadius: 6,
+                                        spreadRadius: 0.25,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              S.of(context).translate(kPatientSpecialtyAllKey),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.notoSansArabic(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                                height: 1.15,
+                                color: allSelected
+                                    ? _categoryLabelDark(kPatientSpecialtyAllKey)
+                                    : _categoryLabelDark(
+                                        kPatientSpecialtyAllKey,
+                                      ).withValues(alpha: 0.82),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16.5),
+                    child: ColoredBox(
+                      color: _kSkyTop.withValues(alpha: 0.82),
+                      child: ClipRect(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          itemCount: scrollableCategoryKeys.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final catKey = scrollableCategoryKeys[index];
+                            final selected = _selectedCategory == catKey;
+                            final soft = _categorySoftTint(catKey);
+                            final acc = _categoryAccentIcon(catKey);
+                            return InkWell(
+                              onTap: () => setState(() => _selectedCategory = catKey),
+                              borderRadius: BorderRadius.circular(22),
+                              child: specialtyTile(
+                                catKey: catKey,
+                                selected: selected,
+                                soft: soft,
+                                acc: acc,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-      ],
+          const SizedBox(height: 10),
+        ],
+      ),
     );
   }
 
@@ -784,7 +901,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final noraStyle = GoogleFonts.outfit(
       fontSize: 22,
       letterSpacing: tightKern,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w900,
       color: titleBlue,
       height: 1.0,
       shadows: titleShadow,
@@ -1447,71 +1564,140 @@ class _GoldMedicalCrossPainter extends CustomPainter {
       oldDelegate.armCornerRadius != armCornerRadius;
 }
 
-/// Circular glass orb. Selected: soft radiating glow + light tint of glow on the circle.
+/// Vertical glass card with premium mesh-gradient icon and active gold pop state.
 class _CategoryGlassOrb extends StatelessWidget {
   const _CategoryGlassOrb({
     required this.categoryKey,
-    required this.icon,
     required this.selected,
     required this.softTint,
     required this.accent,
+    this.floating = false,
   });
 
   final String categoryKey;
-  final IconData icon;
   final bool selected;
   final Color softTint;
   final Color accent;
+  final bool floating;
 
-  static const double _orbSize = 48;
-  static const double _iconSize = 23;
+  static const double _cardW = 60;
+  static const double _cardH = 58;
+  static const double _iconContainer = 30;
+  static const double _iconSize = 14;
 
   @override
   Widget build(BuildContext context) {
-    final glow = _categorySelectionGlow(categoryKey, accent);
-    final baseFill = Color.alphaBlend(
-      softTint.withValues(alpha: selected ? 0.26 : 0.16),
-      Colors.white.withValues(alpha: selected ? 0.38 : 0.28),
-    );
-    final fill = selected
-        ? Color.alphaBlend(glow.withValues(alpha: 0.32), baseFill)
-        : baseFill;
+    final visual = _specialtyVisual(categoryKey);
+    final baseFill = Color.alphaBlend(softTint.withValues(alpha: 0.18), _kSpecialtyGlass);
 
     return SizedBox(
-      width: _orbSize,
-      height: _orbSize,
-      child: DecoratedBox(
+      width: _cardW,
+      height: _cardH,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: glow.withValues(alpha: 0.5),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : const [],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            if (selected)
+              BoxShadow(
+                color: visual.glow.withValues(alpha: 0.5),
+                blurRadius: 15.0,
+                spreadRadius: 2.0,
+              ),
+            if (floating)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 10,
+                spreadRadius: 0.2,
+                offset: const Offset(0, 3),
+              ),
+          ],
         ),
-        child: ClipOval(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: fill,
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.12),
+                    baseFill,
+                  ],
+                ),
                 border: Border.all(
-                  color: selected
-                      ? accent
-                      : Colors.white.withValues(alpha: 0.88),
-                  width: selected ? 2.25 : 0.9,
+                  color: Colors.white.withValues(alpha: 0.06),
+                  width: 0.6,
                 ),
               ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: _iconSize,
-                  color: selected ? accent : _kMutedGrey,
+              child: Container(
+                margin: const EdgeInsets.all(1.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(19),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      visual.border.withValues(alpha: 0.88),
+                      visual.border.withValues(alpha: 0.35),
+                    ],
+                  ),
+                ),
+                child: Container(
+                  margin: EdgeInsets.all(
+                    _isAllCategory(categoryKey) ? 2.8 : 1.25,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(17),
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: _iconContainer,
+                      height: _iconContainer,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: RadialGradient(
+                          center: const Alignment(-0.3, -0.35),
+                          radius: 1.12,
+                          colors: [
+                            visual.meshA.withValues(alpha: 0.98),
+                            visual.meshB.withValues(alpha: 0.95),
+                            visual.meshC.withValues(alpha: 0.82),
+                          ],
+                          stops: const [0.04, 0.58, 1.0],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: visual.glow.withValues(alpha: 0.4),
+                            blurRadius: 9,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: visual.svgAsset != null
+                            ? SvgPicture.asset(
+                                visual.svgAsset!,
+                                width: _iconSize + 2,
+                                height: _iconSize + 2,
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.white,
+                                  BlendMode.srcIn,
+                                ),
+                              )
+                            : FaIcon(
+                                visual.icon,
+                                size: _iconSize,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1521,4 +1707,154 @@ class _CategoryGlassOrb extends StatelessWidget {
     );
   }
 }
+
+class _SpecialtyVisual {
+  const _SpecialtyVisual({
+    this.icon,
+    this.svgAsset,
+    required this.meshA,
+    required this.meshB,
+    required this.meshC,
+    required this.glow,
+    required this.border,
+    required this.darkLabel,
+  });
+
+  final FaIconData? icon;
+  final String? svgAsset;
+  final Color meshA;
+  final Color meshB;
+  final Color meshC;
+  final Color glow;
+  final Color border;
+  final Color darkLabel;
+}
+
+_SpecialtyVisual _specialtyVisual(String categoryKey) {
+  switch (categoryKey) {
+    case 'cardiology_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.heartPulse,
+        meshA: Color(0xFFE53935),
+        meshB: Color(0xFFC2185B),
+        meshC: Color(0xFF7A1F4A),
+        glow: Color(0xFFFF6B81),
+        border: Color(0xFFE57373),
+        darkLabel: Color(0xFF5B1125),
+      );
+    case 'dentist_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.tooth,
+        meshA: Color(0xFF42A5F5),
+        meshB: Color(0xFF26C6DA),
+        meshC: Color(0xFF26A69A),
+        glow: Color(0xFF4DD0E1),
+        border: Color(0xFF80DEEA),
+        darkLabel: Color(0xFF0F3B6D),
+      );
+    case 'pediatrics_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.baby,
+        meshA: Color(0xFFB388FF),
+        meshB: Color(0xFFE91E63),
+        meshC: Color(0xFFF48FB1),
+        glow: Color(0xFFF48FB1),
+        border: Color(0xFFE1BEE7),
+        darkLabel: Color(0xFF5E2D79),
+      );
+    case 'ophthalmology_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.eye,
+        meshA: Color(0xFF1E88E5),
+        meshB: Color(0xFF42A5F5),
+        meshC: Color(0xFF81D4FA),
+        glow: Color(0xFF64B5F6),
+        border: Color(0xFF90CAF9),
+        darkLabel: Color(0xFF0E3569),
+      );
+    case kPatientSpecialtyAllKey:
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.tableCellsLarge,
+        meshA: Color(0xFF2F6BFF),
+        meshB: Color(0xFF283593),
+        meshC: Color(0xFF1A237E),
+        glow: Color(0xFF4A6CFF),
+        border: Color(0xFF7B8DFF),
+        darkLabel: Color(0xFF1A2A6A),
+      );
+    case 'orthopedics_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.personWalking,
+        meshA: Color(0xFFFFA000),
+        meshB: Color(0xFFFB8C00),
+        meshC: Color(0xFFFFB74D),
+        glow: Color(0xFFFF9800),
+        border: Color(0xFFFFCC80),
+        darkLabel: Color(0xFF6A3B07),
+      );
+    case 'ent_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.earListen,
+        meshA: Color(0xFF8E24AA),
+        meshB: Color(0xFFAB47BC),
+        meshC: Color(0xFFCE93D8),
+        glow: Color(0xFFBA68C8),
+        border: Color(0xFFD1C4E9),
+        darkLabel: Color(0xFF4A1E62),
+      );
+    case 'dermatology_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.handSparkles,
+        meshA: Color(0xFFE91E63),
+        meshB: Color(0xFFEC407A),
+        meshC: Color(0xFFF8BBD0),
+        glow: Color(0xFFF06292),
+        border: Color(0xFFF48FB1),
+        darkLabel: Color(0xFF6A1B3E),
+      );
+    case 'neurology_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.brain,
+        meshA: Color(0xFF5E35B1),
+        meshB: Color(0xFF7E57C2),
+        meshC: Color(0xFFB39DDB),
+        glow: Color(0xFF9575CD),
+        border: Color(0xFFB39DDB),
+        darkLabel: Color(0xFF341B63),
+      );
+    case 'obgyn_specialty':
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.personPregnant,
+        meshA: Color(0xFFF4511E),
+        meshB: Color(0xFFFF7043),
+        meshC: Color(0xFFFFAB91),
+        glow: Color(0xFFFF8A65),
+        border: Color(0xFFFFAB91),
+        darkLabel: Color(0xFF6D2A12),
+      );
+    case 'gastroenterology_specialty':
+      return const _SpecialtyVisual(
+        svgAsset: 'assets/images/stomach_medical.svg',
+        meshA: Color(0xFF43A047),
+        meshB: Color(0xFF66BB6A),
+        meshC: Color(0xFFA5D6A7),
+        glow: Color(0xFF81C784),
+        border: Color(0xFFA5D6A7),
+        darkLabel: Color(0xFF234B1E),
+      );
+    default:
+      return const _SpecialtyVisual(
+        icon: FontAwesomeIcons.stethoscope,
+        meshA: Color(0xFF1E88E5),
+        meshB: Color(0xFF26C6DA),
+        meshC: Color(0xFF80DEEA),
+        glow: Color(0xFF4DD0E1),
+        border: Color(0xFF80DEEA),
+        darkLabel: Color(0xFF123C66),
+      );
+  }
+}
+
+Color _categoryLabelDark(String categoryKey) => _specialtyVisual(categoryKey).darkLabel;
+bool _isAllCategory(String categoryKey) => categoryKey == kPatientSpecialtyAllKey;
 

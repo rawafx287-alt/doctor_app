@@ -54,6 +54,8 @@ dependencies:
   table_calendar: ^3.2.0
   google_fonts: ^8.0.2
   cached_network_image: ^3.4.1
+  font_awesome_flutter: ^11.0.0
+  flutter_svg: ^2.2.4
 
 dev_dependencies:
   flutter_test:
@@ -95,6 +97,7 @@ flutter:
     - assets/images/kurdish_flag.png
     - assets/images/iraq_flag.png
     - assets/images/british_flag.png
+    - assets/images/stomach_medical.svg
 
 
 

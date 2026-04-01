@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'bootstrap/ensure_shared_preferences_registered.dart';
@@ -52,6 +53,8 @@ class HrNoraAppRoot extends StatelessWidget {
     final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      // Professional Latin default; Arabic/Kurdish shapes come from textTheme.
+      fontFamily: GoogleFonts.outfit().fontFamily,
       scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
       primaryColor: HrNoraColors.primary,
       colorScheme: ColorScheme.dark(
@@ -82,8 +85,24 @@ class HrNoraAppRoot extends StatelessWidget {
         labelLarge: TextStyle(color: HrNoraColors.textSoft),
       ),
     );
-    final kurdishTextTheme = GoogleFonts.notoSansArabicTextTheme(
+    final primaryEnglishTextTheme = GoogleFonts.outfitTextTheme(
       baseTheme.textTheme,
+    );
+    final appTextTheme = GoogleFonts.notoSansArabicTextTheme(
+      primaryEnglishTextTheme,
+    ).copyWith(
+      bodyLarge: GoogleFonts.notoSansArabic(
+        color: HrNoraColors.textSoft,
+        fontWeight: FontWeight.w500,
+      ),
+      bodyMedium: GoogleFonts.notoSansArabic(
+        color: HrNoraColors.textSoft,
+        fontWeight: FontWeight.w500,
+      ),
+      bodySmall: GoogleFonts.notoSansArabic(
+        color: HrNoraColors.textSoft,
+        fontWeight: FontWeight.w500,
+      ),
     ).apply(
       bodyColor: HrNoraColors.textSoft,
       displayColor: HrNoraColors.textSoft,
@@ -115,7 +134,7 @@ class HrNoraAppRoot extends StatelessWidget {
             );
           },
           theme: baseTheme.copyWith(
-        textTheme: kurdishTextTheme,
+        textTheme: appTextTheme,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: baseButtons.copyWith(
             backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -232,15 +251,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             type: BottomNavigationBarType.fixed,
             items: [
               BottomNavigationBarItem(
-                icon: const Icon(Icons.home_filled),
+                icon: const FaIcon(FontAwesomeIcons.house, size: 20),
+                activeIcon: const FaIcon(FontAwesomeIcons.house, size: 21),
                 label: S.of(context).translate('home'),
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.notifications),
+                icon: const FaIcon(FontAwesomeIcons.bell, size: 20),
+                activeIcon: const FaIcon(FontAwesomeIcons.solidBell, size: 21),
                 label: S.of(context).translate('notifications'),
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.person),
+                icon: const FaIcon(FontAwesomeIcons.user, size: 20),
+                activeIcon: const FaIcon(FontAwesomeIcons.solidUser, size: 21),
                 label: S.of(context).translate('profile'),
               ),
             ],
