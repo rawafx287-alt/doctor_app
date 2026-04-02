@@ -589,7 +589,7 @@ Widget _myBookingsSectionHeader(String title) {
               fontFamily: kPatientNrtBoldFont,
               fontWeight: FontWeight.w800,
               fontSize: 17,
-              color: Color(0xFFFFFDE7),
+              color: kPatientNavyText,
               letterSpacing: 0.2,
             ),
           ),
@@ -1123,17 +1123,13 @@ class PatientAppointmentsScreen extends StatefulWidget {
 }
 
 class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
-  static const Color _bg = Color(0xFF121212);
-  static const Color _skyHole = Color(0xFF121212);
-  static const Color _teal = Color(0xFFD4AF37);
-  static const Color _text = Color(0xFFFFD700);
-  static const Color _muted = Color(0xFFC8C8C8);
+  static const Color _onLightMuted = Color(0xFF546E7A);
 
-  Color get _holeColor => widget.embedded ? _skyHole : _bg;
+  /// Matches light sky background so ticket hero perforation blends with the page.
+  Color get _holeColor => kPatientSkyTop;
   Color get _uiAccent =>
-      widget.embedded ? const Color(0xFF1976D2) : _teal;
-  Color get _uiMuted =>
-      widget.embedded ? const Color(0xFF546E7A) : _muted;
+      widget.embedded ? const Color(0xFF1976D2) : kPatientDeepBlue;
+  Color get _uiMuted => _onLightMuted;
 
   Timer? _highlightTimer;
   bool _highlightActive = false;
@@ -1334,11 +1330,11 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        const Text(
+                        Text(
                           'هیچ نۆرەیەکت تۆمار نەکردووە',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0xFFF1F1F1),
+                            color: kPatientNavyText.withValues(alpha: 0.92),
                             fontFamily: kPatientNrtBoldFont,
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
@@ -1466,7 +1462,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     child: Text(
                       'هیچ نۆرەی چالاکت نییە',
                       style: TextStyle(
-                        color: const Color(0xFFB0BEC5).withValues(alpha: 0.9),
+                        color: kPatientNavyText.withValues(alpha: 0.78),
                         fontFamily: kPatientNrtBoldFont,
                         fontWeight: FontWeight.w600,
                         fontSize: 13.5,
@@ -1485,7 +1481,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   child: Divider(
                     height: 1,
                     thickness: 0.6,
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: kPatientNavyText.withValues(alpha: 0.14),
                   ),
                 ),
                 _myBookingsSectionHeader('نۆرەکانی پێشوو'),
@@ -1495,7 +1491,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     child: Text(
                       'هیچ نۆرەی پێشووت نییە',
                       style: TextStyle(
-                        color: const Color(0xFFB0BEC5).withValues(alpha: 0.75),
+                        color: kPatientNavyText.withValues(alpha: 0.72),
                         fontFamily: kPatientNrtBoldFont,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
@@ -1528,17 +1524,17 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     if (widget.embedded) {
       return Directionality(
         textDirection: pageDir,
-        child: ColoredBox(color: _bg, child: body),
+        child: body,
       );
     }
 
     return Directionality(
       textDirection: pageDir,
       child: Scaffold(
-        backgroundColor: _bg,
+        backgroundColor: kPatientSkyTop,
         appBar: AppBar(
-          backgroundColor: _bg,
-          foregroundColor: _text,
+          backgroundColor: kPatientSkyTop,
+          foregroundColor: kPatientNavyText,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
@@ -1556,14 +1552,12 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               fontFamily: kPatientNrtBoldFont,
               fontWeight: FontWeight.w800,
               fontSize: 20,
-              color: Color(0xFFFFD700),
+              color: kPatientNavyText,
             ),
           ),
         ),
         body: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Color(0xFF121212),
-          ),
+          decoration: patientSkyGradientDecoration(),
           child: body,
         ),
       ),
