@@ -402,7 +402,7 @@ class _PremiumBookingCard extends StatelessWidget {
           Text(
             text,
             style: TextStyle(
-              fontFamily: kPatientNrtBoldFont,
+              fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w700,
               fontSize: 11.5,
               color: textC,
@@ -466,8 +466,8 @@ class _PremiumBookingCard extends StatelessWidget {
             child: Text(
               queueLabel,
               style: const TextStyle(
-                fontFamily: kPatientNrtBoldFont,
-                fontWeight: FontWeight.w900,
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.bold,
                 fontSize: 26,
                 color: Color(0xFFFFD700),
                 height: 1,
@@ -484,8 +484,8 @@ class _PremiumBookingCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontFamily: kPatientNrtBoldFont,
-                    fontWeight: FontWeight.w800,
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Color(0xFFFFD700),
                   ),
@@ -496,7 +496,7 @@ class _PremiumBookingCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: kPatientNrtBoldFont,
+                    fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                     color: const Color(0xFFE8E8E8).withValues(alpha: 0.95),
@@ -519,8 +519,8 @@ class _PremiumBookingCard extends StatelessWidget {
                   child: Text(
                     statusStyle.$1,
                     style: TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
-                      fontWeight: FontWeight.w800,
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.bold,
                       fontSize: 11.5,
                       color: statusStyle.$3,
                     ),
@@ -586,8 +586,8 @@ Widget _myBookingsSectionHeader(String title) {
           child: Text(
             title,
             style: const TextStyle(
-              fontFamily: kPatientNrtBoldFont,
-              fontWeight: FontWeight.w800,
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.bold,
               fontSize: 17,
               color: kPatientNavyText,
               letterSpacing: 0.2,
@@ -714,7 +714,7 @@ class _TicketVisual extends StatelessWidget {
                                 style: TextStyle(
                                   color: _labelDim,
                                   fontSize: labelSize * 0.92,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -725,8 +725,8 @@ class _TicketVisual extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: _doctorAccent,
-                                  fontFamily: 'KurdishFont',
-                                  fontWeight: FontWeight.w800,
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.bold,
                                   fontSize: doctorSize,
                                   height: 1.25,
                                   shadows: const [
@@ -767,7 +767,7 @@ class _TicketVisual extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: _doctorAccent,
-                                    fontFamily: 'KurdishFont',
+                                    fontFamily: kPatientPrimaryFont,
                                     fontWeight: FontWeight.w700,
                                     fontSize: doctorSize,
                                     height: 1.2,
@@ -795,7 +795,7 @@ class _TicketVisual extends StatelessWidget {
                       badge.$3,
                       style: TextStyle(
                         color: badge.$2,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: kPatientPrimaryFont,
                         fontSize: badgeFont,
                         fontWeight: FontWeight.w700,
                         height: 1.1,
@@ -818,9 +818,10 @@ class _TicketVisual extends StatelessWidget {
                 child: Text(
                   queueLabel,
                   style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
                     color: _queueLight,
                     fontSize: queueSize,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.bold,
                     letterSpacing: isPreview ? 1.2 : 0.5,
                     height: 1,
                     shadows: isPreview
@@ -853,7 +854,7 @@ class _TicketVisual extends StatelessWidget {
                     textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyMuted,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: kPatientPrimaryFont,
                       fontSize: bodyMutedSize,
                       fontWeight: FontWeight.w500,
                       height: 1.25,
@@ -865,7 +866,7 @@ class _TicketVisual extends StatelessWidget {
                     textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyMuted,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: kPatientPrimaryFont,
                       fontSize: bodyMutedSize,
                       fontWeight: FontWeight.w500,
                       height: 1.25,
@@ -877,9 +878,9 @@ class _TicketVisual extends StatelessWidget {
                     textAlign: textEnd,
                     style: TextStyle(
                       color: _bodyLight,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: kPatientPrimaryFont,
                       fontSize: patientSize,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w400,
                       height: 1.25,
                     ),
                   ),
@@ -905,7 +906,7 @@ class _TicketVisual extends StatelessWidget {
                           daysStyle!.label,
                           style: TextStyle(
                             color: daysStyle!.foreground,
-                            fontFamily: 'KurdishFont',
+                            fontFamily: kPatientPrimaryFont,
                             fontSize: daysChipFont,
                             fontWeight: FontWeight.w700,
                           ),
@@ -991,8 +992,8 @@ class _TicketPreviewPage extends StatelessWidget {
                           S.of(context).translate('close'),
                           style: const TextStyle(
                             color: Color(0xFFECEFF4),
-                            fontFamily: 'KurdishFont',
-                            fontWeight: FontWeight.w600,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w400,
                             fontSize: 15,
                           ),
                         ),
@@ -1275,7 +1276,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.redAccent,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: kPatientPrimaryFont,
                       ),
                     ),
                   ),
@@ -1335,8 +1336,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: kPatientNavyText.withValues(alpha: 0.92),
-                            fontFamily: kPatientNrtBoldFont,
-                            fontWeight: FontWeight.w800,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
@@ -1463,8 +1464,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       'هیچ نۆرەی چالاکت نییە',
                       style: TextStyle(
                         color: kPatientNavyText.withValues(alpha: 0.78),
-                        fontFamily: kPatientNrtBoldFont,
-                        fontWeight: FontWeight.w600,
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w400,
                         fontSize: 13.5,
                       ),
                     ),
@@ -1492,8 +1493,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       'هیچ نۆرەی پێشووت نییە',
                       style: TextStyle(
                         color: kPatientNavyText.withValues(alpha: 0.72),
-                        fontFamily: kPatientNrtBoldFont,
-                        fontWeight: FontWeight.w600,
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w400,
                         fontSize: 13,
                       ),
                     ),
@@ -1549,8 +1550,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           title: Text(
             'نۆرەکانم',
             style: const TextStyle(
-              fontFamily: kPatientNrtBoldFont,
-              fontWeight: FontWeight.w800,
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.bold,
               fontSize: 20,
               color: kPatientNavyText,
             ),

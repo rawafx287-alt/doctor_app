@@ -326,7 +326,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                                           text: widget.name.trim(),
                                                           style: const TextStyle(
                                                             fontFamily:
-                                                                kPatientNrtBoldFont,
+                                                                kPatientPrimaryFont,
                                                             fontSize: 18.5,
                                                             fontWeight:
                                                                 FontWeight.bold,
@@ -377,8 +377,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       height: 1.1,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'KurdishFont',
+                                      fontWeight: FontWeight.w400,
+                                      fontFamily: kPatientPrimaryFont,
                                       color: _navyText.withValues(alpha: 0.58),
                                     ),
                                   ),
@@ -447,9 +447,9 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                             style: const TextStyle(
                                               color: Colors.black,
                                               fontSize: 13,
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: kPatientPrimaryFont,
                                               height: 1.2,
-                                              fontWeight: FontWeight.w800,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),
@@ -647,7 +647,7 @@ class _DoctorCardDetailsButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _kDetailsTextColor.withValues(alpha: 0.92),
-                    fontFamily: kPatientNrtBoldFont,
+                    fontFamily: kPatientPrimaryFont,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.15,
@@ -759,7 +759,7 @@ class _BookNowPrimaryButton extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: kPatientNrtBoldFont,
+                        fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.bold,
                         fontSize: 13.5,
                         height: 1.15,

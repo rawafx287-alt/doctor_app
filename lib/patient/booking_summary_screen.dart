@@ -235,7 +235,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         s.translate('booking_active_warning_title'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontFamily: kPatientNrtBoldFont,
+                          fontFamily: kPatientPrimaryFont,
                           color: _kNavy,
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
@@ -246,7 +246,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         s.translate('booking_active_warning_body'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontFamily: kPatientNrtBoldFont,
+                          fontFamily: kPatientPrimaryFont,
                           color: _kBodyMuted,
                           fontWeight: FontWeight.w700,
                           fontSize: 14.5,
@@ -280,7 +280,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               s.translate('booking_active_warning_ok'),
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontFamily: kPatientNrtBoldFont,
+                                fontFamily: kPatientPrimaryFont,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
@@ -356,7 +356,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     'ئاگاداری',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       color: _kNavy,
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
@@ -367,7 +367,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     'تێبینی: تۆمارکردنی نۆرەی وەهمی و بێمانا بە سیستمەکە، دەبێتە هۆی بلۆککردنی هەمیشەیی ژمارەکەت و ڕووبەڕووی لێپرسینەوەی یاسایی دەبیتەوە.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       color: Color(0xFFB71C1C),
                       fontWeight: FontWeight.w800,
                       fontSize: 14.5,
@@ -392,7 +392,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           child: const Text(
                             'دووپاتکردنەوە',
                             style: TextStyle(
-                              fontFamily: kPatientNrtBoldFont,
+                              fontFamily: kPatientPrimaryFont,
                               fontWeight: FontWeight.w800,
                               fontSize: 14.5,
                             ),
@@ -417,7 +417,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           child: const Text(
                             'پاشگەزبوونەوە',
                             style: TextStyle(
-                              fontFamily: kPatientNrtBoldFont,
+                              fontFamily: kPatientPrimaryFont,
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
                             ),
@@ -523,7 +523,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               'شێوازی پارەدان هەڵبژێرە',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontFamily: kPatientNrtBoldFont,
+                                fontFamily: kPatientPrimaryFont,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: _kNavy,
@@ -571,7 +571,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       Text(
                                         'FIB: $fibNumber',
                                         style: const TextStyle(
-                                          fontFamily: kPatientNrtBoldFont,
+                                          fontFamily: kPatientPrimaryFont,
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w800,
                                           color: _kNavy,
@@ -584,7 +584,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       Text(
                                         'FastPay: $fastPayNumber',
                                         style: const TextStyle(
-                                          fontFamily: kPatientNrtBoldFont,
+                                          fontFamily: kPatientPrimaryFont,
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w800,
                                           color: _kNavy,
@@ -677,7 +677,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                   s.translate('confirm_booking'),
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontFamily: kPatientNrtBoldFont,
+                                    fontFamily: kPatientPrimaryFont,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 15,
                                   ),
@@ -741,7 +741,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w800,
                       fontSize: 14.5,
                       color: _kNavy,
@@ -751,7 +751,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w600,
                       fontSize: 11.5,
                       color: _kBodyMuted.withValues(alpha: 0.92),
@@ -825,7 +825,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             SnackBar(
               content: Text(
                 s.translate('error_with_details', params: {'detail': '$e'}),
-                style: const TextStyle(fontFamily: kPatientNrtBoldFont),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
               ),
             ),
           );
@@ -860,7 +860,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           SnackBar(
             content: Text(
               s.translate(key),
-              style: const TextStyle(fontFamily: kPatientNrtBoldFont),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
             ),
           ),
         );
@@ -952,7 +952,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           loc.translate('booking_success_title'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             color: _kNavy,
                             fontWeight: FontWeight.w800,
                             fontSize: 20,
@@ -963,7 +963,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           loc.translate('booking_success_body'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             color: _kBodyMuted,
                             fontWeight: FontWeight.w700,
                             height: 1.45,
@@ -975,7 +975,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           '${loc.translate('booking_summary_doctor')}: $doctorName',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             color: _kBodyMuted.withValues(alpha: 0.86),
                             fontWeight: FontWeight.w700,
                             fontSize: 12.5,
@@ -1000,7 +1000,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             loc.translate('ok'),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontFamily: kPatientNrtBoldFont,
+                              fontFamily: kPatientPrimaryFont,
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
                             ),
@@ -1063,7 +1063,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           title: Text(
             s.translate('booking_summary_title'),
             style: const TextStyle(
-              fontFamily: kPatientNrtBoldFont,
+              fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w800,
               fontSize: 18,
               color: _kNavy,
@@ -1102,7 +1102,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       s.translate('available_day_missing'),
                       style: const TextStyle(
                         color: _kBodyMuted,
-                        fontFamily: kPatientNrtBoldFont,
+                        fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1144,7 +1144,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                           style: const TextStyle(
                             color: Colors.redAccent,
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.center,
@@ -1234,7 +1234,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       ),
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontFamily: kPatientNrtBoldFont,
+                                        fontFamily: kPatientPrimaryFont,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                         color: _kBodyMuted.withValues(
@@ -1248,7 +1248,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       assignedTimeDisplay,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        fontFamily: kPatientNrtBoldFont,
+                                        fontFamily: kPatientPrimaryFont,
                                         fontSize: 34,
                                         fontWeight: FontWeight.w800,
                                         color: _kNavy,
@@ -1305,7 +1305,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                             'available_day_closed_banner',
                                           ),
                                           style: const TextStyle(
-                                            fontFamily: kPatientNrtBoldFont,
+                                            fontFamily: kPatientPrimaryFont,
                                             color: Color(0xFFE53935),
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
@@ -1323,7 +1323,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         Text(
                           s.translate('patient_booking_slots_privacy_title'),
                           style: TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: _kBodyMuted.withValues(alpha: 0.85),
@@ -1358,7 +1358,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         'booking_summary_selected_slot_hint',
                                       ),
                                       style: TextStyle(
-                                        fontFamily: kPatientNrtBoldFont,
+                                        fontFamily: kPatientPrimaryFont,
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w700,
                                         height: 1.35,
@@ -1379,7 +1379,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                     s.translate('day_mgmt_no_slots'),
                                     style: TextStyle(
                                       color: _kBodyMuted.withValues(alpha: 0.9),
-                                      fontFamily: kPatientNrtBoldFont,
+                                      fontFamily: kPatientPrimaryFont,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1414,7 +1414,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                 ));
 
                                     final statusStyle = TextStyle(
-                                      fontFamily: kPatientNrtBoldFont,
+                                      fontFamily: kPatientPrimaryFont,
                                       fontSize: isYourSlot ? 15 : 14,
                                       fontWeight: isYourSlot
                                           ? FontWeight.w900
@@ -1509,7 +1509,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                 timePretty,
                                                 style: const TextStyle(
                                                   fontFamily:
-                                                      kPatientNrtBoldFont,
+                                                      kPatientPrimaryFont,
                                                   fontWeight: FontWeight.w800,
                                                   fontSize: 13,
                                                   color: _kNavy,
@@ -1655,7 +1655,7 @@ class _BookingSummaryInfoRow extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: _kBodyMuted.withValues(alpha: 0.88),
@@ -1667,7 +1667,7 @@ class _BookingSummaryInfoRow extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: _kNavy,
@@ -1712,7 +1712,7 @@ class _BookingCapacityStats extends StatelessWidget {
               Text(
                 bookedText,
                 style: const TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontSize: 36,
                   fontWeight: FontWeight.w900,
                   color: _bookedRed,
@@ -1722,7 +1722,7 @@ class _BookingCapacityStats extends StatelessWidget {
               Text(
                 ' / ',
                 style: TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: _kBodyMuted.withValues(alpha: 0.75),
@@ -1732,7 +1732,7 @@ class _BookingCapacityStats extends StatelessWidget {
               Text(
                 totalText,
                 style: const TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
                   color: _capGreen,
@@ -1749,7 +1749,7 @@ class _BookingCapacityStats extends StatelessWidget {
             sublabel,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: kPatientNrtBoldFont,
+              fontFamily: kPatientPrimaryFont,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: _kBodyMuted.withValues(alpha: 0.82),
@@ -1871,7 +1871,7 @@ class _PremiumGoldBookingButtonState extends State<_PremiumGoldBookingButton>
               : Text(
                   widget.label,
                   style: TextStyle(
-                    fontFamily: kPatientNrtBoldFont,
+                    fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
                     color: active ? Colors.white : const Color(0xFFE5E7EB),

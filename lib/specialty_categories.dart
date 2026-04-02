@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'locale/app_localizations.dart';
+import 'theme/patient_premium_theme.dart';
 
 /// One doctor specialty: [translationKey] for [S.of(context).translate];
 /// [firestoreValue] must match `users.specialty` in Firestore (Sorani label).
@@ -129,9 +130,9 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
     final s = S.of(context);
     final textStyle = TextStyle(
       color: const Color(0xFFD9E2EC),
-      fontFamily: useKurdishFont ? 'KurdishFont' : null,
+      fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
       fontSize: dense ? 15 : 16,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w400,
     );
     return DropdownButtonFormField<String>(
       initialValue: value != null && kDoctorSpecialtyOptions.contains(value) ? value : null,
@@ -146,21 +147,21 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
         labelText: s.translate('dropdown_specialty_label'),
         labelStyle: TextStyle(
           color: const Color(0xFF829AB1),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
           fontSize: dense ? 13 : 14,
           height: 1.25,
         ),
         floatingLabelStyle: TextStyle(
           color: const Color(0xFF829AB1),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
           fontSize: dense ? 11.5 : 12,
           height: 1.15,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         hintText: s.translate('dropdown_specialty_hint'),
         hintStyle: TextStyle(
           color: const Color(0xFF829AB1).withValues(alpha: 0.85),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
         ),
         prefixIcon: Icon(Icons.local_hospital_rounded, color: accentColor),
         filled: true,

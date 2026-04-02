@@ -515,7 +515,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                         Text(
                           s.translate('patient_calendar_selected_heading'),
                           style: TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             fontWeight: FontWeight.w700,
                             fontSize: 12.5,
                             letterSpacing: 0.35,
@@ -550,7 +550,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                               Text(
                                 statusLabel,
                                 style: TextStyle(
-                                  fontFamily: kPatientNrtBoldFont,
+                                  fontFamily: kPatientPrimaryFont,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 11.5,
                                   color: !hasSelection
@@ -604,7 +604,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                       Text(
                                         weekdayLabel,
                                         style: const TextStyle(
-                                          fontFamily: kPatientNrtBoldFont,
+                                          fontFamily: kPatientPrimaryFont,
                                           fontWeight: FontWeight.w800,
                                           fontSize: 15,
                                           color: _kDoctorNameNavy,
@@ -614,7 +614,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                       Text(
                                         numericDate,
                                         style: TextStyle(
-                                          fontFamily: kPatientNrtBoldFont,
+                                          fontFamily: kPatientPrimaryFont,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 13.5,
                                           color: const Color(0xFF1565C0)
@@ -703,7 +703,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                     child: Text(
                                       s.translate('confirm_booking'),
                                       style: TextStyle(
-                                        fontFamily: kPatientNrtBoldFont,
+                                        fontFamily: kPatientPrimaryFont,
                                         fontWeight: FontWeight.w900,
                                         fontSize: 15,
                                         color: bookable
@@ -749,7 +749,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                         child: Text(
                           s.translate('patient_calendar_view_schedule'),
                           style: const TextStyle(
-                            fontFamily: kPatientNrtBoldFont,
+                            fontFamily: kPatientPrimaryFont,
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
                           ),
@@ -794,13 +794,13 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
       daysOfWeekStyle: DaysOfWeekStyle(
         weekdayStyle: TextStyle(
           color: _kDaysOfWeekBlue,
-          fontFamily: kPatientNrtBoldFont,
+          fontFamily: kPatientPrimaryFont,
           fontSize: dowFontSize,
           fontWeight: FontWeight.w800,
         ),
         weekendStyle: TextStyle(
           color: _kDaysOfWeekBlue,
-          fontFamily: kPatientNrtBoldFont,
+          fontFamily: kPatientPrimaryFont,
           fontSize: dowFontSize,
           fontWeight: FontWeight.w800,
         ),
@@ -813,7 +813,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
           color: _kDoctorNameNavy,
           fontSize: headerTitleSize,
           fontWeight: FontWeight.w800,
-          fontFamily: kPatientNrtBoldFont,
+          fontFamily: kPatientPrimaryFont,
           letterSpacing: 0.2,
         ),
         leftChevronIcon: Icon(
@@ -1061,7 +1061,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
             color: _kDoctorNameNavy,
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            fontFamily: kPatientNrtBoldFont,
+            fontFamily: kPatientPrimaryFont,
             height: 1.15,
             letterSpacing: 0.2,
           ),
@@ -1268,7 +1268,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     final textWidget = Text(
       '${day.day}',
       style: TextStyle(
-        fontFamily: kPatientNrtBoldFont,
+        fontFamily: kPatientPrimaryFont,
         fontWeight: FontWeight.w800,
         fontSize: 13,
         color: textColor,

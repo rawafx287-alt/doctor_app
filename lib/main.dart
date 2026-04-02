@@ -7,7 +7,6 @@ import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
 import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
@@ -50,11 +49,11 @@ class HrNoraAppRoot extends StatelessWidget {
         const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       ),
     );
+    const appFont = 'NRT';
     final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      // Professional Latin default; Arabic/Kurdish shapes come from textTheme.
-      fontFamily: GoogleFonts.outfit().fontFamily,
+      fontFamily: appFont,
       scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
       primaryColor: HrNoraColors.primary,
       colorScheme: ColorScheme.dark(
@@ -75,38 +74,54 @@ class HrNoraAppRoot extends StatelessWidget {
       ),
       cardColor: HrNoraColors.primaryDeep,
       dividerColor: const Color(0xFF334E68),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: HrNoraColors.textSoft),
-        bodyMedium: TextStyle(color: HrNoraColors.textSoft),
-        titleLarge: TextStyle(
-          color: HrNoraColors.textSoft,
-          fontWeight: FontWeight.w600,
-        ),
-        labelLarge: TextStyle(color: HrNoraColors.textSoft),
-      ),
     );
-    final primaryEnglishTextTheme = GoogleFonts.outfitTextTheme(
-      baseTheme.textTheme,
-    );
-    final appTextTheme = GoogleFonts.notoSansArabicTextTheme(
-      primaryEnglishTextTheme,
-    ).copyWith(
-      bodyLarge: GoogleFonts.notoSansArabic(
-        color: HrNoraColors.textSoft,
-        fontWeight: FontWeight.w500,
-      ),
-      bodyMedium: GoogleFonts.notoSansArabic(
-        color: HrNoraColors.textSoft,
-        fontWeight: FontWeight.w500,
-      ),
-      bodySmall: GoogleFonts.notoSansArabic(
-        color: HrNoraColors.textSoft,
-        fontWeight: FontWeight.w500,
-      ),
-    ).apply(
-      bodyColor: HrNoraColors.textSoft,
-      displayColor: HrNoraColors.textSoft,
-    );
+    final appTextTheme = baseTheme.textTheme
+        .apply(
+          fontFamily: appFont,
+          bodyColor: HrNoraColors.textSoft,
+          displayColor: HrNoraColors.textSoft,
+        )
+        .copyWith(
+          displayLarge: baseTheme.textTheme.displayLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          displayMedium: baseTheme.textTheme.displayMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          displaySmall: baseTheme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          headlineLarge: baseTheme.textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          headlineMedium: baseTheme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          headlineSmall: baseTheme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          titleLarge: baseTheme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          titleMedium: baseTheme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          titleSmall: baseTheme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          bodyLarge: baseTheme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w400,
+          ),
+          bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w400,
+          ),
+          bodySmall: baseTheme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w400,
+          ),
+          labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w400,
+          ),
+        );
 
     return ListenableBuilder(
       listenable: localeController,

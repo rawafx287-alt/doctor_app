@@ -5,8 +5,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../auth/app_logout.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -150,8 +148,8 @@ Widget _patientGlassMenuInkRow({
             child: Text(
               label,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
-                fontWeight: FontWeight.w600,
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w400,
                 fontSize: 15,
                 height: 1.25,
                 color: _kGlassMenuCharcoal,
@@ -426,8 +424,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       textAlign: TextAlign.start,
                       style: const TextStyle(
                         color: _kCharcoal,
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w600,
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w400,
                         fontSize: 15,
                         height: 1.2,
                         letterSpacing: 0.22,
@@ -439,8 +437,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                             S.of(context).translate('search_doctors_hint'),
                         hintStyle: const TextStyle(
                           color: hintGrey,
-                          fontFamily: 'KurdishFont',
-                          fontWeight: FontWeight.w600,
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w400,
                           fontSize: 14,
                           height: 1.2,
                           letterSpacing: 0.18,
@@ -519,7 +517,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     overflow: TextOverflow.fade,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                       height: 1.12,
@@ -548,8 +546,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 S.of(context).translate('specialties'),
                 style: const TextStyle(
                   color: _kDarkBlue,
-                  fontFamily: 'KurdishFont',
-                  fontWeight: FontWeight.w700,
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
               ),
@@ -641,12 +639,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                       softWrap: true,
                                       overflow: TextOverflow.fade,
                                       textAlign: TextAlign.center,
-                                      style: GoogleFonts.notoSansArabic(
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
                                         fontWeight: allSelected
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        fontSize: 12,
-                                        height: 1.15,
+                                            ? FontWeight.bold
+                                            : FontWeight.w400,
+                                        fontSize: 11,
+                                        height: 1.12,
                                         color: allSelected
                                             ? _categoryLabelDark(
                                                 kPatientSpecialtyAllKey,
@@ -751,7 +750,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.redAccent,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -774,7 +774,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _kMutedGrey,
-                fontFamily: 'KurdishFont',
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w400,
                 fontSize: 16,
               ),
             ),
@@ -931,18 +932,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       ),
     ];
 
-    final hrStyle = GoogleFonts.outfit(
+    final hrStyle = TextStyle(
+      fontFamily: kPatientPrimaryFont,
       fontSize: 22,
       letterSpacing: tightKern,
-      fontWeight: FontWeight.w900,
+      fontWeight: FontWeight.bold,
       color: titleBlue,
       height: 1.0,
       shadows: titleShadow,
     );
-    final noraStyle = GoogleFonts.outfit(
+    final noraStyle = TextStyle(
+      fontFamily: kPatientPrimaryFont,
       fontSize: 22,
       letterSpacing: tightKern,
-      fontWeight: FontWeight.w900,
+      fontWeight: FontWeight.bold,
       color: titleBlue,
       height: 1.0,
       shadows: titleShadow,
@@ -1247,9 +1250,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.notoSansArabic(
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
                           fontSize: 10.5,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight:
+                              selected ? FontWeight.bold : FontWeight.w400,
                           color: animatedColor ?? _kMutedGrey,
                           height: 1.1,
                         ),
@@ -1323,9 +1328,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.notoSansArabic(
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
                           fontSize: 10.5,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight:
+                              selected ? FontWeight.bold : FontWeight.w400,
                           color: selected ? const Color(0xFFB8860B) : _kMutedGrey,
                           height: 1.1,
                         ),

@@ -43,7 +43,7 @@ class PatientProfileScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _kMutedGrey,
-                fontFamily: 'KurdishFont',
+                fontFamily: kPatientPrimaryFont,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -70,7 +70,7 @@ class PatientProfileScreen extends StatelessWidget {
               label: const Text(
                 'تەواوکردنی پرۆفایل',
                 style: TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -199,7 +199,7 @@ class PatientProfileScreen extends StatelessWidget {
             S.of(context).translate('about_description'),
             style: const TextStyle(
               color: Color(0xFF666666),
-              fontFamily: 'KurdishFont',
+              fontFamily: kPatientPrimaryFont,
               height: 1.45,
             ),
           ),
@@ -237,8 +237,8 @@ class PatientProfileScreen extends StatelessWidget {
                   S.of(context).translate('profile_guest'),
                   style: const TextStyle(
                     color: _kMutedGrey,
-                    fontFamily: 'KurdishFont',
-                    fontWeight: FontWeight.w600,
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               );
@@ -347,8 +347,8 @@ class _ProfileGlassHeader extends StatelessWidget {
                         style: const TextStyle(
                           color: _kDoctorNameNavy,
                           fontSize: 21,
-                          fontWeight: FontWeight.w900,
-                          fontFamily: 'KurdishFont',
+                          fontWeight: FontWeight.bold,
+                          fontFamily: kPatientPrimaryFont,
                           height: 1.2,
                           letterSpacing: 0.2,
                         ),
@@ -370,8 +370,8 @@ class _ProfileGlassHeader extends StatelessWidget {
                               style: TextStyle(
                                 color: _kMutedGrey.withValues(alpha: 0.95),
                                 fontSize: 14,
-                                fontFamily: 'KurdishFont',
-                                fontWeight: FontWeight.w500,
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -394,8 +394,8 @@ class _ProfileGlassHeader extends StatelessWidget {
                               style: TextStyle(
                                 color: _kMutedGrey.withValues(alpha: 0.95),
                                 fontSize: 14,
-                                fontFamily: 'KurdishFont',
-                                fontWeight: FontWeight.w500,
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -468,7 +468,7 @@ class _GlassSettingsTile extends StatelessWidget {
                               title,
                               style: const TextStyle(
                                 color: _kDoctorNameNavy,
-                                fontFamily: 'KurdishFont',
+                                fontFamily: kPatientPrimaryFont,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
                                 height: 1.2,
@@ -479,8 +479,8 @@ class _GlassSettingsTile extends StatelessWidget {
                               subtitle,
                               style: TextStyle(
                                 color: _kMutedGrey.withValues(alpha: 0.92),
-                                fontFamily: 'KurdishFont',
-                                fontWeight: FontWeight.w500,
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w400,
                                 fontSize: 12,
                                 height: 1.25,
                               ),
@@ -561,7 +561,7 @@ class _GlassLogoutTile extends StatelessWidget {
                       style: TextStyle(
                         color: _kLogoutRedDeep.withValues(alpha: 0.92),
                         fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.bold,
                         fontSize: 16,
                         height: 1.2,
                       ),

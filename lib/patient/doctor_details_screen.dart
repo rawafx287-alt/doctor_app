@@ -159,7 +159,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               title: Text(
                 displayName,
                 style: const TextStyle(
-                  fontFamily: kPatientNrtBoldFont,
+                  fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                   color: _kDoctorNameNavy,
@@ -323,7 +323,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           color: _kDoctorNameNavy,
                           fontSize: 21,
                           fontWeight: FontWeight.w800,
-                          fontFamily: kPatientNrtBoldFont,
+                          fontFamily: kPatientPrimaryFont,
                           height: 1.15,
                           letterSpacing: 0.25,
                         ),
@@ -367,7 +367,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 color: _kDoctorNameNavy,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w900,
-                                fontFamily: kPatientNrtBoldFont,
+                                fontFamily: kPatientPrimaryFont,
                                 height: 1.25,
                                 letterSpacing: 0.15,
                                 shadows: [
@@ -437,7 +437,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                       child: Text(
                         title,
                         style: const TextStyle(
-                          fontFamily: kPatientNrtBoldFont,
+                          fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w800,
                           fontSize: 17,
                           color: _kDoctorNameNavy,
@@ -506,7 +506,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     s.translate('book_now'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontFamily: kPatientNrtBoldFont,
+                      fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
                       color: Colors.white,
@@ -783,7 +783,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                   alpha: 0.85,
                                                 ),
                                                 fontSize: 12,
-                                                fontFamily: kPatientNrtBoldFont,
+                                                fontFamily: kPatientPrimaryFont,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),
@@ -815,7 +815,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                   alpha: 0.85,
                                                 ),
                                                 fontSize: 12,
-                                                fontFamily: kPatientNrtBoldFont,
+                                                fontFamily: kPatientPrimaryFont,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),

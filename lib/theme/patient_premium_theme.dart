@@ -4,12 +4,8 @@ import 'package:flutter/material.dart';
 const Color kPatientSkyTop = Color(0xFFE1F5FE);
 const Color kPatientSkyBottom = Color(0xFFB3E5FC);
 
-/// Primary UI font (Kurdish + Latin) — set on [TextStyle] via [patientBoldTextStyle].
-const String kPatientPrimaryFont = 'KurdishFont';
-
-/// Bold display face for specialty chip labels, doctor-list headers, doctor names, and card CTAs.
-/// Registered in [pubspec.yaml] as family `NRT Bold` (see assets/fonts/NRT_Bold.ttf).
-const String kPatientNrtBoldFont = 'NRT Bold';
+/// Primary UI font: NRT-Reg (400) for body; use [FontWeight.w700] / [FontWeight.bold] for NRT-Bd.
+const String kPatientPrimaryFont = 'NRT';
 
 const Color kPatientNavyText = Color(0xFF0D2137);
 const Color kPatientDeepBlue = Color(0xFF1A237E);
