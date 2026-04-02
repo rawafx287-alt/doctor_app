@@ -1934,6 +1934,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'متاح',
     'en': 'Available',
   },
+  'patient_slot_label_yours': {
+    'ckb': 'نۆرەی تۆیە',
+    'ar': 'نوبتك',
+    'en': "It's your turn",
+  },
+  'booking_summary_selected_slot_hint': {
+    'ckb': 'کاتی دیاریکراو بە ڕەنگی جیاواز نیشان دراوە',
+    'ar': 'الوقت المحدد مميز بلون مختلف',
+    'en': 'Your assigned time is highlighted below',
+  },
   'available_days_tap_to_book': {
     'ckb': 'داوە بکە',
     'ar': 'احجز',

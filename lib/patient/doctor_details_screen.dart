@@ -22,10 +22,10 @@ const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
 const Color _kGoldLight = Color(0xFFF6E7A6);
 const Color _kGoldShine = Color(0xFFFFE082);
-/// Deep navy for text on bright gold (strong contrast).
-const Color _kSpecialtyBadgeTextNavy = Color(0xFF0A1931);
-const Color _kVerifiedShieldBlue = Color(0xFF0D47A1);
-const Color _kVerifiedShieldHighlight = Color(0xFF42A5F5);
+/// Deep emerald family (specialty badge & section icons).
+const Color _kEmeraldDeep = Color(0xFF0D3D16);
+const Color _kEmeraldPrimary = Color(0xFF1B5E20);
+const Color _kEmeraldLift = Color(0xFF2E7D32);
 
 /// Kept for call sites; returns the name exactly as stored (no honorific prefix).
 String honorificDoctorDisplayName(String rawName) => rawName.trim();
@@ -44,22 +44,28 @@ const LinearGradient _kMetallicGoldGradient = LinearGradient(
   stops: [0.0, 0.22, 0.42, 0.55, 0.78, 1.0],
 );
 
-/// Richer gold: darker at edges, brighter band in the center (specialty pill).
-const LinearGradient _kSpecialtyBadgeGoldGradient = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
+const LinearGradient _kSpecialtyEmeraldGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
   colors: [
-    Color(0xFF5C4810),
-    Color(0xFF7A5F12),
-    _kGoldMid,
-    Color(0xFFFFF4C2),
-    _kGoldShine,
-    Color(0xFFFFF4C2),
-    _kGoldMid,
-    Color(0xFF7A5F12),
-    Color(0xFF5C4810),
+    _kEmeraldDeep,
+    _kEmeraldPrimary,
+    _kEmeraldLift,
+    _kEmeraldPrimary,
+    _kEmeraldDeep,
   ],
-  stops: [0.0, 0.12, 0.28, 0.42, 0.5, 0.58, 0.72, 0.88, 1.0],
+  stops: [0.0, 0.28, 0.5, 0.72, 1.0],
+);
+
+const LinearGradient _kSectionIconEmeraldGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    _kEmeraldDeep,
+    _kEmeraldPrimary,
+    _kEmeraldLift,
+  ],
+  stops: [0.0, 0.55, 1.0],
 );
 
 class DoctorDetailsScreen extends StatefulWidget {
@@ -157,7 +163,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 displayName,
                 style: const TextStyle(
                   fontFamily: kPatientNrtBoldFont,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   fontSize: 16,
                   color: _kDoctorNameNavy,
                   letterSpacing: 0.2,
@@ -178,16 +184,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: _kMetallicGoldGradient,
+        gradient: _kSectionIconEmeraldGradient,
         boxShadow: [
           BoxShadow(
-            color: _kGoldMid.withValues(alpha: 0.38),
+            color: _kEmeraldPrimary.withValues(alpha: 0.35),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Icon(icon, color: Colors.white, size: 22),
+      child: Icon(icon, color: _kGoldMid, size: 22),
     );
   }
 
@@ -229,6 +235,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 color: _kGoldMid.withValues(alpha: 0.14),
                 blurRadius: 22,
                 offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: _kGoldMid.withValues(alpha: 0.18),
+                blurRadius: 40,
+                spreadRadius: -6,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -303,45 +315,17 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        textDirection: appTextDir,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              doctorDisplayName,
-                              textAlign: TextAlign.start,
-                              style: const TextStyle(
-                                color: _kDoctorNameNavy,
-                                fontSize: 21,
-                                fontWeight: FontWeight.w800,
-                                fontFamily: kPatientNrtBoldFont,
-                                height: 1.15,
-                                letterSpacing: 0.25,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.verified_user_rounded,
-                            color: _kVerifiedShieldBlue,
-                            size: 30,
-                            shadows: [
-                              Shadow(
-                                color: _kVerifiedShieldHighlight.withValues(
-                                  alpha: 0.65,
-                                ),
-                                blurRadius: 10,
-                                offset: const Offset(0, 1),
-                              ),
-                              Shadow(
-                                color: Colors.white.withValues(alpha: 0.45),
-                                blurRadius: 4,
-                                offset: const Offset(0, -0.5),
-                              ),
-                            ],
-                          ),
-                        ],
+                      Text(
+                        doctorDisplayName,
+                        textAlign: TextAlign.start,
+                        style: const TextStyle(
+                          color: _kDoctorNameNavy,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: kPatientNrtBoldFont,
+                          height: 1.15,
+                          letterSpacing: 0.25,
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Align(
@@ -349,12 +333,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
-                            gradient: _kSpecialtyBadgeGoldGradient,
+                            gradient: _kSpecialtyEmeraldGradient,
+                            border: Border.all(
+                              color: _kGoldMid.withValues(alpha: 0.92),
+                              width: 1,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: _kGoldDark.withValues(alpha: 0.35),
-                                blurRadius: 12,
-                                offset: const Offset(0, 5),
+                                color: _kEmeraldDeep.withValues(alpha: 0.45),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
@@ -374,8 +362,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 },
                               ),
                               textAlign: TextAlign.start,
-                              style: TextStyle(
-                                color: _kSpecialtyBadgeTextNavy,
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
                                 fontFamily: kPatientNrtBoldFont,
@@ -383,11 +371,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                 letterSpacing: 0.15,
                                 shadows: [
                                   Shadow(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.55,
-                                    ),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 0.5),
+                                    color: Color(0x66000000),
+                                    offset: Offset(0, 1),
+                                    blurRadius: 2,
                                   ),
                                 ],
                               ),
@@ -451,7 +437,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                         title,
                         style: const TextStyle(
                           fontFamily: kPatientNrtBoldFont,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           fontSize: 17,
                           color: _kDoctorNameNavy,
                           height: 1.2,
@@ -797,7 +783,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 ),
                                                 fontSize: 12,
                                                 fontFamily: kPatientNrtBoldFont,
-                                                fontWeight: FontWeight.w700,
+                                                fontWeight: FontWeight.w800,
                                               ),
                                             ),
                                             const SizedBox(height: 6),
@@ -829,7 +815,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 ),
                                                 fontSize: 12,
                                                 fontFamily: kPatientNrtBoldFont,
-                                                fontWeight: FontWeight.w700,
+                                                fontWeight: FontWeight.w800,
                                               ),
                                             ),
                                             const SizedBox(height: 6),

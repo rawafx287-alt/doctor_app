@@ -94,7 +94,7 @@ class PatientDoctorBookingScreen extends StatelessWidget {
                 doctorDisplayName = (merged['fullName'] ?? doctorName).toString();
               }
               if (user == null) {
-                return SingleChildScrollView(
+                return Padding(
                   padding: const EdgeInsets.all(16),
                   child: PatientAvailableDaysList(
                     doctorId: _doctorUid,
@@ -115,7 +115,7 @@ class PatientDoctorBookingScreen extends StatelessWidget {
                   }
                   final pid = (idSnap.data ?? '').trim();
                   if (pid.isEmpty) {
-                    return SingleChildScrollView(
+                    return Padding(
                       padding: const EdgeInsets.all(16),
                       child: PatientAvailableDaysList(
                         doctorId: _doctorUid,
@@ -140,7 +140,7 @@ class PatientDoctorBookingScreen extends StatelessWidget {
                                   s.translate('patient_default'))
                               .toString();
 
-                      return SingleChildScrollView(
+                      return Padding(
                         padding: const EdgeInsets.all(16),
                         child: PatientAvailableDaysList(
                           doctorId: _doctorUid,
