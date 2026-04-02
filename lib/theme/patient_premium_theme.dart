@@ -14,6 +14,32 @@ const String kPatientNrtBoldFont = 'NRT Bold';
 const Color kPatientNavyText = Color(0xFF0D2137);
 const Color kPatientDeepBlue = Color(0xFF1A237E);
 
+/// Professional appointment status pills — use across patient, doctor, secretary, previews.
+const Color kAppointmentStatusCompletedBg = Color(0xFF2E7D32);
+const Color kAppointmentStatusCompletedFg = Color(0xFFFFFFFF);
+
+const Color kAppointmentStatusPendingBg = Color(0xFFEF6C00);
+const Color kAppointmentStatusPendingFg = Color(0xFFFFFFFF);
+
+/// Background + foreground for a rounded status pill.
+(Color, Color) appointmentStatusBadgeColors(String rawStatus) {
+  final s = rawStatus.trim().toLowerCase();
+  switch (s) {
+    case 'completed':
+      return (kAppointmentStatusCompletedBg, kAppointmentStatusCompletedFg);
+    case 'cancelled':
+    case 'canceled':
+      return (const Color(0xFFC62828), kAppointmentStatusPendingFg);
+    case 'confirmed':
+      return (const Color(0xFF283593), kAppointmentStatusPendingFg);
+    case 'arrived':
+      return (const Color(0xFF6D4C41), kAppointmentStatusPendingFg);
+    case 'pending':
+    default:
+      return (kAppointmentStatusPendingBg, kAppointmentStatusPendingFg);
+  }
+}
+
 /// Full-screen vertical gradient (Home, Profile, Booking, Details bodies).
 BoxDecoration patientSkyGradientDecoration() => const BoxDecoration(
       gradient: LinearGradient(

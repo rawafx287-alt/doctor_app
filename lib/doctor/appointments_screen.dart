@@ -12,6 +12,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
+import '../theme/patient_premium_theme.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({
@@ -134,6 +135,10 @@ class AppointmentsScreen extends StatefulWidget {
           return s.translate('doctor_appt_status_completed');
         case 'cancelled':
           return s.translate('doctor_appt_status_cancelled');
+        case 'confirmed':
+          return s.translate('status_confirmed');
+        case 'arrived':
+          return s.translate('status_arrived');
         default:
           return s.translate('doctor_appt_status_pending');
       }
@@ -577,17 +582,7 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback onComplete;
   final VoidCallback onCancel;
 
-  Color get _badgeColor {
-    switch (status) {
-      case 'completed':
-        return const Color(0xFF28C76F);
-      case 'cancelled':
-        return const Color(0xFFFF4D6D);
-      case 'pending':
-      default:
-        return const Color(0xFFE6B800);
-    }
-  }
+  (Color bg, Color fg) get _badgeColors => appointmentStatusBadgeColors(status);
 
   String _badgeLabel(BuildContext context) {
     final s = S.of(context);
@@ -596,6 +591,10 @@ class _AppointmentCard extends StatelessWidget {
         return s.translate('doctor_appt_status_completed');
       case 'cancelled':
         return s.translate('doctor_appt_status_cancelled');
+      case 'confirmed':
+        return s.translate('status_confirmed');
+      case 'arrived':
+        return s.translate('status_arrived');
       case 'pending':
       default:
         return s.translate('doctor_appt_status_pending');
@@ -606,6 +605,7 @@ class _AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S.of(context);
     final showPhoneIcon = onCallTap != null && phoneForCall.isNotEmpty;
+    final badge = _badgeColors;
 
     return Material(
       color: const Color(0xFF1D1E33),
@@ -684,16 +684,22 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: _badgeColor.withValues(alpha: 0.16),
+                      color: badge.$1,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _badgeColor.withValues(alpha: 0.55)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        width: 0.85,
+                      ),
                     ),
                     child: Text(
                       _badgeLabel(context),
                       style: TextStyle(
-                        color: _badgeColor,
+                        color: badge.$2,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'KurdishFont',
                         fontSize: 12,
@@ -757,7 +763,7 @@ class _AppointmentCard extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: onComplete,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF28C76F),
+                          backgroundColor: kAppointmentStatusCompletedBg,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           minimumSize: const Size(0, 40),

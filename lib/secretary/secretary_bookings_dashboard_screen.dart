@@ -8,6 +8,7 @@ import '../firestore/appointment_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../theme/patient_premium_theme.dart';
 
 DateTime? _parseAppointmentDay(dynamic value) {
   if (value == null) return null;
@@ -159,6 +160,29 @@ class _SecretaryBookingsDashboardScreenState
     if (pm == 'digital') return s.translate('secretary_payment_digital');
     if (pm == 'cash') return s.translate('secretary_payment_cash');
     return '—';
+  }
+
+  /// Localized appointment status label (e.g. CKB: چاوەڕوان, تەواو, پاشەکشە).
+  String _localizedPatientAppointmentStatus(
+    BuildContext context,
+    String rawStatus,
+  ) {
+    final loc = S.of(context);
+    final s = rawStatus.trim().toLowerCase();
+    switch (s) {
+      case 'completed':
+        return loc.translate('status_completed');
+      case 'cancelled':
+      case 'canceled':
+        return loc.translate('status_cancelled');
+      case 'confirmed':
+        return loc.translate('status_confirmed');
+      case 'arrived':
+        return loc.translate('status_arrived');
+      case 'pending':
+      default:
+        return loc.translate('status_pending');
+    }
   }
 
   @override
@@ -346,6 +370,7 @@ class _SecretaryBookingsDashboardScreenState
                                       .toString()
                                       .trim();
                               final busy = _updating.contains(doc.id);
+                              final badge = appointmentStatusBadgeColors(st);
 
                               return Container(
                                 padding: const EdgeInsets.all(14),
@@ -376,20 +401,29 @@ class _SecretaryBookingsDashboardScreenState
                                         ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
+                                            horizontal: 10,
+                                            vertical: 5,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF263238),
+                                            color: badge.$1,
                                             borderRadius:
-                                                BorderRadius.circular(8),
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.22),
+                                              width: 0.75,
+                                            ),
                                           ),
                                           child: Text(
-                                            st,
-                                            style: const TextStyle(
-                                              color: Color(0xFF90CAF9),
+                                            _localizedPatientAppointmentStatus(
+                                              context,
+                                              st,
+                                            ),
+                                            style: TextStyle(
+                                              color: badge.$2,
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w800,
+                                              fontFamily: 'KurdishFont',
                                             ),
                                           ),
                                         ),

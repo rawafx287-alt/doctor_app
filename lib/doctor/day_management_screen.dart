@@ -9,6 +9,7 @@ import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/patient_profile_read.dart';
+import '../theme/patient_premium_theme.dart';
 
 /// Doctor/Secretary: day settings + full slot list vs live [appointments] for that date.
 class DayManagementScreen extends StatelessWidget {
@@ -728,6 +729,11 @@ class _PatientSlotsTab extends StatelessWidget {
                                                 },
                                               ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      _DayAppointmentStatusPill(
+                                        rawStatus:
+                                            row[AppointmentFields.status],
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -783,6 +789,57 @@ class _PatientSlotsTab extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _DayAppointmentStatusPill extends StatelessWidget {
+  const _DayAppointmentStatusPill({required this.rawStatus});
+
+  final dynamic rawStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final st = (rawStatus ?? 'pending').toString().trim().toLowerCase();
+    final badge = appointmentStatusBadgeColors(st);
+    final loc = S.of(context);
+    final String label;
+    switch (st) {
+      case 'completed':
+        label = loc.translate('status_completed');
+        break;
+      case 'cancelled':
+      case 'canceled':
+        label = loc.translate('status_cancelled');
+        break;
+      case 'confirmed':
+        label = loc.translate('status_confirmed');
+        break;
+      case 'arrived':
+        label = loc.translate('status_arrived');
+        break;
+      default:
+        label = loc.translate('status_pending');
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badge.$1,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 0.75,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: badge.$2,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          fontFamily: 'KurdishFont',
+        ),
+      ),
     );
   }
 }

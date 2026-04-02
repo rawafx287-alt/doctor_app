@@ -93,6 +93,45 @@ void _sortPatientAppointmentsAll(
   });
 }
 
+String _normAppointmentStatus(dynamic raw) =>
+    (raw ?? 'pending').toString().trim().toLowerCase();
+
+bool _isPastAppointmentStatus(String st) =>
+    st == 'completed' || st == 'cancelled' || st == 'canceled';
+
+/// Active section: [pending] rows first, then others; within each bucket, newest date/time first.
+void _sortActiveAppointmentsForDisplay(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
+) {
+  int pendingRank(String st) => st == 'pending' ? 0 : 1;
+  list.sort((a, b) {
+    final sa = _normAppointmentStatus(a.data()[AppointmentFields.status]);
+    final sb = _normAppointmentStatus(b.data()[AppointmentFields.status]);
+    final ra = pendingRank(sa);
+    final rb = pendingRank(sb);
+    if (ra != rb) return ra.compareTo(rb);
+
+    final da = _parseAppointmentDate(a.data()[AppointmentFields.date]);
+    final db = _parseAppointmentDate(b.data()[AppointmentFields.date]);
+    if (da != null && db != null) {
+      final c = db.compareTo(da);
+      if (c != 0) return c;
+    } else if (da != null) {
+      return 1;
+    } else if (db != null) {
+      return -1;
+    }
+    final ta = a.data()[AppointmentFields.createdAt];
+    final tb = b.data()[AppointmentFields.createdAt];
+    if (ta is Timestamp && tb is Timestamp) {
+      final c = tb.compareTo(ta);
+      if (c != 0) return c;
+    }
+    return _appointmentTimeSortMinutes(b.data()[AppointmentFields.time])
+        .compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
+  });
+}
+
 /// Kurdish label + colors for چەند ڕۆژی ماوە / ئەمڕۆ / بەیانی / بەسەرچوو.
 class _DaysRemainingStyle {
   const _DaysRemainingStyle({
@@ -237,23 +276,41 @@ class _DashedLinePainter extends CustomPainter {
   final s = status.toLowerCase();
   if (s == 'completed') {
     return (
-      const Color(0x3322C55E),
-      const Color(0xFFA5D6A7),
+      kAppointmentStatusCompletedBg,
+      kAppointmentStatusCompletedFg,
       tr.translate('status_completed'),
     );
   }
   if (s == 'cancelled' || s == 'canceled') {
     return (
-      const Color(0x33EF5350),
-      const Color(0xFFFFAB91),
+      const Color(0xFFC62828),
+      kAppointmentStatusPendingFg,
       tr.translate('status_cancelled'),
     );
   }
-  return (
-    const Color(0x3364B5F6),
-    const Color(0xFF90CAF9),
-    tr.translate('status_pending'),
-  );
+  if (s == 'confirmed') {
+    final c = appointmentStatusBadgeColors('confirmed');
+    return (c.$1, c.$2, tr.translate('status_confirmed'));
+  }
+  if (s == 'arrived') {
+    final c = appointmentStatusBadgeColors('arrived');
+    return (c.$1, c.$2, tr.translate('status_arrived'));
+  }
+  final c = appointmentStatusBadgeColors('pending');
+  return (c.$1, c.$2, tr.translate('status_pending'));
+}
+
+Color _statusPillBorder(String status, {required bool isPast}) {
+  if (isPast) return const Color(0xFF9E9E9E).withValues(alpha: 0.55);
+  final s = status.toLowerCase().trim();
+  if (s == 'completed') return const Color(0xFF1B5E20).withValues(alpha: 0.65);
+  if (s == 'pending') return const Color(0xFFBF360C).withValues(alpha: 0.58);
+  if (s == 'cancelled' || s == 'canceled') {
+    return const Color(0xFF8B0000).withValues(alpha: 0.55);
+  }
+  if (s == 'confirmed') return const Color(0xFF1A237E).withValues(alpha: 0.55);
+  if (s == 'arrived') return const Color(0xFF3E2723).withValues(alpha: 0.5);
+  return const Color(0xFFD4AF37).withValues(alpha: 0.7);
 }
 
 class _PremiumBookingCard extends StatelessWidget {
@@ -265,6 +322,8 @@ class _PremiumBookingCard extends StatelessWidget {
     required this.dateStr,
     required this.timeStr,
     required this.status,
+    this.isPast = false,
+    this.pendingGlow = false,
   });
 
   final String queueLabel;
@@ -274,6 +333,8 @@ class _PremiumBookingCard extends StatelessWidget {
   final String dateStr;
   final String timeStr;
   final String status;
+  final bool isPast;
+  final bool pendingGlow;
 
   (String label, Color bg, Color fg) _statusStyle(BuildContext context) {
     final s = status.toLowerCase().trim();
@@ -281,8 +342,8 @@ class _PremiumBookingCard extends StatelessWidget {
     if (s == 'completed') {
       return (
         tr.translate('status_completed'),
-        const Color(0xFFE8F5E9),
-        const Color(0xFF1B5E20),
+        kAppointmentStatusCompletedBg,
+        kAppointmentStatusCompletedFg,
       );
     }
     if (s == 'cancelled' || s == 'canceled') {
@@ -308,34 +369,43 @@ class _PremiumBookingCard extends StatelessWidget {
     }
     return (
       tr.translate('status_pending'),
-      const Color(0xFFE3F2FD),
-      const Color(0xFF0D47A1),
+      kAppointmentStatusPendingBg,
+      kAppointmentStatusPendingFg,
     );
   }
 
   Widget _infoChip(IconData icon, String text) {
+    final borderC = isPast
+        ? const Color(0xFF9E9E9E).withValues(alpha: 0.45)
+        : const Color(0xFFD4AF37).withValues(alpha: 0.55);
+    final iconC =
+        isPast ? const Color(0xFFBDBDBD) : const Color(0xFFFFD700);
+    final textC =
+        isPast ? const Color(0xFFE0E0E0) : const Color(0xFFF1F1F1);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF252525),
+        color: isPast
+            ? const Color(0xFF2A2A2A).withValues(alpha: 0.85)
+            : const Color(0xFF252525),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
+          color: borderC,
           width: 0.7,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFFFFD700)),
+          Icon(icon, size: 14, color: iconC),
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: kPatientNrtBoldFont,
               fontWeight: FontWeight.w700,
               fontSize: 11.5,
-              color: Color(0xFFF1F1F1),
+              color: textC,
             ),
           ),
         ],
@@ -346,22 +416,47 @@ class _PremiumBookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(context);
-    return Container(
+    final gold = const Color(0xFFD4AF37);
+    final borderColor =
+        isPast ? const Color(0xFFB0BEC5).withValues(alpha: 0.55) : gold;
+    final borderW = pendingGlow && !isPast ? 2.35 : (isPast ? 0.85 : 1.0);
+    final shadows = <BoxShadow>[
+      if (pendingGlow && !isPast) ...[
+        BoxShadow(
+          color: gold.withValues(alpha: 0.42),
+          blurRadius: 22,
+          spreadRadius: 0.5,
+          offset: const Offset(0, 4),
+        ),
+        BoxShadow(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.22),
+          blurRadius: 12,
+          offset: const Offset(0, 2),
+        ),
+      ] else if (!isPast)
+        BoxShadow(
+          color: gold.withValues(alpha: 0.16),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
+        )
+      else
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+    ];
+
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFD4AF37),
-          width: 1.0,
+          color: borderColor,
+          width: borderW,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: shadows,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,8 +509,11 @@ class _PremiumBookingCard extends StatelessWidget {
                     color: statusStyle.$2,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: const Color(0xFFD4AF37).withValues(alpha: 0.7),
-                      width: 0.8,
+                      color: _statusPillBorder(
+                        status,
+                        isPast: isPast,
+                      ),
+                      width: 0.85,
                     ),
                   ),
                   child: Text(
@@ -432,7 +530,9 @@ class _PremiumBookingCard extends StatelessWidget {
                 Container(
                   height: 1,
                   width: double.infinity,
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                  color: isPast
+                      ? const Color(0xFF9E9E9E).withValues(alpha: 0.35)
+                      : const Color(0xFFD4AF37).withValues(alpha: 0.45),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -450,7 +550,53 @@ class _PremiumBookingCard extends StatelessWidget {
         ],
       ),
     );
+
+    if (isPast) {
+      return Opacity(
+        opacity: 0.86,
+        child: card,
+      );
+    }
+    return card;
   }
+}
+
+Widget _myBookingsSectionHeader(String title) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(2, 6, 2, 12),
+    child: Row(
+      children: [
+        Container(
+          width: 4,
+          height: 24,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700),
+            borderRadius: BorderRadius.circular(3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontFamily: kPatientNrtBoldFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              color: Color(0xFFFFFDE7),
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Digital ticket — list ([isPreview] false) or enlarged preview ([isPreview] true).
@@ -1143,11 +1289,20 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
                 snapshot.data ?? [],
               );
-              final sorted =
-                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
-              _sortPatientAppointmentsAll(sorted);
+              final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+              for (final d in docs) {
+                final st = _normAppointmentStatus(d.data()[AppointmentFields.status]);
+                if (_isPastAppointmentStatus(st)) {
+                  pastDocs.add(d);
+                } else {
+                  activeDocs.add(d);
+                }
+              }
+              _sortActiveAppointmentsForDisplay(activeDocs);
+              _sortPatientAppointmentsAll(pastDocs);
 
-              if (sorted.isEmpty) {
+              if (docs.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
@@ -1197,53 +1352,55 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
               final padBottom =
                   24 + MediaQuery.paddingOf(context).bottom + (widget.embedded ? 8 : 0);
-              return ListView.builder(
-                padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
-                itemCount: sorted.isEmpty
-                    ? 0
-                    : sorted.length * 2 - 1,
-                itemBuilder: (context, index) {
-                  if (index.isOdd) {
-                    return const SizedBox(height: 16);
-                  }
-                  final cardIndex = index ~/ 2;
-                  final data = sorted[cardIndex].data();
-                  final doctorName = (data[AppointmentFields.doctorName] ??
-                          data[AppointmentFields.doctorId] ??
-                          '—')
-                      .toString();
-                  final patientName = (data[AppointmentFields.patientName] ?? '—').toString();
-                  final specialty = (data['doctorSpecialty'] ?? '—').toString();
-                  final status =
-                      (data[AppointmentFields.status] ?? 'pending').toString();
-                  final timeStr =
-                      (data[AppointmentFields.time] ?? '—').toString();
-                  final rawDate = data[AppointmentFields.date];
-                  final parsedDay = _parseAppointmentDate(rawDate);
-                  String dateStr = '—';
-                  if (parsedDay != null) {
-                    dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
-                  } else if (rawDate != null) {
-                    dateStr = rawDate.toString();
-                  }
-                  final daysStyle = parsedDay != null
-                      ? _DaysRemainingStyle.fromAppointmentDay(
-                          context,
-                          parsedDay,
-                        )
-                      : null;
-                  final queueLabel = _appointmentQueueLabel(data, cardIndex);
-                  final docId = sorted[cardIndex].id;
-                  final heroTag = 'appointment_ticket_$docId';
-                  final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
-                  final isHighlighted = _highlightActive &&
-                      hlId.isNotEmpty &&
-                      ((data[AppointmentFields.availableDayDocId] ?? '')
-                              .toString()
-                              .trim() ==
-                          hlId);
 
-                  return GestureDetector(
+              Widget buildCardForDoc(
+                QueryDocumentSnapshot<Map<String, dynamic>> docSnap, {
+                required int orderIndex,
+                required bool isPastSection,
+              }) {
+                final data = docSnap.data();
+                final doctorName = (data[AppointmentFields.doctorName] ??
+                        data[AppointmentFields.doctorId] ??
+                        '—')
+                    .toString();
+                final patientName =
+                    (data[AppointmentFields.patientName] ?? '—').toString();
+                final specialty = (data['doctorSpecialty'] ?? '—').toString();
+                final status =
+                    (data[AppointmentFields.status] ?? 'pending').toString();
+                final stNorm = _normAppointmentStatus(status);
+                final timeStr =
+                    (data[AppointmentFields.time] ?? '—').toString();
+                final rawDate = data[AppointmentFields.date];
+                final parsedDay = _parseAppointmentDate(rawDate);
+                String dateStr = '—';
+                if (parsedDay != null) {
+                  dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
+                } else if (rawDate != null) {
+                  dateStr = rawDate.toString();
+                }
+                final daysStyle = parsedDay != null
+                    ? _DaysRemainingStyle.fromAppointmentDay(
+                        context,
+                        parsedDay,
+                      )
+                    : null;
+                final queueLabel = _appointmentQueueLabel(data, orderIndex);
+                final docId = docSnap.id;
+                final heroTag = 'appointment_ticket_$docId';
+                final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
+                final isHighlighted = _highlightActive &&
+                    hlId.isNotEmpty &&
+                    ((data[AppointmentFields.availableDayDocId] ?? '')
+                            .toString()
+                            .trim() ==
+                        hlId);
+                final pendingGlow =
+                    !isPastSection && stNorm == 'pending';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: GestureDetector(
                     onTap: () => _openTicketPreview(
                       context,
                       heroTag: heroTag,
@@ -1291,12 +1448,72 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             dateStr: dateStr,
                             timeStr: timeStr,
                             status: status,
+                            isPast: isPastSection,
+                            pendingGlow: pendingGlow,
                           ),
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                );
+              }
+
+              final children = <Widget>[
+                _myBookingsSectionHeader('نۆرەی چالاک'),
+                if (activeDocs.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Text(
+                      'هیچ نۆرەی چالاکت نییە',
+                      style: TextStyle(
+                        color: const Color(0xFFB0BEC5).withValues(alpha: 0.9),
+                        fontFamily: kPatientNrtBoldFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  )
+                else
+                  for (var i = 0; i < activeDocs.length; i++)
+                    buildCardForDoc(
+                      activeDocs[i],
+                      orderIndex: i,
+                      isPastSection: false,
+                    ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Divider(
+                    height: 1,
+                    thickness: 0.6,
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
+                ),
+                _myBookingsSectionHeader('نۆرەکانی پێشوو'),
+                if (pastDocs.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'هیچ نۆرەی پێشووت نییە',
+                      style: TextStyle(
+                        color: const Color(0xFFB0BEC5).withValues(alpha: 0.75),
+                        fontFamily: kPatientNrtBoldFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                else
+                  for (var j = 0; j < pastDocs.length; j++)
+                    buildCardForDoc(
+                      pastDocs[j],
+                      orderIndex: j,
+                      isPastSection: true,
+                    ),
+              ];
+
+              return ListView(
+                padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
+                children: children,
               );
             },
           );
