@@ -29,6 +29,12 @@ abstract final class AppointmentFields {
 
   /// Links an [appointments] row to an [available_days] document (patient self-booking).
   static const String availableDayDocId = 'availableDayDocId';
+
+  /// `cash` | `digital` — set when patient completes booking + payment step.
+  static const String paymentMethod = 'paymentMethod';
+
+  /// Firebase Storage download URL for digital payment receipt image, if any.
+  static const String receiptUrl = 'receiptUrl';
 }
 
 /// Doctor + local date range on [AppointmentFields.date].

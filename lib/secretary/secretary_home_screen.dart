@@ -4,6 +4,7 @@ import '../calendar/master_calendar_screen.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import 'secretary_available_days_screen.dart';
+import 'secretary_bookings_dashboard_screen.dart';
 
 /// Secretary home: calendar + available-days slot view (Firestore role: `Secretary`).
 class SecretaryHomeScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
               isRootShell: true,
             ),
             SecretaryAvailableDaysScreen(),
+            SecretaryBookingsDashboardScreen(),
           ],
         ),
         bottomNavigationBar: NavigationBar(
@@ -50,6 +52,11 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
               icon: const Icon(Icons.event_available_outlined),
               selectedIcon: const Icon(Icons.event_available),
               label: s.translate('secretary_nav_available_days'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.list_alt_outlined),
+              selectedIcon: const Icon(Icons.list_alt_rounded),
+              label: s.translate('secretary_nav_bookings'),
             ),
           ],
         ),

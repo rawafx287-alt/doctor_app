@@ -22,10 +22,7 @@ const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
 const Color _kGoldLight = Color(0xFFF6E7A6);
 const Color _kGoldShine = Color(0xFFFFE082);
-/// Deep emerald family (specialty badge & section icons).
-const Color _kEmeraldDeep = Color(0xFF0D3D16);
-const Color _kEmeraldPrimary = Color(0xFF1B5E20);
-const Color _kEmeraldLift = Color(0xFF2E7D32);
+const Color _kGoldBrilliant = Color(0xFFFFD700);
 
 /// Kept for call sites; returns the name exactly as stored (no honorific prefix).
 String honorificDoctorDisplayName(String rawName) => rawName.trim();
@@ -44,28 +41,28 @@ const LinearGradient _kMetallicGoldGradient = LinearGradient(
   stops: [0.0, 0.22, 0.42, 0.55, 0.78, 1.0],
 );
 
-const LinearGradient _kSpecialtyEmeraldGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
+const RadialGradient _kBrilliantGoldRadial = RadialGradient(
+  center: Alignment(0, -0.1),
+  radius: 1.15,
   colors: [
-    _kEmeraldDeep,
-    _kEmeraldPrimary,
-    _kEmeraldLift,
-    _kEmeraldPrimary,
-    _kEmeraldDeep,
+    _kGoldBrilliant,
+    _kGoldShine,
+    _kGoldMid,
+    Color(0xFFB8860B),
   ],
-  stops: [0.0, 0.28, 0.5, 0.72, 1.0],
+  stops: [0.0, 0.24, 0.58, 1.0],
 );
 
-const LinearGradient _kSectionIconEmeraldGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
+const RadialGradient _kGoldIconRadial = RadialGradient(
+  center: Alignment(0, -0.15),
+  radius: 1.1,
   colors: [
-    _kEmeraldDeep,
-    _kEmeraldPrimary,
-    _kEmeraldLift,
+    _kGoldBrilliant,
+    _kGoldShine,
+    _kGoldMid,
+    Color(0xFFB8860B),
   ],
-  stops: [0.0, 0.55, 1.0],
+  stops: [0.0, 0.2, 0.58, 1.0],
 );
 
 class DoctorDetailsScreen extends StatefulWidget {
@@ -184,16 +181,20 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: _kSectionIconEmeraldGradient,
+        gradient: _kGoldIconRadial,
+        border: Border.all(
+          color: _kGoldLight.withValues(alpha: 0.7),
+          width: 0.7,
+        ),
         boxShadow: [
           BoxShadow(
-            color: _kEmeraldPrimary.withValues(alpha: 0.35),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: _kGoldMid.withValues(alpha: 0.46),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Icon(icon, color: _kGoldMid, size: 22),
+      child: Icon(icon, color: _kDoctorNameNavy, size: 22),
     );
   }
 
@@ -333,16 +334,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
-                            gradient: _kSpecialtyEmeraldGradient,
+                            gradient: _kBrilliantGoldRadial,
                             border: Border.all(
-                              color: _kGoldMid.withValues(alpha: 0.92),
-                              width: 1,
+                              color: _kGoldLight.withValues(alpha: 0.82),
+                              width: 0.9,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: _kEmeraldDeep.withValues(alpha: 0.45),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: _kGoldMid.withValues(alpha: 0.42),
+                                blurRadius: 16,
+                                offset: const Offset(0, 5),
                               ),
                             ],
                           ),
@@ -363,15 +364,15 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                               ),
                               textAlign: TextAlign.start,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: _kDoctorNameNavy,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                                 fontFamily: kPatientNrtBoldFont,
                                 height: 1.25,
                                 letterSpacing: 0.15,
                                 shadows: [
                                   Shadow(
-                                    color: Color(0x66000000),
+                                    color: Color(0x66FFFFFF),
                                     offset: Offset(0, 1),
                                     blurRadius: 2,
                                   ),

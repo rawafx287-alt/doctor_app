@@ -1466,6 +1466,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'تم حجز موعدك بنجاح',
     'en': 'Your appointment was booked',
   },
+  'booking_active_warning_title': {
+    'ckb': 'ئاگاداری',
+    'ar': 'تنبيه',
+    'en': 'Warning',
+  },
+  'booking_active_warning_body': {
+    'ckb':
+        'ببورە، تۆ نۆرەیەکی چالاکت هەیە. ناتوانی نۆرەی تر بگریت تا نۆرەکەی پێشووت تەواو دەبێت.',
+    'ar':
+        'عذراً، لديك موعد نشط. لا يمكنك حجز موعد آخر حتى يكتمل موعدك السابق.',
+    'en':
+        'Sorry, you already have an active appointment. You cannot book another one until the previous one is completed.',
+  },
+  'booking_active_warning_ok': {
+    'ckb': 'تێگەیشتم',
+    'ar': 'فهمت',
+    'en': 'I Understand',
+  },
   'ok': {
     'ckb': 'باشە',
     'ar': 'حسناً',
@@ -1677,6 +1695,66 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'ڕۆژە بەردەستەکان',
     'ar': 'الأيام المتاحة',
     'en': 'Available days',
+  },
+  'secretary_nav_bookings': {
+    'ckb': 'نۆرەکان',
+    'ar': 'المواعيد',
+    'en': 'Bookings',
+  },
+  'secretary_bookings_title': {
+    'ckb': 'بەڕێوەبردنی نۆرەکان',
+    'ar': 'إدارة المواعيد',
+    'en': 'Appointment management',
+  },
+  'secretary_bookings_empty': {
+    'ckb': 'هیچ نۆرەیەک نییە',
+    'ar': 'لا توجد مواعيد',
+    'en': 'No appointments',
+  },
+  'secretary_payment_cash': {
+    'ckb': 'کاش',
+    'ar': 'نقدي',
+    'en': 'Cash',
+  },
+  'secretary_payment_digital': {
+    'ckb': 'دەیجیتاڵ',
+    'ar': 'رقمي',
+    'en': 'Digital',
+  },
+  'secretary_view_receipt': {
+    'ckb': 'بینینی پسوڵە',
+    'ar': 'عرض الإيصال',
+    'en': 'View receipt',
+  },
+  'secretary_action_confirm': {
+    'ckb': 'دڵنیاکردنەوە',
+    'ar': 'تأكيد',
+    'en': 'Confirm',
+  },
+  'secretary_action_arrived': {
+    'ckb': 'هات',
+    'ar': 'وصل',
+    'en': 'Arrived',
+  },
+  'secretary_action_completed': {
+    'ckb': 'تەواو',
+    'ar': 'مكتمل',
+    'en': 'Completed',
+  },
+  'secretary_action_cancel': {
+    'ckb': 'پاشگەزبوونەوە',
+    'ar': 'إلغاء',
+    'en': 'Cancel',
+  },
+  'status_confirmed': {
+    'ckb': 'دڵنیاکراوە',
+    'ar': 'مؤكد',
+    'en': 'Confirmed',
+  },
+  'status_arrived': {
+    'ckb': 'لە کلینیک',
+    'ar': 'في العيادة',
+    'en': 'Arrived',
   },
   'secretary_available_days_title': {
     'ckb': 'ڕۆژە بەردەستەکان',
@@ -2163,6 +2241,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'تکایە ڕۆژێکی بەردەست (سەوز) هەڵبژێرە، پاشان دووپات بکەرەوە',
     'ar': 'اختر يوماً متاحاً (أخضر) ثم أكّد الحجز',
     'en': 'Choose an available (green) day, then confirm',
+  },
+  'patient_calendar_closed_professional_title': {
+    'ckb': 'داوای لێبوردن دەکەین، پزیشک لەم ڕێکەوتەدا بەردەست نییە',
+    'ar': 'نعتذر، الطبيب غير متاح في هذا التاريخ.',
+    'en': 'We apologize, the doctor is not available on this date.',
+  },
+  'patient_calendar_closed_professional_subtitle': {
+    'ckb': 'تکایە ڕۆژێکی تر (سەوز) هەڵبژێرە',
+    'ar': 'يرجى اختيار يوم آخر (أخضر).',
+    'en': 'Please select another day (green).',
+  },
+  'patient_calendar_closed_professional_snackbar': {
+    'ckb': 'داوای لێبوردن دەکەین، ئەم ڕۆژە داخراوە',
+    'ar': 'نعتذر، هذا اليوم مغلق.',
+    'en': 'We apologize, this day is closed.',
   },
   'patient_calendar_view_schedule': {
     'ckb': 'بینینی خشتە',

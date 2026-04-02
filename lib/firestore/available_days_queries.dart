@@ -366,6 +366,8 @@ Future<String?> bookAvailableDayTransaction({
   required String patientName,
   required String doctorId,
   required String doctorDisplayName,
+  String? paymentMethod,
+  String? receiptUrl,
 }) async {
   final pid = patientId.trim();
   final did = doctorId.trim();
@@ -463,6 +465,10 @@ Future<String?> bookAvailableDayTransaction({
           AppointmentFields.queueNumber: queueNumber,
           AppointmentFields.createdAt: FieldValue.serverTimestamp(),
           AppointmentFields.availableDayDocId: availableDayDocId,
+          if (paymentMethod != null && paymentMethod.trim().isNotEmpty)
+            AppointmentFields.paymentMethod: paymentMethod.trim(),
+          if (receiptUrl != null && receiptUrl.trim().isNotEmpty)
+            AppointmentFields.receiptUrl: receiptUrl.trim(),
         });
 
         return null;

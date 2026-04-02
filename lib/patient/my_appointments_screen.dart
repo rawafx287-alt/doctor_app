@@ -15,6 +15,7 @@ import '../auth/phone_normalization.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../theme/patient_premium_theme.dart';
 
 /// Parses [date] from Firestore: [Timestamp], [DateTime], or strings like `2026/03/30`.
 DateTime? _parseAppointmentDate(dynamic value) {
@@ -45,9 +46,6 @@ DateTime? _parseAppointmentDate(dynamic value) {
   }
 }
 
-bool _isSameCalendarDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
-
 /// Minutes from midnight for [AppointmentFields.time] keys like `09:30`; unknown → large value (last).
 int _appointmentTimeSortMinutes(dynamic timeVal) {
   final s = (timeVal ?? '').toString().trim();
@@ -70,16 +68,6 @@ String _appointmentQueueLabel(Map<String, dynamic> data, int fallbackIndex) {
   return '#$h';
 }
 
-void _sortPatientAppointmentsToday(
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
-) {
-  list.sort((a, b) => _appointmentTimeSortMinutes(
-        a.data()[AppointmentFields.time],
-      ).compareTo(
-        _appointmentTimeSortMinutes(b.data()[AppointmentFields.time]),
-      ));
-}
-
 void _sortPatientAppointmentsAll(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
 ) {
@@ -87,21 +75,21 @@ void _sortPatientAppointmentsAll(
     final da = _parseAppointmentDate(a.data()[AppointmentFields.date]);
     final db = _parseAppointmentDate(b.data()[AppointmentFields.date]);
     if (da != null && db != null) {
-      final c = da.compareTo(db);
+      final c = db.compareTo(da);
       if (c != 0) return c;
     } else if (da != null) {
-      return -1;
-    } else if (db != null) {
       return 1;
+    } else if (db != null) {
+      return -1;
     }
     final ta = a.data()[AppointmentFields.createdAt];
     final tb = b.data()[AppointmentFields.createdAt];
     if (ta is Timestamp && tb is Timestamp) {
-      final c = ta.compareTo(tb);
+      final c = tb.compareTo(ta);
       if (c != 0) return c;
     }
-    return _appointmentTimeSortMinutes(a.data()[AppointmentFields.time])
-        .compareTo(_appointmentTimeSortMinutes(b.data()[AppointmentFields.time]));
+    return _appointmentTimeSortMinutes(b.data()[AppointmentFields.time])
+        .compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
   });
 }
 
@@ -266,6 +254,203 @@ class _DashedLinePainter extends CustomPainter {
     const Color(0xFF90CAF9),
     tr.translate('status_pending'),
   );
+}
+
+class _PremiumBookingCard extends StatelessWidget {
+  const _PremiumBookingCard({
+    required this.queueLabel,
+    required this.doctorName,
+    required this.specialty,
+    required this.patientName,
+    required this.dateStr,
+    required this.timeStr,
+    required this.status,
+  });
+
+  final String queueLabel;
+  final String doctorName;
+  final String specialty;
+  final String patientName;
+  final String dateStr;
+  final String timeStr;
+  final String status;
+
+  (String label, Color bg, Color fg) _statusStyle(BuildContext context) {
+    final s = status.toLowerCase().trim();
+    final tr = S.of(context);
+    if (s == 'completed') {
+      return (
+        tr.translate('status_completed'),
+        const Color(0xFFE8F5E9),
+        const Color(0xFF1B5E20),
+      );
+    }
+    if (s == 'cancelled' || s == 'canceled') {
+      return (
+        tr.translate('status_cancelled'),
+        const Color(0xFFFFEBEE),
+        const Color(0xFFB71C1C),
+      );
+    }
+    if (s == 'confirmed') {
+      return (
+        tr.translate('status_confirmed'),
+        const Color(0xFFE8EAF6),
+        const Color(0xFF283593),
+      );
+    }
+    if (s == 'arrived') {
+      return (
+        tr.translate('status_arrived'),
+        const Color(0xFFFFF3E0),
+        const Color(0xFFE65100),
+      );
+    }
+    return (
+      tr.translate('status_pending'),
+      const Color(0xFFE3F2FD),
+      const Color(0xFF0D47A1),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF252525),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
+          width: 0.7,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFFFFD700)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontFamily: kPatientNrtBoldFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 11.5,
+              color: Color(0xFFF1F1F1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusStyle = _statusStyle(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFD4AF37),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              queueLabel,
+              style: const TextStyle(
+                fontFamily: kPatientNrtBoldFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 26,
+                color: Color(0xFFFFD700),
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doctorName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: kPatientNrtBoldFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: Color(0xFFFFD700),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  specialty,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: kPatientNrtBoldFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: const Color(0xFFE8E8E8).withValues(alpha: 0.95),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusStyle.$2,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.7),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    statusStyle.$1,
+                    style: TextStyle(
+                      fontFamily: kPatientNrtBoldFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11.5,
+                      color: statusStyle.$3,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  height: 1,
+                  width: double.infinity,
+                  color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    _infoChip(Icons.calendar_today_rounded, dateStr),
+                    _infoChip(Icons.schedule_rounded, timeStr),
+                    _infoChip(Icons.person_rounded, patientName),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Digital ticket — list ([isPreview] false) or enlarged preview ([isPreview] true).
@@ -777,9 +962,14 @@ void _openTicketPreview(
 /// Patient view: نۆرەکانم — lists [appointments] for the signed-in user.
 /// Set [embedded] to true when used inside a parent shell without a root [Scaffold]/[AppBar].
 class PatientAppointmentsScreen extends StatefulWidget {
-  const PatientAppointmentsScreen({super.key, this.embedded = false});
+  const PatientAppointmentsScreen({
+    super.key,
+    this.embedded = false,
+    this.highlightAvailableDayDocId,
+  });
 
   final bool embedded;
+  final String? highlightAvailableDayDocId;
 
   @override
   State<PatientAppointmentsScreen> createState() =>
@@ -787,11 +977,11 @@ class PatientAppointmentsScreen extends StatefulWidget {
 }
 
 class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
-  static const Color _bg = Color(0xFF0A0E21);
-  static const Color _skyHole = Color(0xFFE1F5FE);
-  static const Color _teal = Color(0xFF42A5F5);
-  static const Color _text = Color(0xFFD9E2EC);
-  static const Color _muted = Color(0xFF829AB1);
+  static const Color _bg = Color(0xFF121212);
+  static const Color _skyHole = Color(0xFF121212);
+  static const Color _teal = Color(0xFFD4AF37);
+  static const Color _text = Color(0xFFFFD700);
+  static const Color _muted = Color(0xFFC8C8C8);
 
   Color get _holeColor => widget.embedded ? _skyHole : _bg;
   Color get _uiAccent =>
@@ -799,31 +989,25 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   Color get _uiMuted =>
       widget.embedded ? const Color(0xFF546E7A) : _muted;
 
-  bool _todayOnly = true;
-  late DateTime _todayAnchor;
-  Timer? _dayTick;
+  Timer? _highlightTimer;
+  bool _highlightActive = false;
 
   @override
   void initState() {
     super.initState();
-    final n = DateTime.now();
-    _todayAnchor = DateTime(n.year, n.month, n.day);
-    _dayTick = Timer.periodic(const Duration(minutes: 1), (_) {
-      final now = DateTime.now();
-      final d = DateTime(now.year, now.month, now.day);
-      if (d != _todayAnchor) {
-        setState(() => _todayAnchor = d);
-      }
-    });
+    _highlightActive = (widget.highlightAvailableDayDocId ?? '').trim().isNotEmpty;
+    if (_highlightActive) {
+      _highlightTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted) setState(() => _highlightActive = false);
+      });
+    }
   }
 
   @override
   void dispose() {
-    _dayTick?.cancel();
+    _highlightTimer?.cancel();
     super.dispose();
   }
-
-  void _toggleTodayOnly() => setState(() => _todayOnly = !_todayOnly);
 
   Set<String> _patientIdsForQueries(User user) {
     final phoneIds = <String>{};
@@ -908,33 +1092,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     });
   }
 
-  Widget _filterToggleBar(BuildContext context) {
-    final s = S.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-      child: Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: TextButton.icon(
-          onPressed: _toggleTodayOnly,
-          icon: Icon(
-            _todayOnly ? Icons.list_alt_outlined : Icons.today_outlined,
-            size: 20,
-            color: _uiAccent,
-          ),
-          label: Text(
-            _todayOnly
-                ? s.translate('appointments_show_all')
-                : s.translate('appointments_show_today'),
-            style: TextStyle(
-              color: _uiAccent,
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -986,37 +1143,53 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
                 snapshot.data ?? [],
               );
-              if (_todayOnly) {
-                docs = docs.where((d) {
-                  final day = _parseAppointmentDate(d.data()[AppointmentFields.date]);
-                  return day != null && _isSameCalendarDay(day, _todayAnchor);
-                }).toList();
-              }
               final sorted =
                   List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
-              if (_todayOnly) {
-                _sortPatientAppointmentsToday(sorted);
-              } else {
-                _sortPatientAppointmentsAll(sorted);
-              }
+              _sortPatientAppointmentsAll(sorted);
 
               if (sorted.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text(
-                      S.of(context).translate(
-                        _todayOnly
-                            ? 'appointments_empty_today'
-                            : 'appointments_empty',
-                      ),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _uiMuted,
-                        fontFamily: 'KurdishFont',
-                        fontSize: 16,
-                        height: 1.4,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 110,
+                          height: 110,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF1E1E1E),
+                            border: Border.all(
+                              color: const Color(0xFFD4AF37),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.event_note_rounded,
+                            size: 52,
+                            color: Color(0xFFFFD700),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'هیچ نۆرەیەکت تۆمار نەکردووە',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFFF1F1F1),
+                            fontFamily: kPatientNrtBoldFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -1039,8 +1212,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           data[AppointmentFields.doctorId] ??
                           '—')
                       .toString();
-                  final patientName =
-                      (data[AppointmentFields.patientName] ?? '—').toString();
+                  final patientName = (data[AppointmentFields.patientName] ?? '—').toString();
+                  final specialty = (data['doctorSpecialty'] ?? '—').toString();
                   final status =
                       (data[AppointmentFields.status] ?? 'pending').toString();
                   final timeStr =
@@ -1049,7 +1222,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   final parsedDay = _parseAppointmentDate(rawDate);
                   String dateStr = '—';
                   if (parsedDay != null) {
-                    dateStr = DateFormat.yMMMEd().format(parsedDay);
+                    dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
                   } else if (rawDate != null) {
                     dateStr = rawDate.toString();
                   }
@@ -1062,6 +1235,13 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   final queueLabel = _appointmentQueueLabel(data, cardIndex);
                   final docId = sorted[cardIndex].id;
                   final heroTag = 'appointment_ticket_$docId';
+                  final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
+                  final isHighlighted = _highlightActive &&
+                      hlId.isNotEmpty &&
+                      ((data[AppointmentFields.availableDayDocId] ?? '')
+                              .toString()
+                              .trim() ==
+                          hlId);
 
                   return GestureDetector(
                     onTap: () => _openTicketPreview(
@@ -1079,18 +1259,39 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     behavior: HitTestBehavior.opaque,
                     child: Hero(
                       tag: heroTag,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: _TicketVisual(
-                          doctorName: doctorName,
-                          patientName: patientName,
-                          dateStr: dateStr,
-                          timeStr: timeStr,
-                          status: status,
-                          queueLabel: queueLabel,
-                          daysStyle: daysStyle,
-                          holeColor: _holeColor,
-                          isPreview: false,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: isHighlighted
+                              ? Border.all(
+                                  color: const Color(0xFFD4AF37),
+                                  width: 1.4,
+                                )
+                              : null,
+                          boxShadow: isHighlighted
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFD4AF37)
+                                        .withValues(alpha: 0.33),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: _PremiumBookingCard(
+                            queueLabel: queueLabel,
+                            doctorName: doctorName,
+                            specialty: specialty,
+                            patientName: patientName,
+                            dateStr: dateStr,
+                            timeStr: timeStr,
+                            status: status,
+                          ),
                         ),
                       ),
                     ),
@@ -1102,15 +1303,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       },
     );
 
-    final body = widget.embedded
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _filterToggleBar(context),
-                  Expanded(child: listBody),
-                ],
-              )
-            : listBody;
+    final body = listBody;
 
     final pageDir = AppLocaleScope.of(context).textDirection;
     final pageRtl = pageDir == ui.TextDirection.rtl;
@@ -1118,7 +1311,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     if (widget.embedded) {
       return Directionality(
         textDirection: pageDir,
-        child: ColoredBox(color: Colors.transparent, child: body),
+        child: ColoredBox(color: _bg, child: body),
       );
     }
 
@@ -1127,8 +1320,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       child: Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
+          backgroundColor: _bg,
           foregroundColor: _text,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
             icon: Icon(
@@ -1140,28 +1334,21 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             tooltip: S.of(context).translate('back'),
           ),
           title: Text(
-            S.of(context).translate('appointments'),
+            'نۆرەکانم',
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
-              fontWeight: FontWeight.w700,
+              fontFamily: kPatientNrtBoldFont,
+              fontWeight: FontWeight.w800,
               fontSize: 20,
+              color: Color(0xFFFFD700),
             ),
           ),
-          actions: [
-            IconButton(
-              icon: Icon(
-                _todayOnly
-                    ? Icons.calendar_view_month_outlined
-                    : Icons.today_outlined,
-              ),
-              tooltip: _todayOnly
-                  ? S.of(context).translate('appointments_show_all')
-                  : S.of(context).translate('appointments_show_today'),
-              onPressed: _toggleTodayOnly,
-            ),
-          ],
         ),
-        body: body,
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Color(0xFF121212),
+          ),
+          child: body,
+        ),
       ),
     );
   }
@@ -1169,8 +1356,16 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
 /// Full-screen route after booking (back button). Same UI as [PatientAppointmentsScreen] standalone.
 class MyAppointmentsScreen extends StatelessWidget {
-  const MyAppointmentsScreen({super.key});
+  const MyAppointmentsScreen({
+    super.key,
+    this.highlightAvailableDayDocId,
+  });
+
+  final String? highlightAvailableDayDocId;
 
   @override
-  Widget build(BuildContext context) => const PatientAppointmentsScreen(embedded: false);
+  Widget build(BuildContext context) => PatientAppointmentsScreen(
+        embedded: false,
+        highlightAvailableDayDocId: highlightAvailableDayDocId,
+      );
 }

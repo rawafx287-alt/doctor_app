@@ -15,11 +15,11 @@ class PatientEditProfileScreen extends StatefulWidget {
 }
 
 class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _idController = TextEditingController();
   bool _loading = true;
-  bool _saving = false;
 
   @override
   void initState() {
@@ -28,7 +28,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }
 
   Future<void> _load() async {
-    final docId = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
+    final user = FirebaseAuth.instance.currentUser;
+    final docId = user?.uid.trim() ?? '';
     if (docId.isEmpty) {
       setState(() => _loading = false);
       return;
@@ -36,11 +37,26 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     try {
       final snap =
           await FirebaseFirestore.instance.collection('users').doc(docId).get();
-      final data = snap.data();
-      if (data != null) {
-        _nameController.text = (data['fullName'] ?? '').toString();
-        _phoneController.text = (data['phone'] ?? '').toString();
-      }
+      final data = snap.data() ?? const <String, dynamic>{};
+
+      final dbName = (data['fullName'] ?? '').toString().trim();
+      final dbPhone = (data['phone'] ?? '').toString().trim();
+      final dbEmail = (data['email'] ?? '').toString().trim();
+
+      final authName = (user?.displayName ?? '').trim();
+      final authPhone = (user?.phoneNumber ?? '').trim();
+      final authEmail = (user?.email ?? '').trim();
+
+      _nameController.text = dbName.isNotEmpty
+          ? dbName
+          : (authName.isNotEmpty ? authName : '—');
+      _phoneController.text = dbPhone.isNotEmpty
+          ? dbPhone
+          : (authPhone.isNotEmpty ? authPhone : '—');
+      _emailController.text = dbEmail.isNotEmpty
+          ? dbEmail
+          : (authEmail.isNotEmpty ? authEmail : '—');
+      _idController.text = docId.isNotEmpty ? docId : '—';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -50,43 +66,9 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
+    _idController.dispose();
     super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    final docId = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
-    if (docId.isEmpty) return;
-
-    setState(() => _saving = true);
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(docId).update({
-        'fullName': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'پاشەکەوت کرا',
-            style: TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-      Navigator.pop(context);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'هەڵەیەک ڕوویدا',
-            style: TextStyle(fontFamily: 'KurdishFont'),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   @override
@@ -101,7 +83,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            'گۆڕینی زانیارییەکان',
+            'زانیارییە کەسییەکان',
             style: patientBoldTextStyle(
               fontSize: 17,
               weight: FontWeight.w700,
@@ -125,78 +107,74 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(18),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                TextFormField(
-                                  controller: _nameController,
-                                  textAlign: TextAlign.right,
-                                  style: patientBoldTextStyle(
-                                    fontSize: 15,
-                                    weight: FontWeight.w600,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    label: 'ناوی تەواو',
-                                    icon: Icons.person_outline_rounded,
-                                  ),
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'ناو پێویستە';
-                                    }
-                                    return null;
-                                  },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextFormField(
+                                controller: _nameController,
+                                readOnly: true,
+                                enabled: false,
+                                textAlign: TextAlign.right,
+                                style: patientBoldTextStyle(
+                                  fontSize: 15,
+                                  weight: FontWeight.w600,
+                                  color: kPatientNavyText.withValues(alpha: 0.72),
                                 ),
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _phoneController,
-                                  textAlign: TextAlign.right,
-                                  keyboardType: TextInputType.phone,
-                                  style: patientBoldTextStyle(
-                                    fontSize: 15,
-                                    weight: FontWeight.w600,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    label: 'ژمارەی مۆبایل',
-                                    icon: Icons.phone_android_rounded,
-                                  ),
+                                decoration: _inputDecoration(
+                                  label: 'ناوی تەواو',
+                                  icon: Icons.person_outline_rounded,
                                 ),
-                                const SizedBox(height: 28),
-                                SizedBox(
-                                  height: 52,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF1565C0),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    onPressed: _saving ? null : _save,
-                                    child: _saving
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : Text(
-                                            'پاشەکەوتکردن',
-                                            style: patientBoldTextStyle(
-                                              fontSize: 16,
-                                              weight: FontWeight.w800,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                  ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _phoneController,
+                                readOnly: true,
+                                enabled: false,
+                                textAlign: TextAlign.right,
+                                keyboardType: TextInputType.phone,
+                                style: patientBoldTextStyle(
+                                  fontSize: 15,
+                                  weight: FontWeight.w600,
+                                  color: kPatientNavyText.withValues(alpha: 0.72),
                                 ),
-                              ],
-                            ),
+                                decoration: _inputDecoration(
+                                  label: 'ژمارەی مۆبایل',
+                                  icon: Icons.lock_rounded,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _emailController,
+                                readOnly: true,
+                                enabled: false,
+                                textAlign: TextAlign.right,
+                                style: patientBoldTextStyle(
+                                  fontSize: 15,
+                                  weight: FontWeight.w600,
+                                  color: kPatientNavyText.withValues(alpha: 0.72),
+                                ),
+                                decoration: _inputDecoration(
+                                  label: 'Email',
+                                  icon: Icons.alternate_email_rounded,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _idController,
+                                readOnly: true,
+                                enabled: false,
+                                textAlign: TextAlign.right,
+                                style: patientBoldTextStyle(
+                                  fontSize: 15,
+                                  weight: FontWeight.w600,
+                                  color: kPatientNavyText.withValues(alpha: 0.72),
+                                ),
+                                decoration: _inputDecoration(
+                                  label: 'ID',
+                                  icon: Icons.badge_outlined,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -221,18 +199,18 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       ),
       prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.55),
+      fillColor: const Color(0xFFECEFF1).withValues(alpha: 0.9),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.75),
+          color: const Color(0xFFCFD8DC).withValues(alpha: 0.95),
           width: 0.5,
         ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.75),
+          color: const Color(0xFFCFD8DC).withValues(alpha: 0.95),
           width: 0.5,
         ),
       ),

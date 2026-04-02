@@ -26,6 +26,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final TextEditingController _consultationFeeController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _yearsExperienceController = TextEditingController();
+  final TextEditingController _fibNumberController = TextEditingController();
+  final TextEditingController _fastPayNumberController = TextEditingController();
 
   final TextEditingController _bioKuController = TextEditingController();
   final TextEditingController _bioArController = TextEditingController();
@@ -75,6 +77,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _consultationFeeController.dispose();
     _phoneController.dispose();
     _yearsExperienceController.dispose();
+    _fibNumberController.dispose();
+    _fastPayNumberController.dispose();
     _bioKuController.dispose();
     _bioArController.dispose();
     _bioEnController.dispose();
@@ -119,6 +123,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _profileImageUrl = (data['profileImageUrl'] ?? '').toString().trim();
       _consultationFeeController.text = (data['consultationFee'] ?? '').toString();
       _phoneController.text = (data['phone'] ?? '').toString();
+      _fibNumberController.text = (data['payment_fib_number'] ?? '').toString();
+      _fastPayNumberController.text =
+          (data['payment_fastpay_number'] ?? '').toString();
 
       _bioKuController.text = _firstOf(data, ['bio_ku', 'biography', 'about']);
       _bioArController.text = (data['bio_ar'] ?? '').toString();
@@ -205,6 +212,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'specialty': (_selectedSpecialty ?? '').trim(),
         'consultationFee': _consultationFeeController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'payment_fib_number': _fibNumberController.text.trim(),
+        'payment_fastpay_number': _fastPayNumberController.text.trim(),
         'bio_ku': bioKu,
         'bio_ar': _bioArController.text.trim(),
         'bio_en': _bioEnController.text.trim(),
@@ -626,6 +635,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         controller: _phoneController,
                         label: s.translate('doctor_phone_label'),
                         icon: Icons.phone_rounded,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 12),
+                      _field(
+                        controller: _fibNumberController,
+                        label: 'FIB Number',
+                        icon: Icons.account_balance_wallet_rounded,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 12),
+                      _field(
+                        controller: _fastPayNumberController,
+                        label: 'FastPay Number',
+                        icon: Icons.phone_android_rounded,
                         keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 8),

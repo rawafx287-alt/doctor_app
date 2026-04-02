@@ -4,7 +4,6 @@ import 'dart:ui' show ImageFilter;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../firestore/available_days_queries.dart';
@@ -32,12 +31,10 @@ const Color _kSelectedNavy = Color(0xFF0D47A1);
 const Color _kSelectedNavyBorder = Color(0xFF0A3D91);
 /// Metallic gold — thick ring for today & selected accent.
 const Color _kSelectedGoldRing = Color(0xFFD4AF37);
-const Color _kInfoBoxBlue = Color(0xFF42A5F5);
 
 const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
 const Color _kGoldLight = Color(0xFFF6E7A6);
-const Color _kGoldShine = Color(0xFFFFE082);
 
 String _weekdayTranslationKey(DateTime d) {
   switch (d.weekday) {
@@ -225,8 +222,8 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
 
   late final AnimationController _bottomCardSpringController;
   late final Animation<double> _bottomCardSlideY;
-  late final AnimationController _digitPulseController;
-  late final Animation<double> _digitPulseScale;
+  late final AnimationController _confirmPulseController;
+  late final Animation<double> _confirmPulseScale;
 
   String get _doctorUid => widget.doctorId.trim();
 
@@ -243,13 +240,13 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
         curve: Curves.elasticOut,
       ),
     );
-    _digitPulseController = AnimationController(
+    _confirmPulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 980),
     );
-    _digitPulseScale = Tween<double>(begin: 0.97, end: 1.045).animate(
+    _confirmPulseScale = Tween<double>(begin: 1.0, end: 1.025).animate(
       CurvedAnimation(
-        parent: _digitPulseController,
+        parent: _confirmPulseController,
         curve: Curves.easeInOut,
       ),
     );
@@ -279,7 +276,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
   void dispose() {
     _removeCalendarToastEntry();
     _bottomCardSpringController.dispose();
-    _digitPulseController.dispose();
+    _confirmPulseController.dispose();
     super.dispose();
   }
 
@@ -289,9 +286,9 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     _bottomCardSpringController.forward(from: 0);
     final bookable = _selectedDayIsBookable(openByDocId);
     if (bookable) {
-      _digitPulseController.repeat(reverse: true);
+      _confirmPulseController.repeat(reverse: true);
     } else {
-      _digitPulseController
+      _confirmPulseController
         ..stop()
         ..reset();
     }
@@ -362,14 +359,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
         .toString()
         .trim()
         .toLowerCase();
-    if (status != 'approved') {
-      _showCalendarToast(
-        context,
-        'دکتۆر هێشتا قبوڵ نەکراوە بۆ نۆرەگرتن',
-        icon: Icons.verified_user_outlined,
-      );
-      return;
-    }
+    if (status != 'approved') return;
     final today = _dateOnly(DateTime.now());
     final sel = _dateOnly(selected);
     if (sel.isBefore(today)) {
@@ -392,37 +382,9 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
       dateLocal: sel,
     );
     final data = openByDocId[docId];
-    if (data == null || !availableDayIsOpen(data)) {
-      _showCalendarToast(
-        context,
-        s.translate('available_days_patient_closed_day'),
-        icon: Icons.event_busy_rounded,
-      );
-      return;
-    }
+    if (data == null || !availableDayIsOpen(data)) return;
 
     // Open day: selection only — secretary confirms via bottom card button.
-  }
-
-  String _formatSelectedDateSubline(BuildContext context, DateTime date) {
-    final lang = AppLocaleScope.of(context).effectiveLanguage;
-    final s = S.of(context);
-    if (lang == HrNoraLanguage.ckb) {
-      final wd = s.translate(_weekdayTranslationKey(date));
-      final mo = s.translate('cal_month_${date.month}');
-      return s.translate(
-        'patient_calendar_date_subline',
-        params: {
-          'weekday': wd,
-          'day': '${date.day}',
-          'month': mo,
-        },
-      );
-    }
-    if (lang == HrNoraLanguage.ar) {
-      return DateFormat('EEEE، d MMMM', 'ar').format(date);
-    }
-    return DateFormat('EEEE, MMMM d', 'en').format(date);
   }
 
   bool _selectedDayIsBookable(
@@ -455,14 +417,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
         .toString()
         .trim()
         .toLowerCase();
-    if (status != 'approved') {
-      _showCalendarToast(
-        context,
-        'دکتۆر هێشتا قبوڵ نەکراوە بۆ نۆرەگرتن',
-        icon: Icons.verified_user_outlined,
-      );
-      return;
-    }
+    if (status != 'approved') return;
     if (_selectedDay == null) {
       _showCalendarToast(
         context,
@@ -485,14 +440,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
       dateLocal: sel,
     );
     final data = openByDocId[docId];
-    if (data == null || !availableDayIsOpen(data)) {
-      _showCalendarToast(
-        context,
-        s.translate('patient_calendar_pick_open_day'),
-        icon: Icons.event_busy_rounded,
-      );
-      return;
-    }
+    if (data == null || !availableDayIsOpen(data)) return;
     _openSummary(context, availableDayDocId: docId, dateLocal: sel);
   }
 
@@ -503,9 +451,6 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     final s = S.of(context);
     final dir = AppLocaleScope.of(context).textDirection;
     final sel = _selectedDay;
-    final subline = sel != null
-        ? _formatSelectedDateSubline(context, sel)
-        : s.translate('patient_calendar_no_selection');
     final bookable = _selectedDayIsBookable(openByDocId);
     final hasSelection = sel != null;
     final statusLabel = !hasSelection
@@ -518,16 +463,10 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
         : bookable
             ? const Color(0xFF2ECC71)
             : const Color(0xFFE74C3C);
-
-    const navyGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        Color(0xFF1E88E5),
-        Color(0xFF0D47A1),
-        Color(0xFF0A1931),
-      ],
-    );
+    final weekdayLabel =
+        sel != null ? s.translate(_weekdayTranslationKey(sel)) : '—';
+    final numericDate =
+        sel != null ? '${sel.year}/${sel.month}/${sel.day}' : '—';
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 4),
@@ -536,15 +475,9 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.11),
-              blurRadius: 30,
-              offset: const Offset(0, 14),
-              spreadRadius: -2,
-            ),
-            BoxShadow(
-              color: _kGoldMid.withValues(alpha: 0.18),
-              blurRadius: 22,
-              offset: const Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 26,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
@@ -559,304 +492,229 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.94),
-                    Colors.white.withValues(alpha: 0.78),
+                    Colors.white.withValues(alpha: 0.98),
+                    const Color(0xFFE3F2FD).withValues(alpha: 0.8),
                   ],
                 ),
                 border: Border.all(
                   color: _kGoldMid.withValues(alpha: 0.9),
-                  width: 1.45,
+                  width: 0.5,
                 ),
               ),
-              child: Container(
-                margin: const EdgeInsets.all(2.75),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(19.5),
-                  border: Border.all(
-                    color: _kGoldMid.withValues(alpha: 0.42),
-                    width: 0.85,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        textDirection: dir,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              s.translate('patient_calendar_selected_heading'),
-                              style: TextStyle(
-                                fontFamily: kPatientNrtBoldFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
-                                letterSpacing: 0.35,
-                                color: _kHintGrey.withValues(alpha: 0.92),
-                              ),
-                            ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      textDirection: dir,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          s.translate('patient_calendar_selected_heading'),
+                          style: TextStyle(
+                            fontFamily: kPatientNrtBoldFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                            letterSpacing: 0.35,
+                            color: _kHintGrey.withValues(alpha: 0.92),
                           ),
-                          Row(
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: !hasSelection
+                                ? const Color(0xFFECEFF1)
+                                : bookable
+                                    ? const Color(0xFF2ECC71)
+                                    : const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  statusLabel,
-                                  textAlign: TextAlign.end,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: kPatientNrtBoldFont,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 11.5,
-                                    height: 1.2,
-                                    color: _kDoctorNameNavy,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
                               Container(
-                                width: 8,
-                                height: 8,
+                                width: 7,
+                                height: 7,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: statusDot,
-                                  boxShadow: bookable
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFF2ECC71)
-                                                .withValues(alpha: 0.55),
-                                            blurRadius: 6,
-                                            spreadRadius: 0.5,
-                                          ),
-                                        ]
-                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                statusLabel,
+                                style: TextStyle(
+                                  fontFamily: kPatientNrtBoldFont,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11.5,
+                                  color: !hasSelection
+                                      ? _kDoctorNameNavy
+                                      : bookable
+                                          ? Colors.white
+                                          : const Color(0xFFB71C1C),
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      AnimatedBuilder(
-                        animation: _bottomCardSpringController,
-                        builder: (context, _) {
-                          return Transform.translate(
-                            offset: Offset(0, _bottomCardSlideY.value),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    AnimatedBuilder(
+                      animation: _bottomCardSpringController,
+                      builder: (context, _) {
+                        return Transform.translate(
+                          offset: Offset(0, _bottomCardSlideY.value),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               textDirection: dir,
                               children: [
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 280),
-                                  switchInCurve: Curves.easeOut,
-                                  switchOutCurve: Curves.easeIn,
-                                  transitionBuilder: (child, anim) =>
-                                      FadeTransition(
-                                    opacity: anim,
-                                    child: child,
-                                  ),
-                                  child: sel != null
-                                      ? KeyedSubtree(
-                                          key: ValueKey<String>(
-                                            '${sel.year}-${sel.month}-${sel.day}',
-                                          ),
-                                          child: AnimatedBuilder(
-                                            animation: _digitPulseController,
-                                            builder: (context, _) {
-                                              final scale = bookable
-                                                  ? _digitPulseScale.value
-                                                  : 1.0;
-                                              return Transform.scale(
-                                                scale: scale,
-                                                child: ShaderMask(
-                                                  blendMode: BlendMode.srcIn,
-                                                  shaderCallback: (bounds) =>
-                                                      navyGradient
-                                                          .createShader(
-                                                    bounds,
-                                                  ),
-                                                  child: Text(
-                                                    '${sel.day}',
-                                                    style: const TextStyle(
-                                                      fontFamily:
-                                                          kPatientNrtBoldFont,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      fontSize: 56,
-                                                      height: 1.0,
-                                                      color: Colors.white,
-                                                      letterSpacing: -1,
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        )
-                                      : Text(
-                                          '—',
-                                          key: const ValueKey<String>('dash'),
-                                          style: TextStyle(
-                                            fontFamily: kPatientNrtBoldFont,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 48,
-                                            height: 1.0,
-                                            color: _kHintGrey.withValues(
-                                              alpha: 0.45,
-                                            ),
-                                          ),
-                                        ),
+                                Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 22,
+                                  color: _kGoldMid.withValues(alpha: 0.96),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 10),
                                 Expanded(
-                                  child: AnimatedSwitcher(
-                                    duration:
-                                        const Duration(milliseconds: 280),
-                                    switchInCurve: Curves.easeOut,
-                                    switchOutCurve: Curves.easeIn,
-                                    transitionBuilder: (child, anim) =>
-                                        FadeTransition(
-                                      opacity: anim,
-                                      child: child,
-                                    ),
-                                    child: Row(
-                                      key: ValueKey<String>(subline),
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      textDirection: dir,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 2,
-                                          ),
-                                          child: Icon(
-                                            Icons.calendar_month_rounded,
-                                            size: 19,
-                                            color: _kGoldMid.withValues(
-                                              alpha: 0.92,
-                                            ),
-                                          ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        weekdayLabel,
+                                        style: const TextStyle(
+                                          fontFamily: kPatientNrtBoldFont,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 15,
+                                          color: _kDoctorNameNavy,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            subline,
-                                            textAlign: TextAlign.start,
-                                            style: const TextStyle(
-                                              fontFamily: kPatientNrtBoldFont,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 14.5,
-                                              height: 1.32,
-                                              color: _kDoctorNameNavy,
-                                            ),
-                                          ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        numericDate,
+                                        style: TextStyle(
+                                          fontFamily: kPatientNrtBoldFont,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13.5,
+                                          color: const Color(0xFF1565C0)
+                                              .withValues(alpha: 0.92),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          if (bookable)
-                            Positioned(
-                              left: -6,
-                              right: -6,
-                              top: 4,
-                              bottom: -4,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _kGoldLight.withValues(
-                                        alpha: 0.55,
-                                      ),
-                                      blurRadius: 22,
-                                      spreadRadius: 1,
-                                    ),
-                                    BoxShadow(
-                                      color: _kGoldMid.withValues(
-                                        alpha: 0.35,
-                                      ),
-                                      blurRadius: 28,
-                                      spreadRadius: -4,
-                                    ),
-                                  ],
-                                ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        if (bookable)
+                          Positioned(
+                            left: -6,
+                            right: -6,
+                            top: 4,
+                            bottom: -4,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _kGoldMid.withValues(alpha: 0.34),
+                                    blurRadius: 10,
+                                  ),
+                                ],
                               ),
                             ),
-                          Material(
+                          ),
+                        AnimatedBuilder(
+                          animation: _confirmPulseController,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: bookable ? _confirmPulseScale.value : 1.0,
+                              child: child,
+                            );
+                          },
+                          child: Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(
-                              onTap: () => _onConfirmOrViewSchedule(
-                                context,
-                                openByDocId,
-                              ),
+                              onTap: bookable
+                                  ? () => _onConfirmOrViewSchedule(
+                                        context,
+                                        openByDocId,
+                                      )
+                                  : null,
                               borderRadius: BorderRadius.circular(16),
                               child: Ink(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: bookable
-                                      ? RadialGradient(
-                                          center: const Alignment(-0.2, -0.45),
-                                          radius: 1.55,
+                                      ? const LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
                                           colors: [
-                                            _kGoldLight,
-                                            _kGoldShine,
-                                            _kGoldMid,
-                                            _kGoldDark,
-                                          ],
-                                          stops: const [
-                                            0.0,
-                                            0.22,
-                                            0.52,
-                                            1.0,
+                                            Color(0xFFFFD700),
+                                            Color(0xFFB8860B),
                                           ],
                                         )
                                       : null,
-                                  color: bookable
-                                      ? null
-                                      : Colors.grey.shade300,
+                                  color:
+                                      bookable ? null : const Color(0xFF9E9E9E),
                                   border: Border.all(
                                     color: bookable
                                         ? _kGoldLight.withValues(alpha: 0.75)
-                                        : Colors.grey.shade400,
+                                        : const Color(0xFF8A8A8A),
                                     width: 0.85,
                                   ),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
+                                    vertical: 13,
                                   ),
                                   child: Center(
                                     child: Text(
                                       s.translate('confirm_booking'),
                                       style: TextStyle(
                                         fontFamily: kPatientNrtBoldFont,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w900,
                                         fontSize: 15,
                                         color: bookable
                                             ? Colors.white
-                                            : Colors.grey.shade600,
+                                            : Colors.white70,
                                         shadows: bookable
                                             ? const [
                                                 Shadow(
-                                                  color: Color(0x66000000),
-                                                  offset: Offset(0, 1),
-                                                  blurRadius: 2,
+                                                  color: Colors.black,
+                                                  blurRadius: 2.0,
+                                                  offset: Offset(1, 1),
                                                 ),
                                               ]
                                             : null,
@@ -867,40 +725,38 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: OutlinedButton(
-                          onPressed: () => _onConfirmOrViewSchedule(
-                            context,
-                            openByDocId,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            _onConfirmOrViewSchedule(context, openByDocId),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kGoldDark,
+                          side: BorderSide(
+                            color: _kGoldMid.withValues(alpha: 0.88),
+                            width: 1.35,
                           ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _kGoldDark,
-                            side: BorderSide(
-                              color: _kGoldMid.withValues(alpha: 0.88),
-                              width: 1.35,
-                            ),
-                            backgroundColor: Colors.transparent,
-                            shape: const StadiumBorder(),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 9,
-                            ),
+                          backgroundColor: Colors.transparent,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 22,
+                            vertical: 9,
                           ),
-                          child: Text(
-                            s.translate('patient_calendar_view_schedule'),
-                            style: const TextStyle(
-                              fontFamily: kPatientNrtBoldFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                            ),
+                        ),
+                        child: Text(
+                          s.translate('patient_calendar_view_schedule'),
+                          style: const TextStyle(
+                            fontFamily: kPatientNrtBoldFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1210,58 +1066,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white.withValues(alpha: 0.62),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  width: 0.75,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: _kInfoBoxBlue,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        s.translate('available_days_patient_hint_calendar'),
-                        style: const TextStyle(
-                          color: _kHintGrey,
-                          fontSize: 12.5,
-                          fontFamily: kPatientNrtBoldFont,
-                          fontWeight: FontWeight.w600,
-                          height: 1.34,
-                          letterSpacing: 0.12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
       ],
     );
   }

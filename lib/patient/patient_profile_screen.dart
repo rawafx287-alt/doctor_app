@@ -119,9 +119,9 @@ class PatientProfileScreen extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _GlassSettingsTile(
-                icon: Icons.edit_outlined,
-                title: S.of(context).translate('edit_profile'),
-                subtitle: S.of(context).translate('edit_profile_subtitle'),
+                icon: Icons.lock_outline_rounded,
+                title: 'زانیارییە کەسییەکان',
+                subtitle: 'زانیارییەکان تەنها بۆ بینینە',
                 onTap: () {
                   Navigator.push<void>(
                     context,
