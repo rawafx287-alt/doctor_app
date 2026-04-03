@@ -1290,7 +1290,6 @@ class _TicketPreviewPage extends StatelessWidget {
                     maxW + 32,
                     math.max(0.0, constraints.maxWidth - 24),
                   );
-                  final minScrollExtent = math.max(0.0, maxPanelH - 24);
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -1305,89 +1304,83 @@ class _TicketPreviewPage extends StatelessWidget {
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           clipBehavior: Clip.hardEdge,
-                          padding: const EdgeInsets.only(bottom: 28),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: minScrollExtent,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.center,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () =>
-                                        Navigator.of(context).maybePop(),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      elevation: 0,
-                                      textStyle: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                      side: const BorderSide(
-                                        color: _kTicketDialogCloseBorder,
-                                        width: 1,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.center,
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      Navigator.of(context).maybePop(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    elevation: 0,
+                                    textStyle: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
                                     ),
-                                    icon: const Icon(
-                                      Icons.close_rounded,
-                                      size: 20,
-                                      color: Colors.white,
+                                    side: const BorderSide(
+                                      color: _kTicketDialogCloseBorder,
+                                      width: 1,
                                     ),
-                                    label: Text(
-                                      S.of(context).translate('close'),
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                  label: Text(
+                                    S.of(context).translate('close'),
+                                    style: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: maxW,
+                                  ),
+                                  child: Hero(
+                                    tag: heroTag,
+                                    child: Material(
+                                      type: MaterialType.transparency,
+                                      color: Colors.transparent,
+                                      clipBehavior: Clip.none,
+                                      child: _TicketVisual(
+                                        doctorName: doctorName,
+                                        patientName: patientName,
+                                        dateStr: dateStr,
+                                        timeStr: timeStr,
+                                        status: status,
+                                        queueLabel: queueLabel,
+                                        daysStyle: daysStyle,
+                                        holeColor: holeColor,
+                                        isPreview: true,
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                Center(
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: maxW,
-                                    ),
-                                    child: Hero(
-                                      tag: heroTag,
-                                      child: Material(
-                                        type: MaterialType.transparency,
-                                        color: Colors.transparent,
-                                        clipBehavior: Clip.none,
-                                        child: _TicketVisual(
-                                          doctorName: doctorName,
-                                          patientName: patientName,
-                                          dateStr: dateStr,
-                                          timeStr: timeStr,
-                                          status: status,
-                                          queueLabel: queueLabel,
-                                          daysStyle: daysStyle,
-                                          holeColor: holeColor,
-                                          isPreview: true,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 28),
+                            ],
                           ),
                         ),
                       ),
