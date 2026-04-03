@@ -801,6 +801,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 context,
                 specialtyRaw,
               );
+              final hospitalName = localizedDoctorHospitalName(data, lang);
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -812,6 +813,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   PatientDoctorCard(
                     name: name,
                     specialty: specialty,
+                    hospitalName: hospitalName,
                     profileImageUrl:
                         (data['profileImageUrl'] ?? '').toString(),
                     onBook: () {

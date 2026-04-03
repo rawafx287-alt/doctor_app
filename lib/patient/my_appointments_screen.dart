@@ -27,22 +27,6 @@ const LinearGradient _kBookingsRoseBarGradient = LinearGradient(
   colors: [_kBookingsRoseTop, _kBookingsRoseBottom],
 );
 
-/// Premium booking card fill (rose → bronze purple).
-const LinearGradient _kBookingCardGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFFE5989B),
-    Color(0xFFB56576),
-    Color(0xFF6D597A),
-  ],
-  stops: [0.0, 0.52, 1.0],
-);
-
-const Color _kBookingCardTitleShadow = Color(0x66000000);
-const Color _kBookingCardCream = Color(0xFFFFF5F0);
-const Color _kBookingCardCreamMuted = Color(0xFFF0EBE8);
-
 /// Past bookings: classic gold / bronze (vertical).
 const LinearGradient _kPastBookingCardGradient = LinearGradient(
   begin: Alignment.topCenter,
@@ -55,7 +39,31 @@ const LinearGradient _kPastBookingCardGradient = LinearGradient(
   stops: [0.0, 0.5, 1.0],
 );
 
+/// Past / archived rows and dialogs: faded so active bookings read first.
+const double _kArchivedBookingOpacity = 0.68;
+
+Color _desaturatedArchivedGold(Color color) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withSaturation((hsl.saturation * 0.58).clamp(0.0, 1.0))
+      .withLightness((hsl.lightness * 0.97).clamp(0.0, 1.0))
+      .toColor();
+}
+
+LinearGradient _archivedPastBookingCardGradient() => LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        _desaturatedArchivedGold(const Color(0xFFF5E6CA)),
+        _desaturatedArchivedGold(const Color(0xFFD4A373)),
+        _desaturatedArchivedGold(const Color(0xFFA98467)),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    );
+
 const Color _kPastBookingTextBrown = Color(0xFF432818);
+/// Chip icons only on archived cards (labels stay brown for contrast).
+const Color _kPastBookingChipIconGrey = Color(0xFF6D6D6D);
 const Color _kPastBookingNumberInk = Color(0xFF1A120E);
 
 /// Past booking detail dialog: perforation + depth (matte gold card).
@@ -87,67 +95,6 @@ const List<Shadow> _kPastTicketPreviewTitleShadows = [
     color: Color(0x22000000),
     blurRadius: 4,
     offset: Offset(0, 1),
-  ),
-];
-
-/// Royal purple → rose → peach (appointment detail ticket dialog).
-const LinearGradient _kTicketDialogRoyalGradient = LinearGradient(
-  begin: Alignment.topRight,
-  end: Alignment.bottomLeft,
-  colors: [
-    Color(0xFF5E366E),
-    Color(0xFFA45D7D),
-    Color(0xFFE29587),
-  ],
-  stops: [0.0, 0.5, 1.0],
-);
-
-/// Labels / secondary copy on the royal ticket (high contrast).
-const Color _kTicketDialogCream = Color(0xFFFFF8F0);
-
-/// Perforation holes blend with deep edge of the dialog gradient.
-const Color _kTicketDialogHoleBlend = Color(0xFF4A2D58);
-
-/// Depth around the enlarged ticket.
-const List<BoxShadow> _kTicketDialogOuterShadows = [
-  BoxShadow(
-    color: Color(0x33FFFFFF),
-    blurRadius: 20,
-    spreadRadius: 0,
-    offset: Offset(0, 0),
-  ),
-  BoxShadow(
-    color: Color(0x665E366E),
-    blurRadius: 30,
-    spreadRadius: 0,
-    offset: Offset(0, 14),
-  ),
-  BoxShadow(
-    color: Color(0x28000000),
-    blurRadius: 22,
-    spreadRadius: 0,
-    offset: Offset(0, 8),
-  ),
-];
-
-const List<Shadow> _kTicketQueueGlowShadows = [
-  Shadow(
-    color: Color(0xB3FFFFFF),
-    blurRadius: 16,
-    offset: Offset(0, 0),
-  ),
-  Shadow(
-    color: Color(0x59000000),
-    blurRadius: 14,
-    offset: Offset(0, 3),
-  ),
-];
-
-const List<Shadow> _kTicketPreviewTitleShadows = [
-  Shadow(
-    color: Color(0x66000000),
-    blurRadius: 10,
-    offset: Offset(0, 2),
   ),
 ];
 
@@ -444,7 +391,7 @@ Color _statusPillBorder(String status, {required bool isPast}) {
   }
   if (s == 'confirmed') return const Color(0xFF1A237E).withValues(alpha: 0.55);
   if (s == 'arrived') return const Color(0xFF3E2723).withValues(alpha: 0.5);
-  return _kBookingsRoseSolid.withValues(alpha: 0.72);
+  return const Color(0xFF432818).withValues(alpha: 0.38);
 }
 
 class _PremiumBookingCard extends StatelessWidget {
@@ -457,7 +404,6 @@ class _PremiumBookingCard extends StatelessWidget {
     required this.timeStr,
     required this.status,
     this.isPast = false,
-    this.pendingGlow = false,
   });
 
   final String queueLabel;
@@ -468,7 +414,6 @@ class _PremiumBookingCard extends StatelessWidget {
   final String timeStr;
   final String status;
   final bool isPast;
-  final bool pendingGlow;
 
   (String label, Color bg, Color fg) _statusStyle(BuildContext context) {
     final s = status.toLowerCase().trim();
@@ -509,49 +454,24 @@ class _PremiumBookingCard extends StatelessWidget {
   }
 
   Widget _infoChip(IconData icon, String text) {
-    if (isPast) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: _kPastBookingTextBrown.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: _kPastBookingTextBrown.withValues(alpha: 0.22),
-            width: 0.7,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: _kPastBookingTextBrown),
-            const SizedBox(width: 6),
-            Text(
-              text,
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 11.5,
-                color: _kPastBookingTextBrown,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
+        color: _kPastBookingTextBrown.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.38),
-          width: 0.65,
+          color: _kPastBookingTextBrown.withValues(alpha: 0.22),
+          width: 0.7,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: _kBookingCardCream),
+          Icon(
+            icon,
+            size: 14,
+            color: isPast ? _kPastBookingChipIconGrey : _kPastBookingTextBrown,
+          ),
           const SizedBox(width: 6),
           Text(
             text,
@@ -559,7 +479,7 @@ class _PremiumBookingCard extends StatelessWidget {
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w700,
               fontSize: 11.5,
-              color: _kBookingCardCream,
+              color: _kPastBookingTextBrown,
             ),
           ),
         ],
@@ -567,47 +487,20 @@ class _PremiumBookingCard extends StatelessWidget {
     );
   }
 
-  static const List<Shadow> _titleShadows = [
-    Shadow(
-      color: _kBookingCardTitleShadow,
-      blurRadius: 8,
-      offset: Offset(0, 1.5),
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(context);
 
-    final shadows = <BoxShadow>[
-      if (!isPast) ...[
-        const BoxShadow(
-          color: Color(0x44B56576),
-          blurRadius: 20,
-          spreadRadius: 0,
-          offset: Offset(0, 7),
-        ),
-        if (pendingGlow) ...[
-          BoxShadow(
-            color: _kBookingsRoseBottom.withValues(alpha: 0.35),
-            blurRadius: 22,
-            spreadRadius: 0.5,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.18),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ] else
-        const BoxShadow(
-          color: Color(0x33A98467),
-          blurRadius: 16,
-          spreadRadius: 0,
-          offset: Offset(0, 6),
-        ),
-    ];
+    final shadows = isPast
+        ? const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x33A98467),
+              blurRadius: 16,
+              spreadRadius: 0,
+              offset: Offset(0, 6),
+            ),
+          ]
+        : const <BoxShadow>[];
 
     final statusPill = Container(
       padding: const EdgeInsets.all(1.2),
@@ -651,14 +544,13 @@ class _PremiumBookingCard extends StatelessWidget {
           width: 60,
           child: Text(
             queueLabel,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.bold,
               fontSize: 26,
               height: 1,
-              color: isPast ? _kPastBookingNumberInk : Colors.white,
-              letterSpacing: isPast ? 0.2 : 0,
-              shadows: isPast ? null : _titleShadows,
+              color: _kPastBookingNumberInk,
+              letterSpacing: 0.2,
             ),
           ),
         ),
@@ -671,12 +563,11 @@ class _PremiumBookingCard extends StatelessWidget {
                 doctorName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: isPast ? _kPastBookingTextBrown : Colors.white,
-                  shadows: isPast ? null : _titleShadows,
+                  color: _kPastBookingTextBrown,
                 ),
               ),
               const SizedBox(height: 3),
@@ -688,9 +579,7 @@ class _PremiumBookingCard extends StatelessWidget {
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
-                  color: isPast
-                      ? _kPastBookingTextBrown.withValues(alpha: 0.88)
-                      : _kBookingCardCreamMuted.withValues(alpha: 0.95),
+                  color: _kPastBookingTextBrown.withValues(alpha: 0.88),
                 ),
               ),
               const SizedBox(height: 8),
@@ -699,9 +588,7 @@ class _PremiumBookingCard extends StatelessWidget {
               Container(
                 height: 1,
                 width: double.infinity,
-                color: isPast
-                    ? _kPastBookingTextBrown.withValues(alpha: 0.28)
-                    : Colors.white.withValues(alpha: 0.38),
+                color: _kPastBookingTextBrown.withValues(alpha: 0.28),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -719,53 +606,36 @@ class _PremiumBookingCard extends StatelessWidget {
       ],
     );
 
-    final Widget card;
+    final card = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: shadows,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: isPast
+                ? _archivedPastBookingCardGradient()
+                : _kPastBookingCardGradient,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.42),
+              width: 0.5,
+            ),
+          ),
+          child: inner,
+        ),
+      ),
+    );
+
     if (isPast) {
-      card = Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: shadows,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: _kPastBookingCardGradient,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.42),
-                width: 0.5,
-              ),
-            ),
-            child: inner,
-          ),
-        ),
-      );
-    } else {
-      card = Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: shadows,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: _kBookingCardGradient,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.48),
-                width: 0.5,
-              ),
-            ),
-            child: inner,
-          ),
-        ),
+      return Opacity(
+        opacity: _kArchivedBookingOpacity,
+        child: card,
       );
     }
-
     return card;
   }
 }
@@ -820,7 +690,7 @@ class _TicketVisual extends StatelessWidget {
     required this.daysStyle,
     required this.holeColor,
     required this.isPreview,
-    this.previewPastTheme = false,
+    this.archivedAppearance = false,
   });
 
   final String doctorName;
@@ -832,8 +702,8 @@ class _TicketVisual extends StatelessWidget {
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
   final bool isPreview;
-  /// When true with [isPreview], uses matte gold/bronze gradient + dark brown ink (past bookings).
-  final bool previewPastTheme;
+  /// Muted ticket in detail dialog (past / archived bookings).
+  final bool archivedAppearance;
 
   static const Color _ticketBg = Color(0xFF1E1E2C);
   static const Color _ticketBorder = Color(0xFF3D3D52);
@@ -870,21 +740,14 @@ class _TicketVisual extends StatelessWidget {
     final double queueVPad = isPreview ? 7 : 6;
     final double daysChipFont = isPreview ? 12 : 10;
 
-    final pastPreview = isPreview && previewPastTheme;
-
-    final effectiveHole = pastPreview
-        ? _kPastTicketDialogHoleBlend
-        : (isPreview ? _kTicketDialogHoleBlend : holeColor);
-    final effectiveDash = pastPreview
+    final effectiveHole =
+        isPreview ? _kPastTicketDialogHoleBlend : holeColor;
+    final effectiveDash = isPreview
         ? _kPastBookingTextBrown.withValues(alpha: 0.32)
-        : (isPreview
-            ? Colors.white.withValues(alpha: 0.38)
-            : _dashSubtle);
-    final labelMuted = pastPreview
+        : _dashSubtle;
+    final labelMuted = isPreview
         ? _kPastBookingTextBrown.withValues(alpha: 0.78)
-        : (isPreview
-            ? _kTicketDialogCream.withValues(alpha: 0.9)
-            : _labelDim);
+        : _labelDim;
     final ticketColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -929,26 +792,22 @@ class _TicketVisual extends StatelessWidget {
                             maxLines: doctorMaxLines,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: pastPreview
+                              color: isPreview
                                   ? _kPastBookingTextBrown
-                                  : (isPreview
-                                      ? Colors.white
-                                      : _doctorAccent),
+                                  : _doctorAccent,
                               fontFamily: ticketFont,
                               fontWeight: FontWeight.w700,
                               fontSize: doctorSize,
                               height: 1.25,
-                              shadows: pastPreview
+                              shadows: isPreview
                                   ? _kPastTicketPreviewTitleShadows
-                                  : (isPreview
-                                      ? _kTicketPreviewTitleShadows
-                                      : const <Shadow>[
-                                          Shadow(
-                                            color: Color(0x40000000),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ]),
+                                  : const <Shadow>[
+                                      Shadow(
+                                        color: Color(0x40000000),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
                             ),
                           ),
                         ],
@@ -1000,11 +859,9 @@ class _TicketVisual extends StatelessWidget {
                       color: badge.$1,
                       borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
                       border: Border.all(
-                        color: pastPreview
+                        color: isPreview
                             ? _kPastBookingTextBrown.withValues(alpha: 0.35)
-                            : (isPreview
-                                ? Colors.white.withValues(alpha: 0.5)
-                                : badge.$2.withValues(alpha: 0.35)),
+                            : badge.$2.withValues(alpha: 0.35),
                         width: isPreview ? 0.85 : 0.7,
                       ),
                     ),
@@ -1036,16 +893,11 @@ class _TicketVisual extends StatelessWidget {
               queueLabel,
               style: TextStyle(
                 fontFamily: ticketFont,
-                color: pastPreview
-                    ? _kPastBookingNumberInk
-                    : (isPreview ? Colors.white : _queueLight),
+                color: isPreview ? _kPastBookingNumberInk : _queueLight,
                 fontSize: queueSize,
                 fontWeight: FontWeight.w700,
                 letterSpacing: isPreview ? 1.2 : 0.5,
                 height: 1,
-                shadows: pastPreview
-                    ? null
-                    : (isPreview ? _kTicketQueueGlowShadows : null),
               ),
             ),
           ),
@@ -1072,9 +924,7 @@ class _TicketVisual extends StatelessWidget {
                       fontSize: bodyMutedSize * 0.95,
                       height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: pastPreview
-                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
-                          : _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: _kPastBookingTextBrown.withValues(alpha: 0.88),
                     ),
                     children: [
                       TextSpan(
@@ -1083,11 +933,9 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: dateStr,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: pastPreview
-                              ? _kPastBookingNumberInk
-                              : Colors.white,
+                          color: _kPastBookingNumberInk,
                         ),
                       ),
                     ],
@@ -1102,9 +950,7 @@ class _TicketVisual extends StatelessWidget {
                       fontSize: bodyMutedSize * 0.95,
                       height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: pastPreview
-                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
-                          : _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: _kPastBookingTextBrown.withValues(alpha: 0.88),
                     ),
                     children: [
                       TextSpan(
@@ -1113,11 +959,9 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: timeStr,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: pastPreview
-                              ? _kPastBookingNumberInk
-                              : Colors.white,
+                          color: _kPastBookingNumberInk,
                         ),
                       ),
                     ],
@@ -1132,9 +976,7 @@ class _TicketVisual extends StatelessWidget {
                       fontSize: patientSize * 0.95,
                       height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: pastPreview
-                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
-                          : _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: _kPastBookingTextBrown.withValues(alpha: 0.88),
                     ),
                     children: [
                       TextSpan(
@@ -1143,11 +985,9 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: patientName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: pastPreview
-                              ? _kPastBookingNumberInk
-                              : Colors.white,
+                          color: _kPastBookingNumberInk,
                         ),
                       ),
                     ],
@@ -1202,30 +1042,23 @@ class _TicketVisual extends StatelessWidget {
                       vertical: isPreview ? 3 : 4,
                     ),
                     decoration: BoxDecoration(
-                      color: pastPreview
+                      color: isPreview
                           ? _kPastBookingTextBrown.withValues(alpha: 0.08)
-                          : (isPreview
-                              ? Colors.white.withValues(alpha: 0.12)
-                              : daysStyle!.background),
+                          : daysStyle!.background,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: pastPreview
+                        color: isPreview
                             ? _kPastBookingTextBrown.withValues(alpha: 0.28)
-                            : (isPreview
-                                ? Colors.white.withValues(alpha: 0.34)
-                                : daysStyle!.foreground
-                                    .withValues(alpha: 0.35)),
+                            : daysStyle!.foreground.withValues(alpha: 0.35),
                         width: isPreview ? 0.85 : 1,
                       ),
                     ),
                     child: Text(
                       daysStyle!.label,
                       style: TextStyle(
-                        color: pastPreview
+                        color: isPreview
                             ? _kPastBookingTextBrown
-                            : (isPreview
-                                ? _kTicketDialogCream
-                                : daysStyle!.foreground),
+                            : daysStyle!.foreground,
                         fontFamily: ticketFont,
                         fontSize: daysChipFont,
                         fontWeight: FontWeight.w700,
@@ -1272,51 +1105,39 @@ class _TicketVisual extends StatelessWidget {
       );
     }
 
-    if (pastPreview) {
-      return Container(
-        margin: EdgeInsets.zero,
-        decoration: BoxDecoration(
-          borderRadius: r,
-          boxShadow: _kPastTicketDialogOuterShadows,
-        ),
-        child: ClipRRect(
-          borderRadius: r,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: _kPastBookingCardGradient,
-              borderRadius: r,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.42),
-                width: 1.0,
-              ),
-            ),
-            child: ticketColumn,
-          ),
-        ),
-      );
-    }
+    final previewGradient = archivedAppearance
+        ? _archivedPastBookingCardGradient()
+        : _kPastBookingCardGradient;
 
-    return Container(
+    final previewTicket = Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         borderRadius: r,
-        boxShadow: _kTicketDialogOuterShadows,
+        boxShadow: _kPastTicketDialogOuterShadows,
       ),
       child: ClipRRect(
         borderRadius: r,
         child: Container(
           decoration: BoxDecoration(
-            gradient: _kTicketDialogRoyalGradient,
+            gradient: previewGradient,
             borderRadius: r,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.3),
-              width: 1.25,
+              color: Colors.white.withValues(alpha: 0.42),
+              width: 1.0,
             ),
           ),
           child: ticketColumn,
         ),
       ),
     );
+
+    if (archivedAppearance) {
+      return Opacity(
+        opacity: _kArchivedBookingOpacity,
+        child: previewTicket,
+      );
+    }
+    return previewTicket;
   }
 }
 
@@ -1394,7 +1215,7 @@ class _AppointmentDetailCard extends StatelessWidget {
                         daysStyle: daysStyle,
                         holeColor: holeColor,
                         isPreview: true,
-                        previewPastTheme: isPastBooking,
+                        archivedAppearance: isPastBooking,
                       ),
                     ),
                   ),
@@ -1787,9 +1608,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             .toString()
                             .trim() ==
                         hlId);
-                final pendingGlow =
-                    !isPastSection && stNorm == 'pending';
-
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: GestureDetector(
@@ -1817,15 +1635,15 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           borderRadius: BorderRadius.circular(20),
                           border: isHighlighted
                               ? Border.all(
-                                  color: _kBookingsRoseSolid,
+                                  color: const Color(0xFFD4A373),
                                   width: 1.4,
                                 )
                               : null,
                           boxShadow: isHighlighted
                               ? [
                                   BoxShadow(
-                                    color: _kBookingsRoseBottom
-                                        .withValues(alpha: 0.32),
+                                    color: const Color(0xFFA98467)
+                                        .withValues(alpha: 0.38),
                                     blurRadius: 16,
                                     offset: const Offset(0, 5),
                                   ),
@@ -1843,7 +1661,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             timeStr: timeStr,
                             status: status,
                             isPast: isPastSection,
-                            pendingGlow: pendingGlow,
                           ),
                         ),
                       ),

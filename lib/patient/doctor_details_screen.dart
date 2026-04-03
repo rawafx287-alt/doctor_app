@@ -654,12 +654,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           baseKey: 'bio',
                           legacyKeys: const ['biography', 'about'],
                         );
-                        final hospital = localizedDoctorField(
-                          merged,
-                          lang,
-                          baseKey: 'hospital_name',
-                          legacyKeys: const ['clinicName', 'hospitalName'],
-                        );
+                        final hospital =
+                            localizedDoctorHospitalName(merged, lang);
                         final address = localizedDoctorField(
                           merged,
                           lang,

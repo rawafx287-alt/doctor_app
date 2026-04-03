@@ -40,6 +40,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final TextEditingController _hospitalKuController = TextEditingController();
   final TextEditingController _hospitalArController = TextEditingController();
   final TextEditingController _hospitalEnController = TextEditingController();
+  /// Shown on patient home doctor cards (`users.hospitalName`).
+  final TextEditingController _hospitalNameCardController =
+      TextEditingController();
 
   final TextEditingController _experienceKuController = TextEditingController();
   final TextEditingController _experienceArController = TextEditingController();
@@ -88,6 +91,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _hospitalKuController.dispose();
     _hospitalArController.dispose();
     _hospitalEnController.dispose();
+    _hospitalNameCardController.dispose();
     _experienceKuController.dispose();
     _experienceArController.dispose();
     _experienceEnController.dispose();
@@ -139,6 +143,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           _firstOf(data, ['hospital_name_ku', 'clinicName', 'hospitalName']);
       _hospitalArController.text = (data['hospital_name_ar'] ?? '').toString();
       _hospitalEnController.text = (data['hospital_name_en'] ?? '').toString();
+
+      _hospitalNameCardController.text =
+          (data['hospitalName'] ?? '').toString().trim();
+      if (_hospitalNameCardController.text.isEmpty) {
+        _hospitalNameCardController.text =
+            _firstOf(data, ['hospital_name_ku', 'clinicName']);
+      }
 
       _experienceKuController.text = (data['experience_ku'] ?? '').toString();
       _experienceArController.text = (data['experience_ar'] ?? '').toString();
@@ -223,6 +234,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'hospital_name_ku': _hospitalKuController.text.trim(),
         'hospital_name_ar': _hospitalArController.text.trim(),
         'hospital_name_en': _hospitalEnController.text.trim(),
+        'hospitalName': _hospitalNameCardController.text.trim(),
         'experience_ku': _experienceKuController.text.trim(),
         'experience_ar': _experienceArController.text.trim(),
         'experience_en': _experienceEnController.text.trim(),
@@ -623,6 +635,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       ),
                       const SizedBox(height: 12),
                       _hospitalRegistryDropdown(),
+                      const SizedBox(height: 12),
+                      _field(
+                        controller: _hospitalNameCardController,
+                        label: s.translate('doctor_field_hospital_display_simple'),
+                        icon: Icons.local_hospital_rounded,
+                      ),
                       const SizedBox(height: 12),
                       _field(
                         controller: _consultationFeeController,

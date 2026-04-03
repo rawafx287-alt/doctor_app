@@ -55,6 +55,7 @@ class PatientDoctorCard extends StatefulWidget {
     required this.onBook,
     required this.onOpenDetails,
     this.profileImageUrl,
+    this.hospitalName,
   });
 
   final String name;
@@ -63,6 +64,8 @@ class PatientDoctorCard extends StatefulWidget {
   final VoidCallback onOpenDetails;
   /// Firestore `profileImageUrl`; placeholder if null/empty.
   final String? profileImageUrl;
+  /// Localized hospital/clinic line; hidden when null/empty.
+  final String? hospitalName;
 
   @override
   State<PatientDoctorCard> createState() => _PatientDoctorCardState();
@@ -125,6 +128,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
         hasArabicScript ? Alignment.centerRight : Alignment.centerLeft;
     final rAfterSilver = _radius - _kSilverBorderWidth;
     final innerR = rAfterSilver - _kLightLeakBorder;
+    final hospitalLine = widget.hospitalName?.trim() ?? '';
 
     return RepaintBoundary(
       child: Container(
@@ -392,96 +396,128 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    S.of(context).translate('field_specialty'),
-                                    textAlign: textAlign,
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      height: 1.1,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: kPatientPrimaryFont,
-                                      color: _navyText.withValues(alpha: 0.58),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: badgeAlign,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(999),
-                                      child: BackdropFilter(
-                                        filter: ui.ImageFilter.blur(
-                                          sigmaX: 12,
-                                          sigmaY: 12,
-                                        ),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 13,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                              colors: [
-                                                const Color(
-                                                  0xFFF3D6C4,
-                                                ).withValues(alpha: 0.4),
-                                                Colors.white.withValues(
-                                                  alpha: 0.24,
-                                                ),
-                                                const Color(
-                                                  0xFFE9D5C7,
-                                                ).withValues(alpha: 0.34),
-                                              ],
-                                            ),
-                                            border: Border.all(
-                                              color: _kLuxGold.withValues(
-                                                alpha: 0.98,
-                                              ),
-                                              width: 1.1,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: _kLuxGold.withValues(
-                                                  alpha: 0.26,
-                                                ),
-                                                blurRadius: 8,
-                                                spreadRadius: -2,
-                                                offset: const Offset(0, 1),
-                                              ),
-                                              BoxShadow(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.5,
-                                                ),
-                                                blurRadius: 10,
-                                                spreadRadius: -4,
-                                                offset: const Offset(0, -2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            widget.specialty,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 13,
-                                              fontFamily: kPatientPrimaryFont,
-                                              height: 1.2,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
                           ],
+                        ),
+                        if (hospitalLine.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Row(
+                              textDirection: Directionality.of(context),
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.local_hospital_rounded,
+                                  size: 17,
+                                  color: _kLuxGold.withValues(alpha: 0.95),
+                                ),
+                                const SizedBox(width: 7),
+                                Expanded(
+                                  child: Text(
+                                    hospitalLine,
+                                    textAlign: textAlign,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      height: 1.25,
+                                      color: _navyText.withValues(alpha: 0.78),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Text(
+                          S.of(context).translate('field_specialty'),
+                          textAlign: textAlign,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            height: 1.1,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: kPatientPrimaryFont,
+                            color: _navyText.withValues(alpha: 0.58),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: badgeAlign,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(
+                                sigmaX: 12,
+                                sigmaY: 12,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 13,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    999,
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(
+                                        0xFFF3D6C4,
+                                      ).withValues(alpha: 0.4),
+                                      Colors.white.withValues(
+                                        alpha: 0.24,
+                                      ),
+                                      const Color(
+                                        0xFFE9D5C7,
+                                      ).withValues(alpha: 0.34),
+                                    ],
+                                  ),
+                                  border: Border.all(
+                                    color: _kLuxGold.withValues(
+                                      alpha: 0.98,
+                                    ),
+                                    width: 1.1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _kLuxGold.withValues(
+                                        alpha: 0.26,
+                                      ),
+                                      blurRadius: 8,
+                                      spreadRadius: -2,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      blurRadius: 10,
+                                      spreadRadius: -4,
+                                      offset: const Offset(0, -2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  widget.specialty,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 13,
+                                    fontFamily: kPatientPrimaryFont,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Row(

@@ -11,6 +11,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
 import '../theme/patient_premium_theme.dart';
+import '../locale/hr_nora_about_dialog.dart';
 import 'patient_edit_profile_screen.dart';
 
 /// Profile page: very soft sky → white (depth; distinct from home shell if needed).
@@ -380,36 +381,7 @@ class PatientProfileScreen extends StatelessWidget {
   }
 
   void _showAbout(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: S.of(context).translate('app_display_name'),
-      applicationVersion: '1.0.0',
-      applicationIcon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF00838F).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(
-          Icons.medical_services_rounded,
-          color: Color(0xFF00838F),
-          size: 32,
-        ),
-      ),
-      children: [
-        Directionality(
-          textDirection: AppLocaleScope.of(context).textDirection,
-          child: Text(
-            S.of(context).translate('about_description'),
-            style: const TextStyle(
-              color: Color(0xFF666666),
-              fontFamily: kPatientPrimaryFont,
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
-    );
+    showHrNoraAboutDialog(context);
   }
 
   @override
