@@ -15,7 +15,19 @@ import '../auth/firestore_user_doc_id.dart';
 import '../theme/staff_premium_theme.dart';
 import 'day_management_screen.dart';
 
-const String _kArabicComma = '\u060C';
+/// Metallic silver rim — 0.8 px stroke, matches patient profile / brand cards.
+const LinearGradient _kCalendarSilverRimGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFFF0F0F0), Color(0xFFD1D1D1), Color(0xFFE0E0E0)],
+  stops: [0.0, 0.48, 1.0],
+);
+
+/// Open day cell fill (deep medical green).
+const Color _kScheduleOpenDayFill = Color(0xFF004D40);
+
+/// Closed day cell fill (deep rich red).
+const Color _kScheduleClosedDayFill = Color(0xFFB71C1C);
 
 String _scheduleWeekdayTranslationKey(DateTime d) {
   switch (d.weekday) {
@@ -72,7 +84,8 @@ class AvailableDaysScheduleScreen extends StatefulWidget {
       _AvailableDaysScheduleScreenState();
 }
 
-class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScreen> {
+class _AvailableDaysScheduleScreenState
+    extends State<AvailableDaysScheduleScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Timer? _todayClockTimer;
@@ -106,24 +119,17 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
   bool get _showBookingBadge => widget.managedDoctorUserId == null;
 
   static const Color _kTodayCardFill = Color(0xFFF0F8FF);
-  static const Color _kTodayCardBorderSilver = Color(0xFFE0E0E0);
 
-  /// Sky card under the grid: label + gold calendar icon + weekday / day / month name / year.
-  Widget _buildTodayDateCard(
-    BuildContext context,
-    AppLocalizations strings,
-  ) {
+  /// Card under the grid: label + gold icon + weekday line + Y/M/D numerals (LTR).
+  Widget _buildTodayDateCard(BuildContext context, AppLocalizations strings) {
     final lang = AppLocaleScope.of(context).effectiveLanguage;
     final appDir = Directionality.of(context);
     final now = DateTime.now();
-    final weekdayName =
-        strings.translate(_scheduleWeekdayTranslationKey(now));
-    final monthName = strings.translate('cal_month_${now.month}');
+    final weekdayName = strings.translate(_scheduleWeekdayTranslationKey(now));
     final dayPart = _scheduleDigitsForLanguage('${now.day}', lang);
+    final monthPart = _scheduleDigitsForLanguage('${now.month}', lang);
     final yearPart = _scheduleDigitsForLanguage('${now.year}', lang);
-    final afterWeekday = lang == HrNoraLanguage.en ? ', ' : '$_kArabicComma ';
-    final dateLine =
-        '$weekdayName$afterWeekday$dayPart / $monthName / $yearPart';
+    final dateNumericLtr = '$yearPart / $monthPart / $dayPart';
 
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 10),
@@ -134,8 +140,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           color: _kTodayCardFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: _kTodayCardBorderSilver,
-            width: 1,
+            color: kStaffSilverBorder,
+            width: kStaffCardOutlineWidth,
           ),
         ),
         child: Column(
@@ -147,44 +153,60 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: kStaffMutedText,
                 height: 1.2,
               ),
             ),
             const SizedBox(height: 10),
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Icon(
-                      Icons.event_note,
-                      size: 22,
-                      color: kStaffLuxGold,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Directionality(
-                      textDirection: appDir,
-                      child: Text(
-                        dateLine,
-                        textAlign: TextAlign.start,
-                        style: TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          height: 1.45,
-                          color: kStaffBodyText,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(Icons.event_note, size: 22, color: kStaffLuxGold),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Directionality(
+                        textDirection: appDir,
+                        child: Text(
+                          weekdayName,
+                          textAlign: TextAlign.start,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            height: 1.35,
+                            color: kStaffBodyText,
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(
+                            dateNumericLtr,
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              height: 1.35,
+                              color: kStaffBodyText,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -383,10 +405,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '$e',
-              style: const TextStyle(fontFamily: 'NRT'),
-            ),
+            content: Text('$e', style: const TextStyle(fontFamily: 'NRT')),
           ),
         );
       }
@@ -503,10 +522,10 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
 
                   final loadingDays =
                       daySnap.connectionState == ConnectionState.waiting &&
-                          !daySnap.hasData;
+                      !daySnap.hasData;
                   final loadingAppts =
                       apptSnap.connectionState == ConnectionState.waiting &&
-                          !apptSnap.hasData;
+                      !apptSnap.hasData;
 
                   return SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
@@ -527,207 +546,250 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                           const SizedBox(height: 8),
                         Text(
                           s.translate('available_days_calendar_legend'),
-                          style: staffLabelTextStyle(fontSize: 12).copyWith(
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: staffLabelTextStyle(
+                            fontSize: 12,
+                          ).copyWith(height: 1.35, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 10),
-                        DecoratedBox(
-                          decoration: staffDashboardCardDecoration(
-                            borderRadius: 16,
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16.8),
+                            gradient: _kCalendarSilverRimGradient,
+                            boxShadow: [
+                              BoxShadow(
+                                color: kStaffPrimaryNavy.withValues(
+                                  alpha: 0.07,
+                                ),
+                                blurRadius: 14,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
-                            child: TableCalendar<int>(
-                              firstDay: DateTime.utc(2024, 1, 1),
-                              lastDay: DateTime.utc(2035, 12, 31),
-                              focusedDay: _focusedDay,
-                              rowHeight: 52,
-                              daysOfWeekHeight: 36,
-                              selectedDayPredicate: (d) =>
-                                  _selectedDay != null &&
-                                  isSameDay(_selectedDay!, d),
-                              calendarFormat: CalendarFormat.month,
-                              availableCalendarFormats: const {
-                                CalendarFormat.month: 'Month',
-                              },
-                              startingDayOfWeek: StartingDayOfWeek.saturday,
-                              locale: Localizations.localeOf(context)
-                                  .toLanguageTag(),
-                              daysOfWeekStyle: DaysOfWeekStyle(
-                                weekdayStyle: TextStyle(
-                                  color: kStaffMutedText,
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
+                          padding: const EdgeInsets.all(0.8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: ColoredBox(
+                              color: kStaffCardSurface,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  6,
+                                  10,
+                                  6,
+                                  14,
                                 ),
-                                weekendStyle: TextStyle(
-                                  color: kStaffMutedText,
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              headerStyle: HeaderStyle(
-                                formatButtonVisible: false,
-                                titleCentered: true,
-                                headerPadding: EdgeInsets.zero,
-                                titleTextStyle: TextStyle(
-                                  color: kStaffPrimaryNavy,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: kPatientPrimaryFont,
-                                ),
-                                leftChevronIcon: const Icon(
-                                  Icons.chevron_left_rounded,
-                                  color: kStaffLuxGold,
-                                ),
-                                rightChevronIcon: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: kStaffLuxGold,
-                                ),
-                              ),
-                              eventLoader: (day) {
-                                final docId = availableDayDocumentId(
-                                  doctorUserId: uid,
-                                  dateLocal: _dateOnly(day),
-                                );
-                                final row = openByDocId[docId];
-                                final open =
-                                    row != null && availableDayIsOpen(row);
-                                final c = bookingCounts[docId] ?? 0;
-                                final isOutside = day.month !=
-                                        _focusedDay.month ||
-                                    day.year != _focusedDay.year;
-                                if (!_showBookingBadge ||
-                                    !open ||
-                                    c < 1 ||
-                                    isOutside) {
-                                  return [];
-                                }
-                                return <int>[c];
-                              },
-                              calendarStyle: CalendarStyle(
-                                outsideDaysVisible: true,
-                                markersMaxCount: 1,
-                                markersAlignment: Alignment.center,
-                                canMarkersOverflow: true,
-                                cellMargin: EdgeInsets.zero,
-                                defaultDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                weekendDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                outsideDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                todayDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                selectedDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                disabledDecoration:
-                                    BoxDecoration(shape: BoxShape.rectangle),
-                                defaultTextStyle: TextStyle(
-                                  fontSize: 0.1,
-                                  color: Colors.transparent,
-                                ),
-                                weekendTextStyle: TextStyle(
-                                  fontSize: 0.1,
-                                  color: Colors.transparent,
-                                ),
-                                outsideTextStyle: TextStyle(
-                                  fontSize: 0.1,
-                                  color: Colors.transparent,
-                                ),
-                                todayTextStyle: TextStyle(
-                                  fontSize: 0.1,
-                                  color: Colors.transparent,
-                                ),
-                                selectedTextStyle: TextStyle(
-                                  fontSize: 0.1,
-                                  color: Colors.transparent,
-                                ),
-                              ),
-                              onPageChanged: (focused) {
-                                setState(() => _focusedDay = focused);
-                              },
-                              onDaySelected: (sel, foc) => _handleDayTap(
-                                context,
-                                uid,
-                                sel,
-                                foc,
-                                openByDocId,
-                              ),
-                              calendarBuilders: CalendarBuilders<int>(
-                                markerBuilder: (context, day, events) {
-                                  if (events.isEmpty) return null;
-                                  final count = events.first;
-                                  if (count < 1) return null;
-                                  final label =
-                                      count > 99 ? '99' : '$count';
-                                  return PositionedDirectional(
-                                    top: 2,
-                                    end: 2,
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: DecoratedBox(
-                                        decoration: const BoxDecoration(
-                                          color: kStaffPrimaryNavy,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Color(0x40000000),
-                                              blurRadius: 3,
-                                              offset: Offset(0, 1),
+                                child: TableCalendar<int>(
+                                  firstDay: DateTime.utc(2024, 1, 1),
+                                  lastDay: DateTime.utc(2035, 12, 31),
+                                  focusedDay: _focusedDay,
+                                  rowHeight: 52,
+                                  daysOfWeekHeight: 36,
+                                  selectedDayPredicate: (d) =>
+                                      _selectedDay != null &&
+                                      isSameDay(_selectedDay!, d),
+                                  calendarFormat: CalendarFormat.month,
+                                  availableCalendarFormats: const {
+                                    CalendarFormat.month: 'Month',
+                                  },
+                                  startingDayOfWeek: StartingDayOfWeek.saturday,
+                                  locale: Localizations.localeOf(
+                                    context,
+                                  ).toLanguageTag(),
+                                  daysOfWeekStyle: DaysOfWeekStyle(
+                                    weekdayStyle: TextStyle(
+                                      color: kStaffMutedText,
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    weekendStyle: TextStyle(
+                                      color: kStaffMutedText,
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  headerStyle: HeaderStyle(
+                                    formatButtonVisible: false,
+                                    titleCentered: true,
+                                    headerPadding: EdgeInsets.zero,
+                                    titleTextStyle: TextStyle(
+                                      color: kStaffPrimaryNavy,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: kPatientPrimaryFont,
+                                    ),
+                                    leftChevronIcon: const Icon(
+                                      Icons.chevron_left_rounded,
+                                      color: kStaffLuxGold,
+                                    ),
+                                    rightChevronIcon: const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: kStaffLuxGold,
+                                    ),
+                                  ),
+                                  eventLoader: (day) {
+                                    final docId = availableDayDocumentId(
+                                      doctorUserId: uid,
+                                      dateLocal: _dateOnly(day),
+                                    );
+                                    final row = openByDocId[docId];
+                                    final open =
+                                        row != null && availableDayIsOpen(row);
+                                    final c = bookingCounts[docId] ?? 0;
+                                    final isOutside =
+                                        day.month != _focusedDay.month ||
+                                        day.year != _focusedDay.year;
+                                    if (!_showBookingBadge ||
+                                        !open ||
+                                        c < 1 ||
+                                        isOutside) {
+                                      return [];
+                                    }
+                                    return <int>[c];
+                                  },
+                                  calendarStyle: CalendarStyle(
+                                    outsideDaysVisible: true,
+                                    markersMaxCount: 1,
+                                    markersAlignment: Alignment.center,
+                                    canMarkersOverflow: true,
+                                    cellMargin: EdgeInsets.zero,
+                                    defaultDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    weekendDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    outsideDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    todayDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    selectedDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    disabledDecoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                    ),
+                                    defaultTextStyle: TextStyle(
+                                      fontSize: 0.1,
+                                      color: Colors.transparent,
+                                    ),
+                                    weekendTextStyle: TextStyle(
+                                      fontSize: 0.1,
+                                      color: Colors.transparent,
+                                    ),
+                                    outsideTextStyle: TextStyle(
+                                      fontSize: 0.1,
+                                      color: Colors.transparent,
+                                    ),
+                                    todayTextStyle: TextStyle(
+                                      fontSize: 0.1,
+                                      color: Colors.transparent,
+                                    ),
+                                    selectedTextStyle: TextStyle(
+                                      fontSize: 0.1,
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
+                                  onPageChanged: (focused) {
+                                    setState(() => _focusedDay = focused);
+                                  },
+                                  onDaySelected: (sel, foc) => _handleDayTap(
+                                    context,
+                                    uid,
+                                    sel,
+                                    foc,
+                                    openByDocId,
+                                  ),
+                                  calendarBuilders: CalendarBuilders<int>(
+                                    markerBuilder: (context, day, events) {
+                                      if (events.isEmpty) return null;
+                                      final count = events.first;
+                                      if (count < 1) return null;
+                                      final lang = AppLocaleScope.of(
+                                        context,
+                                      ).effectiveLanguage;
+                                      final raw =
+                                          count > 99 ? '99' : '$count';
+                                      final label =
+                                          _scheduleDigitsForLanguage(
+                                        raw,
+                                        lang,
+                                      );
+                                      return PositionedDirectional(
+                                        top: 2,
+                                        end: 2,
+                                        child: SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: DecoratedBox(
+                                            decoration: const BoxDecoration(
+                                              color: kStaffPrimaryNavy,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Color(0x40000000),
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                        child: Center(
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: Text(
-                                              label,
-                                              style: const TextStyle(
-                                                fontFamily: kPatientPrimaryFont,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
-                                                height: 1,
+                                            child: Center(
+                                              child: FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                child: Text(
+                                                  label,
+                                                  style: const TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                    height: 1,
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                defaultBuilder: (ctx, day, fDay) =>
-                                    _dayCell(
+                                      );
+                                    },
+                                    defaultBuilder: (ctx, day, fDay) =>
+                                        _dayCell(
+                                          context: ctx,
+                                          day: day,
+                                          focusedDay: fDay,
+                                          uid: uid,
+                                          openByDocId: openByDocId,
+                                        ),
+                                    todayBuilder: (ctx, day, fDay) => _dayCell(
+                                      context: ctx,
                                       day: day,
                                       focusedDay: fDay,
                                       uid: uid,
                                       openByDocId: openByDocId,
+                                      isToday: true,
                                     ),
-                                todayBuilder: (ctx, day, fDay) => _dayCell(
-                                  day: day,
-                                  focusedDay: fDay,
-                                  uid: uid,
-                                  openByDocId: openByDocId,
-                                  isToday: true,
-                                ),
-                                selectedBuilder: (ctx, day, fDay) => _dayCell(
-                                  day: day,
-                                  focusedDay: fDay,
-                                  uid: uid,
-                                  openByDocId: openByDocId,
-                                  isSelected: true,
-                                ),
-                                outsideBuilder: (ctx, day, fDay) => _dayCell(
-                                  day: day,
-                                  focusedDay: fDay,
-                                  uid: uid,
-                                  openByDocId: openByDocId,
-                                  isOutsideMonth: true,
+                                    selectedBuilder: (ctx, day, fDay) =>
+                                        _dayCell(
+                                          context: ctx,
+                                          day: day,
+                                          focusedDay: fDay,
+                                          uid: uid,
+                                          openByDocId: openByDocId,
+                                          isSelected: true,
+                                        ),
+                                    outsideBuilder: (ctx, day, fDay) =>
+                                        _dayCell(
+                                          context: ctx,
+                                          day: day,
+                                          focusedDay: fDay,
+                                          uid: uid,
+                                          openByDocId: openByDocId,
+                                          isOutsideMonth: true,
+                                        ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -764,6 +826,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
   }
 
   Widget _dayCell({
+    required BuildContext context,
     required DateTime day,
     required DateTime focusedDay,
     required String uid,
@@ -772,6 +835,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
     bool isSelected = false,
     bool isOutsideMonth = false,
   }) {
+    final displayLang = AppLocaleScope.of(context).effectiveLanguage;
+    final dayLabel = _scheduleDigitsForLanguage('${day.day}', displayLang);
     final docId = availableDayDocumentId(
       doctorUserId: uid,
       dateLocal: _dateOnly(day),
@@ -779,24 +844,24 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
     final row = openByDocId[docId];
     final open = row != null && availableDayIsOpen(row);
 
-    final isOutside = isOutsideMonth ||
+    final isOutside =
+        isOutsideMonth ||
         day.month != focusedDay.month ||
         day.year != focusedDay.year;
 
     final fill = isOutside
         ? const Color(0xFFECEFF1)
-        : (open ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE));
+        : (open ? _kScheduleOpenDayFill : _kScheduleClosedDayFill);
     final stroke = isOutside
         ? kStaffSilverBorder.withValues(alpha: 0.65)
-        : (open
-            ? const Color(0xFF43A047).withValues(alpha: 0.55)
-            : const Color(0xFFE53935).withValues(alpha: 0.45));
+        : Colors.white.withValues(alpha: 0.22);
 
     final borderColor = isSelected
-        ? kStaffPrimaryNavy
+        ? kStaffLuxGold
         : (isToday && !isSelected ? kStaffLuxGold : stroke);
-    final double borderWidth =
-        isSelected ? 2.5 : (isToday && !isSelected ? 1.5 : 1.0);
+    final double borderWidth = isSelected
+        ? 2.75
+        : (isToday && !isSelected ? 1.75 : 1.0);
 
     return SizedBox.expand(
       child: Padding(
@@ -806,19 +871,16 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           decoration: BoxDecoration(
             color: fill,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: borderColor,
-              width: borderWidth,
-            ),
+            border: Border.all(color: borderColor, width: borderWidth),
           ),
           alignment: Alignment.center,
           child: Text(
-            '${day.day}',
+            dayLabel,
             style: TextStyle(
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w700,
               fontSize: 15,
-              color: isOutside ? kStaffMutedText : kStaffBodyText,
+              color: isOutside ? kStaffMutedText : Colors.white,
             ),
           ),
         ),

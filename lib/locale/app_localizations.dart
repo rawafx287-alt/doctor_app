@@ -1817,9 +1817,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Open',
   },
   'available_days_calendar_legend': {
-    'ckb': 'سوور = داخراو · سەوز = کراوە · ژمارە = ژمارەی نۆرە تۆمارکراوەکان',
-    'ar': 'أحمر = مغلق · أخضر = مفتوح · الرقم = عدد الحجوزات',
-    'en': 'Red = closed · Green = open · Number = bookings count',
+    'ckb':
+        'سووری تۆخ = داخراو · سەوزی پزیشکی قووڵ = کراوە · ژمارە = ژمارەی نۆرە تۆمارکراوەکان',
+    'ar': 'أحمر غامق = مغلق · أخضر طبي داكن = مفتوح · الرقم = عدد الحجوزات',
+    'en':
+        'Deep red = closed · Deep medical green = open · Number = bookings count',
   },
   'available_day_manage_tab_time': {
     'ckb': 'کات',
