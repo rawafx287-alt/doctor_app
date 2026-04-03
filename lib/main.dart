@@ -27,9 +27,7 @@ Future<void> main() async {
   );
   ensureSharedPreferencesRegistered();
   // Android: place `google-services.json` in `android/app/` (see Firebase console).
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final localeController = LocaleController();
   await localeController.load();
   runApp(HrNoraAppRoot(localeController: localeController));
@@ -137,10 +135,7 @@ class HrNoraAppRoot extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'HR Nora',
           locale: localeController.materialLocale,
-          supportedLocales: const [
-            Locale('en'),
-            Locale('ar'),
-          ],
+          supportedLocales: const [Locale('en'), Locale('ar')],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
@@ -156,59 +151,61 @@ class HrNoraAppRoot extends StatelessWidget {
             );
           },
           theme: baseTheme.copyWith(
-        textTheme: appTextTheme,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: baseButtons.copyWith(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return HrNoraColors.primary.withValues(alpha: 0.38);
-              }
-              return HrNoraColors.primary;
-            }),
-            foregroundColor: WidgetStateProperty.all(Colors.white),
-            overlayColor: WidgetStateProperty.all(
-              Colors.white.withValues(alpha: 0.12),
-            ),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: baseButtons.copyWith(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return HrNoraColors.primary.withValues(alpha: 0.38);
-              }
-              return HrNoraColors.primary;
-            }),
-            foregroundColor: WidgetStateProperty.all(Colors.white),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: baseButtons.copyWith(
-            foregroundColor: WidgetStateProperty.all(HrNoraColors.accentLight),
-            side: WidgetStateProperty.all(
-              BorderSide(
-                color: HrNoraColors.accentLight.withValues(alpha: 0.65),
-                width: 1.2,
+            textTheme: appTextTheme,
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: baseButtons.copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return HrNoraColors.primary.withValues(alpha: 0.38);
+                  }
+                  return HrNoraColors.primary;
+                }),
+                foregroundColor: WidgetStateProperty.all(Colors.white),
+                overlayColor: WidgetStateProperty.all(
+                  Colors.white.withValues(alpha: 0.12),
+                ),
               ),
             ),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: HrNoraColors.accentLight,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+            filledButtonTheme: FilledButtonThemeData(
+              style: baseButtons.copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return HrNoraColors.primary.withValues(alpha: 0.38);
+                  }
+                  return HrNoraColors.primary;
+                }),
+                foregroundColor: WidgetStateProperty.all(Colors.white),
+              ),
+            ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: baseButtons.copyWith(
+                foregroundColor: WidgetStateProperty.all(
+                  HrNoraColors.accentLight,
+                ),
+                side: WidgetStateProperty.all(
+                  BorderSide(
+                    color: HrNoraColors.accentLight.withValues(alpha: 0.65),
+                    width: 1.2,
+                  ),
+                ),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: HrNoraColors.accentLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            floatingActionButtonTheme: const FloatingActionButtonThemeData(
+              backgroundColor: HrNoraColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: HrNoraColors.accentLight,
             ),
           ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: HrNoraColors.primary,
-          foregroundColor: Colors.white,
-        ),
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: HrNoraColors.accentLight,
-        ),
-      ),
           home: const SplashScreen(),
         );
       },

@@ -76,7 +76,8 @@ class AvailableDaysScheduleScreen extends StatefulWidget {
       _AvailableDaysScheduleScreenState();
 }
 
-class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScreen> {
+class _AvailableDaysScheduleScreenState
+    extends State<AvailableDaysScheduleScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Timer? _todayClockTimer;
@@ -111,7 +112,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
 
   static const Color _kTodayCardFill = Color(0xFFF0F8FF);
 
-  /// Sky card under the grid: label + gold calendar icon + weekday / day / month name / year.
+  /// Card under the grid: label + gold icon + full date line (Latin digits).
   Widget _buildTodayDateCard(
     BuildContext context,
     AppLocalizations strings,
@@ -548,7 +549,6 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                 CalendarFormat.month: 'Month',
                               },
                               startingDayOfWeek: StartingDayOfWeek.saturday,
-                              // Latin digits in any internal formatting; Kurdish DOW + month via builders.
                               locale: 'en',
                               daysOfWeekStyle: DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
@@ -715,13 +715,12 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                     ),
                                   );
                                 },
-                                defaultBuilder: (ctx, day, fDay) =>
-                                    _dayCell(
-                                      day: day,
-                                      focusedDay: fDay,
-                                      uid: uid,
-                                      openByDocId: openByDocId,
-                                    ),
+                                defaultBuilder: (ctx, day, fDay) => _dayCell(
+                                  day: day,
+                                  focusedDay: fDay,
+                                  uid: uid,
+                                  openByDocId: openByDocId,
+                                ),
                                 todayBuilder: (ctx, day, fDay) => _dayCell(
                                   day: day,
                                   focusedDay: fDay,

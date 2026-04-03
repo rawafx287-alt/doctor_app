@@ -18,11 +18,40 @@ import 'calendar_slot_logic.dart';
 
 const String _kMasterCalendarBrandTitle = 'HR Nora';
 
+// ---------------------------------------------------------------------------
+// Secretary calendar — same cell physics as [PatientAvailableDaysList].
+// ---------------------------------------------------------------------------
+const Color _kSecPatOpenFill = Color(0xFF004D40);
+const Color _kSecPatOpenBorder = Color(0xFF002E26);
+const Color _kSecPatClosedFill = Color(0xFFB71C1C);
+const Color _kSecPatClosedBorder = Color(0xFF7F1515);
+const Color _kSecPatSelectedNavy = Color(0xFF0D47A1);
+const Color _kSecPatGoldRing = Color(0xFFD4AF37);
+const Color _kSecPatDowBlue = Color(0xFF0D47A1);
+const Color _kSecPatHeaderNavy = Color(0xFF0D2137);
+const Color _kSecPatChevronBlue = Color(0xFF1565C0);
+const Color _kSecPatNumericBlue = Color(0xFF1565C0);
+
+/// Kurdish DOW labels, Saturday-first (matches [StartingDayOfWeek.saturday]).
+const List<String> _kSecretaryDowLabelsSatFirst = [
+  'شەم',
+  'یەک',
+  'دوو',
+  'سێ',
+  'چوار',
+  'پێنج',
+  'هەینی',
+];
+
+String _secretaryDowLabelForDate(DateTime day) =>
+    _kSecretaryDowLabelsSatFirst[(day.weekday + 1) % 7];
+
 /// Month grid: green = open slots, red = fully booked / no open slots.
 const Color _kCalGreenFill = Color(0xFF0F3D28);
 const Color _kCalGreenBorder = Color(0xFF22C55E);
 const Color _kCalRedFill = Color(0xFF3D1418);
 const Color _kCalRedBorder = Color(0xFFEF4444);
+
 /// Day has hours but every slot is booked / blocked.
 const Color _kCalAmberFill = Color(0xFF3D2A0F);
 const Color _kCalAmberBorder = Color(0xFFF59E0B);
@@ -56,8 +85,11 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
   DateTime? _selectedDay;
   String? _pickedDoctorId;
 
-  bool get _staffChrome =>
-      widget.isRootShell || widget.useStaffShellTheme;
+  bool get _staffChrome => widget.isRootShell || widget.useStaffShellTheme;
+
+  /// Secretary root tab: English numerals, past-day styling, gold “today”.
+  bool get _secretaryCalendarUx =>
+      widget.isRootShell && widget.showDoctorPicker;
 
   @override
   void initState() {
@@ -82,8 +114,10 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     final set = <String>{};
     for (final doc in apptDocs) {
       final data = doc.data();
-      final st =
-          (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+      final st = (data[AppointmentFields.status] ?? 'pending')
+          .toString()
+          .trim()
+          .toLowerCase();
       if (st == 'cancelled') continue;
       final ts = data[AppointmentFields.date];
       if (ts is! Timestamp) continue;
@@ -116,16 +150,11 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     final last = DateTime(year, month + 1, 0);
     final map = <DateTime, MasterDayVisual>{};
 
-    for (var d = first;
-        !d.isAfter(last);
-        d = d.add(const Duration(days: 1))) {
+    for (var d = first; !d.isAfter(last); d = d.add(const Duration(days: 1))) {
       final key = DateTime(d.year, d.month, d.day);
       final dayBlocks = blocksForCalendarDay(key, blockMaps);
       final booked = _bookedKeysForDay(key, apptDocs);
-      final step = appointmentSlotMinutesForDateWithAllBlocks(
-        key,
-        blockMaps,
-      );
+      final step = appointmentSlotMinutesForDateWithAllBlocks(key, blockMaps);
       map[key] = classifyDay(
         dateOnly: key,
         weeklySchedule: weekly,
@@ -145,7 +174,18 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     required bool isToday,
     required bool isSelected,
   }) {
+    if (_secretaryCalendarUx) {
+      return _secretaryPatientStyleCell(
+        day: day,
+        focusedMonth: focusedMonth,
+        visual: visual,
+        isToday: isToday,
+        isSelected: isSelected,
+      );
+    }
+
     final isOutside = day.month != focusedMonth.month;
+
     Color fill;
     Color edgeColor;
     switch (visual) {
@@ -209,7 +249,204 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
           fontFamily: 'NRT',
           fontWeight: isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
           fontSize: 15,
+          height: 1,
           color: textColor,
+        ),
+      ),
+    );
+  }
+
+  /// Secretary month grid: explicit open / closed / past / outside / selection.
+  Widget _secretaryPatientStyleCell({
+    required DateTime day,
+    required DateTime focusedMonth,
+    required MasterDayVisual? visual,
+    required bool isToday,
+    required bool isSelected,
+  }) {
+    final now = DateTime.now();
+    final todayD = DateTime(now.year, now.month, now.day);
+    final cellD = DateTime(day.year, day.month, day.day);
+    final isPast = cellD.isBefore(todayD);
+    final isOutside =
+        day.month != focusedMonth.month || day.year != focusedMonth.year;
+
+    final closedOrFull = visual != MasterDayVisual.hasAvailability;
+
+    const cellR = 8.0;
+    final radius = BorderRadius.circular(cellR);
+    final dayAscii =
+        NumberFormat.decimalPattern('en_US').format(day.day);
+
+    final todayRing = isToday && !isSelected && !isOutside
+        ? Border.all(color: _kSecPatGoldRing, width: 2.5)
+        : null;
+
+    BoxDecoration decoration;
+    Color textColor;
+    var strikeThrough = false;
+
+    if (isSelected) {
+      decoration = BoxDecoration(
+        color: _kSecPatSelectedNavy,
+        borderRadius: radius,
+        border: Border.all(color: _kSecPatGoldRing, width: 2),
+      );
+      textColor = Colors.white;
+    } else if (isOutside) {
+      decoration = BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: radius,
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+      );
+      textColor = const Color(0xFF9E9E9E);
+    } else if (isPast) {
+      decoration = BoxDecoration(
+        color: Colors.white,
+        borderRadius: radius,
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      );
+      textColor = const Color(0xFF424242);
+      strikeThrough = true;
+    } else if (!closedOrFull) {
+      decoration = BoxDecoration(
+        color: const Color(0xFF004D40),
+        borderRadius: radius,
+        border: todayRing,
+      );
+      textColor = Colors.white;
+    } else {
+      decoration = BoxDecoration(
+        color: const Color(0xFFB71C1C),
+        borderRadius: radius,
+        border: todayRing,
+      );
+      textColor = Colors.white;
+    }
+
+    final textWidget = Directionality(
+      textDirection: ui.TextDirection.ltr,
+      child: Text(
+        dayAscii,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          height: 1,
+          color: textColor,
+          decoration:
+              strikeThrough ? TextDecoration.lineThrough : TextDecoration.none,
+          decorationColor: const Color(0xFF757575),
+          decorationThickness: 1.5,
+        ),
+      ),
+    );
+
+    final cellCore = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      decoration: decoration,
+      alignment: Alignment.center,
+      child: textWidget,
+    );
+
+    return Padding(padding: const EdgeInsets.all(1.5), child: cellCore);
+  }
+
+  Widget _secretaryGlassCalendarShell({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.92),
+                Colors.white.withValues(alpha: 0.76),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.95),
+              width: 0.75,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.09),
+                blurRadius: 32,
+                offset: const Offset(0, 14),
+                spreadRadius: -2,
+              ),
+              BoxShadow(
+                color: const Color(0xFF90CAF9).withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecretaryTodayDateFooter(BuildContext context) {
+    final s = S.of(context);
+    final n = DateTime.now();
+    final line = '${n.day} / ${n.month} / ${n.year}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              s.translate('schedule_today_heading'),
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+                letterSpacing: 0.35,
+                color: const Color(0xFF455A64).withValues(alpha: 0.92),
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Directionality(
+              textDirection: ui.TextDirection.ltr,
+              child: Text(
+                line,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  height: 1.35,
+                  color: _kSecPatNumericBlue.withValues(alpha: 0.92),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -220,7 +457,8 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     required DateTime day,
     required Map<String, dynamic>? weekly,
     Map<String, dynamic>? dateOverrides,
-    required List<QueryDocumentSnapshot<Map<String, dynamic>>> monthAppointments,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>>
+    monthAppointments,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> monthBlocks,
     required int slotDurationMinutes,
   }) async {
@@ -316,8 +554,9 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                         ? null
                         : [
                             Shadow(
-                              color: const Color(0xFF42A5F5)
-                                  .withValues(alpha: 0.35),
+                              color: const Color(
+                                0xFF42A5F5,
+                              ).withValues(alpha: 0.35),
                               blurRadius: 12,
                             ),
                           ],
@@ -366,7 +605,8 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                       }
                       return DropdownButtonFormField<String>(
                         // ignore: deprecated_member_use
-                        value: _pickedDoctorId != null &&
+                        value:
+                            _pickedDoctorId != null &&
                                 docs.any((d) => d.id == _pickedDoctorId)
                             ? _pickedDoctorId
                             : null,
@@ -391,9 +631,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                               color: _staffChrome
                                   ? kStaffSilverBorder
                                   : Colors.white12,
-                              width: _staffChrome
-                                  ? kStaffCardOutlineWidth
-                                  : 1,
+                              width: _staffChrome ? kStaffCardOutlineWidth : 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -402,9 +640,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                               color: _staffChrome
                                   ? kStaffSilverBorder
                                   : Colors.white12,
-                              width: _staffChrome
-                                  ? kStaffCardOutlineWidth
-                                  : 1,
+                              width: _staffChrome ? kStaffCardOutlineWidth : 1,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -424,7 +660,9 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                 child: Text(
                                   localizedDoctorFullName(
                                     d.data(),
-                                    AppLocaleScope.of(context).effectiveLanguage,
+                                    AppLocaleScope.of(
+                                      context,
+                                    ).effectiveLanguage,
                                   ),
                                   style: _staffChrome
                                       ? staffHeaderTextStyle(fontSize: 15)
@@ -465,18 +703,24 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                         builder: (context, docSnap) {
                           final snapData = docSnap.data?.data();
                           final weeklyRaw = snapData?['weekly_schedule'];
-                          final weekly = weeklyRaw is Map<String, dynamic> ? weeklyRaw : null;
+                          final weekly = weeklyRaw is Map<String, dynamic>
+                              ? weeklyRaw
+                              : null;
                           final normalizedOv =
                               normalizeScheduleDateOverridesMap(
-                            snapData?['schedule_date_overrides'],
-                          );
+                                snapData?['schedule_date_overrides'],
+                              );
                           final Map<String, dynamic>? dateOverrides =
                               normalizedOv.isEmpty ? null : normalizedOv;
                           final monthStart = _monthStart(_focusedDay);
                           final monthEnd = _monthEndExclusive(_focusedDay);
 
-                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            key: ValueKey('$doctorId-${monthStart.toIso8601String()}'),
+                          return StreamBuilder<
+                            QuerySnapshot<Map<String, dynamic>>
+                          >(
+                            key: ValueKey(
+                              '$doctorId-${monthStart.toIso8601String()}',
+                            ),
                             stream: appointmentsForDoctorDateRange(
                               doctorUserId: doctorId,
                               rangeStartInclusiveLocal: monthStart,
@@ -502,8 +746,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                 );
                               }
 
-                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                key: ValueKey('blk-$doctorId-${monthStart.toIso8601String()}'),
+                              return StreamBuilder<
+                                QuerySnapshot<Map<String, dynamic>>
+                              >(
+                                key: ValueKey(
+                                  'blk-$doctorId-${monthStart.toIso8601String()}',
+                                ),
                                 stream: calendarBlocksForDoctorDateRange(
                                   doctorUserId: doctorId,
                                   rangeStartInclusiveLocal: monthStart,
@@ -522,106 +770,192 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
 
                                   return SingleChildScrollView(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
                                       child: Column(
                                         children: [
-                                          _LegendRow(loc: S.of(context)),
+                                          _LegendRow(
+                                            loc: S.of(context),
+                                            secretaryUx: _secretaryCalendarUx,
+                                          ),
                                           const SizedBox(height: 10),
-                                          DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF12152A),
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(color: Colors.white10),
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
-                                              child: TableCalendar<void>(
-                                                firstDay: DateTime.utc(2024, 1, 1),
-                                                lastDay: DateTime.utc(2035, 12, 31),
+                                          Builder(
+                                            builder: (context) {
+                                              final secUx =
+                                                  _secretaryCalendarUx;
+                                              final calendar = TableCalendar<void>(
+                                                firstDay: DateTime.utc(
+                                                  2024,
+                                                  1,
+                                                  1,
+                                                ),
+                                                lastDay: DateTime.utc(
+                                                  2035,
+                                                  12,
+                                                  31,
+                                                ),
                                                 focusedDay: _focusedDay,
-                                                rowHeight: 52,
-                                                daysOfWeekHeight: 36,
+                                                rowHeight: secUx ? 40 : 52,
+                                                daysOfWeekHeight: secUx
+                                                    ? 28
+                                                    : 36,
                                                 selectedDayPredicate: (d) =>
                                                     _selectedDay != null &&
                                                     isSameDay(_selectedDay!, d),
-                                                calendarFormat: CalendarFormat.month,
-                                                availableCalendarFormats: const {
-                                                  CalendarFormat.month: 'Month',
-                                                },
+                                                calendarFormat:
+                                                    CalendarFormat.month,
+                                                availableCalendarFormats:
+                                                    const {
+                                                      CalendarFormat.month:
+                                                          'Month',
+                                                    },
                                                 startingDayOfWeek:
                                                     StartingDayOfWeek.saturday,
-                                                locale: Localizations.localeOf(context)
-                                                    .toLanguageTag(),
-                                                daysOfWeekStyle: DaysOfWeekStyle(
-                                                  weekdayStyle: TextStyle(
-                                                    color: const Color(0xFF94A3B8),
-                                                    fontFamily: 'NRT',
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  weekendStyle: TextStyle(
-                                                    color: const Color(0xFF94A3B8),
-                                                    fontFamily: 'NRT',
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
+                                                locale: secUx
+                                                    ? 'en_US'
+                                                    : Localizations.localeOf(
+                                                        context,
+                                                      ).toLanguageTag(),
+                                                daysOfWeekStyle:
+                                                    DaysOfWeekStyle(
+                                                      weekdayStyle: TextStyle(
+                                                        color: secUx
+                                                            ? _kSecPatDowBlue
+                                                            : const Color(
+                                                                0xFF94A3B8,
+                                                              ),
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontSize: secUx
+                                                            ? 11
+                                                            : 12,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                      weekendStyle: TextStyle(
+                                                        color: secUx
+                                                            ? _kSecPatDowBlue
+                                                            : const Color(
+                                                                0xFF94A3B8,
+                                                              ),
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontSize: secUx
+                                                            ? 11
+                                                            : 12,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
                                                 headerStyle: HeaderStyle(
                                                   formatButtonVisible: false,
                                                   titleCentered: true,
-                                                  headerPadding: EdgeInsets.zero,
-                                                  titleTextStyle: const TextStyle(
-                                                    color: Color(0xFFE8EEF4),
-                                                    fontSize: 17,
-                                                    fontWeight: FontWeight.w700,
-                                                    fontFamily: 'NRT',
+                                                  headerPadding:
+                                                      EdgeInsets.zero,
+                                                  titleTextFormatter: secUx
+                                                      ? (date, _) =>
+                                                          '\u200E${date.month} / ${date.year}'
+                                                      : null,
+                                                  titleTextStyle: TextStyle(
+                                                    color: secUx
+                                                        ? _kSecPatHeaderNavy
+                                                        : const Color(
+                                                            0xFFE8EEF4,
+                                                          ),
+                                                    fontSize: secUx ? 15 : 17,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    letterSpacing: secUx
+                                                        ? 0.2
+                                                        : 0,
                                                   ),
-                                                  leftChevronIcon: const Icon(
+                                                  leftChevronIcon: Icon(
                                                     Icons.chevron_left_rounded,
-                                                    color: Color(0xFF42A5F5),
+                                                    color: secUx
+                                                        ? _kSecPatChevronBlue
+                                                        : const Color(
+                                                            0xFF42A5F5,
+                                                          ),
+                                                    size: secUx ? 20 : 24,
                                                   ),
-                                                  rightChevronIcon: const Icon(
+                                                  rightChevronIcon: Icon(
                                                     Icons.chevron_right_rounded,
-                                                    color: Color(0xFF42A5F5),
+                                                    color: secUx
+                                                        ? _kSecPatChevronBlue
+                                                        : const Color(
+                                                            0xFF42A5F5,
+                                                          ),
+                                                    size: secUx ? 20 : 24,
                                                   ),
                                                 ),
-                                                calendarStyle: const CalendarStyle(
-                                                  outsideDaysVisible: true,
-                                                  markersMaxCount: 0,
-                                                  cellMargin: EdgeInsets.zero,
-                                                  defaultDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  weekendDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  outsideDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  todayDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  selectedDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  disabledDecoration:
-                                                      BoxDecoration(shape: BoxShape.rectangle),
-                                                  defaultTextStyle: TextStyle(
-                                                    fontSize: 0.1,
-                                                    color: Colors.transparent,
-                                                  ),
-                                                  weekendTextStyle: TextStyle(
-                                                    fontSize: 0.1,
-                                                    color: Colors.transparent,
-                                                  ),
-                                                  outsideTextStyle: TextStyle(
-                                                    fontSize: 0.1,
-                                                    color: Colors.transparent,
-                                                  ),
-                                                  todayTextStyle: TextStyle(
-                                                    fontSize: 0.1,
-                                                    color: Colors.transparent,
-                                                  ),
-                                                  selectedTextStyle: TextStyle(
-                                                    fontSize: 0.1,
-                                                    color: Colors.transparent,
-                                                  ),
-                                                ),
+                                                calendarStyle:
+                                                    const CalendarStyle(
+                                                      outsideDaysVisible: true,
+                                                      markersMaxCount: 0,
+                                                      cellMargin:
+                                                          EdgeInsets.zero,
+                                                      defaultDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      weekendDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      outsideDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      todayDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      selectedDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      disabledDecoration:
+                                                          BoxDecoration(
+                                                            shape: BoxShape
+                                                                .rectangle,
+                                                          ),
+                                                      defaultTextStyle:
+                                                          TextStyle(
+                                                            fontSize: 0.1,
+                                                            color: Colors
+                                                                .transparent,
+                                                          ),
+                                                      weekendTextStyle:
+                                                          TextStyle(
+                                                            fontSize: 0.1,
+                                                            color: Colors
+                                                                .transparent,
+                                                          ),
+                                                      outsideTextStyle:
+                                                          TextStyle(
+                                                            fontSize: 0.1,
+                                                            color: Colors
+                                                                .transparent,
+                                                          ),
+                                                      todayTextStyle: TextStyle(
+                                                        fontSize: 0.1,
+                                                        color:
+                                                            Colors.transparent,
+                                                      ),
+                                                      selectedTextStyle:
+                                                          TextStyle(
+                                                            fontSize: 0.1,
+                                                            color: Colors
+                                                                .transparent,
+                                                          ),
+                                                    ),
                                                 onPageChanged: (focused) {
                                                   setState(() {
                                                     _focusedDay = focused;
@@ -636,47 +970,91 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                     context: context,
                                                     day: sel,
                                                     weekly: weekly,
-                                                    dateOverrides: dateOverrides,
+                                                    dateOverrides:
+                                                        dateOverrides,
                                                     monthAppointments: appts,
                                                     monthBlocks: blocks,
                                                     slotDurationMinutes:
                                                         appointmentSlotMinutesForDateWithAllBlocks(
-                                                      DateTime(
-                                                        sel.year,
-                                                        sel.month,
-                                                        sel.day,
-                                                      ),
-                                                      blocks
-                                                          .map((e) => e.data())
-                                                          .toList(),
-                                                    ),
+                                                          DateTime(
+                                                            sel.year,
+                                                            sel.month,
+                                                            sel.day,
+                                                          ),
+                                                          blocks
+                                                              .map(
+                                                                (e) => e.data(),
+                                                              )
+                                                              .toList(),
+                                                        ),
                                                   );
                                                 },
                                                 calendarBuilders: CalendarBuilders(
-                                                  defaultBuilder: (context, day, fd) {
-                                                    final key = DateTime(
-                                                      day.year,
-                                                      day.month,
-                                                      day.day,
-                                                    );
-                                                    final sel = _selectedDay != null &&
-                                                        isSameDay(_selectedDay!, day);
-                                                    return _connectStyleMonthCell(
-                                                      day: day,
-                                                      focusedMonth: fd,
-                                                      visual: visuals[key],
-                                                      isToday: isSameDay(day, DateTime.now()),
-                                                      isSelected: sel,
-                                                    );
-                                                  },
+                                                  dowBuilder: secUx
+                                                      ? (context, day) {
+                                                          return Center(
+                                                            child: Text(
+                                                              _secretaryDowLabelForDate(
+                                                                day,
+                                                              ),
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: TextStyle(
+                                                                color:
+                                                                    _kSecPatDowBlue,
+                                                                fontFamily:
+                                                                    kPatientPrimaryFont,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w800,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      : null,
+                                                  defaultBuilder:
+                                                      (context, day, fd) {
+                                                        final key = DateTime(
+                                                          day.year,
+                                                          day.month,
+                                                          day.day,
+                                                        );
+                                                        final sel =
+                                                            _selectedDay !=
+                                                                null &&
+                                                            isSameDay(
+                                                              _selectedDay!,
+                                                              day,
+                                                            );
+                                                        return _connectStyleMonthCell(
+                                                          day: day,
+                                                          focusedMonth: fd,
+                                                          visual: visuals[key],
+                                                          isToday: isSameDay(
+                                                            day,
+                                                            DateTime.now(),
+                                                          ),
+                                                          isSelected: sel,
+                                                        );
+                                                      },
                                                   todayBuilder: (context, day, fd) {
                                                     final key = DateTime(
                                                       day.year,
                                                       day.month,
                                                       day.day,
                                                     );
-                                                    final sel = _selectedDay != null &&
-                                                        isSameDay(_selectedDay!, day);
+                                                    final sel =
+                                                        _selectedDay != null &&
+                                                        isSameDay(
+                                                          _selectedDay!,
+                                                          day,
+                                                        );
                                                     return _connectStyleMonthCell(
                                                       day: day,
                                                       focusedMonth: fd,
@@ -685,54 +1063,109 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                       isSelected: sel,
                                                     );
                                                   },
-                                                  selectedBuilder: (context, day, fd) {
-                                                    final key = DateTime(
-                                                      day.year,
-                                                      day.month,
-                                                      day.day,
-                                                    );
-                                                    return _connectStyleMonthCell(
-                                                      day: day,
-                                                      focusedMonth: fd,
-                                                      visual: visuals[key],
-                                                      isToday: isSameDay(day, DateTime.now()),
-                                                      isSelected: true,
-                                                    );
-                                                  },
-                                                  outsideBuilder: (context, day, fd) {
-                                                    final key = DateTime(
-                                                      day.year,
-                                                      day.month,
-                                                      day.day,
-                                                    );
-                                                    final sel = _selectedDay != null &&
-                                                        isSameDay(_selectedDay!, day);
-                                                    return _connectStyleMonthCell(
-                                                      day: day,
-                                                      focusedMonth: fd,
-                                                      visual: visuals[key],
-                                                      isToday: isSameDay(day, DateTime.now()),
-                                                      isSelected: sel,
-                                                    );
-                                                  },
+                                                  selectedBuilder:
+                                                      (context, day, fd) {
+                                                        final key = DateTime(
+                                                          day.year,
+                                                          day.month,
+                                                          day.day,
+                                                        );
+                                                        return _connectStyleMonthCell(
+                                                          day: day,
+                                                          focusedMonth: fd,
+                                                          visual: visuals[key],
+                                                          isToday: isSameDay(
+                                                            day,
+                                                            DateTime.now(),
+                                                          ),
+                                                          isSelected: true,
+                                                        );
+                                                      },
+                                                  outsideBuilder:
+                                                      (context, day, fd) {
+                                                        final key = DateTime(
+                                                          day.year,
+                                                          day.month,
+                                                          day.day,
+                                                        );
+                                                        final sel =
+                                                            _selectedDay !=
+                                                                null &&
+                                                            isSameDay(
+                                                              _selectedDay!,
+                                                              day,
+                                                            );
+                                                        return _connectStyleMonthCell(
+                                                          day: day,
+                                                          focusedMonth: fd,
+                                                          visual: visuals[key],
+                                                          isToday: isSameDay(
+                                                            day,
+                                                            DateTime.now(),
+                                                          ),
+                                                          isSelected: sel,
+                                                        );
+                                                      },
                                                 ),
-                                              ),
-                                            ),
+                                              );
+                                              if (secUx) {
+                                                return _secretaryGlassCalendarShell(
+                                                  child: Localizations.override(
+                                                    context: context,
+                                                    locale: const Locale(
+                                                      'en',
+                                                      'US',
+                                                    ),
+                                                    child: calendar,
+                                                  ),
+                                                );
+                                              }
+                                              return DecoratedBox(
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFF12152A,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  border: Border.all(
+                                                    color: Colors.white10,
+                                                  ),
+                                                ),
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        6,
+                                                        10,
+                                                        6,
+                                                        14,
+                                                      ),
+                                                  child: calendar,
+                                                ),
+                                              );
+                                            },
                                           ),
+                                          if (_secretaryCalendarUx)
+                                            _buildSecretaryTodayDateFooter(
+                                              context,
+                                            ),
                                           if (widget.canManage) ...[
                                             const SizedBox(height: 16),
                                             OutlinedButton.icon(
                                               onPressed: _selectedDay == null
                                                   ? null
                                                   : () => _blockWholeDay(
-                                                        context,
-                                                        doctorId,
-                                                        _selectedDay!,
-                                                      ),
-                                              icon: const Icon(Icons.block_rounded,
-                                                  color: Color(0xFFFF8A80)),
+                                                      context,
+                                                      doctorId,
+                                                      _selectedDay!,
+                                                    ),
+                                              icon: const Icon(
+                                                Icons.block_rounded,
+                                                color: Color(0xFFFF8A80),
+                                              ),
                                               label: Text(
-                                                s.translate('master_calendar_block_day'),
+                                                s.translate(
+                                                  'master_calendar_block_day',
+                                                ),
                                                 style: const TextStyle(
                                                   fontFamily: 'NRT',
                                                   color: Color(0xFFFF8A80),
@@ -781,7 +1214,10 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.event_busy_rounded, color: Color(0xFFFF8A80)),
+              leading: const Icon(
+                Icons.event_busy_rounded,
+                color: Color(0xFFFF8A80),
+              ),
               title: Text(
                 s.translate('master_calendar_block_day_off'),
                 style: const TextStyle(
@@ -792,7 +1228,10 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
               onTap: () => Navigator.pop(ctx, CalendarBlockFields.kindOff),
             ),
             ListTile(
-              leading: const Icon(Icons.emergency_rounded, color: Color(0xFFFF7043)),
+              leading: const Icon(
+                Icons.emergency_rounded,
+                color: Color(0xFFFF7043),
+              ),
               title: Text(
                 s.translate('master_calendar_block_day_emergency'),
                 style: const TextStyle(
@@ -800,7 +1239,8 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                   color: Color(0xFFD9E2EC),
                 ),
               ),
-              onTap: () => Navigator.pop(ctx, CalendarBlockFields.kindEmergency),
+              onTap: () =>
+                  Navigator.pop(ctx, CalendarBlockFields.kindEmergency),
             ),
           ],
         ),
@@ -815,13 +1255,13 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       await FirebaseFirestore.instance
           .collection(CalendarBlockFields.collection)
           .add({
-        AppointmentFields.doctorId: doctorId,
-        AppointmentFields.date: Timestamp.fromDate(start),
-        'wholeDay': true,
-        CalendarBlockFields.blockKind: kind,
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': uid,
-      });
+            AppointmentFields.doctorId: doctorId,
+            AppointmentFields.date: Timestamp.fromDate(start),
+            'wholeDay': true,
+            CalendarBlockFields.blockKind: kind,
+            'createdAt': FieldValue.serverTimestamp(),
+            'createdBy': uid,
+          });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -848,9 +1288,10 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow({required this.loc});
+  const _LegendRow({required this.loc, this.secretaryUx = false});
 
   final AppLocalizations loc;
+  final bool secretaryUx;
 
   @override
   Widget build(BuildContext context) {
@@ -875,10 +1316,13 @@ class _LegendRow extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF829AB1),
+              style: TextStyle(
+                color: secretaryUx
+                    ? const Color(0xFF546E7A)
+                    : const Color(0xFF829AB1),
                 fontSize: 11,
-                fontFamily: 'NRT',
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: secretaryUx ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
           ),
@@ -892,7 +1336,10 @@ class _LegendRow extends StatelessWidget {
       alignment: WrapAlignment.center,
       children: [
         item(
-          dot(_kCalGreenFill, _kCalGreenBorder),
+          dot(
+            secretaryUx ? _kSecPatOpenFill : _kCalGreenFill,
+            secretaryUx ? _kSecPatOpenBorder : _kCalGreenBorder,
+          ),
           loc.translate('master_calendar_legend_green'),
         ),
         item(
@@ -900,7 +1347,10 @@ class _LegendRow extends StatelessWidget {
           loc.translate('master_calendar_legend_amber'),
         ),
         item(
-          dot(_kCalRedFill, _kCalRedBorder),
+          dot(
+            secretaryUx ? _kSecPatClosedFill : _kCalRedFill,
+            secretaryUx ? _kSecPatClosedBorder : _kCalRedBorder,
+          ),
           loc.translate('master_calendar_legend_red_off'),
         ),
       ],
@@ -996,10 +1446,7 @@ class _DayAgendaPanel extends StatelessWidget {
         if (win == null)
           Text(
             s.translate('master_calendar_day_off'),
-            style: const TextStyle(
-              color: Color(0xFF829AB1),
-              fontFamily: 'NRT',
-            ),
+            style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'NRT'),
           )
         else
           ...slots.map((m) {
@@ -1028,8 +1475,8 @@ class _DayAgendaPanel extends StatelessWidget {
             final appt = apptsToday[label];
             final st = appt != null
                 ? (appt.data()[AppointmentFields.status] ?? 'pending')
-                    .toString()
-                    .toLowerCase()
+                      .toString()
+                      .toLowerCase()
                 : '';
             final isCancelled = st == 'cancelled';
             final booked = appt != null && !isCancelled;
@@ -1060,8 +1507,8 @@ class _DayAgendaPanel extends StatelessWidget {
 
             if (booked) {
               final aptDoc = appt;
-              final name =
-                  (aptDoc.data()[AppointmentFields.patientName] ?? '—').toString();
+              final name = (aptDoc.data()[AppointmentFields.patientName] ?? '—')
+                  .toString();
               return _SlotTile(
                 timeLabel: label,
                 subtitle:
@@ -1078,8 +1525,10 @@ class _DayAgendaPanel extends StatelessWidget {
                         ),
                         // Anchor is on the right; shift left so the panel stays visible.
                         offset: const Offset(-96, 0),
-                        icon: const Icon(Icons.more_vert_rounded,
-                            color: Color(0xFF829AB1)),
+                        icon: const Icon(
+                          Icons.more_vert_rounded,
+                          color: Color(0xFF829AB1),
+                        ),
                         onSelected: (v) async {
                           if (v == 'cancel') {
                             await aptDoc.reference.update({
@@ -1201,13 +1650,13 @@ class _DayAgendaPanel extends StatelessWidget {
               statusStripColor: _kCalGreenBorder,
               onTap: canManage
                   ? () => _staffFreeSlotActions(
-                        context,
-                        doctorId,
-                        key,
-                        m,
-                        slotDurationMinutes,
-                        onChanged,
-                      )
+                      context,
+                      doctorId,
+                      key,
+                      m,
+                      slotDurationMinutes,
+                      onChanged,
+                    )
                   : () => _patientBookSlot(context, doctorId, key, m),
             );
           }),
@@ -1272,8 +1721,10 @@ class _SlotTile extends StatelessWidget {
                   const SizedBox(width: 10),
                 ],
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF42A5F5).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -1327,7 +1778,10 @@ Future<void> _staffFreeActionsSheet(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.person_add_rounded, color: Color(0xFF42A5F5)),
+              leading: const Icon(
+                Icons.person_add_rounded,
+                color: Color(0xFF42A5F5),
+              ),
               title: Text(
                 s.translate('master_calendar_add_walkin'),
                 style: const TextStyle(
@@ -1358,7 +1812,9 @@ Future<void> _staffFreeActionsSheet(
                           fontFamily: 'NRT',
                         ),
                         decoration: InputDecoration(
-                          labelText: s.translate('doctor_appt_patient_name_label'),
+                          labelText: s.translate(
+                            'doctor_appt_patient_name_label',
+                          ),
                           labelStyle: const TextStyle(color: Color(0xFF829AB1)),
                         ),
                       ),
@@ -1409,7 +1865,10 @@ Future<void> _staffFreeActionsSheet(
               },
             ),
             ListTile(
-              leading: const Icon(Icons.event_busy_rounded, color: Color(0xFFFF8A80)),
+              leading: const Icon(
+                Icons.event_busy_rounded,
+                color: Color(0xFFFF8A80),
+              ),
               title: Text(
                 s.translate('master_calendar_block_slot_off'),
                 style: const TextStyle(
@@ -1425,17 +1884,18 @@ Future<void> _staffFreeActionsSheet(
                   await FirebaseFirestore.instance
                       .collection(CalendarBlockFields.collection)
                       .add({
-                    AppointmentFields.doctorId: doctorId,
-                    AppointmentFields.date: Timestamp.fromDate(
-                      DateTime(day.year, day.month, day.day),
-                    ),
-                    'wholeDay': false,
-                    'startMinutes': slotMinutes,
-                    'endMinutes': slotMinutes + slotDurationMinutes,
-                    CalendarBlockFields.blockKind: CalendarBlockFields.kindOff,
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'createdBy': uid,
-                  });
+                        AppointmentFields.doctorId: doctorId,
+                        AppointmentFields.date: Timestamp.fromDate(
+                          DateTime(day.year, day.month, day.day),
+                        ),
+                        'wholeDay': false,
+                        'startMinutes': slotMinutes,
+                        'endMinutes': slotMinutes + slotDurationMinutes,
+                        CalendarBlockFields.blockKind:
+                            CalendarBlockFields.kindOff,
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'createdBy': uid,
+                      });
                   if (outerCtx.mounted) {
                     ScaffoldMessenger.of(outerCtx).showSnackBar(
                       SnackBar(
@@ -1448,16 +1908,19 @@ Future<void> _staffFreeActionsSheet(
                   }
                 } catch (e) {
                   if (outerCtx.mounted) {
-                    ScaffoldMessenger.of(outerCtx).showSnackBar(
-                      SnackBar(content: Text('$e')),
-                    );
+                    ScaffoldMessenger.of(
+                      outerCtx,
+                    ).showSnackBar(SnackBar(content: Text('$e')));
                   }
                 }
                 onChanged();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.emergency_rounded, color: Color(0xFFFF7043)),
+              leading: const Icon(
+                Icons.emergency_rounded,
+                color: Color(0xFFFF7043),
+              ),
               title: Text(
                 s.translate('master_calendar_block_slot_emergency'),
                 style: const TextStyle(
@@ -1473,17 +1936,18 @@ Future<void> _staffFreeActionsSheet(
                   await FirebaseFirestore.instance
                       .collection(CalendarBlockFields.collection)
                       .add({
-                    AppointmentFields.doctorId: doctorId,
-                    AppointmentFields.date: Timestamp.fromDate(
-                      DateTime(day.year, day.month, day.day),
-                    ),
-                    'wholeDay': false,
-                    'startMinutes': slotMinutes,
-                    'endMinutes': slotMinutes + slotDurationMinutes,
-                    CalendarBlockFields.blockKind: CalendarBlockFields.kindEmergency,
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'createdBy': uid,
-                  });
+                        AppointmentFields.doctorId: doctorId,
+                        AppointmentFields.date: Timestamp.fromDate(
+                          DateTime(day.year, day.month, day.day),
+                        ),
+                        'wholeDay': false,
+                        'startMinutes': slotMinutes,
+                        'endMinutes': slotMinutes + slotDurationMinutes,
+                        CalendarBlockFields.blockKind:
+                            CalendarBlockFields.kindEmergency,
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'createdBy': uid,
+                      });
                   if (outerCtx.mounted) {
                     ScaffoldMessenger.of(outerCtx).showSnackBar(
                       SnackBar(
@@ -1496,9 +1960,9 @@ Future<void> _staffFreeActionsSheet(
                   }
                 } catch (e) {
                   if (outerCtx.mounted) {
-                    ScaffoldMessenger.of(outerCtx).showSnackBar(
-                      SnackBar(content: Text('$e')),
-                    );
+                    ScaffoldMessenger.of(
+                      outerCtx,
+                    ).showSnackBar(SnackBar(content: Text('$e')));
                   }
                 }
                 onChanged();
@@ -1551,15 +2015,19 @@ Future<void> _patientBookSlot(
     return;
   }
 
-  final patientSnap =
-      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+  final patientSnap = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .get();
   final patientName =
       (patientSnap.data()?['fullName'] ?? '').toString().trim().isEmpty
-          ? s.translate('patient_default')
-          : (patientSnap.data()?['fullName'] ?? '').toString();
+      ? s.translate('patient_default')
+      : (patientSnap.data()?['fullName'] ?? '').toString();
 
-  final doctorSnap =
-      await FirebaseFirestore.instance.collection('users').doc(doctorId).get();
+  final doctorSnap = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(doctorId)
+      .get();
   final fallback = localizedDoctorFullName(
     doctorSnap.data() ?? <String, dynamic>{},
     lang,
@@ -1592,17 +2060,11 @@ Future<void> _patientBookSlot(
       backgroundColor: const Color(0xFF1D1E33),
       title: Text(
         s.translate('booking_success_title'),
-        style: const TextStyle(
-          fontFamily: 'NRT',
-          color: Color(0xFFD9E2EC),
-        ),
+        style: const TextStyle(fontFamily: 'NRT', color: Color(0xFFD9E2EC)),
       ),
       content: Text(
         s.translate('booking_success_body'),
-        style: const TextStyle(
-          fontFamily: 'NRT',
-          color: Color(0xFF829AB1),
-        ),
+        style: const TextStyle(fontFamily: 'NRT', color: Color(0xFF829AB1)),
       ),
       actions: [
         TextButton(
