@@ -17,6 +17,13 @@ import 'day_management_screen.dart';
 
 const String _kArabicComma = '\u060C';
 
+/// Schedule grid — open/closed cell palette (extracted hex).
+const Color _kScheduleOpenDayBg = Color(0xFFD1F2D6);
+const Color _kScheduleOpenDayBorder = Color(0xFFA8E6B2);
+const Color _kScheduleClosedDayBg = Color(0xFFFDE2E2);
+const Color _kScheduleClosedDayBorder = Color(0xFFFABABA);
+const Color _kScheduleDayHighlightBorder = Color(0xFFD4A373);
+
 String _scheduleWeekdayTranslationKey(DateTime d) {
   switch (d.weekday) {
     case DateTime.monday:
@@ -37,20 +44,17 @@ String _scheduleWeekdayTranslationKey(DateTime d) {
   }
 }
 
-String _scheduleDigitsForLanguage(String asciiDigits, HrNoraLanguage lang) {
-  if (lang == HrNoraLanguage.en) return asciiDigits;
-  const eastern = '٠١٢٣٤٥٦٧٨٩';
-  final b = StringBuffer();
-  for (final unit in asciiDigits.runes) {
-    final ch = String.fromCharCode(unit);
-    final v = int.tryParse(ch);
-    if (v != null && v >= 0 && v <= 9) {
-      b.write(eastern[v]);
-    } else {
-      b.write(ch);
-    }
-  }
-  return b.toString();
+/// Kurdish (or English) labels with **Latin digits** for schedule UI.
+String _scheduleHumanDateAscii(
+  BuildContext context,
+  AppLocalizations strings,
+  DateTime d,
+) {
+  final lang = AppLocaleScope.of(context).effectiveLanguage;
+  final wd = strings.translate(_scheduleWeekdayTranslationKey(d));
+  final month = strings.translate('cal_month_${d.month}');
+  final gap = lang == HrNoraLanguage.en ? ', ' : '$_kArabicComma ';
+  return '$wd$gap${d.day} / $month / ${d.year}';
 }
 
 /// Doctor / Secretary: [TableCalendar] for [available_days] — red closed, green open, badge = bookings (doctor only).
@@ -106,24 +110,15 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
   bool get _showBookingBadge => widget.managedDoctorUserId == null;
 
   static const Color _kTodayCardFill = Color(0xFFF0F8FF);
-  static const Color _kTodayCardBorderSilver = Color(0xFFE0E0E0);
 
   /// Sky card under the grid: label + gold calendar icon + weekday / day / month name / year.
   Widget _buildTodayDateCard(
     BuildContext context,
     AppLocalizations strings,
   ) {
-    final lang = AppLocaleScope.of(context).effectiveLanguage;
     final appDir = Directionality.of(context);
     final now = DateTime.now();
-    final weekdayName =
-        strings.translate(_scheduleWeekdayTranslationKey(now));
-    final monthName = strings.translate('cal_month_${now.month}');
-    final dayPart = _scheduleDigitsForLanguage('${now.day}', lang);
-    final yearPart = _scheduleDigitsForLanguage('${now.year}', lang);
-    final afterWeekday = lang == HrNoraLanguage.en ? ', ' : '$_kArabicComma ';
-    final dateLine =
-        '$weekdayName$afterWeekday$dayPart / $monthName / $yearPart';
+    final dateLine = _scheduleHumanDateAscii(context, strings, now);
 
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 10),
@@ -134,8 +129,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           color: _kTodayCardFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: _kTodayCardBorderSilver,
-            width: 1,
+            color: kStaffSilverBorder,
+            width: kStaffCardOutlineWidth,
           ),
         ),
         child: Column(
@@ -209,7 +204,6 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSt) {
-            final localeTag = Localizations.localeOf(ctx).toLanguageTag();
             final openingDt = DateTime(
               2000,
               1,
@@ -217,7 +211,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
               openingTime.hour,
               openingTime.minute,
             );
-            final openingLabel = DateFormat.jm(localeTag).format(openingDt);
+            const enClock = 'en';
+            final openingLabel = DateFormat.jm(enClock).format(openingDt);
             final closingDt = DateTime(
               2000,
               1,
@@ -225,7 +220,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
               closingTime.hour,
               closingTime.minute,
             );
-            final closingLabel = DateFormat.jm(localeTag).format(closingDt);
+            final closingLabel = DateFormat.jm(enClock).format(closingDt);
 
             return AlertDialog(
               backgroundColor: kStaffCardSurface,
@@ -246,7 +241,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      DateFormat.yMMMEd(localeTag).format(picked),
+                      _scheduleHumanDateAscii(ctx, s, picked),
                       style: staffHeaderTextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 16),
@@ -553,8 +548,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                 CalendarFormat.month: 'Month',
                               },
                               startingDayOfWeek: StartingDayOfWeek.saturday,
-                              locale: Localizations.localeOf(context)
-                                  .toLanguageTag(),
+                              // Latin digits in any internal formatting; Kurdish DOW + month via builders.
+                              locale: 'en',
                               daysOfWeekStyle: DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
                                   color: kStaffMutedText,
@@ -573,6 +568,8 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                 formatButtonVisible: false,
                                 titleCentered: true,
                                 headerPadding: EdgeInsets.zero,
+                                titleTextFormatter: (date, _) =>
+                                    '${s.translate('cal_month_${date.month}')} ${date.year}',
                                 titleTextStyle: TextStyle(
                                   color: kStaffPrimaryNavy,
                                   fontSize: 17,
@@ -658,6 +655,23 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                 openByDocId,
                               ),
                               calendarBuilders: CalendarBuilders<int>(
+                                dowBuilder: (ctx, day) {
+                                  final loc = S.of(ctx);
+                                  final label = loc.translate(
+                                    _scheduleWeekdayTranslationKey(day),
+                                  );
+                                  return Center(
+                                    child: Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: kStaffMutedText,
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  );
+                                },
                                 markerBuilder: (context, day, events) {
                                   if (events.isEmpty) return null;
                                   final count = events.first;
@@ -785,18 +799,16 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
 
     final fill = isOutside
         ? const Color(0xFFECEFF1)
-        : (open ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE));
+        : (open ? _kScheduleOpenDayBg : _kScheduleClosedDayBg);
     final stroke = isOutside
         ? kStaffSilverBorder.withValues(alpha: 0.65)
-        : (open
-            ? const Color(0xFF43A047).withValues(alpha: 0.55)
-            : const Color(0xFFE53935).withValues(alpha: 0.45));
+        : (open ? _kScheduleOpenDayBorder : _kScheduleClosedDayBorder);
 
-    final borderColor = isSelected
-        ? kStaffPrimaryNavy
-        : (isToday && !isSelected ? kStaffLuxGold : stroke);
-    final double borderWidth =
-        isSelected ? 2.5 : (isToday && !isSelected ? 1.5 : 1.0);
+    final bool highlightTodayOrSelected = isSelected || isToday;
+    final borderColor = highlightTodayOrSelected
+        ? _kScheduleDayHighlightBorder
+        : stroke;
+    final double borderWidth = highlightTodayOrSelected ? 2.5 : 1.0;
 
     return SizedBox.expand(
       child: Padding(
@@ -813,12 +825,12 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           ),
           alignment: Alignment.center,
           child: Text(
-            '${day.day}',
+            day.day.toString(),
             style: TextStyle(
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w700,
               fontSize: 15,
-              color: isOutside ? kStaffMutedText : kStaffBodyText,
+              color: isOutside ? kStaffMutedText : kStaffPrimaryNavy,
             ),
           ),
         ),
