@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +16,55 @@ const Color _kSkyTop = kPatientSkyTop;
 const Color _kSkyBottom = kPatientSkyBottom;
 const Color _kDoctorNameNavy = Color(0xFF0D2137);
 const Color _kPremiumDeepBlue = Color(0xFF1A237E);
-const Color _kChevronLightBlue = Color(0xFF90CAF9);
 const Color _kMutedGrey = Color(0xFF546E7A);
 const Color _kLogoutRedDeep = Color(0xFFC62828);
+
+/// Metallic silver rim for profile cards only ([Border.all] on glass tiles).
+const Color _kProfileSilverBorder = Color(0xFFC0C0C0);
+const double _kProfileSilverBorderWidth = 1.5;
+
+/// Navy for menu row icons (lock, globe, info, chevron) — premium consistency.
+const Color _kProfileMenuIconNavy = Color(0xFF0D2137);
+
+/// Very light frosted blur over the sky gradient (sigma).
+const double _kProfileGlassBlurSigma = 10;
+
+/// Soft red logout gradient (top → bottom).
+const List<Color> _kLogoutGradientColors = [
+  Color(0xFFFFEBEE),
+  Color(0xFFFFCDD2),
+  Color(0xFFEF9A9A),
+];
+
+Widget _profileBlurredPanel({
+  required double borderRadius,
+  required Decoration decoration,
+  required Widget child,
+}) {
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(borderRadius),
+    child: Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: _kProfileGlassBlurSigma,
+              sigmaY: _kProfileGlassBlurSigma,
+            ),
+            child: const DecoratedBox(
+              decoration: BoxDecoration(color: Color(0x00000000)),
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: decoration,
+          child: child,
+        ),
+      ],
+    ),
+  );
+}
 
 /// Patient profile tab: glass header + mini glass tiles; logout uses [performAppLogout].
 class PatientProfileScreen extends StatelessWidget {
@@ -284,135 +332,149 @@ class _ProfileGlassHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textDir = AppLocaleScope.of(context).textDirection;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: DecoratedBox(
-        decoration: patientFrostedGlassDecoration(borderRadius: 22),
-        child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-            child: Row(
-              textDirection: textDir,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kPremiumDeepBlue.withValues(alpha: 0.35),
-                        blurRadius: 18,
-                        spreadRadius: 2,
-                      ),
-                      BoxShadow(
-                        color: const Color(0xFF90CAF9).withValues(alpha: 0.45),
-                        blurRadius: 14,
-                        spreadRadius: 0,
-                      ),
-                    ],
+    const headerRadius = 22.0;
+    return _profileBlurredPanel(
+      borderRadius: headerRadius,
+      decoration: patientFrostedGlassDecoration(
+        borderRadius: headerRadius,
+        outlineColor: _kProfileSilverBorder,
+        outlineWidth: _kProfileSilverBorderWidth,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+        child: Row(
+          textDirection: textDir,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _kProfileSilverBorder.withValues(alpha: 0.42),
+                    blurRadius: 18,
+                    spreadRadius: 1,
                   ),
-                  child: ClipOval(
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.72),
-                            Colors.white.withValues(alpha: 0.42),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          width: 0.5,
-                        ),
+                  BoxShadow(
+                    color: _kPremiumDeepBlue.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(2.2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _kProfileSilverBorder,
+                    width: 1.5,
+                  ),
+                ),
+                child: ClipOval(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.72),
+                          Colors.white.withValues(alpha: 0.42),
+                        ],
                       ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: _kPremiumDeepBlue,
-                        size: 36,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        width: 0.5,
                       ),
+                    ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: _kPremiumDeepBlue,
+                      size: 40,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              ),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    name,
+                    textAlign: TextAlign.start,
+                    style: const TextStyle(
+                      color: _kDoctorNameNavy,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: kPatientPrimaryFont,
+                      height: 1.2,
+                      letterSpacing: 0.15,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    textDirection: textDir,
                     children: [
-                      Text(
-                        name,
-                        textAlign: TextAlign.start,
-                        style: const TextStyle(
-                          color: _kDoctorNameNavy,
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: kPatientPrimaryFont,
-                          height: 1.2,
-                          letterSpacing: 0.2,
+                      const Icon(
+                        Icons.alternate_email_rounded,
+                        size: 20,
+                        color: _kProfileMenuIconNavy,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          email,
+                          textAlign: TextAlign.start,
+                          style: TextStyle(
+                            color: _kMutedGrey.withValues(alpha: 0.95),
+                            fontSize: 14,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        textDirection: textDir,
-                        children: [
-                          Icon(
-                            Icons.alternate_email_rounded,
-                            size: 18,
-                            color: _kPremiumDeepBlue.withValues(alpha: 0.85),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              email,
-                              textAlign: TextAlign.start,
-                              style: TextStyle(
-                                color: _kMutedGrey.withValues(alpha: 0.95),
-                                fontSize: 14,
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        textDirection: textDir,
-                        children: [
-                          Icon(
-                            Icons.phone_android_rounded,
-                            size: 18,
-                            color: _kPremiumDeepBlue.withValues(alpha: 0.85),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              phone.isEmpty ? '—' : phone,
-                              textAlign: TextAlign.start,
-                              style: TextStyle(
-                                color: _kMutedGrey.withValues(alpha: 0.95),
-                                fontSize: 14,
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Row(
+                    textDirection: textDir,
+                    children: [
+                      const Icon(
+                        Icons.phone_android_rounded,
+                        size: 20,
+                        color: _kProfileMenuIconNavy,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          phone.isEmpty ? '—' : phone,
+                          textAlign: TextAlign.start,
+                          style: TextStyle(
+                            color: _kMutedGrey.withValues(alpha: 0.95),
+                            fontSize: 14,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
+      ),
     );
   }
 }
 
-/// Chevron fixed on physical left; content respects app [textDirection].
+/// Chevron on physical left (LTR row); lock/globe/info + text in navy.
 class _GlassSettingsTile extends StatelessWidget {
   const _GlassSettingsTile({
     required this.icon,
@@ -429,72 +491,75 @@ class _GlassSettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textDir = AppLocaleScope.of(context).textDirection;
+    const tileRadius = 16.0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: DecoratedBox(
-            decoration: patientFrostedGlassDecoration(borderRadius: 16),
-            child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
+        borderRadius: BorderRadius.circular(tileRadius),
+        child: _profileBlurredPanel(
+          borderRadius: tileRadius,
+          decoration: patientFrostedGlassDecoration(
+            borderRadius: tileRadius,
+            outlineColor: _kProfileSilverBorder,
+            outlineWidth: _kProfileSilverBorderWidth,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            child: Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: _kProfileMenuIconNavy,
+                  size: 22,
                 ),
-                child: Row(
-                  textDirection: TextDirection.ltr,
-                  children: [
-                    Icon(
-                      Icons.chevron_left_rounded,
-                      color: _kChevronLightBlue,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      icon,
-                      color: _kPremiumDeepBlue,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Directionality(
-                        textDirection: textDir,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: _kDoctorNameNavy,
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle,
-                              style: TextStyle(
-                                color: _kMutedGrey.withValues(alpha: 0.92),
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                height: 1.25,
-                              ),
-                            ),
-                          ],
+                const SizedBox(width: 10),
+                Icon(
+                  icon,
+                  color: _kProfileMenuIconNavy,
+                  size: 24,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Directionality(
+                    textDirection: textDir,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: _kDoctorNameNavy,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            height: 1.2,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: _kMutedGrey.withValues(alpha: 0.92),
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
+      ),
     );
   }
 }
@@ -510,64 +575,65 @@ class _GlassLogoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const tileRadius = 16.0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFFFFEBEE).withValues(alpha: 0.98),
-                  const Color(0xFFFFCDD2).withValues(alpha: 0.45),
-                ],
-              ),
-              border: Border.all(
-                color: _kLogoutRedDeep.withValues(alpha: 0.22),
-                width: 0.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: _kLogoutRedDeep.withValues(alpha: 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
+        borderRadius: BorderRadius.circular(tileRadius),
+        child: _profileBlurredPanel(
+          borderRadius: tileRadius,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(tileRadius),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                _kLogoutGradientColors[0].withValues(alpha: 0.97),
+                _kLogoutGradientColors[1].withValues(alpha: 0.72),
+                _kLogoutGradientColors[2].withValues(alpha: 0.4),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 14,
+            border: Border.all(
+              color: _kProfileSilverBorder,
+              width: _kProfileSilverBorderWidth,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _kLogoutRedDeep.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
               ),
-              child: Directionality(
-                textDirection: AppLocaleScope.of(context).textDirection,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.logout_rounded,
-                      color: _kLogoutRedDeep.withValues(alpha: 0.88),
-                      size: 24,
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            child: Directionality(
+              textDirection: AppLocaleScope.of(context).textDirection,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.logout_rounded,
+                    color: _kLogoutRedDeep.withValues(alpha: 0.9),
+                    size: 24,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _kLogoutRedDeep.withValues(alpha: 0.94),
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      height: 1.2,
                     ),
-                    const SizedBox(width: 10),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: _kLogoutRedDeep.withValues(alpha: 0.92),
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

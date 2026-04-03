@@ -1164,9 +1164,32 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       required String label,
       bool highlightGold = false,
       bool showDot = false,
+      bool goldSilverActiveAccent = false,
     }) {
       final selected = _bottomNavIndex == index;
       final targetColor = selected ? activeIconColor : _kMutedGrey;
+      final iconShadows = selected
+          ? (goldSilverActiveAccent
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: const Color(0xFFC0C0C0).withValues(alpha: 0.52),
+                    blurRadius: 14,
+                    spreadRadius: 1.2,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.32),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : <BoxShadow>[
+                  BoxShadow(
+                    color: glowColor,
+                    blurRadius: 10.0,
+                    spreadRadius: 2.0,
+                  ),
+                ])
+          : const <BoxShadow>[];
       return SizedBox(
         width: 86,
         child: Material(
@@ -1181,6 +1204,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 children: [
                   Stack(
                     clipBehavior: Clip.none,
+                    alignment: Alignment.center,
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 260),
@@ -1188,15 +1212,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                    color: glowColor,
-                                    blurRadius: 10.0,
-                                    spreadRadius: 2.0,
-                                  ),
-                                ]
-                              : const [],
+                          boxShadow: iconShadows,
                         ),
                         child: AnimatedScale(
                           scale: selected ? 1.2 : 1.0,
@@ -1232,6 +1248,32 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                 color: Colors.white.withValues(alpha: 0.9),
                                 width: 1,
                               ),
+                            ),
+                          ),
+                        ),
+                      if (selected && goldSilverActiveAccent)
+                        Positioned(
+                          bottom: -1,
+                          child: Container(
+                            height: 2.5,
+                            width: 34,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFFFD700),
+                                  Color(0xFFE8E8E8),
+                                  Color(0xFFC0C0C0),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFD700)
+                                      .withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -1396,6 +1438,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         index: 2,
                         icon: Icons.person_rounded,
                         label: s.translate('profile'),
+                        goldSilverActiveAccent: true,
                       ),
                       navItem(
                         index: 1,

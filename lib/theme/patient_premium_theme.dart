@@ -54,7 +54,16 @@ Decoration patientFrostedGlassDecoration({
   double borderRadius = 16,
   double borderWidth = 0.5,
   List<Color>? gradientColors,
+  /// When set (e.g. profile silver rim), replaces the default white glass border.
+  Color? outlineColor,
+  double outlineWidth = 1.5,
 }) {
+  final border = outlineColor != null
+      ? Border.all(color: outlineColor, width: outlineWidth)
+      : Border.all(
+          color: Colors.white.withValues(alpha: 0.88),
+          width: borderWidth,
+        );
   return BoxDecoration(
     borderRadius: BorderRadius.circular(borderRadius),
     gradient: LinearGradient(
@@ -67,10 +76,7 @@ Decoration patientFrostedGlassDecoration({
             const Color(0xFFE3F2FD).withValues(alpha: 0.35),
           ],
     ),
-    border: Border.all(
-      color: Colors.white.withValues(alpha: 0.88),
-      width: borderWidth,
-    ),
+    border: border,
     boxShadow: [
       BoxShadow(
         color: kPatientDeepBlue.withValues(alpha: 0.07),
