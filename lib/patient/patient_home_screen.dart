@@ -1431,26 +1431,51 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                  child: Row(
-                    textDirection: TextDirection.ltr,
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      navItem(
-                        index: 2,
-                        icon: Icons.person_rounded,
-                        label: s.translate('profile'),
-                        goldSilverActiveAccent: true,
-                      ),
-                      navItem(
-                        index: 1,
-                        icon: Icons.calendar_month_rounded,
-                        label: s.translate('appointments'),
-                        highlightGold: true,
-                        showDot: true,
-                      ),
-                      homeFabItem(),
-                    ],
+                  child: Builder(
+                    builder: (context) {
+                      final isRtl =
+                          Directionality.of(context) == TextDirection.rtl;
+                      // LTR: profile (left) | home | appointments (right).
+                      // RTL: reverse children so physical positions match.
+                      final children = isRtl
+                          ? <Widget>[
+                              navItem(
+                                index: 1,
+                                icon: Icons.calendar_month_rounded,
+                                label: s.translate('appointments'),
+                                highlightGold: true,
+                                showDot: true,
+                              ),
+                              homeFabItem(),
+                              navItem(
+                                index: 2,
+                                icon: Icons.person_rounded,
+                                label: s.translate('profile'),
+                                goldSilverActiveAccent: true,
+                              ),
+                            ]
+                          : <Widget>[
+                              navItem(
+                                index: 2,
+                                icon: Icons.person_rounded,
+                                label: s.translate('profile'),
+                                goldSilverActiveAccent: true,
+                              ),
+                              homeFabItem(),
+                              navItem(
+                                index: 1,
+                                icon: Icons.calendar_month_rounded,
+                                label: s.translate('appointments'),
+                                highlightGold: true,
+                                showDot: true,
+                              ),
+                            ];
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: children,
+                      );
+                    },
                   ),
                 ),
               ),

@@ -6,6 +6,7 @@ import '../doctor/available_days_schedule_screen.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../theme/staff_premium_theme.dart';
 
 /// Secretary: doctor picker + same [TableCalendar] as doctor (managed doctor uid).
 class SecretaryAvailableDaysScreen extends StatefulWidget {
@@ -27,13 +28,15 @@ class _SecretaryAvailableDaysScreenState
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kStaffShellBackground,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
+          backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),
           title: Text(
             s.translate('secretary_available_days_title'),
-            style: const TextStyle(fontFamily: 'NRT'),
+            style: staffAppBarTitleStyle().copyWith(
+              color: const Color(0xFFD9E2EC),
+            ),
           ),
           actions: [
             IconButton(
@@ -63,10 +66,7 @@ class _SecretaryAvailableDaysScreenState
                     if (docs.isEmpty) {
                       return Text(
                         s.translate('master_calendar_no_doctors'),
-                        style: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        style: staffLabelTextStyle(),
                       );
                     }
                     return DropdownButtonFormField<String>(
@@ -75,18 +75,32 @@ class _SecretaryAvailableDaysScreenState
                               docs.any((d) => d.id == _pickedDoctorId)
                           ? _pickedDoctorId
                           : null,
-                      dropdownColor: const Color(0xFF1D1E33),
+                      dropdownColor: kStaffCardSurface,
                       decoration: InputDecoration(
                         labelText: s.translate('master_calendar_pick_doctor'),
-                        labelStyle: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        labelStyle: staffLabelTextStyle(),
                         filled: true,
-                        fillColor: const Color(0xFF1D1E33),
+                        fillColor: kStaffCardSurface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: kStaffPrimaryNavy,
+                            width: 1.2,
+                          ),
                         ),
                       ),
                       items: docs
@@ -98,9 +112,9 @@ class _SecretaryAvailableDaysScreenState
                                   d.data(),
                                   AppLocaleScope.of(context).effectiveLanguage,
                                 ),
-                                style: const TextStyle(
-                                  fontFamily: 'NRT',
-                                  color: Color(0xFFD9E2EC),
+                                style: staffHeaderTextStyle(
+                                  fontSize: 15,
+                                  color: kStaffBodyText,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -117,10 +131,7 @@ class _SecretaryAvailableDaysScreenState
                     ? Center(
                         child: Text(
                           s.translate('master_calendar_pick_doctor'),
-                          style: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          style: staffLabelTextStyle(),
                         ),
                       )
                     : AvailableDaysScheduleScreen(

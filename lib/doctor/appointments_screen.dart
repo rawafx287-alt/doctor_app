@@ -13,6 +13,7 @@ import '../locale/app_localizations.dart';
 import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../theme/patient_premium_theme.dart';
+import '../theme/staff_premium_theme.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({
@@ -493,7 +494,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kStaffShellBackground,
         appBar: widget.embedded
             ? null
             : AppBar(
@@ -504,12 +505,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
                 title: Text(
                   s.translate('doctor_title_appointments_list'),
-                  style: const TextStyle(
-                    fontFamily: 'NRT',
-                    fontWeight: FontWeight.w700,
+                  style: staffAppBarTitleStyle().copyWith(
+                    color: const Color(0xFFD9E2EC),
                   ),
                 ),
-                backgroundColor: const Color(0xFF1A237E),
+                backgroundColor: kStaffPrimaryNavy,
                 foregroundColor: const Color(0xFFD9E2EC),
                 elevation: 0,
               ),
@@ -534,22 +534,12 @@ class _DetailLine extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'NRT',
-            ),
+            style: staffLabelTextStyle(fontSize: 11),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFFD9E2EC),
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'NRT',
-            ),
+            style: staffHeaderTextStyle(fontSize: 15),
           ),
         ],
       ),
@@ -608,17 +598,13 @@ class _AppointmentCard extends StatelessWidget {
     final badge = _badgeColors;
 
     return Material(
-      color: const Color(0xFF1D1E33),
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white10, width: 1),
-      ),
-      clipBehavior: Clip.antiAlias,
+      color: Colors.transparent,
       child: InkWell(
         onTap: onCardTap,
-        child: Padding(
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: staffDashboardCardDecoration(),
+          child: Padding(
           padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -634,12 +620,7 @@ class _AppointmentCard extends StatelessWidget {
                         Text(
                           s.translate('doctor_appt_patient_name_label'),
                           textAlign: TextAlign.start,
-                          style: TextStyle(
-                            color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'NRT',
-                          ),
+                          style: staffLabelTextStyle(fontSize: 11),
                         ),
                         const SizedBox(height: 2),
                         Row(
@@ -649,18 +630,13 @@ class _AppointmentCard extends StatelessWidget {
                               child: Text(
                                 patientName,
                                 textAlign: TextAlign.start,
-                                style: const TextStyle(
-                                  color: Color(0xFFD9E2EC),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'NRT',
-                                ),
+                                style: staffHeaderTextStyle(fontSize: 16),
                               ),
                             ),
                             if (showPhoneIcon) ...[
                               const SizedBox(width: 4),
                               Material(
-                                color: const Color(0xFF42A5F5).withValues(alpha: 0.14),
+                                color: kStaffPrimaryNavy.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 child: InkWell(
                                   onTap: onCallTap,
@@ -670,7 +646,7 @@ class _AppointmentCard extends StatelessWidget {
                                     child: Icon(
                                       Icons.phone_rounded,
                                       size: 18,
-                                      color: Color(0xFF42A5F5),
+                                      color: kStaffPrimaryNavy,
                                     ),
                                   ),
                                 ),
@@ -701,7 +677,7 @@ class _AppointmentCard extends StatelessWidget {
                       style: TextStyle(
                         color: badge.$2,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'NRT',
+                        fontFamily: kPatientPrimaryFont,
                         fontSize: 12,
                       ),
                     ),
@@ -712,23 +688,13 @@ class _AppointmentCard extends StatelessWidget {
               Text(
                 s.translate('doctor_appt_datetime_label'),
                 textAlign: TextAlign.start,
-                style: TextStyle(
-                  color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'NRT',
-                ),
+                style: staffLabelTextStyle(fontSize: 11),
               ),
               const SizedBox(height: 2),
               Text(
                 dateTimeLine,
                 textAlign: TextAlign.start,
-                style: const TextStyle(
-                  color: Color(0xFFD9E2EC),
-                  fontSize: 14,
-                  fontFamily: 'NRT',
-                  fontWeight: FontWeight.w600,
-                ),
+                style: staffHeaderTextStyle(fontSize: 14),
               ),
               if (showActions) ...[
                 const SizedBox(height: 10),
@@ -751,7 +717,7 @@ class _AppointmentCard extends StatelessWidget {
                         child: Text(
                           s.translate('doctor_appt_action_decline'),
                           style: const TextStyle(
-                            fontFamily: 'NRT',
+                            fontFamily: kPatientPrimaryFont,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -760,25 +726,15 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: ElevatedButton(
+                      child: StaffGoldGradientButton(
+                        label: s.translate('doctor_appt_action_complete'),
                         onPressed: onComplete,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kAppointmentStatusCompletedBg,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          minimumSize: const Size(0, 40),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          s.translate('doctor_appt_action_complete'),
-                          style: const TextStyle(
-                            fontFamily: 'NRT',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
+                        fontSize: 13,
+                        borderRadius: 10,
+                        minHeight: 40,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
                         ),
                       ),
                     ),
@@ -787,6 +743,7 @@ class _AppointmentCard extends StatelessWidget {
               ],
             ],
           ),
+        ),
         ),
       ),
     );

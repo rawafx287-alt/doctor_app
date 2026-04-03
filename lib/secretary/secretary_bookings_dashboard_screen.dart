@@ -9,6 +9,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../theme/patient_premium_theme.dart';
+import '../theme/staff_premium_theme.dart';
 
 DateTime? _parseAppointmentDay(dynamic value) {
   if (value == null) return null;
@@ -192,13 +193,15 @@ class _SecretaryBookingsDashboardScreenState
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kStaffShellBackground,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
+          backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),
           title: Text(
             s.translate('secretary_bookings_title'),
-            style: const TextStyle(fontFamily: 'NRT'),
+            style: staffAppBarTitleStyle().copyWith(
+              color: const Color(0xFFD9E2EC),
+            ),
           ),
           actions: [
             IconButton(
@@ -228,10 +231,7 @@ class _SecretaryBookingsDashboardScreenState
                     if (docs.isEmpty) {
                       return Text(
                         s.translate('master_calendar_no_doctors'),
-                        style: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        style: staffLabelTextStyle(),
                       );
                     }
                     return DropdownButtonFormField<String>(
@@ -240,18 +240,32 @@ class _SecretaryBookingsDashboardScreenState
                               docs.any((d) => d.id == _pickedDoctorId)
                           ? _pickedDoctorId
                           : null,
-                      dropdownColor: const Color(0xFF1D1E33),
+                      dropdownColor: kStaffCardSurface,
                       decoration: InputDecoration(
                         labelText: s.translate('master_calendar_pick_doctor'),
-                        labelStyle: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        labelStyle: staffLabelTextStyle(),
                         filled: true,
-                        fillColor: const Color(0xFF1D1E33),
+                        fillColor: kStaffCardSurface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: kStaffPrimaryNavy,
+                            width: 1.2,
+                          ),
                         ),
                       ),
                       items: docs
@@ -263,9 +277,9 @@ class _SecretaryBookingsDashboardScreenState
                                   d.data(),
                                   AppLocaleScope.of(context).effectiveLanguage,
                                 ),
-                                style: const TextStyle(
-                                  fontFamily: 'NRT',
-                                  color: Color(0xFFD9E2EC),
+                                style: staffHeaderTextStyle(
+                                  fontSize: 15,
+                                  color: kStaffBodyText,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -282,10 +296,7 @@ class _SecretaryBookingsDashboardScreenState
                     ? Center(
                         child: Text(
                           s.translate('master_calendar_pick_doctor'),
-                          style: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          style: staffLabelTextStyle(),
                         ),
                       )
                     : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -302,7 +313,7 @@ class _SecretaryBookingsDashboardScreenState
                               !snapshot.hasData) {
                             return const Center(
                               child: CircularProgressIndicator(
-                                color: Color(0xFF42A5F5),
+                                color: kStaffPrimaryNavy,
                               ),
                             );
                           }
@@ -329,10 +340,7 @@ class _SecretaryBookingsDashboardScreenState
                             return Center(
                               child: Text(
                                 s.translate('secretary_bookings_empty'),
-                                style: const TextStyle(
-                                  color: Color(0xFF829AB1),
-                                  fontFamily: 'NRT',
-                                ),
+                                style: staffLabelTextStyle(),
                               ),
                             );
                           }
@@ -374,14 +382,7 @@ class _SecretaryBookingsDashboardScreenState
 
                               return Container(
                                 padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1D1E33),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: Colors.white12,
-                                    width: 0.6,
-                                  ),
-                                ),
+                                decoration: staffDashboardCardDecoration(),
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
@@ -391,10 +392,7 @@ class _SecretaryBookingsDashboardScreenState
                                         Expanded(
                                           child: Text(
                                             patient,
-                                            style: const TextStyle(
-                                              color: Color(0xFFD9E2EC),
-                                              fontFamily: 'NRT',
-                                              fontWeight: FontWeight.w800,
+                                            style: staffHeaderTextStyle(
                                               fontSize: 16,
                                             ),
                                           ),
@@ -422,8 +420,8 @@ class _SecretaryBookingsDashboardScreenState
                                             style: TextStyle(
                                               color: badge.$2,
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w800,
-                                              fontFamily: 'NRT',
+                                              fontWeight: FontWeight.w700,
+                                              fontFamily: kPatientPrimaryFont,
                                             ),
                                           ),
                                         ),
@@ -432,11 +430,7 @@ class _SecretaryBookingsDashboardScreenState
                                     const SizedBox(height: 6),
                                     Text(
                                       '${s.translate('ticket_date')}: $dateStr   •   ${s.translate('ticket_time')}: $time   •   #${queue.isEmpty ? '—' : queue}',
-                                      style: const TextStyle(
-                                        color: Color(0xFF829AB1),
-                                        fontFamily: 'NRT',
-                                        fontSize: 12.5,
-                                      ),
+                                      style: staffLabelTextStyle(fontSize: 12.5),
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
@@ -449,10 +443,9 @@ class _SecretaryBookingsDashboardScreenState
                                         const SizedBox(width: 6),
                                         Text(
                                           _paymentLabel(context, data),
-                                          style: const TextStyle(
-                                            color: Color(0xFFE0E0E0),
-                                            fontFamily: 'NRT',
-                                            fontWeight: FontWeight.w600,
+                                          style: staffLabelTextStyle(
+                                            fontSize: 14,
+                                            color: kStaffBodyText,
                                           ),
                                         ),
                                         if (receiptUrl.isNotEmpty) ...[
@@ -464,6 +457,9 @@ class _SecretaryBookingsDashboardScreenState
                                                       context,
                                                       receiptUrl,
                                                     ),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: kStaffPrimaryNavy,
+                                            ),
                                             icon: const Icon(
                                               Icons.receipt_long_rounded,
                                               size: 18,
@@ -471,6 +467,10 @@ class _SecretaryBookingsDashboardScreenState
                                             label: Text(
                                               s.translate(
                                                 'secretary_view_receipt',
+                                              ),
+                                              style: staffLabelTextStyle(
+                                                fontSize: 13,
+                                                color: kStaffPrimaryNavy,
                                               ),
                                             ),
                                           ),
@@ -482,7 +482,7 @@ class _SecretaryBookingsDashboardScreenState
                                       spacing: 6,
                                       runSpacing: 6,
                                       children: [
-                                        _StatusChip(
+                                        StaffGoldGradientButton(
                                           label: s.translate(
                                             'secretary_action_confirm',
                                           ),
@@ -493,7 +493,7 @@ class _SecretaryBookingsDashboardScreenState
                                                     'confirmed',
                                                   ),
                                         ),
-                                        _StatusChip(
+                                        StaffGoldGradientButton(
                                           label: s.translate(
                                             'secretary_action_arrived',
                                           ),
@@ -504,7 +504,7 @@ class _SecretaryBookingsDashboardScreenState
                                                     'arrived',
                                                   ),
                                         ),
-                                        _StatusChip(
+                                        StaffGoldGradientButton(
                                           label: s.translate(
                                             'secretary_action_completed',
                                           ),
@@ -515,7 +515,7 @@ class _SecretaryBookingsDashboardScreenState
                                                     'completed',
                                                   ),
                                         ),
-                                        _StatusChip(
+                                        _StaffCancelActionButton(
                                           label: s.translate(
                                             'secretary_action_cancel',
                                           ),
@@ -544,8 +544,8 @@ class _SecretaryBookingsDashboardScreenState
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({
+class _StaffCancelActionButton extends StatelessWidget {
+  const _StaffCancelActionButton({
     required this.label,
     required this.onPressed,
   });
@@ -558,14 +558,21 @@ class _StatusChip extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF90CAF9),
-        side: const BorderSide(color: Color(0xFF42A5F5), width: 0.8),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        foregroundColor: const Color(0xFFB71C1C),
+        side: const BorderSide(
+          color: Color(0xFFC62828),
+          width: kStaffCardOutlineWidth,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         visualDensity: VisualDensity.compact,
       ),
       child: Text(
         label,
-        style: const TextStyle(fontFamily: 'NRT', fontSize: 12),
+        style: const TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }

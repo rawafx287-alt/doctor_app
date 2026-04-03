@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:table_calendar/table_calendar.dart';
 
 import '../firestore/appointment_queries.dart';
@@ -10,7 +12,46 @@ import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../auth/firestore_user_doc_id.dart';
+import '../theme/staff_premium_theme.dart';
 import 'day_management_screen.dart';
+
+const String _kArabicComma = '\u060C';
+
+String _scheduleWeekdayTranslationKey(DateTime d) {
+  switch (d.weekday) {
+    case DateTime.monday:
+      return 'weekday_mon';
+    case DateTime.tuesday:
+      return 'weekday_tue';
+    case DateTime.wednesday:
+      return 'weekday_wed';
+    case DateTime.thursday:
+      return 'weekday_thu';
+    case DateTime.friday:
+      return 'weekday_fri';
+    case DateTime.saturday:
+      return 'weekday_sat';
+    case DateTime.sunday:
+    default:
+      return 'weekday_sun';
+  }
+}
+
+String _scheduleDigitsForLanguage(String asciiDigits, HrNoraLanguage lang) {
+  if (lang == HrNoraLanguage.en) return asciiDigits;
+  const eastern = '٠١٢٣٤٥٦٧٨٩';
+  final b = StringBuffer();
+  for (final unit in asciiDigits.runes) {
+    final ch = String.fromCharCode(unit);
+    final v = int.tryParse(ch);
+    if (v != null && v >= 0 && v <= 9) {
+      b.write(eastern[v]);
+    } else {
+      b.write(ch);
+    }
+  }
+  return b.toString();
+}
 
 /// Doctor / Secretary: [TableCalendar] for [available_days] — red closed, green open, badge = bookings (doctor only).
 class AvailableDaysScheduleScreen extends StatefulWidget {
@@ -34,6 +75,7 @@ class AvailableDaysScheduleScreen extends StatefulWidget {
 class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  Timer? _todayClockTimer;
 
   String? get _doctorUid {
     final m = widget.managedDoctorUserId?.trim();
@@ -46,8 +88,109 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  @override
+  void initState() {
+    super.initState();
+    _todayClockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _todayClockTimer?.cancel();
+    super.dispose();
+  }
+
   /// Booking count badge only on the doctor's own calendar (not secretary view).
   bool get _showBookingBadge => widget.managedDoctorUserId == null;
+
+  static const Color _kTodayCardFill = Color(0xFFF0F8FF);
+  static const Color _kTodayCardBorderSilver = Color(0xFFE0E0E0);
+
+  /// Sky card under the grid: label + gold calendar icon + weekday / day / month name / year.
+  Widget _buildTodayDateCard(
+    BuildContext context,
+    AppLocalizations strings,
+  ) {
+    final lang = AppLocaleScope.of(context).effectiveLanguage;
+    final appDir = Directionality.of(context);
+    final now = DateTime.now();
+    final weekdayName =
+        strings.translate(_scheduleWeekdayTranslationKey(now));
+    final monthName = strings.translate('cal_month_${now.month}');
+    final dayPart = _scheduleDigitsForLanguage('${now.day}', lang);
+    final yearPart = _scheduleDigitsForLanguage('${now.year}', lang);
+    final afterWeekday = lang == HrNoraLanguage.en ? ', ' : '$_kArabicComma ';
+    final dateLine =
+        '$weekdayName$afterWeekday$dayPart / $monthName / $yearPart';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: _kTodayCardFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _kTodayCardBorderSilver,
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              strings.translate('schedule_today_heading'),
+              textAlign: TextAlign.start,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: kStaffMutedText,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.event_note,
+                      size: 22,
+                      color: kStaffLuxGold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Directionality(
+                      textDirection: appDir,
+                      child: Text(
+                        dateLine,
+                        textAlign: TextAlign.start,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          height: 1.45,
+                          color: kStaffBodyText,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _showOpenDayDialog(
     BuildContext context,
@@ -85,13 +228,17 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
             final closingLabel = DateFormat.jm(localeTag).format(closingDt);
 
             return AlertDialog(
-              backgroundColor: const Color(0xFF1D1E33),
+              backgroundColor: kStaffCardSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(
+                  color: kStaffSilverBorder,
+                  width: kStaffCardOutlineWidth,
+                ),
+              ),
               title: Text(
                 s.translate('available_days_open_day_title'),
-                style: const TextStyle(
-                  fontFamily: 'NRT',
-                  color: Color(0xFFD9E2EC),
-                ),
+                style: staffHeaderTextStyle(fontSize: 18),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -100,35 +247,22 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                   children: [
                     Text(
                       DateFormat.yMMMEd(localeTag).format(picked),
-                      style: const TextStyle(
-                        fontFamily: 'NRT',
-                        color: Color(0xFFE8EEF4),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: staffHeaderTextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 16),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         s.translate('available_days_opening_time_label'),
-                        style: const TextStyle(
-                          fontFamily: 'NRT',
-                          color: Color(0xFF829AB1),
-                          fontSize: 13,
-                        ),
+                        style: staffLabelTextStyle(fontSize: 13),
                       ),
                       subtitle: Text(
                         openingLabel,
-                        style: const TextStyle(
-                          fontFamily: 'NRT',
-                          color: Color(0xFFE8EEF4),
-                          fontSize: 16,
-                        ),
+                        style: staffHeaderTextStyle(fontSize: 16),
                       ),
                       trailing: const Icon(
                         Icons.schedule_rounded,
-                        color: Color(0xFF42A5F5),
+                        color: kStaffLuxGold,
                       ),
                       onTap: () async {
                         final t = await showTimePicker(
@@ -143,23 +277,15 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         s.translate('available_days_closing_time_label'),
-                        style: const TextStyle(
-                          fontFamily: 'NRT',
-                          color: Color(0xFF829AB1),
-                          fontSize: 13,
-                        ),
+                        style: staffLabelTextStyle(fontSize: 13),
                       ),
                       subtitle: Text(
                         closingLabel,
-                        style: const TextStyle(
-                          fontFamily: 'NRT',
-                          color: Color(0xFFE8EEF4),
-                          fontSize: 16,
-                        ),
+                        style: staffHeaderTextStyle(fontSize: 16),
                       ),
                       trailing: const Icon(
                         Icons.schedule_send_rounded,
-                        color: Color(0xFF42A5F5),
+                        color: kStaffLuxGold,
                       ),
                       onTap: () async {
                         final t = await showTimePicker(
@@ -172,28 +298,28 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                     const SizedBox(height: 12),
                     Text(
                       s.translate('available_days_duration_label'),
-                      style: const TextStyle(
-                        fontFamily: 'NRT',
-                        color: Color(0xFF829AB1),
-                        fontSize: 13,
-                      ),
+                      style: staffLabelTextStyle(fontSize: 13),
                     ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white24),
+                        border: Border.all(
+                          color: kStaffSilverBorder,
+                          width: kStaffCardOutlineWidth,
+                        ),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: durationMinutes,
                           isExpanded: true,
-                          dropdownColor: const Color(0xFF2A2D45),
-                          style: const TextStyle(
-                            fontFamily: 'NRT',
-                            color: Color(0xFFE8EEF4),
+                          dropdownColor: kStaffCardSurface,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            color: kStaffBodyText,
                             fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
                           items: [
                             for (final m in durationChoices)
@@ -221,22 +347,17 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                   onPressed: () => Navigator.pop(ctx, false),
                   child: Text(
                     s.translate('action_cancel'),
-                    style: const TextStyle(
-                      fontFamily: 'NRT',
-                      color: Color(0xFF829AB1),
-                    ),
+                    style: staffLabelTextStyle(),
                   ),
                 ),
-                FilledButton(
+                StaffGoldGradientButton(
+                  label: s.translate('available_days_open_day_save'),
                   onPressed: () => Navigator.pop(ctx, true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF42A5F5),
-                    foregroundColor: const Color(0xFF102A43),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
                   ),
-                  child: Text(
-                    s.translate('available_days_open_day_save'),
-                    style: const TextStyle(fontFamily: 'NRT'),
-                  ),
+                  fontSize: 14,
                 ),
               ],
             );
@@ -314,10 +435,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
         ? Center(
             child: Text(
               s.translate('login_required'),
-              style: const TextStyle(
-                color: Color(0xFF829AB1),
-                fontFamily: 'NRT',
-              ),
+              style: staffLabelTextStyle(),
             ),
           )
         : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -403,25 +521,21 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                         if (loadingDays || loadingAppts)
                           const LinearProgressIndicator(
                             minHeight: 2,
-                            color: Color(0xFF42A5F5),
+                            color: kStaffPrimaryNavy,
                           ),
                         if (loadingDays || loadingAppts)
                           const SizedBox(height: 8),
                         Text(
                           s.translate('available_days_calendar_legend'),
-                          style: const TextStyle(
-                            fontFamily: 'NRT',
-                            color: Color(0xFF829AB1),
-                            fontSize: 12,
+                          style: staffLabelTextStyle(fontSize: 12).copyWith(
                             height: 1.35,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 10),
                         DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF12152A),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white10),
+                          decoration: staffDashboardCardDecoration(
+                            borderRadius: 16,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
@@ -443,35 +557,35 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                   .toLanguageTag(),
                               daysOfWeekStyle: DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
-                                  color: const Color(0xFF94A3B8),
-                                  fontFamily: 'NRT',
+                                  color: kStaffMutedText,
+                                  fontFamily: kPatientPrimaryFont,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                                 weekendStyle: TextStyle(
-                                  color: const Color(0xFF94A3B8),
-                                  fontFamily: 'NRT',
+                                  color: kStaffMutedText,
+                                  fontFamily: kPatientPrimaryFont,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                               headerStyle: HeaderStyle(
                                 formatButtonVisible: false,
                                 titleCentered: true,
                                 headerPadding: EdgeInsets.zero,
-                                titleTextStyle: const TextStyle(
-                                  color: Color(0xFFE8EEF4),
+                                titleTextStyle: TextStyle(
+                                  color: kStaffPrimaryNavy,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
-                                  fontFamily: 'NRT',
+                                  fontFamily: kPatientPrimaryFont,
                                 ),
                                 leftChevronIcon: const Icon(
                                   Icons.chevron_left_rounded,
-                                  color: Color(0xFF42A5F5),
+                                  color: kStaffLuxGold,
                                 ),
                                 rightChevronIcon: const Icon(
                                   Icons.chevron_right_rounded,
-                                  color: Color(0xFF42A5F5),
+                                  color: kStaffLuxGold,
                                 ),
                               ),
                               eventLoader: (day) {
@@ -497,7 +611,6 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                               calendarStyle: CalendarStyle(
                                 outsideDaysVisible: true,
                                 markersMaxCount: 1,
-                                // Center the day cell; badge is [Positioned] in [markerBuilder].
                                 markersAlignment: Alignment.center,
                                 canMarkersOverflow: true,
                                 cellMargin: EdgeInsets.zero,
@@ -551,7 +664,6 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                   if (count < 1) return null;
                                   final label =
                                       count > 99 ? '99' : '$count';
-                                  // Fixed corner overlay — does not change day-number layout.
                                   return PositionedDirectional(
                                     top: 2,
                                     end: 2,
@@ -560,7 +672,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                       height: 18,
                                       child: DecoratedBox(
                                         decoration: const BoxDecoration(
-                                          color: Color(0xFF06B6D4),
+                                          color: kStaffPrimaryNavy,
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
@@ -576,7 +688,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                             child: Text(
                                               label,
                                               style: const TextStyle(
-                                                fontFamily: 'NRT',
+                                                fontFamily: kPatientPrimaryFont,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w700,
                                                 color: Colors.white,
@@ -621,6 +733,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                             ),
                           ),
                         ),
+                        _buildTodayDateCard(context, s),
                       ],
                     ),
                   );
@@ -632,15 +745,17 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kStaffShellBackground,
         appBar: widget.embedded
             ? null
             : AppBar(
-                backgroundColor: const Color(0xFF1A237E),
+                backgroundColor: kStaffPrimaryNavy,
                 foregroundColor: const Color(0xFFD9E2EC),
                 title: Text(
                   s.translate('schedule_screen_title'),
-                  style: const TextStyle(fontFamily: 'NRT'),
+                  style: staffAppBarTitleStyle().copyWith(
+                    color: const Color(0xFFD9E2EC),
+                  ),
                 ),
               ),
         body: SafeArea(child: body),
@@ -669,19 +784,17 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
         day.year != focusedDay.year;
 
     final fill = isOutside
-        ? const Color(0xFF151828)
-        : (open ? const Color(0xFF1A2E22) : const Color(0xFF2E1E20));
+        ? const Color(0xFFECEFF1)
+        : (open ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE));
     final stroke = isOutside
-        ? Colors.white10
+        ? kStaffSilverBorder.withValues(alpha: 0.65)
         : (open
-            ? const Color(0xFF34D399).withValues(alpha: 0.45)
-            : const Color(0xFFF87171).withValues(alpha: 0.35));
+            ? const Color(0xFF43A047).withValues(alpha: 0.55)
+            : const Color(0xFFE53935).withValues(alpha: 0.45));
 
     final borderColor = isSelected
-        ? const Color(0xFF7DD3FC)
-        : (isToday && !isSelected
-            ? const Color(0xFFFCD34D)
-            : stroke);
+        ? kStaffPrimaryNavy
+        : (isToday && !isSelected ? kStaffLuxGold : stroke);
     final double borderWidth =
         isSelected ? 2.5 : (isToday && !isSelected ? 1.5 : 1.0);
 
@@ -702,12 +815,10 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           child: Text(
             '${day.day}',
             style: TextStyle(
-              fontFamily: 'NRT',
-              fontWeight: FontWeight.w800,
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w700,
               fontSize: 15,
-              color: isOutside
-                  ? const Color(0xFF64748B)
-                  : const Color(0xFFE8EEF4),
+              color: isOutside ? kStaffMutedText : kStaffBodyText,
             ),
           ),
         ),

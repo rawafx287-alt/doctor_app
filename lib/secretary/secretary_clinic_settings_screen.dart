@@ -6,18 +6,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../theme/patient_premium_theme.dart';
-
-/// Thin metallic rim — same as [PatientEditProfileScreen] (0.8 px stroke).
-const LinearGradient _kSilverBorderGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFFF0F0F0),
-    Color(0xFFD1D1D1),
-    Color(0xFFE0E0E0),
-  ],
-  stops: [0.0, 0.48, 1.0],
-);
+import '../theme/staff_premium_theme.dart';
 
 const Color _kGold = Color(0xFFD4AF37);
 const Color _kGoldBronze = Color(0xFFB8860B);
@@ -254,13 +243,15 @@ class _SecretaryClinicSettingsScreenState
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: kStaffShellBackground,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
+          backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),
           title: Text(
             s.translate('secretary_clinic_settings_title'),
-            style: const TextStyle(fontFamily: 'NRT'),
+            style: staffAppBarTitleStyle().copyWith(
+              color: const Color(0xFFD9E2EC),
+            ),
           ),
           actions: [
             IconButton(
@@ -290,10 +281,7 @@ class _SecretaryClinicSettingsScreenState
                     if (docs.isEmpty) {
                       return Text(
                         s.translate('master_calendar_no_doctors'),
-                        style: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        style: staffLabelTextStyle(),
                       );
                     }
                     return DropdownButtonFormField<String>(
@@ -302,32 +290,31 @@ class _SecretaryClinicSettingsScreenState
                               docs.any((d) => d.id == _pickedDoctorId)
                           ? _pickedDoctorId
                           : null,
-                      dropdownColor: const Color(0xFF1D1E33),
-                      iconEnabledColor: _kGoldBronze,
+                      dropdownColor: kStaffCardSurface,
+                      iconEnabledColor: kStaffLuxGold,
                       decoration: InputDecoration(
                         labelText: s.translate('master_calendar_pick_doctor'),
-                        labelStyle: const TextStyle(
-                          color: Color(0xFF829AB1),
-                          fontFamily: 'NRT',
-                        ),
+                        labelStyle: staffLabelTextStyle(),
                         filled: true,
-                        fillColor: const Color(0xFF1D1E33),
+                        fillColor: kStaffCardSurface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _kGold.withValues(alpha: 0.35),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _kGold.withValues(alpha: 0.28),
+                          borderSide: const BorderSide(
+                            color: kStaffSilverBorder,
+                            width: kStaffCardOutlineWidth,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _kGoldBronze.withValues(alpha: 0.65),
+                          borderSide: const BorderSide(
+                            color: kStaffPrimaryNavy,
                             width: 1.2,
                           ),
                         ),
@@ -341,9 +328,9 @@ class _SecretaryClinicSettingsScreenState
                                   d.data(),
                                   AppLocaleScope.of(context).effectiveLanguage,
                                 ),
-                                style: const TextStyle(
-                                  fontFamily: 'NRT',
-                                  color: Color(0xFFD9E2EC),
+                                style: staffHeaderTextStyle(
+                                  fontSize: 15,
+                                  color: kStaffBodyText,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -363,10 +350,7 @@ class _SecretaryClinicSettingsScreenState
                     ? Center(
                         child: Text(
                           s.translate('master_calendar_pick_doctor'),
-                          style: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          style: staffLabelTextStyle(),
                         ),
                       )
                     : SingleChildScrollView(
@@ -383,41 +367,16 @@ class _SecretaryClinicSettingsScreenState
                                     height: 22,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: _kGoldBronze,
+                                      color: kStaffPrimaryNavy,
                                     ),
                                   ),
                                 ),
                               ),
                             Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                gradient: _kSilverBorderGradient,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: kPatientDeepBlue.withValues(alpha: 0.12),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
+                              decoration: staffDashboardCardDecoration(
+                                borderRadius: 20,
                               ),
-                              padding: const EdgeInsets.all(0.8),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(19.2),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.white.withValues(alpha: 0.96),
-                                        const Color(0xFFE3F2FD)
-                                            .withValues(alpha: 0.72),
-                                        kPatientSkyTop.withValues(alpha: 0.42),
-                                      ],
-                                      stops: const [0.0, 0.55, 1.0],
-                                    ),
-                                  ),
-                                  child: Padding(
+                              child: Padding(
                                     padding: const EdgeInsets.fromLTRB(
                                       18,
                                       18,
@@ -444,52 +403,26 @@ class _SecretaryClinicSettingsScreenState
                                         const SizedBox(height: 14),
                                         _hospitalMiniCardField(),
                                         const SizedBox(height: 16),
-                                        FilledButton(
-                                          onPressed:
-                                              _saving ? null : _save,
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor: _kGoldBronze,
-                                            foregroundColor:
-                                                const Color(0xFF102A43),
-                                            disabledBackgroundColor:
-                                                _kGoldBronze.withValues(
-                                              alpha: 0.45,
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: StaffGoldGradientButton(
+                                            label: s.translate(
+                                              'profile_save_changes',
                                             ),
-                                            minimumSize: const Size(
-                                              double.infinity,
-                                              50,
+                                            onPressed: _save,
+                                            isLoading: _saving,
+                                            minHeight: 50,
+                                            fontSize: 15,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 14,
                                             ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
+                                            borderRadius: 14,
                                           ),
-                                          child: _saving
-                                              ? const SizedBox(
-                                                  width: 22,
-                                                  height: 22,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2.2,
-                                                    color: Color(0xFF102A43),
-                                                  ),
-                                                )
-                                              : Text(
-                                                  s.translate(
-                                                    'profile_save_changes',
-                                                  ),
-                                                  style: const TextStyle(
-                                                    fontFamily: 'NRT',
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 15,
-                                                  ),
-                                                ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                              ),
                             ),
                           ],
                         ),

@@ -1186,6 +1186,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'إدارة الجدول',
     'en': 'HR Nora Schedule',
   },
+  /// Label above the live “today” date line on the doctor/secretary schedule calendar.
+  'schedule_today_heading': {
+    'ckb': 'ئەمڕۆ:',
+    'ar': 'اليوم:',
+    'en': 'Today:',
+  },
+  /// Starts the large “today” headline on the schedule screen (before weekday + date).
+  'schedule_today_prominent_prefix': {
+    'ckb': 'ئەمڕۆ،',
+    'ar': 'اليوم،',
+    'en': 'Today,',
+  },
+  /// Section title under the horizontal day strip (today’s bookings area).
+  'schedule_today_appointments_title': {
+    'ckb': 'نۆرەکانی ئەمڕۆ',
+    'ar': 'مواعيد اليوم',
+    'en': "Today's appointments",
+  },
   'schedule_calendar_hint': {
     'ckb': 'ڕۆژێک هەڵبژێرە بۆ دەستکاری کات یان داخستنی تەواوی ڕۆژەکە.',
     'ar': 'اختر تاريخًا لتعديل ساعات العمل أو إغلاق اليوم بالكامل.',

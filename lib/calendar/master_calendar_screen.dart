@@ -13,6 +13,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../patient/create_patient_appointment.dart';
+import '../theme/staff_premium_theme.dart';
 import 'calendar_slot_logic.dart';
 
 const String _kMasterCalendarBrandTitle = 'HR Nora';
@@ -34,6 +35,7 @@ class MasterCalendarScreen extends StatefulWidget {
     required this.canManage,
     this.showDoctorPicker = false,
     this.isRootShell = false,
+    this.useStaffShellTheme = false,
   });
 
   /// When [showDoctorPicker] is true, user must choose a doctor first.
@@ -41,6 +43,9 @@ class MasterCalendarScreen extends StatefulWidget {
   final bool canManage;
   final bool showDoctorPicker;
   final bool isRootShell;
+
+  /// Light secretary/doctor shell (navy app bar, off-white body). [isRootShell] implies this.
+  final bool useStaffShellTheme;
 
   @override
   State<MasterCalendarScreen> createState() => _MasterCalendarScreenState();
@@ -50,6 +55,9 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   String? _pickedDoctorId;
+
+  bool get _staffChrome =>
+      widget.isRootShell || widget.useStaffShellTheme;
 
   @override
   void initState() {
@@ -263,9 +271,11 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     return Directionality(
       textDirection: dir,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0E21),
+        backgroundColor: _staffChrome
+            ? kStaffShellBackground
+            : const Color(0xFF0A0E21),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A237E),
+          backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),
           elevation: 0,
           leading: widget.isRootShell
@@ -295,17 +305,22 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                   _kMasterCalendarBrandTitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'NRT',
-                    fontWeight: FontWeight.w800,
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w700,
                     fontSize: 26,
                     letterSpacing: 0.6,
-                    color: const Color(0xFFD9E2EC),
-                    shadows: [
-                      Shadow(
-                        color: const Color(0xFF42A5F5).withValues(alpha: 0.35),
-                        blurRadius: 12,
-                      ),
-                    ],
+                    color: _staffChrome
+                        ? kStaffPrimaryNavy
+                        : const Color(0xFFD9E2EC),
+                    shadows: _staffChrome
+                        ? null
+                        : [
+                            Shadow(
+                              color: const Color(0xFF42A5F5)
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 12,
+                            ),
+                          ],
                   ),
                 ),
               ),
@@ -315,8 +330,11 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                   s.translate('master_calendar_subtitle'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'NRT',
-                    color: const Color(0xFF829AB1).withValues(alpha: 0.95),
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w700,
+                    color: _staffChrome
+                        ? kStaffMutedText
+                        : const Color(0xFF829AB1).withValues(alpha: 0.95),
                     fontSize: 13,
                   ),
                 ),
@@ -338,10 +356,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                       if (docs.isEmpty) {
                         return Text(
                           s.translate('master_calendar_no_doctors'),
-                          style: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          style: _staffChrome
+                              ? staffLabelTextStyle()
+                              : const TextStyle(
+                                  color: Color(0xFF829AB1),
+                                  fontFamily: 'NRT',
+                                ),
                         );
                       }
                       return DropdownButtonFormField<String>(
@@ -350,18 +370,51 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                 docs.any((d) => d.id == _pickedDoctorId)
                             ? _pickedDoctorId
                             : null,
-                        dropdownColor: const Color(0xFF1D1E33),
+                        dropdownColor: _staffChrome
+                            ? kStaffCardSurface
+                            : const Color(0xFF1D1E33),
                         decoration: InputDecoration(
                           labelText: s.translate('master_calendar_pick_doctor'),
-                          labelStyle: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          labelStyle: _staffChrome
+                              ? staffLabelTextStyle()
+                              : const TextStyle(
+                                  color: Color(0xFF829AB1),
+                                  fontFamily: 'NRT',
+                                ),
                           filled: true,
-                          fillColor: const Color(0xFF1D1E33),
+                          fillColor: _staffChrome
+                              ? kStaffCardSurface
+                              : const Color(0xFF1D1E33),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white12),
+                            borderSide: BorderSide(
+                              color: _staffChrome
+                                  ? kStaffSilverBorder
+                                  : Colors.white12,
+                              width: _staffChrome
+                                  ? kStaffCardOutlineWidth
+                                  : 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: _staffChrome
+                                  ? kStaffSilverBorder
+                                  : Colors.white12,
+                              width: _staffChrome
+                                  ? kStaffCardOutlineWidth
+                                  : 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: _staffChrome
+                                  ? kStaffPrimaryNavy
+                                  : const Color(0xFF42A5F5),
+                              width: 1.2,
+                            ),
                           ),
                         ),
                         items: docs
@@ -373,10 +426,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                     d.data(),
                                     AppLocaleScope.of(context).effectiveLanguage,
                                   ),
-                                  style: const TextStyle(
-                                    fontFamily: 'NRT',
-                                    color: Color(0xFFD9E2EC),
-                                  ),
+                                  style: _staffChrome
+                                      ? staffHeaderTextStyle(fontSize: 15)
+                                      : const TextStyle(
+                                          fontFamily: 'NRT',
+                                          color: Color(0xFFD9E2EC),
+                                        ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -394,10 +449,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                     ? Center(
                         child: Text(
                           s.translate('master_calendar_pick_doctor'),
-                          style: const TextStyle(
-                            color: Color(0xFF829AB1),
-                            fontFamily: 'NRT',
-                          ),
+                          style: _staffChrome
+                              ? staffLabelTextStyle()
+                              : const TextStyle(
+                                  color: Color(0xFF829AB1),
+                                  fontFamily: 'NRT',
+                                ),
                         ),
                       )
                     : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
