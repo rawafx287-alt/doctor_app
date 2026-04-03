@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -59,8 +58,37 @@ const LinearGradient _kPastBookingCardGradient = LinearGradient(
 const Color _kPastBookingTextBrown = Color(0xFF432818);
 const Color _kPastBookingNumberInk = Color(0xFF1A120E);
 
-/// Close control on appointment ticket overlay — silver / white hairline.
-const Color _kTicketDialogCloseBorder = Color(0xFFE8E8F0);
+/// Past booking detail dialog: perforation + depth (matte gold card).
+const Color _kPastTicketDialogHoleBlend = Color(0xFF7D5A44);
+
+const List<BoxShadow> _kPastTicketDialogOuterShadows = [
+  BoxShadow(
+    color: Color(0x42FFFFFF),
+    blurRadius: 18,
+    spreadRadius: 0,
+    offset: Offset(0, 0),
+  ),
+  BoxShadow(
+    color: Color(0x5AA98467),
+    blurRadius: 28,
+    spreadRadius: 0,
+    offset: Offset(0, 12),
+  ),
+  BoxShadow(
+    color: Color(0x30000000),
+    blurRadius: 20,
+    spreadRadius: 0,
+    offset: Offset(0, 8),
+  ),
+];
+
+const List<Shadow> _kPastTicketPreviewTitleShadows = [
+  Shadow(
+    color: Color(0x22000000),
+    blurRadius: 4,
+    offset: Offset(0, 1),
+  ),
+];
 
 /// Royal purple → rose → peach (appointment detail ticket dialog).
 const LinearGradient _kTicketDialogRoyalGradient = LinearGradient(
@@ -792,6 +820,7 @@ class _TicketVisual extends StatelessWidget {
     required this.daysStyle,
     required this.holeColor,
     required this.isPreview,
+    this.previewPastTheme = false,
   });
 
   final String doctorName;
@@ -803,6 +832,8 @@ class _TicketVisual extends StatelessWidget {
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
   final bool isPreview;
+  /// When true with [isPreview], uses matte gold/bronze gradient + dark brown ink (past bookings).
+  final bool previewPastTheme;
 
   static const Color _ticketBg = Color(0xFF1E1E2C);
   static const Color _ticketBorder = Color(0xFF3D3D52);
@@ -821,31 +852,39 @@ class _TicketVisual extends StatelessWidget {
     final rowDir = Directionality.of(context);
     final r = BorderRadius.circular(isPreview ? 16 : 12);
     final innerR = BorderRadius.circular(isPreview ? 15 : 11);
+    final ticketFont = isPreview ? kAppFontFamily : kPatientPrimaryFont;
 
-    final double doctorSize = isPreview ? 24 : 13;
+    final double doctorSize = isPreview ? 20 : 13;
     final int doctorMaxLines = isPreview ? 3 : 1;
-    final double queueSize = isPreview ? 56 : 30;
+    final double queueSize = isPreview ? 40 : 30;
     final double labelSize = isPreview ? 12 : 10;
     final double bodyMutedSize = isPreview ? 15 : 12.5;
     final double patientSize = isPreview ? 16 : 13;
-    final double badgeFont = isPreview ? 11 : 9;
+    final double badgeFont = isPreview ? 9.5 : 9;
     final EdgeInsets headerPad = isPreview
-        ? const EdgeInsets.fromLTRB(18, 16, 18, 10)
+        ? const EdgeInsets.fromLTRB(13, 11, 13, 7)
         : const EdgeInsets.fromLTRB(12, 10, 12, 6);
     final EdgeInsets footerPad = isPreview
-        ? const EdgeInsets.fromLTRB(18, 10, 18, 16)
+        ? const EdgeInsets.fromLTRB(13, 7, 13, 11)
         : const EdgeInsets.fromLTRB(12, 6, 12, 12);
-    final double queueVPad = isPreview ? 10 : 6;
+    final double queueVPad = isPreview ? 7 : 6;
     final double daysChipFont = isPreview ? 12 : 10;
 
-    final effectiveHole =
-        isPreview ? _kTicketDialogHoleBlend : holeColor;
-    final effectiveDash = isPreview
-        ? Colors.white.withValues(alpha: 0.38)
-        : _dashSubtle;
-    final labelMuted = isPreview
-        ? _kTicketDialogCream.withValues(alpha: 0.9)
-        : _labelDim;
+    final pastPreview = isPreview && previewPastTheme;
+
+    final effectiveHole = pastPreview
+        ? _kPastTicketDialogHoleBlend
+        : (isPreview ? _kTicketDialogHoleBlend : holeColor);
+    final effectiveDash = pastPreview
+        ? _kPastBookingTextBrown.withValues(alpha: 0.32)
+        : (isPreview
+            ? Colors.white.withValues(alpha: 0.38)
+            : _dashSubtle);
+    final labelMuted = pastPreview
+        ? _kPastBookingTextBrown.withValues(alpha: 0.78)
+        : (isPreview
+            ? _kTicketDialogCream.withValues(alpha: 0.9)
+            : _labelDim);
     final ticketColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -866,44 +905,50 @@ class _TicketVisual extends StatelessWidget {
                             textAlign: textEnd,
                             style: TextStyle(
                               color: labelMuted,
-                              fontFamily: kPatientPrimaryFont,
+                              fontFamily: ticketFont,
                               fontSize: labelSize,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             S.of(context).translate('ticket_doctor_label'),
                             textAlign: textEnd,
                             style: TextStyle(
                               color: labelMuted,
-                              fontFamily: kPatientPrimaryFont,
+                              fontFamily: ticketFont,
                               fontSize: labelSize * 0.92,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             doctorName,
                             textAlign: textEnd,
                             maxLines: doctorMaxLines,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: isPreview ? Colors.white : _doctorAccent,
-                              fontFamily: kPatientPrimaryFont,
+                              color: pastPreview
+                                  ? _kPastBookingTextBrown
+                                  : (isPreview
+                                      ? Colors.white
+                                      : _doctorAccent),
+                              fontFamily: ticketFont,
                               fontWeight: FontWeight.w700,
                               fontSize: doctorSize,
                               height: 1.25,
-                              shadows: isPreview
-                                  ? _kTicketPreviewTitleShadows
-                                  : const [
-                                      Shadow(
-                                        color: Color(0x40000000),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
+                              shadows: pastPreview
+                                  ? _kPastTicketPreviewTitleShadows
+                                  : (isPreview
+                                      ? _kTicketPreviewTitleShadows
+                                      : const <Shadow>[
+                                          Shadow(
+                                            color: Color(0x40000000),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ]),
                             ),
                           ),
                         ],
@@ -935,7 +980,7 @@ class _TicketVisual extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: _doctorAccent,
-                                    fontFamily: kPatientPrimaryFont,
+                                    fontFamily: ticketFont,
                                     fontWeight: FontWeight.w700,
                                     fontSize: doctorSize,
                                     height: 1.2,
@@ -945,19 +990,21 @@ class _TicketVisual extends StatelessWidget {
                             ],
                           ),
                   ),
-                  SizedBox(width: isPreview ? 10 : 6),
+                  SizedBox(width: isPreview ? 7 : 6),
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isPreview ? 8 : 6,
-                      vertical: isPreview ? 4 : 2,
+                      horizontal: isPreview ? 6 : 6,
+                      vertical: isPreview ? 3 : 2,
                     ),
                     decoration: BoxDecoration(
                       color: badge.$1,
                       borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
                       border: Border.all(
-                        color: isPreview
-                            ? Colors.white.withValues(alpha: 0.5)
-                            : badge.$2.withValues(alpha: 0.35),
+                        color: pastPreview
+                            ? _kPastBookingTextBrown.withValues(alpha: 0.35)
+                            : (isPreview
+                                ? Colors.white.withValues(alpha: 0.5)
+                                : badge.$2.withValues(alpha: 0.35)),
                         width: isPreview ? 0.85 : 0.7,
                       ),
                     ),
@@ -965,7 +1012,7 @@ class _TicketVisual extends StatelessWidget {
                       badge.$3,
                       style: TextStyle(
                         color: badge.$2,
-                        fontFamily: kPatientPrimaryFont,
+                        fontFamily: ticketFont,
                         fontSize: badgeFont,
                         fontWeight: FontWeight.w700,
                         height: 1.1,
@@ -976,7 +1023,7 @@ class _TicketVisual extends StatelessWidget {
               ),
             ),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
+          padding: EdgeInsets.symmetric(horizontal: isPreview ? 10 : 10),
           child: _TicketTearRow(
             holeColor: effectiveHole,
             dashColor: effectiveDash,
@@ -988,19 +1035,23 @@ class _TicketVisual extends StatelessWidget {
             child: Text(
               queueLabel,
               style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                color: isPreview ? Colors.white : _queueLight,
+                fontFamily: ticketFont,
+                color: pastPreview
+                    ? _kPastBookingNumberInk
+                    : (isPreview ? Colors.white : _queueLight),
                 fontSize: queueSize,
                 fontWeight: FontWeight.w700,
                 letterSpacing: isPreview ? 1.2 : 0.5,
                 height: 1,
-                shadows: isPreview ? _kTicketQueueGlowShadows : null,
+                shadows: pastPreview
+                    ? null
+                    : (isPreview ? _kTicketQueueGlowShadows : null),
               ),
             ),
           ),
         ),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
+          padding: EdgeInsets.symmetric(horizontal: isPreview ? 10 : 10),
           child: _TicketTearRow(
             holeColor: effectiveHole,
             dashColor: effectiveDash,
@@ -1017,11 +1068,13 @@ class _TicketVisual extends StatelessWidget {
                   textAlign: textEnd,
                   TextSpan(
                     style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontSize: bodyMutedSize,
-                      height: 1.25,
+                      fontFamily: ticketFont,
+                      fontSize: bodyMutedSize * 0.95,
+                      height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: pastPreview
+                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
+                          : _kTicketDialogCream.withValues(alpha: 0.94),
                     ),
                     children: [
                       TextSpan(
@@ -1030,24 +1083,28 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: dateStr,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: pastPreview
+                              ? _kPastBookingNumberInk
+                              : Colors.white,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text.rich(
                   textAlign: textEnd,
                   TextSpan(
                     style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontSize: bodyMutedSize,
-                      height: 1.25,
+                      fontFamily: ticketFont,
+                      fontSize: bodyMutedSize * 0.95,
+                      height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: pastPreview
+                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
+                          : _kTicketDialogCream.withValues(alpha: 0.94),
                     ),
                     children: [
                       TextSpan(
@@ -1056,24 +1113,28 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: timeStr,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: pastPreview
+                              ? _kPastBookingNumberInk
+                              : Colors.white,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text.rich(
                   textAlign: textEnd,
                   TextSpan(
                     style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontSize: patientSize,
-                      height: 1.25,
+                      fontFamily: ticketFont,
+                      fontSize: patientSize * 0.95,
+                      height: 1.22,
                       fontWeight: FontWeight.w700,
-                      color: _kTicketDialogCream.withValues(alpha: 0.94),
+                      color: pastPreview
+                          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
+                          : _kTicketDialogCream.withValues(alpha: 0.94),
                     ),
                     children: [
                       TextSpan(
@@ -1082,9 +1143,11 @@ class _TicketVisual extends StatelessWidget {
                       ),
                       TextSpan(
                         text: patientName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: pastPreview
+                              ? _kPastBookingNumberInk
+                              : Colors.white,
                         ),
                       ),
                     ],
@@ -1096,7 +1159,7 @@ class _TicketVisual extends StatelessWidget {
                   textAlign: textEnd,
                   style: TextStyle(
                     color: _bodyMuted,
-                    fontFamily: kPatientPrimaryFont,
+                    fontFamily: ticketFont,
                     fontSize: bodyMutedSize,
                     fontWeight: FontWeight.w500,
                     height: 1.25,
@@ -1108,7 +1171,7 @@ class _TicketVisual extends StatelessWidget {
                   textAlign: textEnd,
                   style: TextStyle(
                     color: _bodyMuted,
-                    fontFamily: kPatientPrimaryFont,
+                    fontFamily: ticketFont,
                     fontSize: bodyMutedSize,
                     fontWeight: FontWeight.w500,
                     height: 1.25,
@@ -1120,7 +1183,7 @@ class _TicketVisual extends StatelessWidget {
                   textAlign: textEnd,
                   style: TextStyle(
                     color: _bodyLight,
-                    fontFamily: kPatientPrimaryFont,
+                    fontFamily: ticketFont,
                     fontSize: patientSize,
                     fontWeight: FontWeight.bold,
                     height: 1.25,
@@ -1128,35 +1191,42 @@ class _TicketVisual extends StatelessWidget {
                 ),
               ],
               if (daysStyle != null) ...[
-                SizedBox(height: isPreview ? 10 : 6),
+                SizedBox(height: isPreview ? 7 : 6),
                 Align(
                   alignment: isRtl
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isPreview ? 10 : 8,
-                      vertical: isPreview ? 5 : 4,
+                      horizontal: isPreview ? 7 : 8,
+                      vertical: isPreview ? 3 : 4,
                     ),
                     decoration: BoxDecoration(
-                      color: isPreview
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : daysStyle!.background,
+                      color: pastPreview
+                          ? _kPastBookingTextBrown.withValues(alpha: 0.08)
+                          : (isPreview
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : daysStyle!.background),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: isPreview
-                            ? Colors.white.withValues(alpha: 0.34)
-                            : daysStyle!.foreground.withValues(alpha: 0.35),
+                        color: pastPreview
+                            ? _kPastBookingTextBrown.withValues(alpha: 0.28)
+                            : (isPreview
+                                ? Colors.white.withValues(alpha: 0.34)
+                                : daysStyle!.foreground
+                                    .withValues(alpha: 0.35)),
                         width: isPreview ? 0.85 : 1,
                       ),
                     ),
                     child: Text(
                       daysStyle!.label,
                       style: TextStyle(
-                        color: isPreview
-                            ? _kTicketDialogCream
-                            : daysStyle!.foreground,
-                        fontFamily: kPatientPrimaryFont,
+                        color: pastPreview
+                            ? _kPastBookingTextBrown
+                            : (isPreview
+                                ? _kTicketDialogCream
+                                : daysStyle!.foreground),
+                        fontFamily: ticketFont,
                         fontSize: daysChipFont,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1167,6 +1237,7 @@ class _TicketVisual extends StatelessWidget {
             ],
           ),
         ),
+        if (isPreview) const SizedBox(height: 20),
       ],
     );
 
@@ -1201,6 +1272,30 @@ class _TicketVisual extends StatelessWidget {
       );
     }
 
+    if (pastPreview) {
+      return Container(
+        margin: EdgeInsets.zero,
+        decoration: BoxDecoration(
+          borderRadius: r,
+          boxShadow: _kPastTicketDialogOuterShadows,
+        ),
+        child: ClipRRect(
+          borderRadius: r,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _kPastBookingCardGradient,
+              borderRadius: r,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.42),
+                width: 1.0,
+              ),
+            ),
+            child: ticketColumn,
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
@@ -1225,8 +1320,9 @@ class _TicketVisual extends StatelessWidget {
   }
 }
 
-class _TicketPreviewPage extends StatelessWidget {
-  const _TicketPreviewPage({
+/// Ticket inside modal — blur + transitions are composed in [_openTicketPreview].
+class _AppointmentDetailCard extends StatelessWidget {
+  const _AppointmentDetailCard({
     required this.heroTag,
     required this.doctorName,
     required this.patientName,
@@ -1236,6 +1332,7 @@ class _TicketPreviewPage extends StatelessWidget {
     required this.queueLabel,
     required this.daysStyle,
     required this.holeColor,
+    required this.isPastBooking,
   });
 
   final String heroTag;
@@ -1247,160 +1344,122 @@ class _TicketPreviewPage extends StatelessWidget {
   final String queueLabel;
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
+  final bool isPastBooking;
 
   @override
   Widget build(BuildContext context) {
-    final maxW = math.min(
-      440.0,
-      MediaQuery.sizeOf(context).width * 0.94,
-    );
+    final size = MediaQuery.sizeOf(context);
+    final padBottom = MediaQuery.paddingOf(context).bottom;
+    final maxPanelW = size.width * 0.85;
+    final maxPanelH = size.height * 0.70;
 
-    return Directionality(
-      textDirection: AppLocaleScope.of(context).textDirection,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
+    return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 20,
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: maxPanelW,
+            maxHeight: maxPanelH,
+          ),
+          child: SingleChildScrollView(
+            clipBehavior: Clip.hardEdge,
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.only(
+              top: 8,
+              bottom: 12 + padBottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxPanelW),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Hero(
+                    tag: heroTag,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      color: Colors.transparent,
+                      clipBehavior: Clip.none,
+                      child: _TicketVisual(
+                        doctorName: doctorName,
+                        patientName: patientName,
+                        dateStr: dateStr,
+                        timeStr: timeStr,
+                        status: status,
+                        queueLabel: queueLabel,
+                        daysStyle: daysStyle,
+                        holeColor: holeColor,
+                        isPreview: true,
+                        previewPastTheme: isPastBooking,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    );
+  }
+}
+
+Widget _appointmentDetailTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  final fade = CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeOut,
+  );
+  final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
+    CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutBack,
+    ),
+  );
+
+  return Directionality(
+    textDirection: AppLocaleScope.of(context).textDirection,
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: FadeTransition(
+            opacity: fade,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => Navigator.of(context).maybePop(),
               child: ClipRect(
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.52),
-                  ),
+                  filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: const ColoredBox(color: Colors.transparent),
                 ),
               ),
             ),
           ),
-          SafeArea(
-            maintainBottomViewPadding: true,
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              resizeToAvoidBottomInset: true,
-              body: LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenH = MediaQuery.sizeOf(context).height;
-                  final maxPanelH = math.min(
-                    screenH * 0.8,
-                    constraints.maxHeight,
-                  );
-                  final panelW = math.min(
-                    maxW + 32,
-                    math.max(0.0, constraints.maxWidth - 24),
-                  );
-                  final minScrollExtent = math.max(0.0, maxPanelH - 24);
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: panelW,
-                          maxHeight: maxPanelH,
-                        ),
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          clipBehavior: Clip.hardEdge,
-                          padding: const EdgeInsets.only(bottom: 28),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: minScrollExtent,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.center,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () =>
-                                        Navigator.of(context).maybePop(),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      elevation: 0,
-                                      textStyle: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                      side: const BorderSide(
-                                        color: _kTicketDialogCloseBorder,
-                                        width: 1,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.close_rounded,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                    label: Text(
-                                      S.of(context).translate('close'),
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Center(
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: maxW,
-                                    ),
-                                    child: Hero(
-                                      tag: heroTag,
-                                      child: Material(
-                                        type: MaterialType.transparency,
-                                        color: Colors.transparent,
-                                        clipBehavior: Clip.none,
-                                        child: _TicketVisual(
-                                          doctorName: doctorName,
-                                          patientName: patientName,
-                                          dateStr: dateStr,
-                                          timeStr: timeStr,
-                                          status: status,
-                                          queueLabel: queueLabel,
-                                          daysStyle: daysStyle,
-                                          holeColor: holeColor,
-                                          isPreview: true,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+        ),
+        SafeArea(
+          maintainBottomViewPadding: true,
+          child: Center(
+            child: FadeTransition(
+              opacity: fade,
+              child: ScaleTransition(
+                scale: scale,
+                alignment: Alignment.center,
+                child: child,
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
 
 void _openTicketPreview(
@@ -1414,37 +1473,31 @@ void _openTicketPreview(
   required String queueLabel,
   required _DaysRemainingStyle? daysStyle,
   required Color holeColor,
+  required bool isPastBooking,
 }) {
-  Navigator.of(context).push<void>(
-    PageRouteBuilder<void>(
-      opaque: false,
-      barrierColor: Colors.transparent,
-      barrierDismissible: false,
-      transitionDuration: const Duration(milliseconds: 380),
-      reverseTransitionDuration: const Duration(milliseconds: 320),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return _TicketPreviewPage(
-          heroTag: heroTag,
-          doctorName: doctorName,
-          patientName: patientName,
-          dateStr: dateStr,
-          timeStr: timeStr,
-          status: status,
-          queueLabel: queueLabel,
-          daysStyle: daysStyle,
-          holeColor: holeColor,
-        );
-      },
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          ),
-          child: child,
-        );
-      },
-    ),
+  final barrierLabel =
+      MaterialLocalizations.of(context).modalBarrierDismissLabel;
+  showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: barrierLabel,
+    barrierColor: Colors.black.withValues(alpha: 0.2),
+    transitionDuration: const Duration(milliseconds: 300),
+    transitionBuilder: _appointmentDetailTransition,
+    pageBuilder: (dialogContext, animation, secondaryAnimation) {
+      return _AppointmentDetailCard(
+        heroTag: heroTag,
+        doctorName: doctorName,
+        patientName: patientName,
+        dateStr: dateStr,
+        timeStr: timeStr,
+        status: status,
+        queueLabel: queueLabel,
+        daysStyle: daysStyle,
+        holeColor: holeColor,
+        isPastBooking: isPastBooking,
+      );
+    },
   );
 }
 
@@ -1751,6 +1804,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       queueLabel: queueLabel,
                       daysStyle: daysStyle,
                       holeColor: _holeColor,
+                      isPastBooking: isPastSection ||
+                          _isPastAppointmentStatus(stNorm),
                     ),
                     behavior: HitTestBehavior.opaque,
                     child: Hero(

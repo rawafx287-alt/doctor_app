@@ -12,6 +12,18 @@ import 'patient_grain_painter.dart';
 const Color _kLuxGold = Color(0xFFD4AF37);
 const Color _kLuxGoldLight = Color(0xFFF6E7A6);
 
+/// Thin metallic rim around the home doctor card (top-left → bottom-right).
+const LinearGradient _kDoctorCardSilverBorderGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFFF0F0F0),
+    Color(0xFFD1D1D1),
+    Color(0xFFE0E0E0),
+  ],
+  stops: [0.0, 0.48, 1.0],
+);
+
 /// Layered elevation: soft ambient + deep lift + top highlight.
 const List<BoxShadow> _kDoctorCardLayeredShadows = [
   BoxShadow(
@@ -66,6 +78,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const Color _deepBlue = Color(0xFF1565C0);
 
   static const double _radius = 20;
+  static const double _kSilverBorderWidth = 0.9;
   static const double _kLightLeakBorder = 1.35;
 
   late AnimationController _pulseController;
@@ -110,12 +123,22 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
     final nameBoxAlignment =
         hasArabicScript ? Alignment.centerRight : Alignment.centerLeft;
-    final innerR = _radius - _kLightLeakBorder;
+    final rAfterSilver = _radius - _kSilverBorderWidth;
+    final innerR = rAfterSilver - _kLightLeakBorder;
 
     return RepaintBoundary(
       child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_radius),
+          gradient: _kDoctorCardSilverBorderGradient,
+          boxShadow: _kDoctorCardLayeredShadows,
+        ),
+        padding: const EdgeInsets.all(_kSilverBorderWidth),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(rAfterSilver),
+          child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(_radius),
+                borderRadius: BorderRadius.circular(rAfterSilver),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -128,7 +151,6 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                   ],
                   stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
                 ),
-                boxShadow: _kDoctorCardLayeredShadows,
               ),
               padding: const EdgeInsets.all(_kLightLeakBorder),
               child: ClipRRect(
@@ -511,6 +533,8 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
             ),
           ),
         ),
+      ),
+      ),
     );
   }
 }
