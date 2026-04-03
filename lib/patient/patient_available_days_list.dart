@@ -172,7 +172,7 @@ class _PatientCalendarToastState extends State<_PatientCalendarToast>
                         widget.message,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                           height: 1.35,
@@ -1003,7 +1003,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
               ),
               style: const TextStyle(
                 color: Colors.redAccent,
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontSize: 12,
               ),
             ),

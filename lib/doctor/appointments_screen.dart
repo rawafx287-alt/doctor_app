@@ -86,7 +86,7 @@ class AppointmentsScreen extends StatefulWidget {
           SnackBar(
             content: Text(
               s.translate('doctor_appt_call_failed'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -97,7 +97,7 @@ class AppointmentsScreen extends StatefulWidget {
           SnackBar(
             content: Text(
               s.translate('doctor_appt_call_failed'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -155,7 +155,7 @@ class AppointmentsScreen extends StatefulWidget {
             title: Text(
               s.translate('doctor_appt_patient_profile_title'),
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 color: Color(0xFFD9E2EC),
                 fontWeight: FontWeight.w700,
               ),
@@ -179,7 +179,7 @@ class AppointmentsScreen extends StatefulWidget {
                       color: const Color(0xFF829AB1).withValues(alpha: 0.95),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -189,7 +189,7 @@ class AppointmentsScreen extends StatefulWidget {
                       color: Color(0xFFD9E2EC),
                       fontSize: 14,
                       height: 1.4,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ],
@@ -202,7 +202,7 @@ class AppointmentsScreen extends StatefulWidget {
                   s.translate('doctor_appt_close'),
                   style: const TextStyle(
                     color: Color(0xFF42A5F5),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -239,7 +239,7 @@ class AppointmentsScreen extends StatefulWidget {
               style: TextStyle(
                 color: const Color(0xFF829AB1).withValues(alpha: 0.9),
                 fontSize: 11,
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
               ),
             ),
           ],
@@ -264,7 +264,7 @@ class AppointmentsScreen extends StatefulWidget {
       color: Color(0xFF829AB1),
       fontSize: 11,
       height: 1.2,
-      fontFamily: 'KurdishFont',
+      fontFamily: 'NRT',
     );
 
     return Padding(
@@ -364,7 +364,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               status == 'completed'
                   ? s.translate('doctor_appointment_done_snack')
                   : s.translate('doctor_appointment_cancelled_snack'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -375,7 +375,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           SnackBar(
             content: Text(
               s.translate('doctor_appointments_update_error'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -392,7 +392,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         ? Center(
             child: Text(
               s.translate('login_required'),
-              style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+              style: const TextStyle(color: Color(0xFF829AB1), fontFamily: 'NRT'),
             ),
           )
         : StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
@@ -416,7 +416,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.redAccent,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                       ),
                     ),
                   ),
@@ -505,7 +505,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 title: Text(
                   s.translate('doctor_title_appointments_list'),
                   style: const TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -538,7 +538,7 @@ class _DetailLine extends StatelessWidget {
               color: const Color(0xFF829AB1).withValues(alpha: 0.95),
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           ),
           const SizedBox(height: 2),
@@ -548,7 +548,7 @@ class _DetailLine extends StatelessWidget {
               color: Color(0xFFD9E2EC),
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           ),
         ],
@@ -638,7 +638,7 @@ class _AppointmentCard extends StatelessWidget {
                             color: const Color(0xFF829AB1).withValues(alpha: 0.95),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -653,7 +653,7 @@ class _AppointmentCard extends StatelessWidget {
                                   color: Color(0xFFD9E2EC),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             ),
@@ -701,7 +701,7 @@ class _AppointmentCard extends StatelessWidget {
                       style: TextStyle(
                         color: badge.$2,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontSize: 12,
                       ),
                     ),
@@ -716,7 +716,7 @@ class _AppointmentCard extends StatelessWidget {
                   color: const Color(0xFF829AB1).withValues(alpha: 0.95),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                 ),
               ),
               const SizedBox(height: 2),
@@ -726,7 +726,7 @@ class _AppointmentCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Color(0xFFD9E2EC),
                   fontSize: 14,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -751,7 +751,7 @@ class _AppointmentCard extends StatelessWidget {
                         child: Text(
                           s.translate('doctor_appt_action_decline'),
                           style: const TextStyle(
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -775,7 +775,7 @@ class _AppointmentCard extends StatelessWidget {
                         child: Text(
                           s.translate('doctor_appt_action_complete'),
                           style: const TextStyle(
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),

@@ -17,6 +17,91 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
 
+/// Rose-gold / peach accents for bookings UI (section bars, cards, ticket highlights).
+const Color _kBookingsRoseTop = Color(0xFFE5989B);
+const Color _kBookingsRoseBottom = Color(0xFFB56576);
+const Color _kBookingsRoseSolid = Color(0xFFCB8E8E);
+
+const LinearGradient _kBookingsRoseBarGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [_kBookingsRoseTop, _kBookingsRoseBottom],
+);
+
+/// Premium booking card fill (rose → bronze purple).
+const LinearGradient _kBookingCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFFE5989B),
+    Color(0xFFB56576),
+    Color(0xFF6D597A),
+  ],
+  stops: [0.0, 0.52, 1.0],
+);
+
+const Color _kBookingCardTitleShadow = Color(0x66000000);
+const Color _kBookingCardCream = Color(0xFFFFF5F0);
+const Color _kBookingCardCreamMuted = Color(0xFFF0EBE8);
+
+/// Past bookings: classic gold / bronze (vertical).
+const LinearGradient _kPastBookingCardGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    Color(0xFFF5E6CA),
+    Color(0xFFD4A373),
+    Color(0xFFA98467),
+  ],
+  stops: [0.0, 0.5, 1.0],
+);
+
+const Color _kPastBookingTextBrown = Color(0xFF432818);
+const Color _kPastBookingNumberInk = Color(0xFF1A120E);
+
+/// Bronze / gold accent for dialog buttons (matches past-booking palette).
+const Color _kTicketDialogBronzeBorder = Color(0xFFD4A373);
+
+/// Soft shadow for rose-glass ticket preview (matches active booking cards).
+const List<BoxShadow> _kTicketPreviewShadows = [
+  BoxShadow(
+    color: Color(0x44B56576),
+    blurRadius: 26,
+    spreadRadius: 0,
+    offset: Offset(0, 10),
+  ),
+  BoxShadow(
+    color: Color(0x28000000),
+    blurRadius: 18,
+    spreadRadius: 0,
+    offset: Offset(0, 6),
+  ),
+];
+
+const List<Shadow> _kTicketPreviewTitleShadows = [
+  Shadow(
+    color: Color(0x66000000),
+    blurRadius: 10,
+    offset: Offset(0, 2),
+  ),
+];
+
+/// Matte-glass ticket preview (past bookings) — matches past booking cards.
+const List<BoxShadow> _kPastTicketPreviewShadows = [
+  BoxShadow(
+    color: Color(0x33A98467),
+    blurRadius: 20,
+    spreadRadius: 0,
+    offset: Offset(0, 8),
+  ),
+  BoxShadow(
+    color: Color(0x18000000),
+    blurRadius: 14,
+    spreadRadius: 0,
+    offset: Offset(0, 4),
+  ),
+];
+
 /// Parses [date] from Firestore: [Timestamp], [DateTime], or strings like `2026/03/30`.
 DateTime? _parseAppointmentDate(dynamic value) {
   if (value == null) return null;
@@ -169,8 +254,8 @@ class _DaysRemainingStyle {
     if (diff == 1) {
       return _DaysRemainingStyle(
         label: s.translate('day_tomorrow'),
-        foreground: const Color(0xFFFFCC80),
-        background: const Color(0x33FF9800),
+        foreground: _kBookingsRoseTop,
+        background: _kBookingsRoseBottom.withValues(alpha: 0.22),
       );
     }
     return _DaysRemainingStyle(
@@ -301,7 +386,7 @@ class _DashedLinePainter extends CustomPainter {
 }
 
 Color _statusPillBorder(String status, {required bool isPast}) {
-  if (isPast) return const Color(0xFF9E9E9E).withValues(alpha: 0.55);
+  if (isPast) return const Color(0xFF432818).withValues(alpha: 0.38);
   final s = status.toLowerCase().trim();
   if (s == 'completed') return const Color(0xFF1B5E20).withValues(alpha: 0.65);
   if (s == 'pending') return const Color(0xFFBF360C).withValues(alpha: 0.58);
@@ -310,7 +395,7 @@ Color _statusPillBorder(String status, {required bool isPast}) {
   }
   if (s == 'confirmed') return const Color(0xFF1A237E).withValues(alpha: 0.55);
   if (s == 'arrived') return const Color(0xFF3E2723).withValues(alpha: 0.5);
-  return const Color(0xFFD4AF37).withValues(alpha: 0.7);
+  return _kBookingsRoseSolid.withValues(alpha: 0.72);
 }
 
 class _PremiumBookingCard extends StatelessWidget {
@@ -375,37 +460,57 @@ class _PremiumBookingCard extends StatelessWidget {
   }
 
   Widget _infoChip(IconData icon, String text) {
-    final borderC = isPast
-        ? const Color(0xFF9E9E9E).withValues(alpha: 0.45)
-        : const Color(0xFFD4AF37).withValues(alpha: 0.55);
-    final iconC =
-        isPast ? const Color(0xFFBDBDBD) : const Color(0xFFFFD700);
-    final textC =
-        isPast ? const Color(0xFFE0E0E0) : const Color(0xFFF1F1F1);
+    if (isPast) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _kPastBookingTextBrown.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: _kPastBookingTextBrown.withValues(alpha: 0.22),
+            width: 0.7,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: _kPastBookingTextBrown),
+            const SizedBox(width: 6),
+            Text(
+              text,
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                color: _kPastBookingTextBrown,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isPast
-            ? const Color(0xFF2A2A2A).withValues(alpha: 0.85)
-            : const Color(0xFF252525),
+        color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: borderC,
-          width: 0.7,
+          color: Colors.white.withValues(alpha: 0.38),
+          width: 0.65,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: iconC),
+          Icon(icon, size: 14, color: _kBookingCardCream),
           const SizedBox(width: 6),
           Text(
             text,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w700,
               fontSize: 11.5,
-              color: textC,
+              color: _kBookingCardCream,
             ),
           ),
         ],
@@ -413,150 +518,205 @@ class _PremiumBookingCard extends StatelessWidget {
     );
   }
 
+  static const List<Shadow> _titleShadows = [
+    Shadow(
+      color: _kBookingCardTitleShadow,
+      blurRadius: 8,
+      offset: Offset(0, 1.5),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(context);
-    final gold = const Color(0xFFD4AF37);
-    final borderColor =
-        isPast ? const Color(0xFFB0BEC5).withValues(alpha: 0.55) : gold;
-    final borderW = pendingGlow && !isPast ? 2.35 : (isPast ? 0.85 : 1.0);
+
     final shadows = <BoxShadow>[
-      if (pendingGlow && !isPast) ...[
-        BoxShadow(
-          color: gold.withValues(alpha: 0.42),
-          blurRadius: 22,
-          spreadRadius: 0.5,
-          offset: const Offset(0, 4),
+      if (!isPast) ...[
+        const BoxShadow(
+          color: Color(0x44B56576),
+          blurRadius: 20,
+          spreadRadius: 0,
+          offset: Offset(0, 7),
         ),
-        BoxShadow(
-          color: const Color(0xFFFFD700).withValues(alpha: 0.22),
-          blurRadius: 12,
-          offset: const Offset(0, 2),
-        ),
-      ] else if (!isPast)
-        BoxShadow(
-          color: gold.withValues(alpha: 0.16),
-          blurRadius: 14,
-          offset: const Offset(0, 4),
-        )
-      else
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 8,
-          offset: const Offset(0, 3),
+        if (pendingGlow) ...[
+          BoxShadow(
+            color: _kBookingsRoseBottom.withValues(alpha: 0.35),
+            blurRadius: 22,
+            spreadRadius: 0.5,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ] else
+        const BoxShadow(
+          color: Color(0x33A98467),
+          blurRadius: 16,
+          spreadRadius: 0,
+          offset: Offset(0, 6),
         ),
     ];
 
-    final card = Container(
-      padding: const EdgeInsets.all(14),
+    final statusPill = Container(
+      padding: const EdgeInsets.all(1.2),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: borderColor,
-          width: borderW,
-        ),
-        boxShadow: shadows,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 60,
-            child: Text(
-              queueLabel,
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
-                color: Color(0xFFFFD700),
-                height: 1,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  doctorName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFFFFD700),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  specialty,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: const Color(0xFFE8E8E8).withValues(alpha: 0.95),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusStyle.$2,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: _statusPillBorder(
-                        status,
-                        isPast: isPast,
-                      ),
-                      width: 0.85,
-                    ),
-                  ),
-                  child: Text(
-                    statusStyle.$1,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                      color: statusStyle.$3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 1,
-                  width: double.infinity,
-                  color: isPast
-                      ? const Color(0xFF9E9E9E).withValues(alpha: 0.35)
-                      : const Color(0xFFD4AF37).withValues(alpha: 0.45),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _infoChip(Icons.calendar_today_rounded, dateStr),
-                    _infoChip(Icons.schedule_rounded, timeStr),
-                    _infoChip(Icons.person_rounded, patientName),
-                  ],
-                ),
-              ],
-            ),
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 5,
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: statusStyle.$2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _statusPillBorder(status, isPast: isPast),
+            width: 0.85,
+          ),
+        ),
+        child: Text(
+          statusStyle.$1,
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.bold,
+            fontSize: 11.5,
+            color: statusStyle.$3,
+          ),
+        ),
+      ),
     );
 
+    final inner = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            queueLabel,
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.bold,
+              fontSize: 26,
+              height: 1,
+              color: isPast ? _kPastBookingNumberInk : Colors.white,
+              letterSpacing: isPast ? 0.2 : 0,
+              shadows: isPast ? null : _titleShadows,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                doctorName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: isPast ? _kPastBookingTextBrown : Colors.white,
+                  shadows: isPast ? null : _titleShadows,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                specialty,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: isPast
+                      ? _kPastBookingTextBrown.withValues(alpha: 0.88)
+                      : _kBookingCardCreamMuted.withValues(alpha: 0.95),
+                ),
+              ),
+              const SizedBox(height: 8),
+              statusPill,
+              const SizedBox(height: 10),
+              Container(
+                height: 1,
+                width: double.infinity,
+                color: isPast
+                    ? _kPastBookingTextBrown.withValues(alpha: 0.28)
+                    : Colors.white.withValues(alpha: 0.38),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _infoChip(Icons.calendar_today_rounded, dateStr),
+                  _infoChip(Icons.schedule_rounded, timeStr),
+                  _infoChip(Icons.person_rounded, patientName),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final Widget card;
     if (isPast) {
-      return Opacity(
-        opacity: 0.86,
-        child: card,
+      card = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: shadows,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: _kPastBookingCardGradient,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.42),
+                width: 0.5,
+              ),
+            ),
+            child: inner,
+          ),
+        ),
+      );
+    } else {
+      card = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: shadows,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: _kBookingCardGradient,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.48),
+                width: 0.5,
+              ),
+            ),
+            child: inner,
+          ),
+        ),
       );
     }
+
     return card;
   }
 }
@@ -568,13 +728,13 @@ Widget _myBookingsSectionHeader(String title) {
       children: [
         Container(
           width: 4,
-          height: 24,
+          height: 26,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFD700),
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(2),
+            gradient: _kBookingsRoseBarGradient,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                color: _kBookingsRoseSolid.withValues(alpha: 0.42),
                 blurRadius: 8,
                 offset: const Offset(0, 1),
               ),
@@ -611,6 +771,7 @@ class _TicketVisual extends StatelessWidget {
     required this.daysStyle,
     required this.holeColor,
     required this.isPreview,
+    this.isPastBooking = false,
   });
 
   final String doctorName;
@@ -623,9 +784,13 @@ class _TicketVisual extends StatelessWidget {
   final Color holeColor;
   final bool isPreview;
 
+  /// When [isPreview] is true, selects matte gold (past) vs rose-gold (active)
+  /// dialog styling. Ignored for list tiles.
+  final bool isPastBooking;
+
   static const Color _ticketBg = Color(0xFF1E1E2C);
   static const Color _ticketBorder = Color(0xFF3D3D52);
-  static const Color _doctorAccent = Color(0xFFFFD700);
+  static const Color _doctorAccent = _kBookingsRoseTop;
   static const Color _labelDim = Color(0xFF8B95A8);
   static const Color _bodyLight = Color(0xFFECEFF4);
   static const Color _bodyMuted = Color(0xFFC5CBD6);
@@ -642,7 +807,7 @@ class _TicketVisual extends StatelessWidget {
     final innerR = BorderRadius.circular(isPreview ? 15 : 11);
 
     final double doctorSize = isPreview ? 24 : 13;
-    final int doctorMaxLines = isPreview ? 4 : 1;
+    final int doctorMaxLines = isPreview ? 3 : 1;
     final double queueSize = isPreview ? 56 : 30;
     final double labelSize = isPreview ? 12 : 10;
     final double bodyMutedSize = isPreview ? 15 : 12.5;
@@ -652,94 +817,92 @@ class _TicketVisual extends StatelessWidget {
         ? const EdgeInsets.fromLTRB(18, 16, 18, 10)
         : const EdgeInsets.fromLTRB(12, 10, 12, 6);
     final EdgeInsets footerPad = isPreview
-        ? const EdgeInsets.fromLTRB(18, 10, 18, 18)
+        ? const EdgeInsets.fromLTRB(18, 10, 18, 16)
         : const EdgeInsets.fromLTRB(12, 6, 12, 12);
-    final double queueVPad = isPreview ? 14 : 6;
+    final double queueVPad = isPreview ? 10 : 6;
     final double daysChipFont = isPreview ? 12 : 10;
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: isPreview ? 0 : 2),
-      decoration: BoxDecoration(
-        color: _ticketBg,
-        borderRadius: r,
-        border: Border.all(
-          color: _ticketBorder,
-          width: isPreview ? 1.2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isPreview ? 0.55 : 0.45),
-            blurRadius: isPreview ? 28 : 18,
-            offset: Offset(0, isPreview ? 12 : 8),
-            spreadRadius: isPreview ? -4 : -6,
-          ),
-          BoxShadow(
-            color: const Color(0xFF64B5F6).withValues(alpha: isPreview ? 0.1 : 0.06),
-            blurRadius: isPreview ? 20 : 14,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: innerR,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: headerPad,
-              child: Row(
-                textDirection: rowDir,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: isPreview
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'HR Nora',
-                                textAlign: textEnd,
-                                style: TextStyle(
-                                  color: _labelDim,
-                                  fontSize: labelSize,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                S.of(context).translate('ticket_doctor_label'),
-                                textAlign: textEnd,
-                                style: TextStyle(
-                                  color: _labelDim,
-                                  fontSize: labelSize * 0.92,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                doctorName,
-                                textAlign: textEnd,
-                                maxLines: doctorMaxLines,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: _doctorAccent,
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: doctorSize,
-                                  height: 1.25,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0x40000000),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          )
+    final pastPreview = isPreview && isPastBooking;
+
+    final effectiveHole = isPreview
+        ? (pastPreview ? const Color(0xFF2A2419) : const Color(0xFF1A1520))
+        : holeColor;
+    final effectiveDash = isPreview
+        ? (pastPreview
+            ? _kPastBookingTextBrown.withValues(alpha: 0.38)
+            : Colors.white.withValues(alpha: 0.4))
+        : _dashSubtle;
+    final labelMuted = pastPreview
+        ? _kPastBookingTextBrown.withValues(alpha: 0.82)
+        : (isPreview ? kPatientNavyText.withValues(alpha: 0.82) : _labelDim);
+    final ticketColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: headerPad,
+          child: Row(
+            textDirection: rowDir,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: isPreview
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'HR Nora',
+                            textAlign: textEnd,
+                            style: TextStyle(
+                              color: labelMuted,
+                              fontFamily: kPatientPrimaryFont,
+                              fontSize: labelSize,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            S.of(context).translate('ticket_doctor_label'),
+                            textAlign: textEnd,
+                            style: TextStyle(
+                              color: labelMuted,
+                              fontFamily: kPatientPrimaryFont,
+                              fontSize: labelSize * 0.92,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            doctorName,
+                            textAlign: textEnd,
+                            maxLines: doctorMaxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: pastPreview
+                                  ? _kPastBookingTextBrown
+                                  : (isPreview
+                                      ? Colors.white
+                                      : _doctorAccent),
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.bold,
+                              fontSize: doctorSize,
+                              height: 1.25,
+                              shadows: pastPreview
+                                  ? null
+                                  : (isPreview
+                                      ? _kTicketPreviewTitleShadows
+                                      : const [
+                                          Shadow(
+                                            color: Color(0x40000000),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ]),
+                            ),
+                          ),
+                        ],
+                      )
                         : Row(
                             textDirection: rowDir,
                             children: [
@@ -787,8 +950,12 @@ class _TicketVisual extends StatelessWidget {
                       color: badge.$1,
                       borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
                       border: Border.all(
-                        color: badge.$2.withValues(alpha: 0.35),
-                        width: 0.7,
+                        color: pastPreview
+                            ? Colors.white.withValues(alpha: 0.5)
+                            : (isPreview
+                                ? Colors.white.withValues(alpha: 0.55)
+                                : badge.$2.withValues(alpha: 0.35)),
+                        width: isPreview ? 0.85 : 0.7,
                       ),
                     ),
                     child: Text(
@@ -805,119 +972,331 @@ class _TicketVisual extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
-              child: _TicketTearRow(
-                holeColor: holeColor,
-                dashColor: _dashSubtle,
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: queueVPad),
-              child: Center(
-                child: Text(
-                  queueLabel,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    color: _queueLight,
-                    fontSize: queueSize,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: isPreview ? 1.2 : 0.5,
-                    height: 1,
-                    shadows: isPreview
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
+          child: _TicketTearRow(
+            holeColor: effectiveHole,
+            dashColor: effectiveDash,
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: queueVPad),
+          child: Center(
+            child: Text(
+              queueLabel,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                color: pastPreview
+                    ? _kPastBookingTextBrown
+                    : (isPreview ? Colors.white : _queueLight),
+                fontSize: queueSize,
+                fontWeight: FontWeight.bold,
+                letterSpacing: isPreview ? 1.2 : 0.5,
+                height: 1,
+                shadows: pastPreview
+                    ? null
+                    : (isPreview
                         ? const [
                             Shadow(
-                              color: Color(0x66000000),
-                              blurRadius: 12,
+                              color: Color(0x77000000),
+                              blurRadius: 14,
                               offset: Offset(0, 3),
                             ),
                           ]
-                        : null,
+                        : null),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
+          child: _TicketTearRow(
+            holeColor: effectiveHole,
+            dashColor: effectiveDash,
+          ),
+        ),
+        Padding(
+          padding: footerPad,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (pastPreview) ...[
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontSize: bodyMutedSize,
+                      height: 1.25,
+                      color: _kPastBookingTextBrown,
+                    ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_date')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: dateStr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: isPreview ? 14 : 10),
-              child: _TicketTearRow(
-                holeColor: holeColor,
-                dashColor: _dashSubtle,
-              ),
-            ),
-            Padding(
-              padding: footerPad,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '${S.of(context).translate('ticket_date')}: $dateStr',
-                    textAlign: textEnd,
+                const SizedBox(height: 5),
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
                     style: TextStyle(
-                      color: _bodyMuted,
                       fontFamily: kPatientPrimaryFont,
                       fontSize: bodyMutedSize,
-                      fontWeight: FontWeight.w500,
                       height: 1.25,
+                      color: _kPastBookingTextBrown,
                     ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_time')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: timeStr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: isPreview ? 5 : 3),
-                  Text(
-                    '${S.of(context).translate('ticket_time')}: $timeStr',
-                    textAlign: textEnd,
+                ),
+                const SizedBox(height: 5),
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
                     style: TextStyle(
-                      color: _bodyMuted,
-                      fontFamily: kPatientPrimaryFont,
-                      fontSize: bodyMutedSize,
-                      fontWeight: FontWeight.w500,
-                      height: 1.25,
-                    ),
-                  ),
-                  SizedBox(height: isPreview ? 5 : 3),
-                  Text(
-                    '${S.of(context).translate('ticket_patient')}: $patientName',
-                    textAlign: textEnd,
-                    style: TextStyle(
-                      color: _bodyLight,
                       fontFamily: kPatientPrimaryFont,
                       fontSize: patientSize,
-                      fontWeight: FontWeight.w400,
                       height: 1.25,
+                      color: _kPastBookingTextBrown,
                     ),
-                  ),
-                  if (daysStyle != null) ...[
-                    SizedBox(height: isPreview ? 10 : 6),
-                    Align(
-                      alignment: isRtl
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isPreview ? 10 : 8,
-                          vertical: isPreview ? 5 : 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: daysStyle!.background,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: daysStyle!.foreground.withValues(alpha: 0.35),
-                          ),
-                        ),
-                        child: Text(
-                          daysStyle!.label,
-                          style: TextStyle(
-                            color: daysStyle!.foreground,
-                            fontFamily: kPatientPrimaryFont,
-                            fontSize: daysChipFont,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_patient')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: patientName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _kPastBookingTextBrown,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ] else if (isPreview) ...[
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontSize: bodyMutedSize,
+                      height: 1.25,
+                      color: kPatientNavyText.withValues(alpha: 0.88),
                     ),
-                  ],
-                ],
-              ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_date')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      TextSpan(
+                        text: dateStr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontSize: bodyMutedSize,
+                      height: 1.25,
+                      color: kPatientNavyText.withValues(alpha: 0.88),
+                    ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_time')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      TextSpan(
+                        text: timeStr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text.rich(
+                  textAlign: textEnd,
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontSize: patientSize,
+                      height: 1.25,
+                      color: kPatientNavyText.withValues(alpha: 0.88),
+                    ),
+                    children: [
+                      TextSpan(
+                        text:
+                            '${S.of(context).translate('ticket_patient')}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      TextSpan(
+                        text: patientName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  '${S.of(context).translate('ticket_date')}: $dateStr',
+                  textAlign: textEnd,
+                  style: TextStyle(
+                    color: _bodyMuted,
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: bodyMutedSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                ),
+                SizedBox(height: isPreview ? 5 : 3),
+                Text(
+                  '${S.of(context).translate('ticket_time')}: $timeStr',
+                  textAlign: textEnd,
+                  style: TextStyle(
+                    color: _bodyMuted,
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: bodyMutedSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                ),
+                SizedBox(height: isPreview ? 5 : 3),
+                Text(
+                  '${S.of(context).translate('ticket_patient')}: $patientName',
+                  textAlign: textEnd,
+                  style: TextStyle(
+                    color: _bodyLight,
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: patientSize,
+                    fontWeight: FontWeight.bold,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+              if (daysStyle != null) ...[
+                SizedBox(height: isPreview ? 10 : 6),
+                Align(
+                  alignment: isRtl
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isPreview ? 10 : 8,
+                      vertical: isPreview ? 5 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: daysStyle!.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: pastPreview
+                            ? _kPastBookingTextBrown.withValues(alpha: 0.3)
+                            : (isPreview
+                                ? Colors.white.withValues(alpha: 0.45)
+                                : daysStyle!.foreground
+                                    .withValues(alpha: 0.35)),
+                        width: isPreview ? 0.85 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      daysStyle!.label,
+                      style: TextStyle(
+                        color: daysStyle!.foreground,
+                        fontFamily: kPatientPrimaryFont,
+                        fontSize: daysChipFont,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!isPreview) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: _ticketBg,
+          borderRadius: r,
+          border: Border.all(
+            color: _ticketBorder,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+              spreadRadius: -6,
+            ),
+            BoxShadow(
+              color: const Color(0xFF64B5F6).withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: innerR,
+          child: ticketColumn,
+        ),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.zero,
+      decoration: BoxDecoration(
+        borderRadius: r,
+        boxShadow: pastPreview
+            ? _kPastTicketPreviewShadows
+            : _kTicketPreviewShadows,
+      ),
+      child: ClipRRect(
+        borderRadius: r,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: pastPreview
+                ? _kPastBookingCardGradient
+                : _kBookingCardGradient,
+            borderRadius: r,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.48),
+              width: 0.5,
+            ),
+          ),
+          child: ticketColumn,
         ),
       ),
     );
@@ -935,6 +1314,7 @@ class _TicketPreviewPage extends StatelessWidget {
     required this.queueLabel,
     required this.daysStyle,
     required this.holeColor,
+    required this.isPastBooking,
   });
 
   final String heroTag;
@@ -946,6 +1326,9 @@ class _TicketPreviewPage extends StatelessWidget {
   final String queueLabel;
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
+
+  /// [true] when status is completed/cancelled (نۆرەکانی پێشوو).
+  final bool isPastBooking;
 
   @override
   Widget build(BuildContext context) {
@@ -974,62 +1357,96 @@ class _TicketPreviewPage extends StatelessWidget {
             ),
           ),
           SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: Color(0xFF90CAF9),
-                          size: 22,
-                        ),
-                        label: Text(
-                          S.of(context).translate('close'),
-                          style: const TextStyle(
-                            color: Color(0xFFECEFF4),
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w400,
-                            fontSize: 15,
-                          ),
-                        ),
+            maintainBottomViewPadding: true,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: true,
+              body: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenH = MediaQuery.sizeOf(context).height;
+                  final maxPanelH = math.min(
+                    screenH * 0.8,
+                    constraints.maxHeight,
+                  );
+                  final panelW = math.min(
+                    maxW + 32,
+                    math.max(0.0, constraints.maxWidth - 24),
+                  );
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => Navigator.of(context).maybePop(),
-                            child: const SizedBox.expand(),
-                          ),
-                          Center(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: maxW,
-                                maxHeight: constraints.maxHeight * 0.88,
-                              ),
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 8,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: panelW,
+                          maxHeight: maxPanelH,
+                        ),
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          clipBehavior: Clip.hardEdge,
+                          padding: const EdgeInsets.only(bottom: 28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment:
+                                    AlignmentDirectional.centerStart,
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      Navigator.of(context).maybePop(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    textStyle: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                    side: const BorderSide(
+                                      color: _kTicketDialogBronzeBorder,
+                                      width: 1.25,
+                                    ),
+                                    backgroundColor: Colors.white
+                                        .withValues(alpha: 0.06),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                  label: Text(
+                                    S.of(context).translate('close'),
+                                    style: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
                                 ),
-                                child: GestureDetector(
-                                  onTap: () {},
-                                  behavior: HitTestBehavior.translucent,
+                              ),
+                              const SizedBox(height: 14),
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: maxW,
+                                  ),
                                   child: Hero(
                                     tag: heroTag,
                                     child: Material(
+                                      type: MaterialType.transparency,
                                       color: Colors.transparent,
+                                      clipBehavior: Clip.none,
                                       child: _TicketVisual(
                                         doctorName: doctorName,
                                         patientName: patientName,
@@ -1040,19 +1457,20 @@ class _TicketPreviewPage extends StatelessWidget {
                                         daysStyle: daysStyle,
                                         holeColor: holeColor,
                                         isPreview: true,
+                                        isPastBooking: isPastBooking,
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -1072,6 +1490,7 @@ void _openTicketPreview(
   required String queueLabel,
   required _DaysRemainingStyle? daysStyle,
   required Color holeColor,
+  required bool isPastBooking,
 }) {
   Navigator.of(context).push<void>(
     PageRouteBuilder<void>(
@@ -1091,6 +1510,7 @@ void _openTicketPreview(
           queueLabel: queueLabel,
           daysStyle: daysStyle,
           holeColor: holeColor,
+          isPastBooking: isPastBooking,
         );
       },
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -1252,7 +1672,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           return Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
-              style: TextStyle(color: _uiMuted, fontFamily: 'KurdishFont'),
+              style: TextStyle(color: _uiMuted, fontFamily: 'NRT'),
             ),
           );
         }
@@ -1313,12 +1733,12 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             shape: BoxShape.circle,
                             color: const Color(0xFF1E1E1E),
                             border: Border.all(
-                              color: const Color(0xFFD4AF37),
+                              color: _kBookingsRoseSolid,
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                                color: _kBookingsRoseTop.withValues(alpha: 0.22),
                                 blurRadius: 14,
                                 offset: const Offset(0, 5),
                               ),
@@ -1327,7 +1747,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           child: const Icon(
                             Icons.event_note_rounded,
                             size: 52,
-                            color: Color(0xFFFFD700),
+                            color: _kBookingsRoseTop,
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -1409,6 +1829,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       queueLabel: queueLabel,
                       daysStyle: daysStyle,
                       holeColor: _holeColor,
+                      isPastBooking:
+                          _isPastAppointmentStatus(stNorm),
                     ),
                     behavior: HitTestBehavior.opaque,
                     child: Hero(
@@ -1420,15 +1842,15 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           borderRadius: BorderRadius.circular(20),
                           border: isHighlighted
                               ? Border.all(
-                                  color: const Color(0xFFD4AF37),
+                                  color: _kBookingsRoseSolid,
                                   width: 1.4,
                                 )
                               : null,
                           boxShadow: isHighlighted
                               ? [
                                   BoxShadow(
-                                    color: const Color(0xFFD4AF37)
-                                        .withValues(alpha: 0.33),
+                                    color: _kBookingsRoseBottom
+                                        .withValues(alpha: 0.32),
                                     blurRadius: 16,
                                     offset: const Offset(0, 5),
                                   ),
@@ -1465,7 +1887,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       style: TextStyle(
                         color: kPatientNavyText.withValues(alpha: 0.78),
                         fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.bold,
                         fontSize: 13.5,
                       ),
                     ),
@@ -1494,7 +1916,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       style: TextStyle(
                         color: kPatientNavyText.withValues(alpha: 0.72),
                         fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
                     ),

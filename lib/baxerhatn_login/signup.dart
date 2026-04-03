@@ -5,8 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../auth/phone_auth_config.dart';
 import '../auth/phone_normalization.dart';
 import '../locale/app_locale.dart';
@@ -539,7 +537,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Text(
                       message,
                       style: const TextStyle(
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontWeight: FontWeight.w700,
                         color: Color(0xFFFFEBEE),
                         height: 1.35,
@@ -598,10 +596,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: Text(
                     S.of(context).translate('sign_up_title'),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.vazirmatn(
+                    style: TextStyle(
+                      fontFamily: 'NRT',
                       color: Colors.white,
                       fontSize: 26,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.85,
                       height: 1.25,
                       shadows: [
@@ -618,11 +617,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 Text(
                   S.of(context).translate('sign_up_subtitle'),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.vazirmatn(
+                  style: TextStyle(
+                    fontFamily: 'NRT',
                     color: Colors.white.withValues(alpha: 0.58),
                     fontSize: 13,
                     height: 1.45,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -799,7 +799,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         color: Colors.white,
                       ),
                     ),
@@ -826,20 +826,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
       hintText: hintText,
       labelStyle: const TextStyle(
         color: _muted,
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
         fontSize: 14,
         height: 1.25,
       ),
       floatingLabelStyle: const TextStyle(
         color: _muted,
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
         fontSize: 12,
         height: 1.15,
         fontWeight: FontWeight.w600,
       ),
       hintStyle: TextStyle(
         color: _muted.withValues(alpha: 0.65),
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
       ),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
@@ -909,7 +909,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isSelected ? _text : _muted.withValues(alpha: 0.95),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 14,
                   height: 1.25,
@@ -1018,7 +1018,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           onChanged: onChanged,
           style: const TextStyle(
             color: _text,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontWeight: FontWeight.w600,
           ),
           decoration: decoration,
@@ -1180,7 +1180,7 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                   Text(
                     s.translate('signup_doctor_security_title'),
                     style: const TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       color: _text,
                       fontWeight: FontWeight.w700,
                       fontSize: 20,
@@ -1257,7 +1257,7 @@ class _DoctorWarningText extends StatelessWidget {
                   textAlign: TextAlign.right,
                   text: TextSpan(
                     style: TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       color: warningColor.withValues(alpha: 0.95),
                       fontSize: 13,
                       height: 1.6,
@@ -1320,7 +1320,7 @@ class _DoctorCodeInput extends StatelessWidget {
         controller: controller,
         style: TextStyle(
           color: textColor,
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
@@ -1329,13 +1329,13 @@ class _DoctorCodeInput extends StatelessWidget {
           labelText: hintText,
           labelStyle: TextStyle(
             color: mutedColor,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 14,
             height: 1.25,
           ),
           floatingLabelStyle: TextStyle(
             color: mutedColor,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 12,
             height: 1.15,
             fontWeight: FontWeight.w600,
@@ -1404,7 +1404,7 @@ class _DoctorDialogActions extends StatelessWidget {
             child: Text(
               cancelText,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1433,7 +1433,7 @@ class _DoctorDialogActions extends StatelessWidget {
               child: Text(
                 confirmText,
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w700,
                 ),
               ),

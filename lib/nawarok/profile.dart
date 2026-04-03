@@ -56,7 +56,7 @@ class ProfileScreen extends StatelessWidget {
                                 const SnackBar(
                                   content: Text(
                                     'تکایە بچۆ ژوورەوە بۆ گۆڕینی وێنە',
-                                    style: TextStyle(fontFamily: 'KurdishFont'),
+                                    style: TextStyle(fontFamily: 'NRT'),
                                   ),
                                 ),
                               );

@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Text(
                       message,
                       style: const TextStyle(
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontWeight: FontWeight.w700,
                         color: Color(0xFFFFEBEE),
                         height: 1.35,
@@ -282,7 +282,7 @@ class _LoginScreenState extends State<LoginScreen>
         SnackBar(
           content: Text(
             '${S.of(context).translate('error_generic')} [${e.code}]',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -294,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
         SnackBar(
           content: Text(
             S.of(context).translate('error_generic'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -388,7 +388,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             S.of(context).translate('forgot_password'),
                                             style: TextStyle(
                                               color: _muted.withValues(alpha: 0.95),
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: 'NRT',
                                             ),
                                           ),
                                         ),
@@ -421,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               style: const TextStyle(
                                                 color: Color(0xFFCFD9EA),
                                                 fontWeight: FontWeight.w700,
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                               ),
                                             ),
                                           ),
@@ -536,7 +536,7 @@ class _LoginScreenState extends State<LoginScreen>
             color: _text,
             fontSize: 30,
             fontWeight: FontWeight.w800,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
         const SizedBox(height: 6),
@@ -546,7 +546,7 @@ class _LoginScreenState extends State<LoginScreen>
           style: TextStyle(
             color: _muted.withValues(alpha: 0.9),
             fontSize: 14,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ],
@@ -588,7 +588,7 @@ class _LoginScreenState extends State<LoginScreen>
       obscureText: isPassword ? _isObscured : false,
       maxLength: maxLength,
       inputFormatters: inputFormatters,
-      style: const TextStyle(color: _text, fontFamily: 'KurdishFont'),
+      style: const TextStyle(color: _text, fontFamily: 'NRT'),
       decoration: InputDecoration(
         counterText: maxLength != null ? '' : null,
         labelText: label,
@@ -654,7 +654,7 @@ class _LoginScreenState extends State<LoginScreen>
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Colors.white.withValues(alpha: _isLoading ? 0.65 : 1),
                 ),
               ),

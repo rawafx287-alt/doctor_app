@@ -20,9 +20,9 @@ import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
-const double _kHomeSearchHeaderExtent = 48;
+const double _kHomeSearchHeaderExtent = 44;
 /// Fixed height for specialty block (title + chip row + padding) under search.
-const double _kHomeSpecialtiesHeaderExtent = 174;
+const double _kHomeSpecialtiesHeaderExtent = 132;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -149,7 +149,7 @@ Widget _patientGlassMenuInkRow({
               label,
               style: const TextStyle(
                 fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.bold,
                 fontSize: 15,
                 height: 1.25,
                 color: _kGlassMenuCharcoal,
@@ -319,7 +319,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     const hintGrey = Color(0xFF455A64);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 3),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -425,7 +425,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       style: const TextStyle(
                         color: _kCharcoal,
                         fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.bold,
                         fontSize: 15,
                         height: 1.2,
                         letterSpacing: 0.22,
@@ -438,7 +438,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         hintStyle: const TextStyle(
                           color: hintGrey,
                           fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.bold,
                           fontSize: 14,
                           height: 1.2,
                           letterSpacing: 0.18,
@@ -446,16 +446,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         prefixIcon: Icon(
                           Icons.search_rounded,
                           color: _kDoctorNameNavy,
-                          size: 20,
+                          size: 18,
                         ),
                         prefixIconConstraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 32,
+                          minWidth: 36,
+                          minHeight: 28,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 6,
+                          vertical: 4,
                         ),
                       ),
                     ),
@@ -484,12 +484,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       bool floating = false,
     }) {
       return SizedBox(
-        width: 74,
-        height: 124,
+        width: 56,
+        height: 96,
         child: Align(
           alignment: Alignment.topCenter,
           child: AnimatedScale(
-            scale: selected ? 1.15 : 1.0,
+            scale: selected ? 1.12 : 1.0,
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
             alignment: Alignment.center,
@@ -498,7 +498,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
                 _CategoryGlassOrb(
                   categoryKey: catKey,
                   selected: selected,
@@ -506,10 +506,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   accent: acc,
                   floating: floating,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 SizedBox(
-                  width: 72,
-                  height: 34,
+                  width: 54,
+                  height: 28,
                   child: Text(
                     S.of(context).translate(catKey),
                     maxLines: 2,
@@ -519,8 +519,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     style: TextStyle(
                       fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      height: 1.12,
+                      fontSize: 9.5,
+                      height: 1.1,
                       color: selected
                           ? _categoryLabelDark(catKey)
                           : _categoryLabelDark(catKey).withValues(alpha: 0.82),
@@ -539,7 +539,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: Text(
@@ -548,16 +548,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   color: _kDarkBlue,
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 12.5,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
             child: SizedBox(
-              height: 138,
+              height: 104,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -574,20 +574,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SizedBox(
-                              width: 96,
-                              height: 124,
+                              width: 74,
+                              height: 96,
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 4),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       SizedBox(
-                                        width: 76,
-                                        height: _CategoryGlassOrb._cardH + 12,
+                                        width: 58,
+                                        height: _CategoryGlassOrb._cardH + 8,
                                         child: Center(
                                           child: AnimatedScale(
                                             scale: allSelected ? 1.15 : 1.0,
@@ -606,9 +606,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: 10),
                                       Container(
-                                        width: 1.5,
+                                        width: 1.25,
                                         height: _CategoryGlassOrb._cardH,
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(10),
@@ -629,10 +629,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                                   SizedBox(
-                                    width: 72,
-                                    height: 34,
+                                    width: 54,
+                                    height: 28,
                                     child: Text(
                                       S.of(context).translate(kPatientSpecialtyAllKey),
                                       maxLines: 2,
@@ -641,11 +641,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontFamily: kPatientPrimaryFont,
-                                        fontWeight: allSelected
-                                            ? FontWeight.bold
-                                            : FontWeight.w400,
-                                        fontSize: 11,
-                                        height: 1.12,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 9.5,
+                                        height: 1.1,
                                         color: allSelected
                                             ? _categoryLabelDark(
                                                 kPatientSpecialtyAllKey,
@@ -664,19 +662,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     ),
                   ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16.5),
+                    borderRadius: BorderRadius.circular(14),
                     clipBehavior: Clip.antiAlias,
                     child: ColoredBox(
                       color: kPatientSkyTop.withValues(alpha: 0.82),
                       child: ListView.separated(
                         padding: const EdgeInsetsDirectional.fromSTEB(
-                          12,
-                          10,
-                          20,
-                          6,
+                          8,
+                          5,
+                          14,
+                          4,
                         ),
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(
@@ -684,7 +682,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         ),
                         clipBehavior: Clip.none,
                         itemCount: scrollableCategoryKeys.length,
-                        separatorBuilder: (context, _) => const SizedBox(width: 10),
+                        separatorBuilder: (context, _) => const SizedBox(width: 6),
                         itemBuilder: (context, index) {
                           final catKey = scrollableCategoryKeys[index];
                           final selected = _selectedCategory == catKey;
@@ -751,7 +749,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 style: const TextStyle(
                   color: Colors.redAccent,
                   fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -768,14 +766,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       return [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, padBottom),
             child: Text(
               S.of(context).translate('doctors_empty_search'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _kMutedGrey,
                 fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
@@ -786,7 +784,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
     return [
       SliverPadding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, padBottom),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, padBottom),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             addRepaintBoundaries: false,
@@ -1253,8 +1251,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontSize: 10.5,
-                          fontWeight:
-                              selected ? FontWeight.bold : FontWeight.w400,
+                          fontWeight: FontWeight.bold,
                           color: animatedColor ?? _kMutedGrey,
                           height: 1.1,
                         ),
@@ -1331,8 +1328,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontSize: 10.5,
-                          fontWeight:
-                              selected ? FontWeight.bold : FontWeight.w400,
+                          fontWeight: FontWeight.bold,
                           color: selected ? const Color(0xFFB8860B) : _kMutedGrey,
                           height: 1.1,
                         ),
@@ -1718,10 +1714,10 @@ class _CategoryGlassOrb extends StatelessWidget {
   final Color accent;
   final bool floating;
 
-  static const double _cardW = 60;
-  static const double _cardH = 58;
-  static const double _iconContainer = 30;
-  static const double _iconSize = 14;
+  static const double _cardW = 45;
+  static const double _cardH = 44;
+  static const double _iconContainer = 23;
+  static const double _iconSize = 11;
 
   @override
   Widget build(BuildContext context) {
@@ -1735,21 +1731,21 @@ class _CategoryGlassOrb extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(
             color: selected
                 ? accent
                 : Colors.white.withValues(alpha: 0.12),
-            width: selected ? 2.0 : 0.8,
+            width: selected ? 1.65 : 0.65,
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(15),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(15),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -1760,9 +1756,9 @@ class _CategoryGlassOrb extends StatelessWidget {
                 ),
               ),
               child: Container(
-                margin: const EdgeInsets.all(1.0),
+                margin: const EdgeInsets.all(0.85),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(19),
+                  borderRadius: BorderRadius.circular(14),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1774,10 +1770,10 @@ class _CategoryGlassOrb extends StatelessWidget {
                 ),
                 child: Container(
                   margin: EdgeInsets.all(
-                    _isAllCategory(categoryKey) ? 2.8 : 1.25,
+                    _isAllCategory(categoryKey) ? 2.1 : 1.0,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(17),
+                    borderRadius: BorderRadius.circular(12),
                     color: Colors.white.withValues(alpha: 0.08),
                   ),
                   child: Center(
@@ -1785,7 +1781,7 @@ class _CategoryGlassOrb extends StatelessWidget {
                       width: _iconContainer,
                       height: _iconContainer,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                         gradient: RadialGradient(
                           center: const Alignment(-0.3, -0.35),
                           radius: 1.12,
@@ -1801,8 +1797,8 @@ class _CategoryGlassOrb extends StatelessWidget {
                         child: visual.svgAsset != null
                             ? SvgPicture.asset(
                                 visual.svgAsset!,
-                                width: selected ? _iconSize + 4 : _iconSize + 2,
-                                height: selected ? _iconSize + 4 : _iconSize + 2,
+                                width: selected ? _iconSize + 3 : _iconSize + 1.5,
+                                height: selected ? _iconSize + 3 : _iconSize + 1.5,
                                 colorFilter: ColorFilter.mode(
                                   Colors.white,
                                   BlendMode.srcIn,
@@ -1810,7 +1806,7 @@ class _CategoryGlassOrb extends StatelessWidget {
                               )
                             : FaIcon(
                                 visual.icon,
-                                size: selected ? _iconSize + 2 : _iconSize,
+                                size: selected ? _iconSize + 1.5 : _iconSize,
                                 color: Colors.white,
                               ),
                       ),

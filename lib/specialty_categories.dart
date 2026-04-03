@@ -132,7 +132,7 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
       color: const Color(0xFFD9E2EC),
       fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
       fontSize: dense ? 15 : 16,
-      fontWeight: FontWeight.w400,
+      fontWeight: FontWeight.bold,
     );
     return DropdownButtonFormField<String>(
       initialValue: value != null && kDoctorSpecialtyOptions.contains(value) ? value : null,
@@ -156,7 +156,7 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
           fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
           fontSize: dense ? 11.5 : 12,
           height: 1.15,
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.bold,
         ),
         hintText: s.translate('dropdown_specialty_hint'),
         hintStyle: TextStyle(

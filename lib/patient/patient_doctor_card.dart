@@ -377,7 +377,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       height: 1.1,
-                                      fontWeight: FontWeight.w400,
+                                      fontWeight: FontWeight.bold,
                                       fontFamily: kPatientPrimaryFont,
                                       color: _navyText.withValues(alpha: 0.58),
                                     ),

@@ -33,7 +33,7 @@ class _SecretaryAvailableDaysScreenState
           foregroundColor: const Color(0xFFD9E2EC),
           title: Text(
             s.translate('secretary_available_days_title'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
           actions: [
             IconButton(
@@ -65,7 +65,7 @@ class _SecretaryAvailableDaysScreenState
                         s.translate('master_calendar_no_doctors'),
                         style: const TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       );
                     }
@@ -80,7 +80,7 @@ class _SecretaryAvailableDaysScreenState
                         labelText: s.translate('master_calendar_pick_doctor'),
                         labelStyle: const TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                         filled: true,
                         fillColor: const Color(0xFF1D1E33),
@@ -99,7 +99,7 @@ class _SecretaryAvailableDaysScreenState
                                   AppLocaleScope.of(context).effectiveLanguage,
                                 ),
                                 style: const TextStyle(
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   color: Color(0xFFD9E2EC),
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -119,7 +119,7 @@ class _SecretaryAvailableDaysScreenState
                           s.translate('master_calendar_pick_doctor'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                       )

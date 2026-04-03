@@ -49,7 +49,7 @@ class AdminFeedbackScreen extends StatelessWidget {
             'سڕینەوەی بۆچوون',
             style: TextStyle(
               color: Color(0xFFD9E2EC),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -57,7 +57,7 @@ class AdminFeedbackScreen extends StatelessWidget {
             'دڵنیایت لە سڕینەوەی بۆچوونی "$senderName"؟',
             style: const TextStyle(
               color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           ),
           actions: [
@@ -67,7 +67,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                 'پاشگەزبوونەوە',
                 style: TextStyle(
                   color: Color(0xFF829AB1),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                 ),
               ),
             ),
@@ -77,7 +77,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                 'سڕینەوە',
                 style: TextStyle(
                   color: Color(0xFFEF4444),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -93,7 +93,7 @@ class AdminFeedbackScreen extends StatelessWidget {
           const SnackBar(
             content: Text(
               'بۆچوونەکە سڕایەوە',
-              style: TextStyle(fontFamily: 'KurdishFont'),
+              style: TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -127,7 +127,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                   'وردەکاری بۆچوون',
                   style: TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w700,
                     fontSize: 18,
                   ),
@@ -161,7 +161,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       color: Color(0xFF627D98),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -174,7 +174,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                       color: Color(0xFFD9E2EC),
                       fontSize: 15,
                       height: 1.55,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ],
@@ -188,7 +188,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                 'داخستن',
                 style: TextStyle(
                   color: _accent,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -208,7 +208,7 @@ class AdminFeedbackScreen extends StatelessWidget {
           textAlign: TextAlign.right,
           style: const TextStyle(
             color: Color(0xFF627D98),
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -220,7 +220,7 @@ class AdminFeedbackScreen extends StatelessWidget {
           style: const TextStyle(
             color: Color(0xFFD9E2EC),
             fontSize: 16,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -249,7 +249,7 @@ class AdminFeedbackScreen extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
               ),
             ),
           ],
@@ -272,7 +272,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFFEF4444),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ),
@@ -302,7 +302,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                       style: TextStyle(
                         color: Color(0xFF829AB1),
                         fontSize: 16,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                       ),
                     ),
                   ],
@@ -360,7 +360,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                                               color: Color(0xFFD9E2EC),
                                               fontSize: 18,
                                               fontWeight: FontWeight.w700,
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: 'NRT',
                                             ),
                                           ),
                                         ),
@@ -381,7 +381,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                                               style: TextStyle(
                                                 color: _accent,
                                                 fontSize: 11,
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -396,7 +396,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                                       style: const TextStyle(
                                         color: Color(0xFF9FB3C8),
                                         fontSize: 13,
-                                        fontFamily: 'KurdishFont',
+                                        fontFamily: 'NRT',
                                         height: 1.35,
                                       ),
                                     ),
@@ -408,7 +408,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                                         style: const TextStyle(
                                           color: Color(0xFF9FB3C8),
                                           fontSize: 13,
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           height: 1.35,
                                         ),
                                       ),
@@ -419,7 +419,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                                       style: const TextStyle(
                                         color: Color(0xFF627D98),
                                         fontSize: 12,
-                                        fontFamily: 'KurdishFont',
+                                        fontFamily: 'NRT',
                                       ),
                                     ),
                                   ],
@@ -455,7 +455,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                               color: Color(0xFF9FB3C8),
                               fontSize: 15,
                               height: 1.55,
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                             ),
                           ),
                           if (body.length > 160 ||
@@ -467,7 +467,7 @@ class AdminFeedbackScreen extends StatelessWidget {
                               style: TextStyle(
                                 color: Color(0xFF627D98),
                                 fontSize: 11,
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                               ),
                             ),
                           ],

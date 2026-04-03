@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'app_fonts.dart';
+
+export 'app_fonts.dart' show kAppFontFamily;
+
 /// Light sky blue shell used across patient Home, Profile, Booking, Details.
 const Color kPatientSkyTop = Color(0xFFE1F5FE);
 const Color kPatientSkyBottom = Color(0xFFB3E5FC);
 
-/// Primary UI font: NRT-Reg (400) for body; use [FontWeight.w700] / [FontWeight.bold] for NRT-Bd.
-const String kPatientPrimaryFont = 'NRT';
+/// Same as [kAppFontFamily] — NRT; prefer bold ([FontWeight.w700]) for Kurdish UI copy.
+const String kPatientPrimaryFont = kAppFontFamily;
 
 const Color kPatientNavyText = Color(0xFF0D2137);
 const Color kPatientDeepBlue = Color(0xFF1A237E);

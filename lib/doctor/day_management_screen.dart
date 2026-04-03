@@ -49,7 +49,7 @@ class DayManagementScreen extends StatelessWidget {
             title: Text(
               title,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: FontWeight.w700,
                 fontSize: 17,
               ),
@@ -59,7 +59,7 @@ class DayManagementScreen extends StatelessWidget {
               labelColor: const Color(0xFFD9E2EC),
               unselectedLabelColor: const Color(0xFF829AB1),
               labelStyle: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -104,7 +104,7 @@ class _SettingsTab extends StatelessWidget {
           return Center(
             child: Text(
               '${snap.error}',
-              style: const TextStyle(color: Colors.redAccent, fontFamily: 'KurdishFont'),
+              style: const TextStyle(color: Colors.redAccent, fontFamily: 'NRT'),
             ),
           );
         }
@@ -213,7 +213,7 @@ class _SettingsFormState extends State<_SettingsForm> {
           SnackBar(
             content: Text(
               s.translate('day_mgmt_update_saved'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -238,14 +238,14 @@ class _SettingsFormState extends State<_SettingsForm> {
         title: Text(
           s.translate('available_days_close_confirm_title'),
           style: const TextStyle(
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             color: Color(0xFFD9E2EC),
           ),
         ),
         content: Text(
           s.translate('available_days_close_confirm_body'),
           style: const TextStyle(
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             color: Color(0xFF829AB1),
           ),
         ),
@@ -294,7 +294,7 @@ class _SettingsFormState extends State<_SettingsForm> {
             title: Text(
               s.translate('available_days_opening_time_label'),
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 color: Color(0xFF829AB1),
                 fontSize: 13,
               ),
@@ -302,7 +302,7 @@ class _SettingsFormState extends State<_SettingsForm> {
             subtitle: Text(
               openingLabel,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 color: Color(0xFFE8EEF4),
                 fontSize: 16,
               ),
@@ -319,7 +319,7 @@ class _SettingsFormState extends State<_SettingsForm> {
             title: Text(
               s.translate('available_days_closing_time_label'),
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 color: Color(0xFF829AB1),
                 fontSize: 13,
               ),
@@ -327,7 +327,7 @@ class _SettingsFormState extends State<_SettingsForm> {
             subtitle: Text(
               closingLabel,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 color: Color(0xFFE8EEF4),
                 fontSize: 16,
               ),
@@ -342,7 +342,7 @@ class _SettingsFormState extends State<_SettingsForm> {
           Text(
             s.translate('available_days_duration_label'),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               color: Color(0xFF829AB1),
               fontSize: 13,
             ),
@@ -360,7 +360,7 @@ class _SettingsFormState extends State<_SettingsForm> {
                 isExpanded: true,
                 dropdownColor: const Color(0xFF2A2D45),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFE8EEF4),
                   fontSize: 16,
                 ),
@@ -396,7 +396,7 @@ class _SettingsFormState extends State<_SettingsForm> {
                 : Text(
                     s.translate('day_mgmt_update_settings'),
                     style: const TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -412,7 +412,7 @@ class _SettingsFormState extends State<_SettingsForm> {
               ),
               child: Text(
                 s.translate('available_days_close_day_action'),
-                style: const TextStyle(fontFamily: 'KurdishFont'),
+                style: const TextStyle(fontFamily: 'NRT'),
               ),
             ),
         ],
@@ -449,7 +449,7 @@ class _PatientSlotsTab extends StatelessWidget {
           SnackBar(
             content: Text(
               s.translate('doctor_appt_call_failed'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -460,7 +460,7 @@ class _PatientSlotsTab extends StatelessWidget {
           SnackBar(
             content: Text(
               s.translate('doctor_appt_call_failed'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -529,7 +529,7 @@ class _PatientSlotsTab extends StatelessWidget {
                     ),
                     style: const TextStyle(
                       color: Colors.redAccent,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -577,7 +577,7 @@ class _PatientSlotsTab extends StatelessWidget {
                       params: {'n': '$bookedCount'},
                     ),
                     style: const TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF93C5FD),
                       fontSize: 15,
@@ -591,7 +591,7 @@ class _PatientSlotsTab extends StatelessWidget {
                             s.translate('day_mgmt_no_slots'),
                             style: const TextStyle(
                               color: Color(0xFF829AB1),
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -630,7 +630,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                         child: Text(
                                           timePretty,
                                           style: const TextStyle(
-                                            fontFamily: 'KurdishFont',
+                                            fontFamily: 'NRT',
                                             fontWeight: FontWeight.w800,
                                             fontSize: 13,
                                             color: Color(0xFF93C5FD),
@@ -646,7 +646,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                                   Text(
                                                     name,
                                                     style: const TextStyle(
-                                                      fontFamily: 'KurdishFont',
+                                                      fontFamily: 'NRT',
                                                       fontWeight: FontWeight.w700,
                                                       color: Color(0xFFE8EEF4),
                                                     ),
@@ -657,7 +657,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                                       'doctor_appt_not_available',
                                                     ),
                                                     style: const TextStyle(
-                                                      fontFamily: 'KurdishFont',
+                                                      fontFamily: 'NRT',
                                                       fontSize: 12,
                                                       color: Color(0xFF829AB1),
                                                     ),
@@ -682,7 +682,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                                       Text(
                                                         name,
                                                         style: const TextStyle(
-                                                          fontFamily: 'KurdishFont',
+                                                          fontFamily: 'NRT',
                                                           fontWeight: FontWeight.w700,
                                                           color: Color(0xFFE8EEF4),
                                                         ),
@@ -698,7 +698,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                                                       'doctor_appt_not_available',
                                                                     ),
                                                               style: TextStyle(
-                                                                fontFamily: 'KurdishFont',
+                                                                fontFamily: 'NRT',
                                                                 fontSize: 13,
                                                                 color: hasPhone
                                                                     ? const Color(
@@ -758,7 +758,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                         child: Text(
                                           timePretty,
                                           style: const TextStyle(
-                                            fontFamily: 'KurdishFont',
+                                            fontFamily: 'NRT',
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
                                             color: Color(0xFF94A3B8),
@@ -769,7 +769,7 @@ class _PatientSlotsTab extends StatelessWidget {
                                         child: Text(
                                           s.translate('daily_slots_status_available'),
                                           style: const TextStyle(
-                                            fontFamily: 'KurdishFont',
+                                            fontFamily: 'NRT',
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
                                             color: Color(0xFF4ADE80),
@@ -837,7 +837,7 @@ class _DayAppointmentStatusPill extends StatelessWidget {
           color: badge.$2,
           fontSize: 10,
           fontWeight: FontWeight.w800,
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
         ),
       ),
     );

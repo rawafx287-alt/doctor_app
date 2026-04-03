@@ -61,7 +61,7 @@ Future<void> navigateAfterLogin(
       SnackBar(
         content: Text(
           S.of(context).translate('auth_snack_doctor_not_approved'),
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+          style: const TextStyle(fontFamily: 'NRT'),
         ),
       ),
     );
@@ -80,7 +80,7 @@ Future<void> navigateAfterLogin(
     SnackBar(
       content: Text(
         S.of(context).translate('auth_snack_unknown_role'),
-        style: const TextStyle(fontFamily: 'KurdishFont'),
+        style: const TextStyle(fontFamily: 'NRT'),
       ),
     ),
   );

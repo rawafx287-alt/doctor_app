@@ -49,7 +49,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
           title: Text(
             s.translate('doctor_patients_title'),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -74,7 +74,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                           s.translate('doctor_patients_empty'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             fontSize: 16,
                           ),
                         ),
@@ -127,13 +127,13 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: const TextStyle(
           color: Color(0xFFD9E2EC),
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(
             color: Color(0xFF829AB1),
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
           border: InputBorder.none,
           prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF42A5F5)),
@@ -184,7 +184,7 @@ class _PatientCard extends StatelessWidget {
                   name,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
                   ),
@@ -194,7 +194,7 @@ class _PatientCard extends StatelessWidget {
                   ageLine,
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                   ),
                 ),
               ],
@@ -206,7 +206,7 @@ class _PatientCard extends StatelessWidget {
                 SnackBar(
                   content: Text(
                     historyLabel,
-                    style: const TextStyle(fontFamily: 'KurdishFont'),
+                    style: const TextStyle(fontFamily: 'NRT'),
                   ),
                 ),
               );
@@ -222,7 +222,7 @@ class _PatientCard extends StatelessWidget {
             child: Text(
               S.of(context).translate('doctor_patient_view_button'),
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),

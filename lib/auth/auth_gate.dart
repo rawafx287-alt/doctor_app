@@ -213,7 +213,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
@@ -225,7 +225,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 14,
                   ),
                 ),
@@ -240,7 +240,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   onPressed: () => FirebaseAuth.instance.signOut(),
                   child: Text(
                     s.translate('auth_back_to_login'),
-                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontFamily: 'NRT', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -275,7 +275,7 @@ class UnknownRoleScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
@@ -291,7 +291,7 @@ class UnknownRoleScreen extends StatelessWidget {
                   onPressed: () => FirebaseAuth.instance.signOut(),
                   child: Text(
                     s.translate('auth_back'),
-                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontFamily: 'NRT', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

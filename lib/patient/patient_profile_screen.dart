@@ -238,7 +238,7 @@ class PatientProfileScreen extends StatelessWidget {
                   style: const TextStyle(
                     color: _kMutedGrey,
                     fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               );
@@ -371,7 +371,7 @@ class _ProfileGlassHeader extends StatelessWidget {
                                 color: _kMutedGrey.withValues(alpha: 0.95),
                                 fontSize: 14,
                                 fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
@@ -395,7 +395,7 @@ class _ProfileGlassHeader extends StatelessWidget {
                                 color: _kMutedGrey.withValues(alpha: 0.95),
                                 fontSize: 14,
                                 fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
@@ -480,7 +480,7 @@ class _GlassSettingsTile extends StatelessWidget {
                               style: TextStyle(
                                 color: _kMutedGrey.withValues(alpha: 0.92),
                                 fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 12,
                                 height: 1.25,
                               ),

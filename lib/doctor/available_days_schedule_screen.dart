@@ -89,7 +89,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
               title: Text(
                 s.translate('available_days_open_day_title'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -101,7 +101,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                     Text(
                       DateFormat.yMMMEd(localeTag).format(picked),
                       style: const TextStyle(
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         color: Color(0xFFE8EEF4),
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -113,7 +113,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                       title: Text(
                         s.translate('available_days_opening_time_label'),
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           color: Color(0xFF829AB1),
                           fontSize: 13,
                         ),
@@ -121,7 +121,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                       subtitle: Text(
                         openingLabel,
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           color: Color(0xFFE8EEF4),
                           fontSize: 16,
                         ),
@@ -144,7 +144,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                       title: Text(
                         s.translate('available_days_closing_time_label'),
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           color: Color(0xFF829AB1),
                           fontSize: 13,
                         ),
@@ -152,7 +152,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                       subtitle: Text(
                         closingLabel,
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           color: Color(0xFFE8EEF4),
                           fontSize: 16,
                         ),
@@ -173,7 +173,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                     Text(
                       s.translate('available_days_duration_label'),
                       style: const TextStyle(
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         color: Color(0xFF829AB1),
                         fontSize: 13,
                       ),
@@ -191,7 +191,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                           isExpanded: true,
                           dropdownColor: const Color(0xFF2A2D45),
                           style: const TextStyle(
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             color: Color(0xFFE8EEF4),
                             fontSize: 16,
                           ),
@@ -222,7 +222,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                   child: Text(
                     s.translate('action_cancel'),
                     style: const TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       color: Color(0xFF829AB1),
                     ),
                   ),
@@ -235,7 +235,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                   ),
                   child: Text(
                     s.translate('available_days_open_day_save'),
-                    style: const TextStyle(fontFamily: 'KurdishFont'),
+                    style: const TextStyle(fontFamily: 'NRT'),
                   ),
                 ),
               ],
@@ -264,7 +264,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           SnackBar(
             content: Text(
               '$e',
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -316,7 +316,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
               s.translate('login_required'),
               style: const TextStyle(
                 color: Color(0xFF829AB1),
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
               ),
             ),
           )
@@ -345,7 +345,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                     ),
                     style: const TextStyle(
                       color: Colors.redAccent,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 );
@@ -368,7 +368,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                         ),
                         style: const TextStyle(
                           color: Colors.redAccent,
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                     );
@@ -410,7 +410,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                         Text(
                           s.translate('available_days_calendar_legend'),
                           style: const TextStyle(
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             color: Color(0xFF829AB1),
                             fontSize: 12,
                             height: 1.35,
@@ -444,13 +444,13 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                               daysOfWeekStyle: DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
                                   color: const Color(0xFF94A3B8),
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 weekendStyle: TextStyle(
                                   color: const Color(0xFF94A3B8),
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -463,7 +463,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                   color: Color(0xFFE8EEF4),
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                                 leftChevronIcon: const Icon(
                                   Icons.chevron_left_rounded,
@@ -576,7 +576,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                                             child: Text(
                                               label,
                                               style: const TextStyle(
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w700,
                                                 color: Colors.white,
@@ -640,7 +640,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
                 foregroundColor: const Color(0xFFD9E2EC),
                 title: Text(
                   s.translate('schedule_screen_title'),
-                  style: const TextStyle(fontFamily: 'KurdishFont'),
+                  style: const TextStyle(fontFamily: 'NRT'),
                 ),
               ),
         body: SafeArea(child: body),
@@ -702,7 +702,7 @@ class _AvailableDaysScheduleScreenState extends State<AvailableDaysScheduleScree
           child: Text(
             '${day.day}',
             style: TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w800,
               fontSize: 15,
               color: isOutside

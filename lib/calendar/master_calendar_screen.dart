@@ -198,7 +198,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       child: Text(
         '${day.day}',
         style: TextStyle(
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           fontWeight: isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
           fontSize: 15,
           color: textColor,
@@ -295,7 +295,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                   _kMasterCalendarBrandTitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w800,
                     fontSize: 26,
                     letterSpacing: 0.6,
@@ -315,7 +315,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                   s.translate('master_calendar_subtitle'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     color: const Color(0xFF829AB1).withValues(alpha: 0.95),
                     fontSize: 13,
                   ),
@@ -340,7 +340,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                           s.translate('master_calendar_no_doctors'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         );
                       }
@@ -355,7 +355,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                           labelText: s.translate('master_calendar_pick_doctor'),
                           labelStyle: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                           filled: true,
                           fillColor: const Color(0xFF1D1E33),
@@ -374,7 +374,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                     AppLocaleScope.of(context).effectiveLanguage,
                                   ),
                                   style: const TextStyle(
-                                    fontFamily: 'KurdishFont',
+                                    fontFamily: 'NRT',
                                     color: Color(0xFFD9E2EC),
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -396,7 +396,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                           s.translate('master_calendar_pick_doctor'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                       )
@@ -437,7 +437,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                       ),
                                       style: const TextStyle(
                                         color: Colors.redAccent,
-                                        fontFamily: 'KurdishFont',
+                                        fontFamily: 'NRT',
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -498,13 +498,13 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                 daysOfWeekStyle: DaysOfWeekStyle(
                                                   weekdayStyle: TextStyle(
                                                     color: const Color(0xFF94A3B8),
-                                                    fontFamily: 'KurdishFont',
+                                                    fontFamily: 'NRT',
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w600,
                                                   ),
                                                   weekendStyle: TextStyle(
                                                     color: const Color(0xFF94A3B8),
-                                                    fontFamily: 'KurdishFont',
+                                                    fontFamily: 'NRT',
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w600,
                                                   ),
@@ -517,7 +517,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                                     color: Color(0xFFE8EEF4),
                                                     fontSize: 17,
                                                     fontWeight: FontWeight.w700,
-                                                    fontFamily: 'KurdishFont',
+                                                    fontFamily: 'NRT',
                                                   ),
                                                   leftChevronIcon: const Icon(
                                                     Icons.chevron_left_rounded,
@@ -677,7 +677,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                               label: Text(
                                                 s.translate('master_calendar_block_day'),
                                                 style: const TextStyle(
-                                                  fontFamily: 'KurdishFont',
+                                                  fontFamily: 'NRT',
                                                   color: Color(0xFFFF8A80),
                                                 ),
                                               ),
@@ -728,7 +728,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
               title: Text(
                 s.translate('master_calendar_block_day_off'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -739,7 +739,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
               title: Text(
                 s.translate('master_calendar_block_day_emergency'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -770,7 +770,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
           SnackBar(
             content: Text(
               s.translate('master_calendar_block_saved'),
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -781,7 +781,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
           SnackBar(
             content: Text(
               '${s.translate('save_error')}: $e',
-              style: const TextStyle(fontFamily: 'KurdishFont'),
+              style: const TextStyle(fontFamily: 'NRT'),
             ),
           ),
         );
@@ -821,7 +821,7 @@ class _LegendRow extends StatelessWidget {
               style: const TextStyle(
                 color: Color(0xFF829AB1),
                 fontSize: 11,
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
               ),
             ),
           ),
@@ -930,7 +930,7 @@ class _DayAgendaPanel extends StatelessWidget {
           DateFormat.yMMMEd().format(key),
           style: const TextStyle(
             color: Color(0xFFD9E2EC),
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -941,7 +941,7 @@ class _DayAgendaPanel extends StatelessWidget {
             s.translate('master_calendar_day_off'),
             style: const TextStyle(
               color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           )
         else
@@ -994,7 +994,7 @@ class _DayAgendaPanel extends StatelessWidget {
                         },
                         child: Text(
                           s.translate('master_calendar_unblock'),
-                          style: const TextStyle(fontFamily: 'KurdishFont'),
+                          style: const TextStyle(fontFamily: 'NRT'),
                         ),
                       )
                     : null,
@@ -1071,7 +1071,7 @@ class _DayAgendaPanel extends StatelessWidget {
                                           'master_calendar_mark_complete',
                                         ),
                                         style: const TextStyle(
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF1A237E),
                                           decoration: TextDecoration.none,
@@ -1120,7 +1120,7 @@ class _DayAgendaPanel extends StatelessWidget {
                                           'master_calendar_cancel_appt',
                                         ),
                                         style: const TextStyle(
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFFB91C1C),
                                           decoration: TextDecoration.none,
@@ -1226,7 +1226,7 @@ class _SlotTile extends StatelessWidget {
                     style: const TextStyle(
                       color: Color(0xFF42A5F5),
                       fontWeight: FontWeight.w800,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ),
@@ -1236,7 +1236,7 @@ class _SlotTile extends StatelessWidget {
                     subtitle,
                     style: const TextStyle(
                       color: Color(0xFF829AB1),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontSize: 13,
                     ),
                   ),
@@ -1274,7 +1274,7 @@ Future<void> _staffFreeActionsSheet(
               title: Text(
                 s.translate('master_calendar_add_walkin'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -1290,7 +1290,7 @@ Future<void> _staffFreeActionsSheet(
                       title: Text(
                         s.translate('master_calendar_add_walkin'),
                         style: const TextStyle(
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           color: Color(0xFFD9E2EC),
                         ),
                       ),
@@ -1298,7 +1298,7 @@ Future<void> _staffFreeActionsSheet(
                         controller: nameController,
                         style: const TextStyle(
                           color: Color(0xFFD9E2EC),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                         decoration: InputDecoration(
                           labelText: s.translate('doctor_appt_patient_name_label'),
@@ -1334,7 +1334,7 @@ Future<void> _staffFreeActionsSheet(
                     SnackBar(
                       content: Text(
                         s.translate(err),
-                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                        style: const TextStyle(fontFamily: 'NRT'),
                       ),
                     ),
                   );
@@ -1343,7 +1343,7 @@ Future<void> _staffFreeActionsSheet(
                     SnackBar(
                       content: Text(
                         s.translate('master_calendar_saved'),
-                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                        style: const TextStyle(fontFamily: 'NRT'),
                       ),
                     ),
                   );
@@ -1356,7 +1356,7 @@ Future<void> _staffFreeActionsSheet(
               title: Text(
                 s.translate('master_calendar_block_slot_off'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -1384,7 +1384,7 @@ Future<void> _staffFreeActionsSheet(
                       SnackBar(
                         content: Text(
                           s.translate('master_calendar_block_saved'),
-                          style: const TextStyle(fontFamily: 'KurdishFont'),
+                          style: const TextStyle(fontFamily: 'NRT'),
                         ),
                       ),
                     );
@@ -1404,7 +1404,7 @@ Future<void> _staffFreeActionsSheet(
               title: Text(
                 s.translate('master_calendar_block_slot_emergency'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFFD9E2EC),
                 ),
               ),
@@ -1432,7 +1432,7 @@ Future<void> _staffFreeActionsSheet(
                       SnackBar(
                         content: Text(
                           s.translate('master_calendar_block_saved'),
-                          style: const TextStyle(fontFamily: 'KurdishFont'),
+                          style: const TextStyle(fontFamily: 'NRT'),
                         ),
                       ),
                     );
@@ -1487,7 +1487,7 @@ Future<void> _patientBookSlot(
       SnackBar(
         content: Text(
           s.translate('login_required'),
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+          style: const TextStyle(fontFamily: 'NRT'),
         ),
       ),
     );
@@ -1522,7 +1522,7 @@ Future<void> _patientBookSlot(
       SnackBar(
         content: Text(
           s.translate(err),
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+          style: const TextStyle(fontFamily: 'NRT'),
         ),
       ),
     );
@@ -1536,14 +1536,14 @@ Future<void> _patientBookSlot(
       title: Text(
         s.translate('booking_success_title'),
         style: const TextStyle(
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           color: Color(0xFFD9E2EC),
         ),
       ),
       content: Text(
         s.translate('booking_success_body'),
         style: const TextStyle(
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           color: Color(0xFF829AB1),
         ),
       ),

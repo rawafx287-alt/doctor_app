@@ -393,7 +393,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   DateFormat.yMMMEd().format(day),
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
                   ),
@@ -432,12 +432,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             indicatorSize: TabBarIndicatorSize.tab,
                             dividerColor: Colors.white12,
                             labelStyle: const TextStyle(
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
                             unselectedLabelStyle: const TextStyle(
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -463,7 +463,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         s.translate('schedule_day_blocked'),
                         style: const TextStyle(
                           color: Color(0xFFD9E2EC),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                       value: sbBlocked,
@@ -482,14 +482,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           s.translate('schedule_custom_hours'),
                           style: const TextStyle(
                             color: Color(0xFFD9E2EC),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                         subtitle: Text(
                           s.translate('schedule_use_weekday_default_hint'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             fontSize: 11,
                           ),
                         ),
@@ -515,7 +515,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 },
                                 child: Text(
                                   '${s.translate('schedule_time_start')}: ${_formatTime(sbStart)}',
-                                  style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                                  style: const TextStyle(fontFamily: 'NRT', fontSize: 12),
                                 ),
                               ),
                             ),
@@ -535,7 +535,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 },
                                 child: Text(
                                   '${s.translate('schedule_time_end')}: ${_formatTime(sbEnd)}',
-                                  style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                                  style: const TextStyle(fontFamily: 'NRT', fontSize: 12),
                                 ),
                               ),
                             ),
@@ -550,7 +550,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
                             fontSize: 12,
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -572,7 +572,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               iconEnabledColor: const Color(0xFF42A5F5),
                               style: const TextStyle(
                                 color: Color(0xFFD9E2EC),
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                                 fontSize: 14,
                               ),
                               items: _daySlotChoices
@@ -629,7 +629,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                     SnackBar(
                                       content: Text(
                                         s.translate('schedule_save_ok'),
-                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                        style: const TextStyle(fontFamily: 'NRT'),
                                       ),
                                     ),
                                   );
@@ -644,7 +644,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                           'error_code',
                                           params: {'code': e.code},
                                         ),
-                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                        style: const TextStyle(fontFamily: 'NRT'),
                                       ),
                                     ),
                                   );
@@ -655,7 +655,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                     SnackBar(
                                       content: Text(
                                         s.translate('schedule_save_error_generic'),
-                                        style: const TextStyle(fontFamily: 'KurdishFont'),
+                                        style: const TextStyle(fontFamily: 'NRT'),
                                       ),
                                     ),
                                   );
@@ -688,7 +688,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                   child: Text(
                                     s.translate('schedule_saving'),
                                     style: const TextStyle(
-                                      fontFamily: 'KurdishFont',
+                                      fontFamily: 'NRT',
                                       fontWeight: FontWeight.w700,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -699,7 +699,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           : Text(
                               s.translate('schedule_save_button'),
                               style: const TextStyle(
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -743,7 +743,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -766,7 +766,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         SnackBar(
           content: Text(
             s.translate('schedule_save_ok'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -777,7 +777,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('error_code', params: {'code': e.code}),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -788,7 +788,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         SnackBar(
           content: Text(
             s.translate('schedule_save_error_generic'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -816,7 +816,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   s.translate('schedule_calendar_hint'),
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 13,
                   ),
                 ),
@@ -867,7 +867,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     child: Text(
                       s.translate('schedule_saving'),
                       style: const TextStyle(
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),
@@ -879,7 +879,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             : Text(
                 s.translate('schedule_save_button'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),
@@ -902,7 +902,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 title: Text(
                   s.translate('schedule_screen_title'),
                   style: const TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -949,13 +949,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           daysOfWeekStyle: DaysOfWeekStyle(
             weekdayStyle: const TextStyle(
               color: Color(0xFF94A3B8),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
             weekendStyle: const TextStyle(
               color: Color(0xFF94A3B8),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -967,7 +967,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               color: Color(0xFFE8EEF4),
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
             leftChevronIcon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF42A5F5)),
             rightChevronIcon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF42A5F5)),
@@ -1079,7 +1079,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             child: Text(
               '${day.day}',
               style: TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
                 fontSize: 14,
                 color: isOutside
@@ -1214,7 +1214,7 @@ void _showSchedulePatientDetailsDialog(
           title: Text(
             s.translate('schedule_patient_details_title'),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               color: Color(0xFFD9E2EC),
               fontWeight: FontWeight.w800,
             ),
@@ -1263,7 +1263,7 @@ void _showSchedulePatientDetailsDialog(
               child: Text(
                 s.translate('ok'),
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Color(0xFF42A5F5),
                   fontWeight: FontWeight.w700,
                 ),
@@ -1307,7 +1307,7 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.redAccent,
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 12,
             ),
           ),
@@ -1339,7 +1339,7 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.redAccent,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontSize: 12,
                 ),
               ),
@@ -1367,7 +1367,7 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF829AB1),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontSize: 14,
                   height: 1.35,
                 ),
@@ -1392,7 +1392,7 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF829AB1),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontSize: 14,
                   height: 1.35,
                 ),
@@ -1454,7 +1454,7 @@ class _ScheduleSheetPatientsTab extends StatelessWidget {
                       s.translate('schedule_timeline_other_bookings'),
                       style: const TextStyle(
                         color: Color(0xFF94A3B8),
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -1517,7 +1517,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                 timeLabel,
                 style: const TextStyle(
                   color: Color(0xFF42A5F5),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -1528,7 +1528,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                   s.translate('schedule_slot_available'),
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
@@ -1578,7 +1578,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                         timeLabel,
                         style: const TextStyle(
                           color: Color(0xFF42A5F5),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -1603,7 +1603,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                             }(),
                             style: const TextStyle(
                               color: Color(0xFFD9E2EC),
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1649,7 +1649,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                         timeLabel,
                         style: const TextStyle(
                           color: Color(0xFF42A5F5),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
                         ),
@@ -1659,7 +1659,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                         nameShown,
                         style: const TextStyle(
                           color: Color(0xFFD9E2EC),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
@@ -1674,7 +1674,7 @@ class _ScheduleTimelineSlotRow extends StatelessWidget {
                             ),
                             style: const TextStyle(
                               color: Color(0xFF94A3B8),
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1725,7 +1725,7 @@ class _SchedulePatientInfoRow extends StatelessWidget {
                   label,
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1735,7 +1735,7 @@ class _SchedulePatientInfoRow extends StatelessWidget {
                   value,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 14,
                     height: 1.25,
                   ),

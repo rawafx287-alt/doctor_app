@@ -46,7 +46,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
           title: Text(
             localizedHospitalName(initialHospitalData, lang),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
               fontSize: 17,
             ),
@@ -94,7 +94,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                                 name,
                                 style: const TextStyle(
                                   color: Color(0xFFD9E2EC),
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   fontWeight: FontWeight.w800,
                                   fontSize: 18,
                                 ),
@@ -105,7 +105,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                                   desc,
                                   style: const TextStyle(
                                     color: Color(0xFF9FB3C8),
-                                    fontFamily: 'KurdishFont',
+                                    fontFamily: 'NRT',
                                     fontSize: 13,
                                     height: 1.4,
                                   ),
@@ -127,7 +127,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                                         location,
                                         style: const TextStyle(
                                           color: Color(0xFF829AB1),
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           fontSize: 13,
                                           height: 1.35,
                                         ),
@@ -149,7 +149,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                     s.translate('hospital_doctors_section'),
                     style: const TextStyle(
                       color: Color(0xFFD9E2EC),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -172,7 +172,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.redAccent,
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                                 fontSize: 12,
                               ),
                             ),
@@ -195,7 +195,7 @@ class HospitalDoctorsScreen extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF829AB1),
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                                 fontSize: 15,
                               ),
                             ),

@@ -65,7 +65,7 @@ class PatientDoctorBookingScreen extends StatelessWidget {
           title: Text(
             honorificDoctorDisplayName(doctorName),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w800,
               fontSize: 17,
               color: _kDoctorNameNavy,

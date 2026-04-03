@@ -198,7 +198,7 @@ class _SecretaryBookingsDashboardScreenState
           foregroundColor: const Color(0xFFD9E2EC),
           title: Text(
             s.translate('secretary_bookings_title'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
           actions: [
             IconButton(
@@ -230,7 +230,7 @@ class _SecretaryBookingsDashboardScreenState
                         s.translate('master_calendar_no_doctors'),
                         style: const TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       );
                     }
@@ -245,7 +245,7 @@ class _SecretaryBookingsDashboardScreenState
                         labelText: s.translate('master_calendar_pick_doctor'),
                         labelStyle: const TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                         filled: true,
                         fillColor: const Color(0xFF1D1E33),
@@ -264,7 +264,7 @@ class _SecretaryBookingsDashboardScreenState
                                   AppLocaleScope.of(context).effectiveLanguage,
                                 ),
                                 style: const TextStyle(
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   color: Color(0xFFD9E2EC),
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -284,7 +284,7 @@ class _SecretaryBookingsDashboardScreenState
                           s.translate('master_calendar_pick_doctor'),
                           style: const TextStyle(
                             color: Color(0xFF829AB1),
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                       )
@@ -331,7 +331,7 @@ class _SecretaryBookingsDashboardScreenState
                                 s.translate('secretary_bookings_empty'),
                                 style: const TextStyle(
                                   color: Color(0xFF829AB1),
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             );
@@ -393,7 +393,7 @@ class _SecretaryBookingsDashboardScreenState
                                             patient,
                                             style: const TextStyle(
                                               color: Color(0xFFD9E2EC),
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: 'NRT',
                                               fontWeight: FontWeight.w800,
                                               fontSize: 16,
                                             ),
@@ -423,7 +423,7 @@ class _SecretaryBookingsDashboardScreenState
                                               color: badge.$2,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w800,
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: 'NRT',
                                             ),
                                           ),
                                         ),
@@ -434,7 +434,7 @@ class _SecretaryBookingsDashboardScreenState
                                       '${s.translate('ticket_date')}: $dateStr   •   ${s.translate('ticket_time')}: $time   •   #${queue.isEmpty ? '—' : queue}',
                                       style: const TextStyle(
                                         color: Color(0xFF829AB1),
-                                        fontFamily: 'KurdishFont',
+                                        fontFamily: 'NRT',
                                         fontSize: 12.5,
                                       ),
                                     ),
@@ -451,7 +451,7 @@ class _SecretaryBookingsDashboardScreenState
                                           _paymentLabel(context, data),
                                           style: const TextStyle(
                                             color: Color(0xFFE0E0E0),
-                                            fontFamily: 'KurdishFont',
+                                            fontFamily: 'NRT',
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -565,7 +565,7 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+        style: const TextStyle(fontFamily: 'NRT', fontSize: 12),
       ),
     );
   }

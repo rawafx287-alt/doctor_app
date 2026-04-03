@@ -45,7 +45,7 @@ Future<void> showHrNoraLanguagePicker(BuildContext context) async {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFFD9E2EC),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                 ),
@@ -79,7 +79,7 @@ Future<void> showHrNoraLanguagePicker(BuildContext context) async {
                       lang.nativeTitle,
                       style: const TextStyle(
                         color: Color(0xFFD9E2EC),
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         fontWeight: FontWeight.w600,
                         fontSize: 17,
                       ),
@@ -90,7 +90,7 @@ Future<void> showHrNoraLanguagePicker(BuildContext context) async {
                             lang.nativeSubtitle,
                             style: const TextStyle(
                               color: Color(0xFF829AB1),
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontSize: 12,
                             ),
                           ),
@@ -99,7 +99,7 @@ Future<void> showHrNoraLanguagePicker(BuildContext context) async {
                             S.of(ctx).translate('language_current'),
                             style: TextStyle(
                               color: HrNoraColors.accentLight.withValues(alpha: 0.9),
-                              fontFamily: 'KurdishFont',
+                              fontFamily: 'NRT',
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -118,7 +118,7 @@ Future<void> showHrNoraLanguagePicker(BuildContext context) async {
                 child: Text(
                   S.of(ctx).translate('close'),
                   style: const TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontWeight: FontWeight.w600,
                   ),
                 ),

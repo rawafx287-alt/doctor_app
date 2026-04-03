@@ -14,6 +14,7 @@ import 'locale/app_localizations.dart';
 import 'splash_screen.dart';
 // Auth routing: [AuthGate] listens to FirebaseAuth.instance.authStateChanges;
 // patient login also uses Navigator.pushAndRemoveUntil to [PatientHomeScreen] for instant UI.
+import 'theme/app_fonts.dart';
 import 'theme/hr_nora_colors.dart';
 
 Future<void> main() async {
@@ -49,11 +50,11 @@ class HrNoraAppRoot extends StatelessWidget {
         const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       ),
     );
-    const appFont = 'NRT';
+    const appFont = kAppFontFamily;
     final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: appFont,
+      fontFamily: kAppFontFamily,
       scaffoldBackgroundColor: HrNoraColors.scaffoldDark,
       primaryColor: HrNoraColors.primary,
       colorScheme: ColorScheme.dark(
@@ -66,11 +67,17 @@ class HrNoraAppRoot extends StatelessWidget {
         error: const Color(0xFFEF4444),
         onError: Colors.white,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: HrNoraColors.primaryDeep,
         foregroundColor: HrNoraColors.textSoft,
         elevation: 0,
         centerTitle: false,
+        titleTextStyle: TextStyle(
+          fontFamily: kAppFontFamily,
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+          color: HrNoraColors.textSoft,
+        ),
       ),
       cardColor: HrNoraColors.primaryDeep,
       dividerColor: const Color(0xFF334E68),
@@ -110,16 +117,16 @@ class HrNoraAppRoot extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
           bodyLarge: baseTheme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w700,
           ),
           bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w700,
           ),
           bodySmall: baseTheme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w700,
           ),
           labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w700,
           ),
         );
 

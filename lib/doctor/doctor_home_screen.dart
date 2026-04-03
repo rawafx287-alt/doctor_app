@@ -75,7 +75,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           title: Text(
             _appBarTitle(context),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
               fontSize: 20,
             ),
@@ -155,9 +155,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             showUnselectedLabels: true,
             type: BottomNavigationBarType.fixed,
             selectedLabelStyle:
-                const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                const TextStyle(fontFamily: 'NRT', fontSize: 12),
             unselectedLabelStyle:
-                const TextStyle(fontFamily: 'KurdishFont', fontSize: 12),
+                const TextStyle(fontFamily: 'NRT', fontSize: 12),
             items: [
               BottomNavigationBarItem(
                 icon: const Icon(Icons.calendar_month),

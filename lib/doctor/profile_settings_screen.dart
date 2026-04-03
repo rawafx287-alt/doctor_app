@@ -159,7 +159,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('profile_load_error'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -176,7 +176,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -189,7 +189,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -254,7 +254,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_saved_ok'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -264,7 +264,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('error_code', params: {'code': e.code}),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -282,7 +282,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -317,7 +317,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             s.translate('profile_image_upload_ok'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -327,7 +327,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('error_code', params: {'code': e.code}),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -337,7 +337,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         SnackBar(
           content: Text(
             '${S.of(context).translate('profile_image_upload_error')}: $e',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -376,7 +376,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 title: Text(
                   s.translate('image_source_gallery'),
                   style: const TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     color: Color(0xFFD9E2EC),
                     fontWeight: FontWeight.w600,
                   ),
@@ -391,7 +391,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 title: Text(
                   s.translate('image_source_camera'),
                   style: const TextStyle(
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     color: Color(0xFFD9E2EC),
                     fontWeight: FontWeight.w600,
                   ),
@@ -417,7 +417,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           color: Color(0xFF42A5F5),
           fontSize: 14,
           fontWeight: FontWeight.w800,
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
         ),
       ),
     );
@@ -434,7 +434,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             s.translate('hospitals_load_error', params: {'error': '${snap.error}'}),
             style: const TextStyle(
               color: Colors.redAccent,
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 12,
             ),
           );
@@ -477,7 +477,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             dropdownColor: const Color(0xFF1D1E33),
             style: const TextStyle(
               color: Color(0xFFD9E2EC),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -485,7 +485,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               labelText: s.translate('doctor_field_hospital_registry'),
               labelStyle: const TextStyle(
                 color: Color(0xFF829AB1),
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
               ),
               prefixIcon: const Icon(Icons.local_hospital_rounded, color: Color(0xFF42A5F5)),
               border: InputBorder.none,
@@ -532,7 +532,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           title: Text(
             s.translate('doctor_profile_settings_title'),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -778,7 +778,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             : Text(
                                 s.translate('profile_save_changes'),
                                 style: const TextStyle(
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   fontWeight: FontWeight.w700,
                                   fontSize: 16,
                                 ),
@@ -811,7 +811,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         maxLines: maxLines,
         style: const TextStyle(
           color: Color(0xFFD9E2EC),
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -819,7 +819,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           hintText: label,
           hintStyle: const TextStyle(
             color: Color(0xFF829AB1),
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
           prefixIcon: Icon(icon, color: const Color(0xFF42A5F5)),
           border: InputBorder.none,

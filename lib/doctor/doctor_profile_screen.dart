@@ -50,7 +50,7 @@ class DoctorProfileScreen extends StatelessWidget {
             s.translate('doctor_about_description'),
             style: const TextStyle(
               color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               height: 1.45,
             ),
           ),
@@ -164,7 +164,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                           color: Color(0xFFD9E2EC),
                                           fontSize: 20,
                                           fontWeight: FontWeight.w800,
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                         ),
                                       ),
                                       const SizedBox(height: 10),
@@ -185,7 +185,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                               style: const TextStyle(
                                                 color: Color(0xFF9FB3C8),
                                                 fontSize: 14,
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                               ),
                                             ),
                                           ),
@@ -198,7 +198,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                         style: const TextStyle(
                                           color: Color(0xFF627D98),
                                           fontSize: 11,
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -209,7 +209,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                         style: const TextStyle(
                                           color: Color(0xFFD9E2EC),
                                           fontSize: 15,
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -231,7 +231,7 @@ class DoctorProfileScreen extends StatelessWidget {
                                               style: const TextStyle(
                                                 color: Color(0xFF9FB3C8),
                                                 fontSize: 14,
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                               ),
                                             ),
                                           ),
@@ -339,7 +339,7 @@ class _DoctorProfileTile extends StatelessWidget {
         title,
         style: TextStyle(
           color: titleColor ?? const Color(0xFFD9E2EC),
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           fontWeight: FontWeight.w600,
           fontSize: 16,
         ),
@@ -350,7 +350,7 @@ class _DoctorProfileTile extends StatelessWidget {
               subtitle!,
               style: const TextStyle(
                 color: Color(0xFF829AB1),
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontSize: 12,
               ),
             ),
