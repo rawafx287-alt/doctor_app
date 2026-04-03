@@ -11,6 +11,9 @@ import '../locale/app_localizations.dart';
 import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
 
+const Color _kDoctorProfileGold = Color(0xFFD4AF37);
+const Color _kDoctorProfileBronze = Color(0xFFB8860B);
+
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({super.key});
 
@@ -384,7 +387,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF42A5F5)),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: _kDoctorProfileGold,
+                ),
                 title: Text(
                   s.translate('image_source_gallery'),
                   style: const TextStyle(
@@ -399,7 +405,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF42A5F5)),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: _kDoctorProfileGold,
+                ),
                 title: Text(
                   s.translate('image_source_camera'),
                   style: const TextStyle(
@@ -422,11 +431,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   Widget _sectionTitle(String translationKey) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 10),
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
       child: Text(
         S.of(context).translate(translationKey),
         style: const TextStyle(
-          color: Color(0xFF42A5F5),
+          color: _kDoctorProfileGold,
           fontSize: 14,
           fontWeight: FontWeight.w800,
           fontFamily: 'NRT',
@@ -460,7 +469,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Color(0xFF42A5F5),
+                  color: _kDoctorProfileBronze,
                 ),
               ),
             ),
@@ -485,7 +494,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             // ignore: deprecated_member_use
             value: value,
             isExpanded: true,
-            iconEnabledColor: const Color(0xFF42A5F5),
+            iconEnabledColor: _kDoctorProfileGold,
             dropdownColor: const Color(0xFF1D1E33),
             style: const TextStyle(
               color: Color(0xFFD9E2EC),
@@ -499,7 +508,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 color: Color(0xFF829AB1),
                 fontFamily: 'NRT',
               ),
-              prefixIcon: const Icon(Icons.local_hospital_rounded, color: Color(0xFF42A5F5)),
+              prefixIcon: const Icon(
+                Icons.local_hospital_rounded,
+                color: _kDoctorProfileGold,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
@@ -550,7 +562,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF42A5F5)))
+            ? const Center(
+                child: CircularProgressIndicator(color: _kDoctorProfileBronze),
+              )
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Form(
@@ -558,17 +572,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Center(
                         child: SizedBox(
-                          width: 100,
-                          height: 100,
+                          width: 88,
+                          height: 88,
                           child: Stack(
                             clipBehavior: Clip.none,
                             alignment: Alignment.center,
                             children: [
                               CircleAvatar(
-                                radius: 48,
+                                radius: 42,
                                 backgroundColor: const Color(0xFF1D1E33),
                                 backgroundImage: NetworkImage(
                                   _profileImageUrl.isNotEmpty
@@ -578,8 +592,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                 child: _profileImageUrl.isEmpty
                                     ? const Icon(
                                         Icons.medical_services_rounded,
-                                        color: Color(0xFF42A5F5),
-                                        size: 30,
+                                        color: _kDoctorProfileGold,
+                                        size: 28,
                                       )
                                     : null,
                               ),
@@ -588,11 +602,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: Colors.black54,
-                                      borderRadius: BorderRadius.circular(48),
+                                      borderRadius: BorderRadius.circular(42),
                                     ),
                                     child: const Center(
                                       child: CircularProgressIndicator(
-                                        color: Color(0xFF42A5F5),
+                                        color: _kDoctorProfileBronze,
                                       ),
                                     ),
                                   ),
@@ -601,20 +615,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                 bottom: -2,
                                 end: -2,
                                 child: Material(
-                                  color: const Color(0xFF42A5F5),
+                                  color: _kDoctorProfileBronze,
                                   shape: const CircleBorder(),
                                   elevation: 2,
                                   child: InkWell(
                                     customBorder: const CircleBorder(),
                                     onTap: _isUploadingImage ? null : _showImageSourceSheet,
                                     child: Padding(
-                                      padding: const EdgeInsets.all(8),
+                                      padding: const EdgeInsets.all(7),
                                       child: Icon(
                                         _profileImageUrl.isEmpty
                                             ? Icons.camera_alt_rounded
                                             : Icons.edit_rounded,
                                         color: const Color(0xFF102A43),
-                                        size: 22,
+                                        size: 20,
                                       ),
                                     ),
                                   ),
@@ -624,165 +638,245 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       KurdishDoctorSpecialtyDropdown(
                         dense: true,
+                        accentColor: _kDoctorProfileGold,
                         value: _selectedSpecialty,
                         onChanged: (v) => setState(() => _selectedSpecialty = v),
                         validator: (v) => v == null || v.isEmpty
                             ? s.translate('validation_specialty_required')
                             : null,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _hospitalRegistryDropdown(),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _hospitalNameCardController,
                         label: s.translate('doctor_field_hospital_display_simple'),
                         icon: Icons.local_hospital_rounded,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _consultationFeeController,
                         label: s.translate('doctor_consultation_fee_label'),
                         icon: Icons.payments_rounded,
                         keyboardType: TextInputType.number,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _phoneController,
                         label: s.translate('doctor_phone_label'),
                         icon: Icons.phone_rounded,
                         keyboardType: TextInputType.phone,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _fibNumberController,
                         label: 'FIB Number',
                         icon: Icons.account_balance_wallet_rounded,
                         keyboardType: TextInputType.phone,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _fastPayNumberController,
                         label: 'FastPay Number',
                         icon: Icons.phone_android_rounded,
                         keyboardType: TextInputType.phone,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       _sectionTitle('editor_section_kurdish'),
                       _field(
                         controller: _fullNameKuController,
                         label: s.translate('doctor_field_full_name'),
                         icon: Icons.person_rounded,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _field(
                         controller: _bioKuController,
                         label: s.translate('doctor_field_bio'),
                         icon: Icons.info_outline_rounded,
                         maxLines: 4,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _field(
                         controller: _addressKuController,
                         label: s.translate('doctor_field_address'),
                         icon: Icons.location_on_rounded,
                         maxLines: 2,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _field(
                         controller: _hospitalKuController,
                         label: s.translate('doctor_field_hospital'),
                         icon: Icons.local_hospital_rounded,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _field(
                         controller: _experienceKuController,
                         label: s.translate('doctor_field_experience'),
                         icon: Icons.work_history_rounded,
                         maxLines: 3,
                       ),
-                      _sectionTitle('editor_section_arabic'),
-                      _field(
-                        controller: _fullNameArController,
-                        label: s.translate('doctor_field_full_name'),
-                        icon: Icons.person_rounded,
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          dividerColor: Colors.transparent,
+                          listTileTheme: const ListTileThemeData(
+                            iconColor: _kDoctorProfileBronze,
+                          ),
+                        ),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 2),
+                          initiallyExpanded: false,
+                          backgroundColor: const Color(0xFF121826),
+                          collapsedBackgroundColor: const Color(0xFF121826),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          collapsedShape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          iconColor: _kDoctorProfileBronze,
+                          collapsedIconColor: _kDoctorProfileBronze,
+                          title: Text(
+                            s.translate('editor_section_arabic'),
+                            style: const TextStyle(
+                              color: _kDoctorProfileGold,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'NRT',
+                            ),
+                          ),
+                          children: [
+                            _field(
+                              controller: _fullNameArController,
+                              label: s.translate('doctor_field_full_name'),
+                              icon: Icons.person_rounded,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _bioArController,
+                              label: s.translate('doctor_field_bio'),
+                              icon: Icons.info_outline_rounded,
+                              maxLines: 4,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _addressArController,
+                              label: s.translate('doctor_field_address'),
+                              icon: Icons.location_on_rounded,
+                              maxLines: 2,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _hospitalArController,
+                              label: s.translate('doctor_field_hospital'),
+                              icon: Icons.local_hospital_rounded,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _experienceArController,
+                              label: s.translate('doctor_field_experience'),
+                              icon: Icons.work_history_rounded,
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _bioArController,
-                        label: s.translate('doctor_field_bio'),
-                        icon: Icons.info_outline_rounded,
-                        maxLines: 4,
+                      const SizedBox(height: 8),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          dividerColor: Colors.transparent,
+                          listTileTheme: const ListTileThemeData(
+                            iconColor: _kDoctorProfileBronze,
+                          ),
+                        ),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 2),
+                          initiallyExpanded: false,
+                          backgroundColor: const Color(0xFF121826),
+                          collapsedBackgroundColor: const Color(0xFF121826),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          collapsedShape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          iconColor: _kDoctorProfileBronze,
+                          collapsedIconColor: _kDoctorProfileBronze,
+                          title: Text(
+                            s.translate('editor_section_english'),
+                            style: const TextStyle(
+                              color: _kDoctorProfileGold,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'NRT',
+                            ),
+                          ),
+                          children: [
+                            _field(
+                              controller: _fullNameEnController,
+                              label: s.translate('doctor_field_full_name'),
+                              icon: Icons.person_rounded,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _bioEnController,
+                              label: s.translate('doctor_field_bio'),
+                              icon: Icons.info_outline_rounded,
+                              maxLines: 4,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _addressEnController,
+                              label: s.translate('doctor_field_address'),
+                              icon: Icons.location_on_rounded,
+                              maxLines: 2,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _hospitalEnController,
+                              label: s.translate('doctor_field_hospital'),
+                              icon: Icons.local_hospital_rounded,
+                            ),
+                            const SizedBox(height: 6),
+                            _field(
+                              controller: _experienceEnController,
+                              label: s.translate('doctor_field_experience'),
+                              icon: Icons.work_history_rounded,
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _addressArController,
-                        label: s.translate('doctor_field_address'),
-                        icon: Icons.location_on_rounded,
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _hospitalArController,
-                        label: s.translate('doctor_field_hospital'),
-                        icon: Icons.local_hospital_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _experienceArController,
-                        label: s.translate('doctor_field_experience'),
-                        icon: Icons.work_history_rounded,
-                        maxLines: 3,
-                      ),
-                      _sectionTitle('editor_section_english'),
-                      _field(
-                        controller: _fullNameEnController,
-                        label: s.translate('doctor_field_full_name'),
-                        icon: Icons.person_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _bioEnController,
-                        label: s.translate('doctor_field_bio'),
-                        icon: Icons.info_outline_rounded,
-                        maxLines: 4,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _addressEnController,
-                        label: s.translate('doctor_field_address'),
-                        icon: Icons.location_on_rounded,
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _hospitalEnController,
-                        label: s.translate('doctor_field_hospital'),
-                        icon: Icons.local_hospital_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _field(
-                        controller: _experienceEnController,
-                        label: s.translate('doctor_field_experience'),
-                        icon: Icons.work_history_rounded,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       _field(
                         controller: _yearsExperienceController,
                         label: s.translate('doctor_field_years_numeric'),
                         icon: Icons.numbers_rounded,
                         keyboardType: TextInputType.number,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: _isSaving ? null : _saveChanges,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF42A5F5),
+                          backgroundColor: _kDoctorProfileBronze,
                           foregroundColor: const Color(0xFF102A43),
-                          minimumSize: const Size(double.infinity, 56),
+                          minimumSize: const Size(double.infinity, 52),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -791,7 +885,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2.2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Color(0xFF102A43),
+                                ),
                               )
                             : Text(
                                 s.translate('profile_save_changes'),
@@ -839,7 +936,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             color: Color(0xFF829AB1),
             fontFamily: 'NRT',
           ),
-          prefixIcon: Icon(icon, color: const Color(0xFF42A5F5)),
+          prefixIcon: Icon(icon, color: _kDoctorProfileGold),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         ),

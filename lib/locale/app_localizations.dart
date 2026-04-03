@@ -1712,6 +1712,22 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'المواعيد',
     'en': 'Bookings',
   },
+  'secretary_nav_clinic': {
+    'ckb': 'کلینیک',
+    'ar': 'العيادة',
+    'en': 'Clinic',
+  },
+  'secretary_clinic_settings_title': {
+    'ckb': 'ڕێکخستنی کلینیک',
+    'ar': 'إعدادات العيادة',
+    'en': 'Clinic settings',
+  },
+  'secretary_clinic_settings_card_hint': {
+    'ckb':
+        'ناوی نەخۆشخانە لە کارتەکانی پزیشک لە لایەن نەخۆشەکاندا دەردەکەوێت.',
+    'ar': 'يظهر اسم المستشفى في بطاقات الطبيب لدى المرضى.',
+    'en': 'This name appears on doctor cards for patients.',
+  },
   'secretary_bookings_title': {
     'ckb': 'بەڕێوەبردنی نۆرەکان',
     'ar': 'إدارة المواعيد',
