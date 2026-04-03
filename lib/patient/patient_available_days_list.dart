@@ -34,7 +34,17 @@ const Color _kSelectedGoldRing = Color(0xFFD4AF37);
 
 const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
-const Color _kGoldLight = Color(0xFFF6E7A6);
+
+/// Same gradient spec as booking summary «دووپاتکردنەوەی نۆرە» CTA.
+const Color _kConfirmGoldBright = Color(0xFFE6B800);
+const Color _kConfirmGoldDarkRod = Color(0xFFB8860B);
+const Color _kConfirmSilverBorder = Color(0xFFD1D1D1);
+
+const LinearGradient _kConfirmBookingGoldGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [_kConfirmGoldBright, _kConfirmGoldDarkRod],
+);
 
 String _weekdayTranslationKey(DateTime d) {
   switch (d.weekday) {
@@ -646,8 +656,17 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                 borderRadius: BorderRadius.circular(18),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _kGoldMid.withValues(alpha: 0.34),
-                                    blurRadius: 10,
+                                    color: _kConfirmGoldDarkRod.withValues(
+                                      alpha: 0.38,
+                                    ),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                  BoxShadow(
+                                    color: _kGoldDark.withValues(alpha: 0.20),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                    spreadRadius: -2,
                                   ),
                                 ],
                               ),
@@ -677,22 +696,15 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: bookable
-                                      ? const LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            Color(0xFFFFD700),
-                                            Color(0xFFB8860B),
-                                          ],
-                                        )
+                                      ? _kConfirmBookingGoldGradient
                                       : null,
                                   color:
                                       bookable ? null : const Color(0xFF9E9E9E),
                                   border: Border.all(
                                     color: bookable
-                                        ? _kGoldLight.withValues(alpha: 0.75)
+                                        ? _kConfirmSilverBorder
                                         : const Color(0xFF8A8A8A),
-                                    width: 0.85,
+                                    width: 0.8,
                                   ),
                                 ),
                                 child: Padding(
@@ -704,20 +716,11 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                       s.translate('confirm_booking'),
                                       style: TextStyle(
                                         fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w700,
                                         fontSize: 15,
                                         color: bookable
-                                            ? Colors.white
+                                            ? Colors.black
                                             : Colors.white70,
-                                        shadows: bookable
-                                            ? const [
-                                                Shadow(
-                                                  color: Colors.black,
-                                                  blurRadius: 2.0,
-                                                  offset: Offset(1, 1),
-                                                ),
-                                              ]
-                                            : null,
                                       ),
                                     ),
                                   ),

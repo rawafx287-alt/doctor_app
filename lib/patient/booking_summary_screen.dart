@@ -22,24 +22,20 @@ const Color _kNavy = Color(0xFF0D2137);
 const Color _kBodyMuted = Color(0xFF455A64);
 const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
-const Color _kGoldLight = Color(0xFFF6E7A6);
 const Color _kGoldShine = Color(0xFFFFE082);
 const Color _kEmeraldAvailable = Color(0xFF1B5E20);
 const Color _kSlotBorderBlue = Color(0xFF1565C0);
 const Color _kBookedRed = Color(0xFFB91C1C);
 
-const LinearGradient _kMetallicGoldGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    _kGoldDark,
-    _kGoldMid,
-    _kGoldShine,
-    _kGoldLight,
-    _kGoldMid,
-    _kGoldDark,
-  ],
-  stops: [0.0, 0.22, 0.42, 0.55, 0.78, 1.0],
+/// «دووپاتکردنەوەی نۆرە» — bright gold → dark goldenrod (matches home CTA spec).
+const Color _kConfirmGoldBright = Color(0xFFE6B800);
+const Color _kConfirmGoldDarkRod = Color(0xFFB8860B);
+const Color _kConfirmButtonSilverBorder = Color(0xFFD1D1D1);
+
+const LinearGradient _kConfirmBookingGoldGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [_kConfirmGoldBright, _kConfirmGoldDarkRod],
 );
 
 /// Final step before committing an [available_days] booking (patient).
@@ -1825,27 +1821,31 @@ class _PremiumGoldBookingButtonState extends State<_PremiumGoldBookingButton>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
         gradient: active
-            ? _kMetallicGoldGradient
+            ? _kConfirmBookingGoldGradient
             : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
               ),
         border: Border.all(
           color: active
-              ? _kGoldLight.withValues(alpha: 0.65)
-              : Colors.transparent,
-          width: 0.85,
+              ? _kConfirmButtonSilverBorder
+              : const Color(0xFFB0BEC5),
+          width: 0.8,
         ),
         boxShadow: active
             ? [
                 BoxShadow(
-                  color: _kGoldDark.withValues(alpha: 0.38),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: _kConfirmGoldDarkRod.withValues(alpha: 0.40),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                  spreadRadius: 0,
                 ),
                 BoxShadow(
-                  color: _kGoldMid.withValues(alpha: 0.24),
-                  blurRadius: 26,
-                  offset: const Offset(0, 4),
+                  color: const Color(0xFF8B6914).withValues(alpha: 0.22),
+                  blurRadius: 22,
+                  offset: const Offset(0, 9),
+                  spreadRadius: -3,
                 ),
               ]
             : [
@@ -1865,25 +1865,16 @@ class _PremiumGoldBookingButtonState extends State<_PremiumGoldBookingButton>
                   width: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.2,
-                    color: Colors.white,
+                    color: Color(0xFF1A120E),
                   ),
                 )
               : Text(
                   widget.label,
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: active ? Colors.white : const Color(0xFFE5E7EB),
-                    shadows: active
-                        ? const [
-                            Shadow(
-                              color: Color(0x66000000),
-                              offset: Offset(0, 1),
-                              blurRadius: 2,
-                            ),
-                          ]
-                        : null,
+                    color: active ? Colors.black : const Color(0xFFE5E7EB),
                   ),
                 ),
         ),

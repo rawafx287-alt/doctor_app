@@ -625,9 +625,11 @@ const Map<String, Map<String, String>> kAppStrings = {
   },
   'about_description': {
     'ckb':
-        'ئەم ئەپە یارمەتی تۆ دەدات بۆ دۆزینەوەی پزیشک و بەڕێوەبردنی نۆرەکان.',
-    'ar': 'يساعدك هذا التطبيق على إيجاد الأطباء وإدارة مواعيدك.',
-    'en': 'This app helps you find doctors and manage your appointments.',
+        'ئەم ئەپڵیکەیشنە پلاتفۆرمێکی پێشکەوتووی تەندروستییە کە کار ئاسانی دەکات بۆ دۆزینەوەی باشترین پزیشکانی پسپۆڕ و وەرگرتنی نۆرە بە شێوازێکی خێرا و مۆدێرن. ئامانجی ئێمە دابینکردنی سیستەمێکی ڕێکخراوە بۆ بەڕێوەبردنی کاتەکانی نۆرەگرتن و دروستکردنی پەیوەندییەکی ئاسان لە نێوان پزیشک و نەخۆشدا، تاوەکو باشترین خزمەتگوزاری تەندروستی بگاتە هەمووان.',
+    'ar':
+        'هذا التطبيق منصة صحية متطورة تسهّل العثور على أفضل الأطباء الاختصاصيين وحجز المواعيد بسرعة وبطريقة عصرية. هدفنا توفير نظام منظم لإدارة أوقات الحجز وبناء رابطة سهلة بين الطبيب والمريض، حتى تصل أفضل خدمات الرعاية الصحية للجميع.',
+    'en':
+        'This app is an advanced health platform that makes it easy to find top specialist doctors and book appointments quickly and in a modern way. We provide an organized system for managing bookings and a smooth connection between doctor and patient, so quality healthcare can reach everyone.',
   },
   'profile_guest': {
     'ckb': 'هیچ هەژمارێک نییە',
@@ -1003,6 +1005,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اسم المستشفى أو العيادة',
     'en': 'Hospital or clinic name',
   },
+  /// Short label — shown on doctor profile editor for the home-card hospital line.
+  'doctor_field_hospital_display_simple': {
+    'ckb': 'ناوی نەخۆشخانە',
+    'ar': 'اسم المستشفى',
+    'en': 'Hospital name',
+  },
   'doctor_field_experience': {
     'ckb': 'ئەزموون (دەق)',
     'ar': 'الخبرة (نص)',
@@ -1367,9 +1375,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'No account session',
   },
   'doctor_about_description': {
-    'ckb': 'تەختەی پزیشک و بەڕێوەبردنی نۆرە و خشتە.',
-    'ar': 'لوحة الطبيب وإدارة المواعيد والجدول.',
-    'en': 'Doctor dashboard for appointments and weekly schedule.',
+    'ckb':
+        'ئەم ئەپڵیکەیشنە پلاتفۆرمێکی پێشکەوتووی تەندروستییە کە کار ئاسانی دەکات بۆ دۆزینەوەی باشترین پزیشکانی پسپۆڕ و وەرگرتنی نۆرە بە شێوازێکی خێرا و مۆدێرن. ئامانجی ئێمە دابینکردنی سیستەمێکی ڕێکخراوە بۆ بەڕێوەبردنی کاتەکانی نۆرەگرتن و دروستکردنی پەیوەندییەکی ئاسان لە نێوان پزیشک و نەخۆشدا، تاوەکو باشترین خزمەتگوزاری تەندروستی بگاتە هەمووان.',
+    'ar':
+        'هذا التطبيق منصة صحية متطورة تسهّل العثور على أفضل الأطباء الاختصاصيين وحجز المواعيد بسرعة وبطريقة عصرية. هدفنا توفير نظام منظم لإدارة أوقات الحجز وبناء رابطة سهلة بين الطبيب والمريض، حتى تصل أفضل خدمات الرعاية الصحية للجميع.',
+    'en':
+        'This app is an advanced health platform that makes it easy to find top specialist doctors and book appointments quickly and in a modern way. We provide an organized system for managing bookings and a smooth connection between doctor and patient, so quality healthcare can reach everyone.',
   },
   'auth_doctor_pending_title': {
     'ckb': 'هەژمارەکەت چاوەڕێی قبوڵکردنی بەڕێوەبەرە',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../locale/hr_nora_about_dialog.dart';
 import '../locale/language_picker.dart';
 import '../models/doctor_localized_content.dart';
 import '../auth/app_logout.dart';
@@ -26,37 +27,7 @@ class DoctorProfileScreen extends StatelessWidget {
   }
 
   void _showAbout(BuildContext context) {
-    final s = S.of(context);
-    showAboutDialog(
-      context: context,
-      applicationName: s.translate('app_display_name'),
-      applicationVersion: '1.0.0',
-      applicationIcon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF42A5F5).withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(
-          Icons.medical_services_rounded,
-          color: Color(0xFF42A5F5),
-          size: 32,
-        ),
-      ),
-      children: [
-        Directionality(
-          textDirection: AppLocaleScope.of(context).textDirection,
-          child: Text(
-            s.translate('doctor_about_description'),
-            style: const TextStyle(
-              color: Color(0xFF829AB1),
-              fontFamily: 'NRT',
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
-    );
+    showHrNoraAboutDialog(context);
   }
 
   @override

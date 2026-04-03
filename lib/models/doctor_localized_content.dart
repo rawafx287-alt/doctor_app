@@ -47,6 +47,22 @@ String localizedDoctorFullName(Map<String, dynamic> data, HrNoraLanguage languag
   );
 }
 
+/// Hospital / clinic line for patient doctor cards and details.
+/// Prefers explicit [`hospitalName`] (doctor profile «ناوی نەخۆشخانە»), then localized `hospital_name_*`.
+String localizedDoctorHospitalName(
+  Map<String, dynamic> data,
+  HrNoraLanguage language,
+) {
+  final direct = (data['hospitalName'] ?? '').toString().trim();
+  if (direct.isNotEmpty) return direct;
+  return localizedDoctorField(
+    data,
+    language,
+    baseKey: 'hospital_name',
+    legacyKeys: const ['clinicName'],
+  );
+}
+
 /// Prefer Kurdish stored name for appointments / legacy fields.
 String canonicalDoctorNameForStorage(Map<String, dynamic> data) {
   final ku = (data['fullName_ku'] ?? '').toString().trim();
