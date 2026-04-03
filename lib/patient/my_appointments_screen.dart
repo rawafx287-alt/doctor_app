@@ -1264,6 +1264,7 @@ Widget _appointmentDetailTransition(
               ),
             ),
           ),
+
         ),
         SafeArea(
           maintainBottomViewPadding: true,
