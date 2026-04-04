@@ -212,7 +212,6 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
                       fill: const Color(0xFF16A34A),
                       icon: Icons.check_rounded,
                       tooltip: s.translate('secretary_action_completed'),
-                      glow: true,
                       onPressed:
                           widget.busy ? null : widget.onCompleted,
                     ),
@@ -221,7 +220,6 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
                       fill: const Color(0xFFDC2626),
                       icon: Icons.close_rounded,
                       tooltip: s.translate('secretary_action_cancel'),
-                      glow: false,
                       onPressed:
                           widget.busy ? null : widget.onCancelled,
                     ),
@@ -318,14 +316,12 @@ class _DoneRejectCircle extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.glow = false,
   });
 
   final Color fill;
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  final bool glow;
 
   @override
   Widget build(BuildContext context) {
@@ -333,6 +329,8 @@ class _DoneRejectCircle extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: Colors.transparent,
+        elevation: 0,
+        shadowColor: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
           customBorder: const CircleBorder(),
@@ -342,20 +340,6 @@ class _DoneRejectCircle extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: fill,
-              boxShadow: [
-                if (glow)
-                  BoxShadow(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.5),
-                    blurRadius: 14,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 2),
-                  ),
-                BoxShadow(
-                  color: fill.withValues(alpha: glow ? 0.22 : 0.32),
-                  blurRadius: glow ? 9 : 7,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),

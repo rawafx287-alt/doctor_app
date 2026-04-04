@@ -18,6 +18,8 @@ import '../models/doctor_localized_content.dart';
 import 'my_appointments_screen.dart';
 import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
+import 'booking_details_page.dart';
+import 'patient_booking_form_result.dart';
 
 const Color _kNavy = Color(0xFF0D2137);
 const Color _kBodyMuted = Color(0xFF455A64);
@@ -768,7 +770,22 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
   }
 
-  Future<void> _confirmWithPreview(BuildContext context, String timeDisplay) async {
+  Future<void> _confirmWithPreview(
+    BuildContext context, {
+    required String slotTimeLabelEn,
+  }) async {
+    final form = await Navigator.of(context).push<PatientBookingFormResult>(
+      MaterialPageRoute<PatientBookingFormResult>(
+        builder: (_) => BookingDetailsPage(
+          initialFullName: widget.patientName,
+          doctorDisplayName: widget.doctorDisplayName,
+          dateLocal: widget.dateLocal,
+          slotTimeLabelEn: slotTimeLabelEn,
+        ),
+      ),
+    );
+    if (form == null || !context.mounted) return;
+
     final uid = (FirebaseAuth.instance.currentUser?.uid ??
             await PatientSessionCache.readPatientRefId())
         ?.trim();
@@ -783,12 +800,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     if (!context.mounted || !legalApproved) return;
     final payment = await _showPaymentSelectionSheet(context);
     if (payment == null || !context.mounted) return;
-    await _commitBooking(context, payment);
+    await _commitBooking(context, payment, form);
   }
 
   Future<void> _commitBooking(
     BuildContext context,
     _PaymentSelectionResult payment,
+    PatientBookingFormResult form,
   ) async {
     final s = S.of(context);
     final uid = (FirebaseAuth.instance.currentUser?.uid ??
@@ -832,14 +850,19 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
 
       final pm = payment.method == _PaymentMethod.cash ? 'cash' : 'digital';
 
+      final displayName = form.fullName.trim().isEmpty
+          ? widget.patientName.trim()
+          : form.fullName.trim();
+
       final err = await bookAvailableDayTransaction(
         availableDayDocId: widget.availableDayDocId,
         patientId: uid,
-        patientName: widget.patientName,
+        patientName: displayName.isEmpty ? widget.patientName : displayName,
         doctorId: _resolvedDoctorUid,
         doctorDisplayName: doctorName,
         paymentMethod: pm,
         receiptUrl: receiptUrl,
+        extraAppointmentData: form.toAppointmentExtras(),
       );
 
       if (!mounted || !context.mounted) return;
@@ -917,35 +940,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                HrNoraColors.openDayGradientLight
-                                    .withValues(alpha: 0.32),
-                                HrNoraColors.openDayFill.withValues(alpha: 0.18),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: HrNoraColors.openDayFill
-                                    .withValues(alpha: 0.28),
-                                blurRadius: 16,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.check_circle_rounded,
-                            size: 46,
-                            color: HrNoraColors.openDayFill,
-                          ),
-                        ),
+                        const _BookingSuccessCheckAnimation(),
                         const SizedBox(height: 14),
                         Text(
                           loc.translate('booking_success_title'),
@@ -1570,10 +1565,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               slots.isNotEmpty,
                           submitting: _submitting,
                           label: s.translate('confirm_booking'),
-                          onPressed: () => _confirmWithPreview(
-                            context,
-                            assignedTimeDisplay,
-                          ),
+                          onPressed: () {
+                            final slotEn = firstFree != null
+                                ? DateFormat.jm('en_US').format(firstFree)
+                                : '—';
+                            _confirmWithPreview(
+                              context,
+                              slotTimeLabelEn: slotEn,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1583,6 +1583,70 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             },
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingSuccessCheckAnimation extends StatefulWidget {
+  const _BookingSuccessCheckAnimation();
+
+  @override
+  State<_BookingSuccessCheckAnimation> createState() =>
+      _BookingSuccessCheckAnimationState();
+}
+
+class _BookingSuccessCheckAnimationState extends State<_BookingSuccessCheckAnimation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 680),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: CurvedAnimation(
+        parent: _controller,
+        curve: Curves.elasticOut,
+      ),
+      child: FadeTransition(
+        opacity: CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0, 0.5, curve: Curves.easeOut),
+        ),
+        child: Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                HrNoraColors.openDayGradientLight.withValues(alpha: 0.32),
+                HrNoraColors.openDayFill.withValues(alpha: 0.18),
+              ],
+            ),
+          ),
+          child: const Icon(
+            Icons.check_circle_rounded,
+            size: 46,
+            color: HrNoraColors.openDayFill,
           ),
         ),
       ),

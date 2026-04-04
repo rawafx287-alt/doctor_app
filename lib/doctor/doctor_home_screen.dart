@@ -110,14 +110,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
     TextStyle labelFor(bool selected) => labelStyle.copyWith(
       color: selected ? kStaffLuxGold : _navInactiveMuted,
-      shadows: selected
-          ? <Shadow>[
-              Shadow(
-                color: kStaffLuxGold.withValues(alpha: 0.75),
-                blurRadius: 8,
-              ),
-            ]
-          : null,
     );
 
     Widget navItem({
@@ -138,30 +130,20 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       return Expanded(
         child: Material(
           color: Colors.transparent,
+          elevation: 0,
           child: InkWell(
             onTap: () => _onBottomNavTap(index),
             borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (selected)
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: gold.withValues(alpha: 0.55),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: iconCore,
-                    )
-                  else
-                    iconCore,
+                  SizedBox(
+                    height: 24,
+                    child: Center(child: iconCore),
+                  ),
                   const SizedBox(height: 3),
                   Container(
                     width: 5,
@@ -169,14 +151,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: selected ? gold : Colors.transparent,
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: gold.withValues(alpha: 0.65),
-                                blurRadius: 6,
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -199,125 +173,99 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-        child: SizedBox(
-          height: 78,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(barRadius),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        blurRadius: 28,
-                        offset: const Offset(0, 14),
-                      ),
-                      BoxShadow(
-                        color: kStaffLuxGold.withValues(alpha: 0.12),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(barRadius),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                      child: Container(
-                        height: barHeight,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.07),
-                          border: Border(
-                            top: BorderSide(
-                              color: kStaffLuxGold.withValues(alpha: 0.78),
-                              width: 1,
-                            ),
-                          ),
-                          borderRadius: BorderRadius.circular(barRadius),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: Builder(
-                            builder: (context) {
-                              final isRtl =
-                                  Directionality.of(context) ==
-                                  TextDirection.rtl;
-                              // RTL: start = right → appointments first; LTR: profile first = left.
-                              final appt = navItem(
-                                index: 0,
-                                icon: Icons.calendar_month_rounded,
-                                label: s.translate('doctor_nav_appointments'),
-                              );
-                              final profile = navItem(
-                                index: 2,
-                                icon: Icons.person_rounded,
-                                label: s.translate('doctor_nav_profile'),
-                              );
-                              const hole = SizedBox(width: 76);
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: isRtl
-                                    ? <Widget>[appt, hole, profile]
-                                    : <Widget>[profile, hole, appt],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(barRadius),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 36,
-                child: Tooltip(
-                  message: s.translate('doctor_nav_schedule'),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => _onBottomNavTap(1),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: kStaffGoldActionGradient,
-                          border: Border.all(
-                            color: _bottomNavIndex == 1
-                                ? kStaffLuxGoldLight
-                                : kStaffSilverBorder,
-                            width: _bottomNavIndex == 1 ? 2.4 : 1.1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kStaffLuxGold.withValues(
-                                alpha: _bottomNavIndex == 1 ? 0.55 : 0.32,
-                              ),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: const SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: Icon(
-                            Icons.event_available_rounded,
-                            color: kStaffOnGoldText,
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              BoxShadow(
+                color: kStaffLuxGold.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(barRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: Container(
+                height: barHeight,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  border: Border(
+                    top: BorderSide(
+                      color: kStaffLuxGold.withValues(alpha: 0.78),
+                      width: 1,
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(barRadius),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Builder(
+                    builder: (context) {
+                      final isRtl =
+                          Directionality.of(context) == TextDirection.rtl;
+                      // RTL: start = right → appointments first; LTR: profile left.
+                      final appt = navItem(
+                        index: 0,
+                        icon: Icons.calendar_month_rounded,
+                        label: s.translate('doctor_nav_appointments'),
+                      );
+                      final profile = navItem(
+                        index: 2,
+                        icon: Icons.person_rounded,
+                        label: s.translate('doctor_nav_profile'),
+                      );
+                      final scheduleButton = Tooltip(
+                        message: s.translate('doctor_nav_schedule'),
+                        child: Material(
+                          color: Colors.transparent,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => _onBottomNavTap(1),
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: kStaffGoldActionGradient,
+                                border: Border.all(
+                                  color: _bottomNavIndex == 1
+                                      ? kStaffLuxGoldLight
+                                      : kStaffSilverBorder,
+                                  width: _bottomNavIndex == 1 ? 2.4 : 1.1,
+                                ),
+                              ),
+                              child: const SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: Icon(
+                                  Icons.event_available_rounded,
+                                  color: kStaffOnGoldText,
+                                  size: 26,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: isRtl
+                            ? <Widget>[appt, scheduleButton, profile]
+                            : <Widget>[profile, scheduleButton, appt],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

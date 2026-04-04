@@ -217,6 +217,9 @@ class HrNoraAppRoot extends StatelessWidget {
 }
 
 // ئەم کڵاسە بەرپرسە لە بەڕێوەبردنی شریتی خوارەوە (Bottom Navigation)
+/// Patient shell: three equal tabs (home / notifications / profile), no center FAB.
+/// Doctor shell with the gold schedule button between Profile and Appointments is
+/// [DoctorHomeScreen] (`lib/doctor/doctor_home_screen.dart`).
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -260,6 +263,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       return Expanded(
         child: Material(
           color: Colors.transparent,
+          elevation: 0,
           child: InkWell(
             onTap: () {
               HapticFeedback.lightImpact();
@@ -267,26 +271,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             },
             borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (selected)
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: gold.withValues(alpha: 0.45),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: iconWidget,
-                    )
-                  else
-                    iconWidget,
+                  SizedBox(
+                    height: 24,
+                    child: Center(child: iconWidget),
+                  ),
                   const SizedBox(height: 3),
                   Container(
                     width: 5,
@@ -294,14 +287,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: selected ? gold : Colors.transparent,
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: gold.withValues(alpha: 0.55),
-                                blurRadius: 6,
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -316,14 +301,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       fontSize: 10,
                       height: 1.05,
                       color: selected ? gold : inactive,
-                      shadows: selected
-                          ? <Shadow>[
-                              Shadow(
-                                color: gold.withValues(alpha: 0.65),
-                                blurRadius: 8,
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                 ],
@@ -337,7 +314,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(barRadius),

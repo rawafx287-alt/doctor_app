@@ -1126,11 +1126,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا توجد مواعيد مسجلة لهذا اليوم',
     'en': 'No booked appointments for today',
   },
-  /// Label between active and completed appointment groups on the doctor dashboard.
+  /// Label between active and finished (completed/rejected) groups on the doctor dashboard.
   'doctor_today_completed_section_label': {
-    'ckb': 'نۆرە تەواوبووەکان',
-    'ar': 'المواعيد المكتملة',
-    'en': 'Completed appointments',
+    'ckb': 'تەواوبووەکان',
+    'ar': 'مكتملة / منتهية',
+    'en': 'Completed',
   },
   'doctor_appointments_update_error': {
     'ckb': 'هەڵە لە نوێکردنەوە',
@@ -1736,6 +1736,96 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'دووپاتکردنەوەی نۆرە',
     'ar': 'تأكيد الحجز',
     'en': 'Confirm booking',
+  },
+  'booking_details_title': {
+    'ckb': 'زانیارییەکانی نۆرە',
+    'ar': 'تفاصيل الحجز',
+    'en': 'Booking details',
+  },
+  'booking_form_full_name': {
+    'ckb': 'ناوی سیانی',
+    'ar': 'الاسم الكامل',
+    'en': 'Full name',
+  },
+  'booking_form_age': {
+    'ckb': 'تەمەن',
+    'ar': 'العمر',
+    'en': 'Age',
+  },
+  'booking_form_blood': {
+    'ckb': 'گروپی خوێن',
+    'ar': 'فصيلة الدم',
+    'en': 'Blood group',
+  },
+  'booking_form_blood_hint': {
+    'ckb': 'هەڵبژاردن',
+    'ar': 'اختر',
+    'en': 'Select',
+  },
+  'booking_form_phone': {
+    'ckb': 'ژمارە مۆبایل',
+    'ar': 'رقم الهاتف',
+    'en': 'Phone number',
+  },
+  'booking_form_gender': {
+    'ckb': 'ڕەگەز',
+    'ar': 'الجنس',
+    'en': 'Gender',
+  },
+  'booking_form_gender_male': {
+    'ckb': 'نێر',
+    'ar': 'ذكر',
+    'en': 'Male',
+  },
+  'booking_form_gender_female': {
+    'ckb': 'مێ',
+    'ar': 'أنثى',
+    'en': 'Female',
+  },
+  'booking_form_medical_notes': {
+    'ckb': 'تێبینی پزیشکی',
+    'ar': 'ملاحظات طبية',
+    'en': 'Medical notes',
+  },
+  'booking_form_medical_hint': {
+    'ckb': 'هەستیاری، نەخۆشی درێژخایەن...',
+    'ar': 'الحساسية، الأمراض المزمنة...',
+    'en': 'Allergies, chronic conditions…',
+  },
+  'booking_form_city': {
+    'ckb': 'ناونیشان (شار/ناوچە)',
+    'ar': 'العنوان (المدينة)',
+    'en': 'City / area',
+  },
+  'booking_form_city_hint': {
+    'ckb': 'هەڵبژاردن (ئارەزوومەندانە)',
+    'ar': 'اختياري',
+    'en': 'Optional',
+  },
+  'booking_form_submit': {
+    'ckb': 'ناردنی زانیاری و گرتنی نۆرە',
+    'ar': 'إرسال البيانات وتأكيد الموعد',
+    'en': 'Submit details & confirm booking',
+  },
+  'booking_form_name_required': {
+    'ckb': 'تکایە ناوی سیانی پڕ بکەرەوە.',
+    'ar': 'يرجى إدخال الاسم الكامل.',
+    'en': 'Please enter your full name.',
+  },
+  'booking_form_phone_required': {
+    'ckb': 'تکایە ژمارەی مۆبایل پڕ بکەرەوە.',
+    'ar': 'يرجى إدخال رقم الهاتف.',
+    'en': 'Please enter your phone number.',
+  },
+  'booking_form_age_required': {
+    'ckb': 'تکایە تەمەنێکی دروست بنووسە.',
+    'ar': 'يرجى إدخال عمر صالح.',
+    'en': 'Please enter a valid age.',
+  },
+  'booking_form_blood_required': {
+    'ckb': 'تکایە گروپی خوێن هەڵبژێرە.',
+    'ar': 'يرجى اختيار فصيلة الدم.',
+    'en': 'Please select a blood group.',
   },
   'action_cancel': {
     'ckb': 'پاشگەزبوونەوە',

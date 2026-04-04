@@ -368,6 +368,7 @@ Future<String?> bookAvailableDayTransaction({
   required String doctorDisplayName,
   String? paymentMethod,
   String? receiptUrl,
+  Map<String, dynamic>? extraAppointmentData,
 }) async {
   final pid = patientId.trim();
   final did = doctorId.trim();
@@ -450,7 +451,7 @@ Future<String?> bookAvailableDayTransaction({
         final apptRef = FirebaseFirestore.instance
             .collection(AppointmentFields.collection)
             .doc();
-        transaction.set(apptRef, {
+        final apptPayload = <String, dynamic>{
           AppointmentFields.patientId: pid,
           AppointmentFields.userId: pid,
           AppointmentFields.doctorId: did,
@@ -469,7 +470,17 @@ Future<String?> bookAvailableDayTransaction({
             AppointmentFields.paymentMethod: paymentMethod.trim(),
           if (receiptUrl != null && receiptUrl.trim().isNotEmpty)
             AppointmentFields.receiptUrl: receiptUrl.trim(),
-        });
+        };
+        final extra = extraAppointmentData;
+        if (extra != null) {
+          for (final e in extra.entries) {
+            final v = e.value;
+            if (v == null) continue;
+            if (v is String && v.trim().isEmpty) continue;
+            apptPayload[e.key] = v;
+          }
+        }
+        transaction.set(apptRef, apptPayload);
 
         return null;
       });
