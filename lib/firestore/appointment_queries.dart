@@ -222,3 +222,149 @@ Query<Map<String, dynamic>> patientAppointmentsQuery({
       .orderBy(AppointmentFields.date, descending: false)
       .orderBy(AppointmentFields.time, descending: false);
 }
+
+/// True when appointment status is cancelled (either spelling).
+bool appointmentStatusIsCancelled(String raw) {
+  final s = raw.trim().toLowerCase();
+  return s == 'cancelled' || s == 'canceled';
+}
+
+/// Local calendar day from [AppointmentFields.date] (Timestamp, DateTime, or `yyyy/MM/dd` string).
+DateTime? appointmentLocalDateOnlyFromData(Map<String, dynamic> data) {
+  final raw = data[AppointmentFields.date];
+  if (raw == null) return null;
+  if (raw is Timestamp) {
+    final d = raw.toDate();
+    return DateTime(d.year, d.month, d.day);
+  }
+  if (raw is DateTime) {
+    return DateTime(raw.year, raw.month, raw.day);
+  }
+  final str = raw.toString().trim();
+  if (str.isEmpty) return null;
+  final ymd = RegExp(r'^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})');
+  final m = ymd.firstMatch(str);
+  if (m != null) {
+    return DateTime(
+      int.parse(m.group(1)!),
+      int.parse(m.group(2)!),
+      int.parse(m.group(3)!),
+    );
+  }
+  try {
+    final d = DateTime.parse(str);
+    return DateTime(d.year, d.month, d.day);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Stable sort key for grouping appointments by calendar day.
+String appointmentDayKeyFromData(Map<String, dynamic> data) {
+  final d = appointmentLocalDateOnlyFromData(data);
+  if (d == null) return '';
+  return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// Per local calendar day, assigns ticket **1…n** by [AppointmentFields.createdAt]
+/// (then document id) among **non-cancelled** appointments only.
+Map<String, int> dailyQueueNumberByDocId(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final byDay =
+      <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+  for (final d in docs) {
+    final k = appointmentDayKeyFromData(d.data());
+    if (k.isEmpty) continue;
+    byDay.putIfAbsent(k, () => []).add(d);
+  }
+  final out = <String, int>{};
+  for (final list in byDay.values) {
+    final active = list.where((d) {
+      final st =
+          (d.data()[AppointmentFields.status] ?? 'pending').toString();
+      return !appointmentStatusIsCancelled(st);
+    }).toList();
+    active.sort((a, b) {
+      final ta = a.data()[AppointmentFields.createdAt];
+      final tb = b.data()[AppointmentFields.createdAt];
+      final ma = ta is Timestamp ? ta.millisecondsSinceEpoch : 0;
+      final mb = tb is Timestamp ? tb.millisecondsSinceEpoch : 0;
+      if (ma != mb) return ma.compareTo(mb);
+      return a.id.compareTo(b.id);
+    });
+    for (var i = 0; i < active.length; i++) {
+      out[active[i].id] = i + 1;
+    }
+  }
+  return out;
+}
+
+/// Counts non-cancelled appointments in [docs] (e.g. same-day query snapshot).
+int countNonCancelledAppointments(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  var n = 0;
+  for (final d in docs) {
+    final st =
+        (d.data()[AppointmentFields.status] ?? 'pending').toString();
+    if (appointmentStatusIsCancelled(st)) continue;
+    n++;
+  }
+  return n;
+}
+
+/// Next daily ticket for [doctorUserId] on [dayStartLocal] (non-cancelled count + 1).
+Future<int> nextDailyQueueNumberForDoctor({
+  required String doctorUserId,
+  required DateTime dayStartLocal,
+}) async {
+  final dayStart = DateTime(
+    dayStartLocal.year,
+    dayStartLocal.month,
+    dayStartLocal.day,
+  );
+  final dayEnd = dayStart.add(const Duration(days: 1));
+  final snap = await appointmentsForDoctorDateRange(
+    doctorUserId: doctorUserId.trim(),
+    rangeStartInclusiveLocal: dayStart,
+    rangeEndExclusiveLocal: dayEnd,
+  ).get();
+  return countNonCancelledAppointments(snap.docs) + 1;
+}
+
+/// English numerals for ticket display; prefers [queueById] from [dailyQueueNumberByDocId].
+String formatDailyQueueTicketEnglish(
+  QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  Map<String, int> queueById,
+) {
+  final data = doc.data();
+  final nf = NumberFormat.decimalPattern('en_US');
+  final st = (data[AppointmentFields.status] ?? '').toString().toLowerCase();
+  if (st == 'cancelled' || st == 'canceled') {
+    final raw = data[AppointmentFields.queueNumber];
+    int? q;
+    if (raw is int) {
+      q = raw;
+    } else if (raw is num) {
+      q = raw.round();
+    } else if (raw != null) {
+      q = int.tryParse(raw.toString().trim());
+    }
+    if (q != null && q > 0) return nf.format(q);
+    return '—';
+  }
+  final n = queueById[doc.id];
+  if (n != null && n > 0) return nf.format(n);
+  final raw = data[AppointmentFields.queueNumber];
+  int? q;
+  if (raw is int) {
+    q = raw;
+  } else if (raw is num) {
+    q = raw.round();
+  } else if (raw != null) {
+    q = int.tryParse(raw.toString().trim());
+  }
+  if (q != null && q > 0) return nf.format(q);
+  return '—';
+}

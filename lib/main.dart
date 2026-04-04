@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,7 @@ import 'splash_screen.dart';
 // patient login also uses Navigator.pushAndRemoveUntil to [PatientHomeScreen] for instant UI.
 import 'theme/app_fonts.dart';
 import 'theme/hr_nora_colors.dart';
+import 'theme/staff_premium_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -225,12 +228,177 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   static const Color _mainBgTop = Colors.white;
   static const Color _mainBgBottom = Color(0xFFE3F2FD);
+  static const Color _mainNavInactive = Color(0xFF9AA5B1);
 
   final List<Widget> _screens = [
     const ListiDoctorakanScreen(),
     const NotificationsScreen(),
     const ProfileScreen(),
   ];
+
+  Widget _buildFloatingMainBottomNav(BuildContext context) {
+    final s = S.of(context);
+    const barRadius = 32.0;
+    const barHeight = 64.0;
+
+    Widget tab({
+      required int index,
+      required FaIconData icon,
+      required FaIconData iconActive,
+      required String label,
+    }) {
+      final selected = _currentIndex == index;
+      final gold = kStaffLuxGold;
+      final inactive = _mainNavInactive;
+
+      final iconWidget = FaIcon(
+        selected ? iconActive : icon,
+        size: 22,
+        color: selected ? gold : inactive,
+      );
+
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _currentIndex = index);
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (selected)
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: gold.withValues(alpha: 0.45),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: iconWidget,
+                    )
+                  else
+                    iconWidget,
+                  const SizedBox(height: 3),
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? gold : Colors.transparent,
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: gold.withValues(alpha: 0.55),
+                                blurRadius: 6,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      height: 1.05,
+                      color: selected ? gold : inactive,
+                      shadows: selected
+                          ? <Shadow>[
+                              Shadow(
+                                color: gold.withValues(alpha: 0.65),
+                                blurRadius: 8,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(barRadius),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 26,
+                offset: const Offset(0, 12),
+              ),
+              BoxShadow(
+                color: kStaffLuxGold.withValues(alpha: 0.1),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(barRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                height: barHeight,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  border: Border(
+                    top: BorderSide(
+                      color: kStaffLuxGold.withValues(alpha: 0.78),
+                      width: 1,
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(barRadius),
+                ),
+                child: Row(
+                  children: [
+                    tab(
+                      index: 0,
+                      icon: FontAwesomeIcons.house,
+                      iconActive: FontAwesomeIcons.house,
+                      label: s.translate('home'),
+                    ),
+                    tab(
+                      index: 1,
+                      icon: FontAwesomeIcons.bell,
+                      iconActive: FontAwesomeIcons.solidBell,
+                      label: s.translate('notifications'),
+                    ),
+                    tab(
+                      index: 2,
+                      icon: FontAwesomeIcons.user,
+                      iconActive: FontAwesomeIcons.solidUser,
+                      label: s.translate('profile'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,49 +412,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBody: true,
         body: IndexedStack(index: _currentIndex, children: _screens),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.94),
-            border: Border(
-              top: BorderSide(
-                color: HrNoraColors.textMuted.withValues(alpha: 0.25),
-                width: 0.5,
-              ),
-            ),
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            selectedItemColor: const Color(0xFF1565C0),
-            unselectedItemColor: HrNoraColors.textMuted,
-            showUnselectedLabels: true,
-            type: BottomNavigationBarType.fixed,
-            items: [
-              BottomNavigationBarItem(
-                icon: const FaIcon(FontAwesomeIcons.house, size: 20),
-                activeIcon: const FaIcon(FontAwesomeIcons.house, size: 21),
-                label: S.of(context).translate('home'),
-              ),
-              BottomNavigationBarItem(
-                icon: const FaIcon(FontAwesomeIcons.bell, size: 20),
-                activeIcon: const FaIcon(FontAwesomeIcons.solidBell, size: 21),
-                label: S.of(context).translate('notifications'),
-              ),
-              BottomNavigationBarItem(
-                icon: const FaIcon(FontAwesomeIcons.user, size: 20),
-                activeIcon: const FaIcon(FontAwesomeIcons.solidUser, size: 21),
-                label: S.of(context).translate('profile'),
-              ),
-            ],
-          ),
-        ),
+        bottomNavigationBar: _buildFloatingMainBottomNav(context),
       ),
     );
   }

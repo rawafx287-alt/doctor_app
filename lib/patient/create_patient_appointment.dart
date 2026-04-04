@@ -148,17 +148,10 @@ Future<String?> createPatientAppointment({
     if (fromServer.isNotEmpty) doctorNameToSave = fromServer;
   } catch (_) {}
 
-  var queueNumber = 1;
-  try {
-    final countAgg = await appointmentsForDoctorDateRange(
-      doctorUserId: did,
-      rangeStartInclusiveLocal: dayStart,
-      rangeEndExclusiveLocal: dayEnd,
-    ).count().get();
-    queueNumber = (countAgg.count ?? 0) + 1;
-  } catch (_) {
-    queueNumber = (DateTime.now().millisecondsSinceEpoch % 90) + 10;
-  }
+  final queueNumber = await nextDailyQueueNumberForDoctor(
+    doctorUserId: did,
+    dayStartLocal: dayStart,
+  );
 
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: uid,
@@ -217,17 +210,10 @@ Future<String?> createStaffAppointment({
     doctorNameToSave = canonicalDoctorNameForStorage(doctorDoc.data() ?? <String, dynamic>{});
   } catch (_) {}
 
-  var queueNumber = 1;
-  try {
-    final countAgg = await appointmentsForDoctorDateRange(
-      doctorUserId: doctorId,
-      rangeStartInclusiveLocal: dayStart,
-      rangeEndExclusiveLocal: dayEnd,
-    ).count().get();
-    queueNumber = (countAgg.count ?? 0) + 1;
-  } catch (_) {
-    queueNumber = (DateTime.now().millisecondsSinceEpoch % 90) + 10;
-  }
+  final queueNumber = await nextDailyQueueNumberForDoctor(
+    doctorUserId: doctorId,
+    dayStartLocal: dayStart,
+  );
 
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: patientId,

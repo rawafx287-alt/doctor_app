@@ -4,4 +4,15 @@
 /// (**`doctorId`**, capital **I**), matching composite indexes.
 library;
 
-export '../firestore/appointment_queries.dart' show AppointmentFields, appointmentsForDoctorDateRange;
+export '../firestore/appointment_queries.dart'
+    show
+        AppointmentFields,
+        appointmentsForDoctorDateRange,
+        appointmentDayKeyFromData,
+        appointmentLocalDateOnlyFromData,
+        appointmentStatusIsCancelled,
+        countNonCancelledAppointments,
+        dailyQueueNumberByDocId,
+        formatDailyQueueTicketEnglish,
+        nextDailyQueueNumberForDoctor;
+export 'appointment_model.dart' show AppointmentModel;

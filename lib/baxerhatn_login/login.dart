@@ -6,12 +6,14 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../admin_panel/admin_dashboard.dart';
 import '../doctor/doctor_home_screen.dart';
+import '../auth/auth_service.dart';
 import '../auth/phone_normalization.dart';
 import '../auth/phone_auth_config.dart';
 import '../auth/doctor_session_cache.dart';
 import '../auth/patient_session_cache.dart';
 import '../locale/app_localizations.dart';
 import '../patient/patient_home_screen.dart';
+import '../secretary/secretary_home_screen.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
 
@@ -182,6 +184,10 @@ class _LoginScreenState extends State<LoginScreen>
         final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
         return role == 'doctor';
       }).toList();
+      final secretaryMatches = matchedDocs.where((d) {
+        final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
+        return role == 'secretary';
+      }).toList();
       final adminMatches = matchedDocs.where((d) {
         final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
         return role == 'admin';
@@ -221,6 +227,7 @@ class _LoginScreenState extends State<LoginScreen>
         }
         await DoctorSessionCache.saveDoctorRefId(approvedDoctorDoc.id);
         await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'doctor');
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const DoctorHomeScreen()),
@@ -229,9 +236,22 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
+      if (secretaryMatches.isNotEmpty) {
+        await DoctorSessionCache.clearDoctorRefId();
+        await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'secretary');
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const SecretaryHomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
       if (adminMatches.isNotEmpty) {
         await DoctorSessionCache.clearDoctorRefId();
         await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'admin');
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const AdminDashboard()),
@@ -268,6 +288,7 @@ class _LoginScreenState extends State<LoginScreen>
           signedUid.isNotEmpty ? signedUid : patientDoc.id,
         );
         await DoctorSessionCache.clearDoctorRefId();
+        await AuthService.instance.persistSession(role: 'patient');
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const PatientHomeScreen()),

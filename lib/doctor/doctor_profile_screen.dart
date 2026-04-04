@@ -552,13 +552,16 @@ class _DoctorLogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StaffGoldGradientButton(
-      label: label,
-      onPressed: onPressed,
-      fontSize: 16,
-      borderRadius: 16,
-      minHeight: 52,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+    return SizedBox(
+      width: double.infinity,
+      child: StaffGoldGradientButton(
+        label: label,
+        onPressed: onPressed,
+        fontSize: 16,
+        borderRadius: 16,
+        minHeight: 52,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+      ),
     );
   }
 }

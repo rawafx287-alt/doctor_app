@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../locale/app_locale.dart';
+import '../auth/app_logout.dart';
 import '../doctor/profile_settings_screen.dart';
+import '../locale/app_locale.dart';
+import '../theme/staff_premium_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -95,7 +97,23 @@ class ProfileScreen extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                 child: Divider(color: Colors.white10),
               ),
-              _profileItem(Icons.logout, 'چوونە دەرەوە', isLogout: true),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: StaffGoldGradientButton(
+                    label: 'چوونە دەرەوە',
+                    fontSize: 16,
+                    borderRadius: 16,
+                    minHeight: 52,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 24,
+                    ),
+                    onPressed: () => performAppLogout(context),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
             ],
           ),
@@ -105,7 +123,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   // ویجێتێکی یاریدەدەر بۆ دروستکردنی لیستەکان بە یەک شێوە
-  Widget _profileItem(IconData icon, String title, {bool isLogout = false}) {
+  Widget _profileItem(IconData icon, String title) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
@@ -113,9 +131,14 @@ class ProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(15),
       ),
       child: ListTile(
-        leading: Icon(icon, color: isLogout ? Colors.redAccent : Colors.blueAccent),
-        title: Text(title, 
-          style: TextStyle(color: isLogout ? Colors.redAccent : Colors.white, fontWeight: FontWeight.w500)),
+        leading: Icon(icon, color: Colors.blueAccent),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
         onTap: () {
           // لێرەدا ئەکشنەکان دادەنرێت

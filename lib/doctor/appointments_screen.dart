@@ -52,62 +52,6 @@ class AppointmentsScreen extends StatefulWidget {
     return list;
   }
 
-  static DateTime? _appointmentDayOnly(dynamic date) {
-    if (date == null) return null;
-    if (date is Timestamp) {
-      final d = date.toDate();
-      return DateTime(d.year, d.month, d.day);
-    }
-    if (date is DateTime) {
-      return DateTime(date.year, date.month, date.day);
-    }
-    var s = staffDigitsToEnglishAscii(date.toString().trim());
-    if (s.isEmpty) return null;
-    final ymd = RegExp(r'^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})');
-    final m = ymd.firstMatch(s);
-    if (m != null) {
-      return DateTime(
-        int.parse(m.group(1)!),
-        int.parse(m.group(2)!),
-        int.parse(m.group(3)!),
-      );
-    }
-    try {
-      final d = DateTime.parse(s);
-      return DateTime(d.year, d.month, d.day);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static String _formatDateTime(Map<String, dynamic> data) {
-    final date = data[AppointmentFields.date];
-    final timeRaw = (data[AppointmentFields.time] ?? '—').toString();
-    final timeEn = staffDigitsToEnglishAscii(timeRaw);
-    final day = _appointmentDayOnly(date);
-    String datePart = '—';
-    if (day != null) {
-      datePart = DateFormat('yyyy/MM/dd', 'en_US').format(day);
-    } else if (date != null) {
-      final raw = staffDigitsToEnglishAscii(date.toString().trim());
-      if (raw.isNotEmpty) datePart = raw;
-    }
-    return '$datePart  •  $timeEn';
-  }
-
-  static String _localizedGender(BuildContext context, String raw) {
-    if (raw.isEmpty)
-      return S.of(context).translate('doctor_appt_not_available');
-    final n = raw.toLowerCase().trim();
-    final s = S.of(context);
-    const maleHints = {'male', 'm', 'man', 'ذكر', 'رجل', 'نێر'};
-    const femaleHints = {'female', 'f', 'woman', 'أنثى', 'انثى', 'مێ'};
-    if (maleHints.contains(n)) return s.translate('doctor_appt_gender_male');
-    if (femaleHints.contains(n))
-      return s.translate('doctor_appt_gender_female');
-    return raw;
-  }
-
   static Uri? _telUri(String raw) {
     final cleaned = raw.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
     if (cleaned.isEmpty) return null;
@@ -144,171 +88,32 @@ class AppointmentsScreen extends StatefulWidget {
     }
   }
 
-  static void _showPatientDetail(
-    BuildContext context, {
-    required Map<String, dynamic>? patientProfile,
-    required String fallbackPatientName,
-    required String dateTimeLine,
-    required String status,
-  }) {
-    final s = S.of(context);
-    final dir = AppLocaleScope.of(context).textDirection;
-    final name = (patientProfile?['fullName'] ?? fallbackPatientName)
-        .toString()
-        .trim();
-    final displayName = name.isEmpty ? fallbackPatientName : name;
-    final age = patientAgeYearsFromUserData(patientProfile);
-    final ageStr = age != null
-        ? '$age'
-        : s.translate('doctor_appt_not_available');
-    final genderRaw = patientGenderRawFromUserData(patientProfile);
-    final genderStr = _localizedGender(context, genderRaw);
-    final phone = patientPhoneFromUserData(patientProfile);
-    final phoneStr = phone.isNotEmpty
-        ? phone
-        : s.translate('doctor_appt_not_available');
-    final email = patientEmailFromUserData(patientProfile);
-    final emailStr = email.isNotEmpty
-        ? email
-        : s.translate('doctor_appt_not_available');
-    final history = patientMedicalHistoryFromUserData(patientProfile);
-    final historyBody = history.isNotEmpty
-        ? history
-        : s.translate('doctor_appt_no_medical_history');
-
-    String statusLabel() {
-      switch (_statusKey(status)) {
-        case 'completed':
-          return s.translate('doctor_appt_status_completed');
-        case 'cancelled':
-          return s.translate('doctor_appt_status_cancelled');
-        case 'confirmed':
-          return s.translate('status_confirmed');
-        case 'arrived':
-          return s.translate('status_arrived');
-        default:
-          return s.translate('doctor_appt_status_pending');
-      }
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return Directionality(
-          textDirection: dir,
-          child: AlertDialog(
-            backgroundColor: const Color(0xFF1D1E33),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            title: Text(
-              s.translate('doctor_appt_patient_profile_title'),
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                color: Color(0xFFD9E2EC),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _DetailLine(
-                    label: s.translate('doctor_appt_patient_name_label'),
-                    value: displayName,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_label_age'),
-                    value: ageStr,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_label_gender'),
-                    value: genderStr,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_label_phone'),
-                    value: phoneStr,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_label_email'),
-                    value: emailStr,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_datetime_label'),
-                    value: dateTimeLine,
-                  ),
-                  _DetailLine(
-                    label: s.translate('doctor_appt_label_appointment_status'),
-                    value: statusLabel(),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    s.translate('doctor_appt_medical_history_section'),
-                    style: TextStyle(
-                      color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: kPatientPrimaryFont,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    historyBody,
-                    style: const TextStyle(
-                      color: Color(0xFFD9E2EC),
-                      fontSize: 14,
-                      height: 1.4,
-                      fontFamily: kPatientPrimaryFont,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  s.translate('doctor_appt_close'),
-                  style: const TextStyle(
-                    color: Color(0xFF42A5F5),
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  static Widget _ageGenderPhoneSummary(
+  /// Phone only (English digits); no age/gender.
+  static Widget _phoneOnlyLine(
     BuildContext context,
     Map<String, dynamic>? profile,
-    bool patientLoading,
-  ) {
-    final s = S.of(context);
+    bool patientLoading, {
+    bool compactDashboard = false,
+  }) {
     if (patientLoading) {
       return Padding(
-        padding: const EdgeInsets.only(top: 2),
+        padding: EdgeInsets.only(top: compactDashboard ? 0 : 2),
         child: Row(
           children: [
             SizedBox(
-              width: 12,
-              height: 12,
+              width: compactDashboard ? 10 : 12,
+              height: compactDashboard ? 10 : 12,
               child: CircularProgressIndicator(
-                strokeWidth: 1.8,
-                color: const Color(0xFF42A5F5).withValues(alpha: 0.7),
+                strokeWidth: 1.6,
+                color: kStaffLuxGold.withValues(alpha: 0.65),
               ),
             ),
             const SizedBox(width: 6),
             Text(
               '…',
               style: TextStyle(
-                color: const Color(0xFFB0C5C0).withValues(alpha: 0.95),
-                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: compactDashboard ? 9 : 11,
                 fontFamily: kPatientPrimaryFont,
                 fontWeight: FontWeight.w600,
               ),
@@ -318,40 +123,39 @@ class AppointmentsScreen extends StatefulWidget {
       );
     }
 
-    final age = patientAgeYearsFromUserData(profile);
-    final agePart = age != null
-        ? '${s.translate('doctor_appt_label_age')}: $age'
-        : '${s.translate('doctor_appt_label_age')}: ${s.translate('doctor_appt_not_available')}';
-    final genderRaw = patientGenderRawFromUserData(profile);
-    final genderPart = genderRaw.isNotEmpty
-        ? '${s.translate('doctor_appt_label_gender')}: ${_localizedGender(context, genderRaw)}'
-        : '${s.translate('doctor_appt_label_gender')}: ${s.translate('doctor_appt_not_available')}';
     final phone = patientPhoneFromUserData(profile);
-    final phonePart = phone.isNotEmpty
-        ? '${s.translate('doctor_appt_label_phone')}: $phone'
-        : '${s.translate('doctor_appt_label_phone')}: ${s.translate('doctor_appt_not_available')}';
+    final digits =
+        phone.isEmpty ? '' : staffDigitsToEnglishAscii(phone);
+    final fs = compactDashboard ? 11.0 : 13.5;
 
-    const compactMeta = TextStyle(
-      color: Color(0xFFB8C9C4),
-      fontSize: 11,
-      height: 1.2,
-      fontFamily: kPatientPrimaryFont,
-      fontWeight: FontWeight.w600,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 3),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$agePart  ·  $genderPart', style: compactMeta),
-          const SizedBox(height: 2),
-          Text(
-            phonePart,
-            style: compactMeta.copyWith(fontSize: 12, height: 1.25),
+    return Row(
+      children: [
+        Icon(
+          Icons.phone_in_talk_rounded,
+          size: compactDashboard ? 15 : 17,
+          color: kStaffLuxGold.withValues(
+            alpha: digits.isEmpty ? 0.35 : 0.92,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Directionality(
+            textDirection: ui.TextDirection.ltr,
+            child: Text(
+              digits.isEmpty ? '—' : digits,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w600,
+                fontSize: fs,
+                height: 1.2,
+                color: digits.isEmpty
+                    ? Colors.white.withValues(alpha: 0.45)
+                    : const Color(0xFFE8F4F0),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -545,6 +349,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               }
 
               final sorted = AppointmentsScreen._sortNewestFirst(docs);
+              final queueById = dailyQueueNumberByDocId(sorted);
 
               if (sorted.isEmpty) {
                 return Center(
@@ -580,7 +385,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   final status = AppointmentsScreen._statusKey(
                     data[AppointmentFields.status],
                   );
-                  final dateTimeLine = AppointmentsScreen._formatDateTime(data);
                   final patientId = (data[AppointmentFields.patientId] ?? '')
                       .toString()
                       .trim();
@@ -591,21 +395,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   }) {
                     return _AppointmentCard(
                       patientName: patientName,
-                      dateTimeLine: dateTimeLine,
+                      queueEn: formatDailyQueueTicketEnglish(doc, queueById),
                       status: status,
                       showActions: status == 'pending',
                       phoneForCall: patientPhoneFromUserData(profile),
-                      ageLine: AppointmentsScreen._ageGenderPhoneSummary(
+                      phoneLine: AppointmentsScreen._phoneOnlyLine(
                         context,
                         profile,
                         patientLoading,
-                      ),
-                      onCardTap: () => AppointmentsScreen._showPatientDetail(
-                        context,
-                        patientProfile: profile,
-                        fallbackPatientName: patientName,
-                        dateTimeLine: dateTimeLine,
-                        status: status,
                       ),
                       onCallTap: patientPhoneFromUserData(profile).isNotEmpty
                           ? () => AppointmentsScreen._launchTel(
@@ -700,80 +497,6 @@ class _EmbeddedAppointmentsLoading extends StatelessWidget {
   }
 }
 
-class _GlassStatCard extends StatelessWidget {
-  const _GlassStatCard({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: kStaffSilverBorder,
-                width: kStaffCardOutlineWidth,
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 9.5,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                    color: Color(0xFFF5FBF8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _doctorApptTimelineBadgeLabel(BuildContext context, String st) {
-  final s = S.of(context);
-  switch (AppointmentsScreen._statusKey(st)) {
-    case 'completed':
-      return s.translate('doctor_appt_status_completed');
-    case 'cancelled':
-      return s.translate('doctor_appt_status_cancelled');
-    case 'confirmed':
-      return s.translate('status_confirmed');
-    case 'arrived':
-      return s.translate('status_arrived');
-    case 'pending':
-    default:
-      return s.translate('doctor_appt_status_pending');
-  }
-}
-
 Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> _appointmentsBySlotHhMm(
   Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
 ) {
@@ -799,71 +522,37 @@ Stream<DateTime> _doctorDashboardTodayClock() async* {
   }
 }
 
-/// Stats for the three summary boxes — **booked** appointments only (ignores بەردەستە / empty slots).
-/// [_appointmentsBySlotHhMm] already omits cancelled rows, so they behave like empty slots.
-///
-/// - [total]: number of slots with an active booking (patient assigned).
-/// - [remaining]: booked appointments still in **pending** (چاوەڕێ) status only.
-/// - [completed]: booked appointments marked **completed**.
-({int total, int remaining, int completed}) _computeDoctorSlotDashboardStats({
-  required List<DateTime> slots,
-  required Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKey,
-}) {
-  var total = 0;
-  var completed = 0;
-  var remaining = 0;
+/// Booked slots only (گیراوە), optionally filtered by patient name (empty query = all bookings).
+List<DateTime> _visibleBookedSlotsForSearch(
+  List<DateTime> slots,
+  Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKey,
+  String searchQuery,
+) {
+  final q = searchQuery.trim().toLowerCase();
+  final out = <DateTime>[];
   for (final slot in slots) {
     final k = formatTimeHhMm(slot);
-    final ap = byKey[k];
-    if (ap == null) {
+    final doc = byKey[k];
+    if (doc == null) {
       continue;
     }
-    total++;
-    final st = AppointmentsScreen._statusKey(
-      ap.data()[AppointmentFields.status],
-    );
-    if (st == 'completed') {
-      completed++;
-    } else if (st == 'pending') {
-      remaining++;
+    final name =
+        (doc.data()[AppointmentFields.patientName] ?? '').toString();
+    if (q.isEmpty || name.toLowerCase().contains(q)) {
+      out.add(slot);
     }
   }
-  return (total: total, remaining: remaining, completed: completed);
+  out.sort((a, b) => a.compareTo(b));
+  return out;
 }
 
-/// Active (تەواونەکراو / waiting etc.) first by time; [completed] last, by time.
-({List<DateTime> active, List<DateTime> completed}) _partitionBookedSlotsForDashboard(
-  List<DateTime> bookedSlots,
+String _visibleSlotsListAnimationKey(
+  List<DateTime> visible,
   Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKey,
 ) {
-  final active = <DateTime>[];
-  final completed = <DateTime>[];
-  for (final slot in bookedSlots) {
-    final doc = byKey[formatTimeHhMm(slot)]!;
-    final st = AppointmentsScreen._statusKey(
-      doc.data()[AppointmentFields.status],
-    );
-    if (st == 'completed') {
-      completed.add(slot);
-    } else {
-      active.add(slot);
-    }
-  }
-  int bySlotTime(DateTime a, DateTime b) => a.compareTo(b);
-  active.sort(bySlotTime);
-  completed.sort(bySlotTime);
-  return (active: active, completed: completed);
-}
-
-String _bookedListAnimationKey(
-  List<DateTime> active,
-  List<DateTime> completed,
-  Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKey,
-) {
-  String ids(List<DateTime> list) => list
+  return visible
       .map((s) => byKey[formatTimeHhMm(s)]!.id)
       .join('|');
-  return '${ids(active)}~${ids(completed)}';
 }
 
 Future<void> _openStaffWalkInBooking(
@@ -961,84 +650,70 @@ Future<void> _openStaffWalkInBooking(
   }
 }
 
-/// Summary stat boxes + “نۆرەکان بەپێی کات” list, all driven by the same streams.
+/// Full-height “نۆرەکان بەپێی کات” list driven by day settings + appointments streams.
 class _DoctorTodayScheduleSection extends StatelessWidget {
   const _DoctorTodayScheduleSection({
     super.key,
     required this.doctorUserId,
     required this.todayOnly,
-    required this.nf,
     required this.onSetStatus,
+    required this.searchQuery,
   });
 
   final String doctorUserId;
   final DateTime todayOnly;
-  final NumberFormat nf;
   final Future<void> Function(BuildContext context, String docId, String status)
   onSetStatus;
+  final String searchQuery;
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final nfCount = NumberFormat.decimalPattern('en_US');
     final dayDocId = availableDayDocumentId(
       doctorUserId: doctorUserId,
       dateLocal: todayOnly,
     );
 
-    Widget statsHeading() {
+    Widget slotsHeading({required int bookedCount}) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-        child: Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            s.translate('doctor_today_stats_heading'),
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.85),
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget slotsHeading() {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-        child: Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            s.translate('doctor_today_slots_heading'),
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: kStaffLuxGold.withValues(alpha: 0.88),
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget statRow({required int total, required int remaining, required int completed}) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _GlassStatCard(
-              label: s.translate('doctor_today_stat_total'),
-              value: nf.format(total),
+            Expanded(
+              child: Text(
+                s.translate('doctor_today_slots_heading'),
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: kStaffLuxGold.withValues(alpha: 0.88),
+                ),
+              ),
             ),
-            const SizedBox(width: 8),
-            _GlassStatCard(
-              label: s.translate('doctor_today_stat_remaining'),
-              value: nf.format(remaining),
-            ),
-            const SizedBox(width: 8),
-            _GlassStatCard(
-              label: s.translate('doctor_today_stat_completed'),
-              value: nf.format(completed),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: kStaffLuxGold.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: kStaffLuxGold.withValues(alpha: 0.4),
+                  width: 0.85,
+                ),
+              ),
+              child: Text(
+                s.translate(
+                  'doctor_today_booked_count_badge',
+                  params: {'count': nfCount.format(bookedCount)},
+                ),
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                  color: kStaffLuxGold.withValues(alpha: 0.96),
+                ),
+              ),
             ),
           ],
         ),
@@ -1061,18 +736,20 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  statsHeading(),
-                  statRow(total: 0, remaining: 0, completed: 0),
-                  slotsHeading(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      s.translate('schedule_load_error'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontFamily: kPatientPrimaryFont,
-                        fontSize: 12,
+                  slotsHeading(bookedCount: 0),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          s.translate('schedule_load_error'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontFamily: kPatientPrimaryFont,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1084,29 +761,14 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  statsHeading(),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 28),
+                  slotsHeading(bookedCount: 0),
+                  const Expanded(
                     child: Center(
                       child: SizedBox(
-                        width: 32,
-                        height: 32,
+                        width: 36,
+                        height: 36,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
-                          color: kStaffLuxGold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  slotsHeading(),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
                           color: kStaffLuxGold,
                         ),
                       ),
@@ -1139,29 +801,29 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
             }
 
             final byKey = _appointmentsBySlotHhMm(apptSnap.data ?? const []);
-            final bookedSlots = <DateTime>[
-              for (final slot in slots)
-                if (byKey[formatTimeHhMm(slot)] != null) slot,
-            ];
+            final queueById =
+                dailyQueueNumberByDocId(apptSnap.data ?? const []);
             final emptyGrid = noHours || slots.isEmpty;
             if (emptyGrid) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  statsHeading(),
-                  statRow(total: 0, remaining: 0, completed: 0),
-                  slotsHeading(),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                    child: Text(
-                      s.translate('doctor_today_no_slots_message'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        height: 1.35,
-                        color: Colors.white.withValues(alpha: 0.82),
+                  slotsHeading(bookedCount: 0),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                        child: Text(
+                          s.translate('doctor_today_no_slots_message'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            height: 1.35,
+                            color: Colors.white.withValues(alpha: 0.82),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1169,145 +831,158 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               );
             }
 
-            final stats = _computeDoctorSlotDashboardStats(
-              slots: slots,
-              byKey: byKey,
+            final visibleSlots = _visibleBookedSlotsForSearch(
+              slots,
+              byKey,
+              searchQuery,
             );
+            final bottomListPadding =
+                16 + MediaQuery.paddingOf(context).bottom + 76;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                statsHeading(),
-                statRow(
-                  total: stats.total,
-                  remaining: stats.remaining,
-                  completed: stats.completed,
-                ),
-                slotsHeading(),
-                if (bookedSlots.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                    child: Text(
-                      s.translate('doctor_today_no_booked_list_message'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        height: 1.35,
-                        color: Colors.white.withValues(alpha: 0.82),
-                      ),
-                    ),
-                  )
-                else
-                  Builder(
-                    builder: (context) {
-                      final split = _partitionBookedSlotsForDashboard(
-                        bookedSlots,
-                        byKey,
-                      );
-                      final activeSlots = split.active;
-                      final completedSlots = split.completed;
-                      return AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, anim) =>
-                            FadeTransition(opacity: anim, child: child),
-                        child: Column(
-                          key: ValueKey<String>(
-                            _bookedListAnimationKey(
-                              activeSlots,
-                              completedSlots,
-                              byKey,
-                            ),
-                          ),
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (var i = 0; i < activeSlots.length; i++) ...[
-                              if (i > 0) const SizedBox(height: 10),
-                              _DoctorSlotGlassCard(
-                                key: ValueKey<String>(
-                                  byKey[formatTimeHhMm(activeSlots[i])]!.id,
-                                ),
-                                slotStart: activeSlots[i],
-                                appointmentDoc:
-                                    byKey[formatTimeHhMm(activeSlots[i])]!,
-                                doctorUserId: doctorUserId,
-                                dayLocal: todayOnly,
-                                onSetStatus: onSetStatus,
-                                completedSectionStyle: false,
-                              ),
-                            ],
-                            if (activeSlots.isNotEmpty &&
-                                completedSlots.isNotEmpty)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(8, 14, 8, 10),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(
-                                        height: 1,
-                                        thickness: 0.8,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.22,
-                                        ),
+                slotsHeading(bookedCount: visibleSlots.length),
+                Expanded(
+                  child: visibleSlots.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                            child: searchQuery.trim().isNotEmpty
+                                ? Text(
+                                    s.translate('doctor_patients_empty'),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      height: 1.35,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.82,
                                       ),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      child: Text(
-                                        s.translate(
-                                          'doctor_today_completed_section_label',
+                                  )
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(22),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: kStaffLuxGold.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          border: Border.all(
+                                            color: kStaffLuxGold.withValues(
+                                              alpha: 0.38,
+                                            ),
+                                            width: 1.2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: kStaffLuxGold.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                              blurRadius: 24,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
                                         ),
-                                        style: TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.55,
+                                        child: Icon(
+                                          Icons.calendar_month_rounded,
+                                          size: 52,
+                                          color: kStaffLuxGold.withValues(
+                                            alpha: 0.95,
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      child: Divider(
-                                        height: 1,
-                                        thickness: 0.8,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.22,
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        s.translate(
+                                          'doctor_today_no_bookings_empty',
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          height: 1.45,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
+                          ),
+                        )
+                      : AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 380),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, anim) {
+                            final slide = Tween<Offset>(
+                              begin: const Offset(0, 0.06),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: anim,
+                                curve: Curves.easeOutCubic,
                               ),
-                            for (var i = 0; i < completedSlots.length; i++) ...[
-                              if (i > 0)
-                                const SizedBox(height: 10)
-                              else if (activeSlots.isNotEmpty)
-                                const SizedBox(height: 10),
-                              _DoctorSlotGlassCard(
+                            );
+                            return FadeTransition(
+                              opacity: anim,
+                              child: SlideTransition(
+                                position: slide,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: ListView.separated(
+                            key: ValueKey<String>(
+                              _visibleSlotsListAnimationKey(
+                                visibleSlots,
+                                byKey,
+                              ),
+                            ),
+                            padding: EdgeInsets.fromLTRB(
+                              12,
+                              0,
+                              12,
+                              bottomListPadding,
+                            ),
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            itemCount: visibleSlots.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 8),
+                            itemBuilder: (context, i) {
+                              final slotStart = visibleSlots[i];
+                              final doc = byKey[formatTimeHhMm(slotStart)];
+                              final st = doc != null
+                                  ? AppointmentsScreen._statusKey(
+                                      doc.data()[AppointmentFields.status],
+                                    )
+                                  : '';
+                              final dimmed =
+                                  doc != null && st == 'completed';
+                              return _DoctorSlotGlassCard(
                                 key: ValueKey<String>(
-                                  byKey[formatTimeHhMm(completedSlots[i])]!.id,
+                                  doc?.id ?? 'avail_${formatTimeHhMm(slotStart)}',
                                 ),
-                                slotStart: completedSlots[i],
-                                appointmentDoc:
-                                    byKey[formatTimeHhMm(completedSlots[i])]!,
+                                slotStart: slotStart,
+                                appointmentDoc: doc,
                                 doctorUserId: doctorUserId,
                                 dayLocal: todayOnly,
+                                queueByDocId: queueById,
                                 onSetStatus: onSetStatus,
-                                completedSectionStyle: true,
-                              ),
-                            ],
-                          ],
+                                completedSectionStyle: dimmed,
+                              );
+                            },
+                          ),
                         ),
-                      );
-                    },
-                  ),
+                ),
               ],
             );
           },
@@ -1324,6 +999,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     required this.appointmentDoc,
     required this.doctorUserId,
     required this.dayLocal,
+    required this.queueByDocId,
     required this.onSetStatus,
     this.completedSectionStyle = false,
   });
@@ -1332,6 +1008,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
   final QueryDocumentSnapshot<Map<String, dynamic>>? appointmentDoc;
   final String doctorUserId;
   final DateTime dayLocal;
+  final Map<String, int> queueByDocId;
   final Future<void> Function(BuildContext context, String docId, String status)
   onSetStatus;
   /// Dimmed card + neutral badge for the “تەواوبوو” group at the bottom of the list.
@@ -1351,40 +1028,11 @@ class _DoctorSlotGlassCard extends StatelessWidget {
         ? AppointmentsScreen._statusKey(apptData![AppointmentFields.status])
         : '';
     final showActions = booked && status == 'pending';
-    final dateTimeLine =
-        booked ? AppointmentsScreen._formatDateTime(apptData!) : '';
     final patientId = booked
         ? (apptData![AppointmentFields.patientId] ?? '').toString().trim()
         : '';
-    final badge = staffAppointmentStatusBadgeStyle(
-      booked ? status : 'pending',
-    );
     final stripGold =
         booked && status == 'pending' && !completedSectionStyle;
-
-    String slotStatusBadgeText() {
-      if (!booked) return '';
-      if (status == 'pending') {
-        return s.translate('doctor_appt_status_pending');
-      }
-      if (status == 'completed' ||
-          status == 'cancelled' ||
-          status == 'canceled') {
-        return _doctorApptTimelineBadgeLabel(context, status);
-      }
-      return s.translate('schedule_slot_booked');
-    }
-
-    void openDetail(Map<String, dynamic>? profile) {
-      if (!booked) return;
-      AppointmentsScreen._showPatientDetail(
-        context,
-        patientProfile: profile,
-        fallbackPatientName: patientName,
-        dateTimeLine: dateTimeLine,
-        status: status,
-      );
-    }
 
     Widget cardBody({
       required Map<String, dynamic>? profile,
@@ -1394,18 +1042,6 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       final showPhone = booked && phone.isNotEmpty;
       final neutralCompleted =
           completedSectionStyle && status == 'completed';
-      final badgeDecoration = neutralCompleted
-          ? BoxDecoration(
-              color: const Color(0xFF2E3F59),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.14),
-                width: 0.75,
-              ),
-            )
-          : badge.decoration;
-      final badgeForeground =
-          neutralCompleted ? const Color(0xFFCFD8DC) : badge.foreground;
       final leftStripColor = neutralCompleted
           ? const Color(0xFF455A64)
           : (stripGold ? null : kStaffAccentSlateBlue);
@@ -1417,302 +1053,291 @@ class _DoctorSlotGlassCard extends StatelessWidget {
               ? kStaffLuxGold.withValues(alpha: 0.48)
               : kStaffSilverBorder);
 
-      Widget card = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: booked
-              ? () => openDetail(profile)
-              : () => _openStaffWalkInBooking(
-                    context,
-                    doctorUserId: doctorUserId,
-                    dayLocal: dayLocal,
-                    slotStart: slotStart,
-                  ),
-          borderRadius: BorderRadius.circular(16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(
+      const vibrantGreen = Color(0xFF22C55E);
+      const softRed = Color(0xFFFB7185);
+
+      Widget circleAction({
+        required Color fill,
+        required IconData icon,
+        required String tooltip,
+        required VoidCallback onPressed,
+      }) {
+        return Tooltip(
+          message: tooltip,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onPressed,
+              customBorder: const CircleBorder(),
+              child: Ink(
+                height: 40,
+                width: 40,
                 decoration: BoxDecoration(
-                  color: Color(
-                    0xFF0E213E,
-                  ).withValues(alpha: booked ? 0.42 : 0.36),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: cardBorderColor,
-                    width: kStaffCardOutlineWidth,
-                  ),
-                  boxShadow: stripGold && !neutralCompleted
-                      ? [
-                          BoxShadow(
-                            color: kStaffLuxGold.withValues(alpha: 0.22),
-                            blurRadius: 14,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
+                  shape: BoxShape.circle,
+                  color: fill,
+                  boxShadow: [
+                    BoxShadow(
+                      color: fill.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Container(
-                        width: 4,
-                        decoration: BoxDecoration(
-                          gradient: leftStripGradient,
-                          color: leftStripColor,
-                          borderRadius: const BorderRadius.horizontal(
-                            left: Radius.circular(15),
-                          ),
-                        ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        );
+      }
+
+      final apptDoc = doc;
+      final queueEn = booked && apptDoc != null
+          ? formatDailyQueueTicketEnglish(apptDoc, queueByDocId)
+          : '—';
+
+      Widget mainTapChild = Padding(
+        padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (booked) ...[
+              Semantics(
+                label: '${s.translate('secretary_ticket_number')} $queueEn',
+                child: _DoctorQueueGoldCircle(number: queueEn),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Directionality(
+                    textDirection: ui.TextDirection.ltr,
+                    child: Text(
+                      timeEn,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        height: 1.05,
+                        color: kStaffLuxGold.withValues(alpha: 0.88),
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(
-                                    width: 76,
-                                    child: Directionality(
-                                      textDirection: ui.TextDirection.ltr,
-                                      child: Text(
-                                        timeEn,
-                                        style: TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13.5,
-                                          color: kStaffLuxGold.withValues(
-                                            alpha: 0.98,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      booked
-                                          ? patientName
-                                          : s.translate(
-                                              'schedule_slot_available_ku',
-                                            ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 14.5,
-                                        color: booked
-                                            ? const Color(0xFFF8FFFC)
-                                            : Colors.white.withValues(
-                                                alpha: 0.88,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                  if (booked)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: badgeDecoration,
-                                      child: Text(
-                                        slotStatusBadgeText(),
-                                        style: TextStyle(
-                                          color: badgeForeground,
-                                          fontWeight: FontWeight.w700,
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Icon(
-                                        Icons.add_rounded,
-                                        color: kStaffLuxGold.withValues(
-                                          alpha: 0.92,
-                                        ),
-                                        size: 26,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              if (booked) ...[
-                                const SizedBox(height: 6),
-                                AppointmentsScreen._ageGenderPhoneSummary(
-                                  context,
-                                  profile,
-                                  patientLoading,
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 36,
-                                        minHeight: 36,
-                                      ),
-                                      tooltip: s.translate(
-                                        'doctor_appt_patient_profile_title',
-                                      ),
-                                      onPressed: () => openDetail(profile),
-                                      icon: const Icon(
-                                        Icons.medical_services_rounded,
-                                        color: kStaffLuxGold,
-                                        size: 22,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 36,
-                                        minHeight: 36,
-                                      ),
-                                      tooltip: s.translate(
-                                        'doctor_appt_medical_history_section',
-                                      ),
-                                      onPressed: () => openDetail(profile),
-                                      icon: const Icon(
-                                        Icons.medication_liquid_rounded,
-                                        color: kStaffLuxGold,
-                                        size: 22,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 36,
-                                        minHeight: 36,
-                                      ),
-                                      tooltip: s.translate(
-                                        'doctor_appt_medical_history_section',
-                                      ),
-                                      onPressed: () => openDetail(profile),
-                                      icon: const Icon(
-                                        Icons.history_rounded,
-                                        color: kStaffLuxGold,
-                                        size: 22,
-                                      ),
-                                    ),
-                                    if (showPhone) ...[
-                                      const Spacer(),
-                                      IconButton(
-                                        visualDensity: VisualDensity.compact,
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(
-                                          minWidth: 36,
-                                          minHeight: 36,
-                                        ),
-                                        onPressed: () =>
-                                            AppointmentsScreen._launchTel(
-                                              context,
-                                              phone,
-                                            ),
-                                        icon: const Icon(
-                                          Icons.phone_rounded,
-                                          color: kStaffLuxGold,
-                                          size: 22,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                if (showActions) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () => onSetStatus(
-                                            context,
-                                            doc.id,
-                                            'cancelled',
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: const Color(
-                                              0xFFFF8A95,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFFFF8A95),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 8,
-                                            ),
-                                            minimumSize: const Size(0, 36),
-                                            tapTargetSize:
-                                                MaterialTapTargetSize
-                                                    .shrinkWrap,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            s.translate(
-                                              'doctor_appt_action_decline',
-                                            ),
-                                            style: const TextStyle(
-                                              fontFamily: kPatientPrimaryFont,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: StaffGoldGradientButton(
-                                          label: s.translate(
-                                            'doctor_appt_action_complete',
-                                          ),
-                                          onPressed: () => onSetStatus(
-                                            context,
-                                            doc.id,
-                                            'completed',
-                                          ),
-                                          fontSize: 12,
-                                          borderRadius: 10,
-                                          minHeight: 36,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ] else ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  s.translate('master_calendar_add_walkin'),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 10,
-                                    color: Colors.white.withValues(alpha: 0.45),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                  if (booked) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      patientName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        height: 1.12,
+                        color: kStaffLuxGold.withValues(alpha: 0.97),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: AppointmentsScreen._phoneOnlyLine(
+                            context,
+                            profile,
+                            patientLoading,
+                            compactDashboard: true,
+                          ),
+                        ),
+                        if (showPhone)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 26,
+                              minHeight: 26,
+                            ),
+                            tooltip: s.translate('doctor_appt_label_phone'),
+                            onPressed: () => AppointmentsScreen._launchTel(
+                              context,
+                              phone,
+                            ),
+                            icon: Icon(
+                              Icons.phone_rounded,
+                              size: 15,
+                              color: kStaffLuxGold.withValues(alpha: 0.9),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (!booked) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      s.translate('schedule_slot_available_ku'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        height: 1.12,
+                        color: Colors.white.withValues(alpha: 0.92),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      s.translate('master_calendar_add_walkin'),
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 9.5,
+                        color: Colors.white.withValues(alpha: 0.48),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+      Widget card = ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A1628).withValues(
+                alpha: booked ? 0.52 : 0.44,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: cardBorderColor,
+                width: 1,
+              ),
+              boxShadow: stripGold && !neutralCompleted
+                  ? [
+                      BoxShadow(
+                        color: kStaffLuxGold.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: IntrinsicHeight(
+              child: Directionality(
+                textDirection: ui.TextDirection.ltr,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 3,
+                      decoration: BoxDecoration(
+                        gradient: leftStripGradient,
+                        color: leftStripColor,
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(15),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: booked
+                              ? null
+                              : () => _openStaffWalkInBooking(
+                                    context,
+                                    doctorUserId: doctorUserId,
+                                    dayLocal: dayLocal,
+                                    slotStart: slotStart,
+                                  ),
+                          child: Directionality(
+                            textDirection:
+                                AppLocaleScope.of(context).textDirection,
+                            child: mainTapChild,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (!booked)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: 8,
+                          top: 8,
+                          bottom: 8,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_circle_rounded,
+                              color: kStaffLuxGold.withValues(alpha: 0.95),
+                              size: 28,
+                            ),
+                            const SizedBox(height: 2),
+                            SizedBox(
+                              width: 64,
+                              child: Text(
+                                s.translate('book_now'),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 8.5,
+                                  height: 1.1,
+                                  color: kStaffLuxGold.withValues(alpha: 0.88),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (showActions)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: 8,
+                          top: 6,
+                          bottom: 6,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            circleAction(
+                              fill: vibrantGreen,
+                              icon: Icons.check_rounded,
+                              tooltip: s.translate('doctor_appt_action_complete'),
+                              onPressed: () => onSetStatus(
+                                context,
+                                doc.id,
+                                'completed',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            circleAction(
+                              fill: softRed,
+                              icon: Icons.close_rounded,
+                              tooltip: s.translate('doctor_appt_action_decline'),
+                              onPressed: () => onSetStatus(
+                                context,
+                                doc.id,
+                                'cancelled',
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 4),
+                  ],
                 ),
               ),
             ),
@@ -1752,7 +1377,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
   }
 }
 
-class _DoctorTodayDashboard extends StatelessWidget {
+class _DoctorTodayDashboard extends StatefulWidget {
   const _DoctorTodayDashboard({
     required this.doctorUserId,
     required this.onSetStatus,
@@ -1763,12 +1388,25 @@ class _DoctorTodayDashboard extends StatelessWidget {
   onSetStatus;
 
   @override
+  State<_DoctorTodayDashboard> createState() => _DoctorTodayDashboardState();
+}
+
+class _DoctorTodayDashboardState extends State<_DoctorTodayDashboard> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     final lang = AppLocaleScope.of(context).effectiveLanguage;
     final nf = NumberFormat.decimalPattern('en_US');
 
-    if (doctorUserId.isEmpty) {
+    if (widget.doctorUserId.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1786,126 +1424,175 @@ class _DoctorTodayDashboard extends StatelessWidget {
       );
     }
 
-    final bottomInset =
-        24 + MediaQuery.paddingOf(context).bottom + 72;
-
     return StreamBuilder<DateTime>(
       stream: _doctorDashboardTodayClock(),
       builder: (context, clockSnap) {
         final now = clockSnap.data ?? DateTime.now();
         final todayOnly = DateTime(now.year, now.month, now.day);
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(doctorUserId)
-                      .snapshots(),
-                  builder: (context, docSnap) {
-                    final data = docSnap.data?.data();
-                    final name = data != null
-                        ? localizedDoctorFullName(data, lang)
-                        : '—';
-                    final photo = _doctorDashPhotoUrl(data);
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: kStaffGoldActionGradient,
-                          ),
-                          child: CircleAvatar(
-                            radius: 30,
-                            backgroundColor: kDoctorPremiumGradientTop,
-                            backgroundImage: photo.isNotEmpty
-                                ? NetworkImage(photo)
-                                : null,
-                            child: photo.isEmpty
-                                ? const Icon(
-                                    Icons.person_rounded,
-                                    color: kStaffLuxGold,
-                                    size: 34,
-                                  )
-                                : null,
-                          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.doctorUserId)
+                    .snapshots(),
+                builder: (context, docSnap) {
+                  final data = docSnap.data?.data();
+                  final name = data != null
+                      ? localizedDoctorFullName(data, lang)
+                      : '—';
+                  final photo = _doctorDashPhotoUrl(data);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: kStaffGoldActionGradient,
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                        child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: kDoctorPremiumGradientTop,
+                          backgroundImage: photo.isNotEmpty
+                              ? NetworkImage(photo)
+                              : null,
+                          child: photo.isEmpty
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  color: kStaffLuxGold,
+                                  size: 34,
+                                )
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 21,
+                                color: Colors.white,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Directionality(
+                              textDirection: ui.TextDirection.ltr,
+                              child: Text(
+                                '\u200E${nf.format(now.year)} / ${nf.format(now.month)} / ${nf.format(now.day)}',
+                                style: TextStyle(
                                   fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 21,
-                                  color: Colors.white,
-                                  height: 1.15,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: kStaffLuxGold.withValues(alpha: 0.92),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Directionality(
-                                textDirection: ui.TextDirection.ltr,
-                                child: Text(
-                                  '\u200E${nf.format(now.year)} / ${nf.format(now.month)} / ${nf.format(now.day)}',
-                                  style: TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                    color: kStaffLuxGold.withValues(alpha: 0.92),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              _DoctorTodayScheduleSection(
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: _AppointmentsDashboardSearchField(
+                controller: _searchController,
+                hint: s.translate('doctor_patients_search_hint'),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            Expanded(
+              child: _DoctorTodayScheduleSection(
                 key: ValueKey<DateTime>(todayOnly),
-                doctorUserId: doctorUserId,
+                doctorUserId: widget.doctorUserId,
                 todayOnly: todayOnly,
-                nf: nf,
-                onSetStatus: onSetStatus,
+                onSetStatus: widget.onSetStatus,
+                searchQuery: _searchController.text,
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.label, required this.value});
+class _AppointmentsDashboardSearchField extends StatelessWidget {
+  const _AppointmentsDashboardSearchField({
+    required this.controller,
+    required this.hint,
+    required this.onChanged,
+  });
 
-  final String label;
-  final String value;
+  final TextEditingController controller;
+  final String hint;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: staffLabelTextStyle(fontSize: 11)),
-          const SizedBox(height: 2),
-          Text(value, style: staffHeaderTextStyle(fontSize: 15)),
-        ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A1628).withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: kStaffLuxGold.withValues(alpha: 0.35),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            style: const TextStyle(
+              color: Color(0xFFE8F4F0),
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.42),
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w600,
+              ),
+              border: InputBorder.none,
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: kStaffLuxGold.withValues(alpha: 0.9),
+                size: 26,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 4,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1914,336 +1601,241 @@ class _DetailLine extends StatelessWidget {
 class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({
     required this.patientName,
-    required this.dateTimeLine,
+    required this.queueEn,
     required this.status,
     required this.showActions,
     required this.phoneForCall,
-    required this.ageLine,
-    required this.onCardTap,
+    required this.phoneLine,
     required this.onCallTap,
     required this.onComplete,
     required this.onCancel,
   });
 
   final String patientName;
-  final String dateTimeLine;
+  final String queueEn;
   final String status;
   final bool showActions;
   final String phoneForCall;
-  final Widget ageLine;
-  final VoidCallback onCardTap;
+  final Widget phoneLine;
   final VoidCallback? onCallTap;
   final VoidCallback onComplete;
   final VoidCallback onCancel;
-
-  String _badgeLabel(BuildContext context) {
-    final s = S.of(context);
-    switch (status) {
-      case 'completed':
-        return s.translate('doctor_appt_status_completed');
-      case 'cancelled':
-        return s.translate('doctor_appt_status_cancelled');
-      case 'confirmed':
-        return s.translate('status_confirmed');
-      case 'arrived':
-        return s.translate('status_arrived');
-      case 'pending':
-      default:
-        return s.translate('doctor_appt_status_pending');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     final showPhoneIcon = onCallTap != null && phoneForCall.isNotEmpty;
-    final badge = staffAppointmentStatusBadgeStyle(status);
-    final parts = dateTimeLine.split(RegExp(r'\s+•\s+'));
-    final datePart = parts.isNotEmpty ? parts[0] : dateTimeLine;
-    final timePart = parts.length > 1 ? parts[1] : '';
     final stripGold = AppointmentsScreen._statusKey(status) == 'pending';
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onCardTap,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: stripGold ? 0.2 : 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: stripGold
-                      ? kStaffLuxGold.withValues(alpha: 0.45)
-                      : kStaffSilverBorder,
-                  width: kStaffCardOutlineWidth,
-                ),
-                boxShadow: stripGold
-                    ? [
-                        BoxShadow(
-                          color: kStaffLuxGold.withValues(alpha: 0.28),
-                          blurRadius: 16,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: stripGold ? 0.2 : 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: stripGold
+                    ? kStaffLuxGold.withValues(alpha: 0.45)
+                    : kStaffSilverBorder,
+                width: kStaffCardOutlineWidth,
               ),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      width: 4,
-                      decoration: BoxDecoration(
-                        gradient: stripGold ? kStaffGoldActionGradient : null,
-                        color: stripGold ? null : kStaffAccentSlateBlue,
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(15),
-                        ),
+              boxShadow: stripGold
+                  ? [
+                      BoxShadow(
+                        color: kStaffLuxGold.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                    ]
+                  : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Semantics(
+                    label: '${s.translate('secretary_ticket_number')} $queueEn',
+                    child: _DoctorQueueGoldCircle(number: queueEn),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          patientName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            height: 1.15,
+                            color: kStaffLuxGold.withValues(alpha: 0.98),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              textDirection: AppLocaleScope.of(
-                                context,
-                              ).textDirection,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        s.translate(
-                                          'doctor_appt_patient_name_label',
-                                        ),
-                                        style: TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.72,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              patientName,
-                                              style: const TextStyle(
-                                                fontFamily: kPatientPrimaryFont,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 16,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          if (showPhoneIcon) ...[
-                                            const SizedBox(width: 4),
-                                            Material(
-                                              color: kStaffLuxGold.withValues(
-                                                alpha: 0.2,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: InkWell(
-                                                onTap: onCallTap,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                child: const Padding(
-                                                  padding: EdgeInsets.all(6),
-                                                  child: Icon(
-                                                    Icons.phone_rounded,
-                                                    size: 18,
-                                                    color: kStaffLuxGold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                      ageLine,
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: badge.decoration,
-                                  child: Text(
-                                    _badgeLabel(context),
-                                    style: TextStyle(
-                                      color: badge.foreground,
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontSize: 12,
+                            Expanded(child: phoneLine),
+                            if (showPhoneIcon) ...[
+                              const SizedBox(width: 4),
+                              Material(
+                                color:
+                                    kStaffLuxGold.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  onTap: onCallTap,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(5),
+                                    child: Icon(
+                                      Icons.phone_rounded,
+                                      size: 17,
+                                      color: kStaffLuxGold,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                            Divider(
-                              height: 22,
-                              thickness: 0.8,
-                              color: kStaffLuxGold.withValues(alpha: 0.35),
-                            ),
-                            Text(
-                              s.translate('doctor_appt_datetime_label'),
-                              style: TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 16,
-                                  color: kStaffLuxGold,
-                                ),
-                                const SizedBox(width: 6),
-                                Directionality(
-                                  textDirection: ui.TextDirection.ltr,
-                                  child: Text(
-                                    datePart,
-                                    style: const TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13.5,
-                                      color: Color(0xFFE8F4F0),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Text(
-                                    '·',
-                                    style: TextStyle(
-                                      color: kStaffLuxGold.withValues(
-                                        alpha: 0.75,
-                                      ),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.access_time_rounded,
-                                  size: 16,
-                                  color: kStaffLuxGold,
-                                ),
-                                const SizedBox(width: 6),
-                                if (timePart.isNotEmpty)
-                                  Directionality(
-                                    textDirection: ui.TextDirection.ltr,
-                                    child: Text(
-                                      timePart,
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13.5,
-                                        color: Color(0xFFF5FBF8),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            if (showActions) ...[
-                              Divider(
-                                height: 22,
-                                thickness: 0.8,
-                                color: kStaffLuxGold.withValues(alpha: 0.35),
-                              ),
-                              Row(
-                                textDirection: AppLocaleScope.of(
-                                  context,
-                                ).textDirection,
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: onCancel,
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(
-                                          0xFFFF8A95,
-                                        ),
-                                        side: const BorderSide(
-                                          color: Color(0xFFFF8A95),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 8,
-                                        ),
-                                        minimumSize: const Size(0, 40),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        s.translate(
-                                          'doctor_appt_action_decline',
-                                        ),
-                                        style: const TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: StaffGoldGradientButton(
-                                      label: s.translate(
-                                        'doctor_appt_action_complete',
-                                      ),
-                                      onPressed: onComplete,
-                                      fontSize: 13,
-                                      borderRadius: 10,
-                                      minHeight: 40,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 8,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ],
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
+                  if (showActions) ...[
+                    const SizedBox(width: 6),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _DoctorApptDoneRejectCircle(
+                          fill: const Color(0xFF16A34A),
+                          icon: Icons.check_rounded,
+                          tooltip: s.translate('doctor_appt_action_complete'),
+                          glow: true,
+                          onPressed: onComplete,
+                        ),
+                        const SizedBox(height: 6),
+                        _DoctorApptDoneRejectCircle(
+                          fill: const Color(0xFFDC2626),
+                          icon: Icons.close_rounded,
+                          tooltip: s.translate('doctor_appt_action_decline'),
+                          glow: false,
+                          onPressed: onCancel,
+                        ),
+                      ],
                     ),
                   ],
-                ),
+                ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DoctorQueueGoldCircle extends StatelessWidget {
+  const _DoctorQueueGoldCircle({required this.number});
+
+  final String number;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 52.0;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: kStaffGoldActionGradient,
+        boxShadow: [
+          BoxShadow(
+            color: kStaffLuxGold.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(2.4),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF0A1628).withValues(alpha: 0.94),
+        ),
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            number,
+            maxLines: 1,
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w800,
+              fontSize: number.length > 2 ? 17 : 20,
+              height: 1,
+              color: kStaffLuxGold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DoctorApptDoneRejectCircle extends StatelessWidget {
+  const _DoctorApptDoneRejectCircle({
+    required this.fill,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.glow = false,
+  });
+
+  final Color fill;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool glow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: Ink(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: fill,
+              boxShadow: [
+                if (glow)
+                  BoxShadow(
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.45),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2),
+                  ),
+                BoxShadow(
+                  color: fill.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
       ),

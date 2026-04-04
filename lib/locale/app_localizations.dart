@@ -1096,11 +1096,23 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'جدول اليوم',
     'en': "Today's timeline",
   },
-  /// Section below the timeline cards: one row per scheduled slot (by working hours).
+  /// Doctor appointments tab: main list section title.
   'doctor_today_slots_heading': {
-    'ckb': 'نۆرەکان بەپێی کات',
-    'ar': 'المواعيد حسب الوقت',
-    'en': "Today's slots",
+    'ckb': 'نۆرەکانی ئەمڕۆ',
+    'ar': 'مواعيد اليوم',
+    'en': "Today's appointments",
+  },
+  /// Badge next to [doctor_today_slots_heading]: total booked count ({count} = English numerals).
+  'doctor_today_booked_count_badge': {
+    'ckb': '{count} نەخۆش',
+    'ar': '{count} مرضى',
+    'en': '{count} patients',
+  },
+  /// Doctor dashboard: day has hours but zero booked slots (list hidden).
+  'doctor_today_no_bookings_empty': {
+    'ckb': 'هیچ نۆرەیەک بۆ ئەمڕۆ تومار نەکراوە',
+    'ar': 'لم يُسجَّل أي موعد لهذا اليوم',
+    'en': 'No appointments recorded for today',
   },
   /// Doctor dashboard: no working hours / closed day / zero generated slots.
   'doctor_today_no_slots_message': {
@@ -1445,6 +1457,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'تەمەن: {age} ساڵ',
     'ar': 'العمر: {age}',
     'en': 'Age: {age}',
+  },
+  /// Word after numeric age in secretary appointment cards (e.g. "25 ساڵ").
+  'doctor_appt_years_suffix': {
+    'ckb': 'ساڵ',
+    'ar': 'سنة',
+    'en': 'yrs',
   },
   'doctor_patient_history_placeholder': {
     'ckb': 'بەزوویی: مێژووی نەخۆش',
@@ -2014,6 +2032,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'پاشگەزبوونەوە',
     'ar': 'إلغاء',
     'en': 'Cancel',
+  },
+  'secretary_ticket_number': {
+    'ckb': 'ژمارەی پسوولە',
+    'ar': 'رقم الدور',
+    'en': 'Ticket #',
   },
   'status_confirmed': {
     'ckb': 'دڵنیاکراوە',

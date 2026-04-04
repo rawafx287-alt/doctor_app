@@ -1,17 +1,14 @@
-import 'dart:ui' as ui;
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
 import '../auth/app_logout.dart';
 import '../firestore/appointment_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../models/patient_profile_read.dart';
 import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
+import '../widgets/secretary_appointment_card.dart';
 
 DateTime? _parseAppointmentDay(dynamic value) {
   if (value == null) return null;
@@ -118,96 +115,6 @@ class _SecretaryBookingsDashboardScreenState
       if (ok != true || !context.mounted) return;
     }
     await _setStatus(docId, status);
-  }
-
-  void _showReceiptDialog(BuildContext context, String url) {
-    final u = url.trim();
-    if (u.isEmpty) return;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return Directionality(
-          textDirection: AppLocaleScope.of(ctx).textDirection,
-          child: Dialog(
-            insetPadding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppBar(
-                  title: Text(S.of(ctx).translate('secretary_view_receipt')),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ),
-                Flexible(
-                  child: InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: CachedNetworkImage(
-                      imageUrl: u,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
-                      ),
-                      errorWidget: (context, url, error) => const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Icon(Icons.broken_image_outlined, size: 48),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _formatDate(dynamic raw) {
-    final d = _parseAppointmentDay(raw);
-    if (d != null) {
-      return DateFormat('yyyy/MM/dd', 'en_US').format(d);
-    }
-    if (raw == null) return '—';
-    final s = raw.toString().trim();
-    return s.isEmpty ? '—' : staffDigitsToEnglishAscii(s);
-  }
-
-  String _paymentLabel(BuildContext context, Map<String, dynamic> data) {
-    final pm = (data[AppointmentFields.paymentMethod] ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
-    final s = S.of(context);
-    if (pm == 'digital') return s.translate('secretary_payment_digital');
-    if (pm == 'cash') return s.translate('secretary_payment_cash');
-    return '—';
-  }
-
-  /// Localized appointment status label (e.g. CKB: چاوەڕوان, تەواو, پاشەکشە).
-  String _localizedPatientAppointmentStatus(
-    BuildContext context,
-    String rawStatus,
-  ) {
-    final loc = S.of(context);
-    final s = rawStatus.trim().toLowerCase();
-    switch (s) {
-      case 'completed':
-        return loc.translate('status_completed');
-      case 'cancelled':
-      case 'canceled':
-        return loc.translate('status_cancelled');
-      case 'confirmed':
-        return loc.translate('status_confirmed');
-      case 'arrived':
-        return loc.translate('status_arrived');
-      case 'pending':
-      default:
-        return loc.translate('status_pending');
-    }
   }
 
   @override
@@ -359,6 +266,7 @@ class _SecretaryBookingsDashboardScreenState
                             snapshot.data?.docs ?? [],
                           );
                           _sortAppointmentsByDateThenTime(docs);
+                          final queueById = dailyQueueNumberByDocId(docs);
 
                           if (docs.isEmpty) {
                             return Center(
@@ -378,7 +286,7 @@ class _SecretaryBookingsDashboardScreenState
                             ),
                             itemCount: docs.length,
                             separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 18),
                             itemBuilder: (context, i) {
                               final doc = docs[i];
                               final data = doc.data();
@@ -390,367 +298,61 @@ class _SecretaryBookingsDashboardScreenState
                               final patient =
                                   (data[AppointmentFields.patientName] ?? '—')
                                       .toString();
-                              final time =
-                                  (data[AppointmentFields.time] ?? '—')
-                                      .toString();
-                              final dateStr =
-                                  _formatDate(data[AppointmentFields.date]);
-                              final queue = (data[AppointmentFields.queueNumber])
-                                  .toString();
-                              final receiptUrl =
-                                  (data[AppointmentFields.receiptUrl] ?? '')
+                              final busy = _updating.contains(doc.id);
+                              final queueEn =
+                                  formatDailyQueueTicketEnglish(doc, queueById);
+                              final patientId =
+                                  (data[AppointmentFields.patientId] ?? '')
                                       .toString()
                                       .trim();
-                              final busy = _updating.contains(doc.id);
-                              final badge = staffAppointmentStatusBadgeStyle(st);
-                              final timeEn = staffDigitsToEnglishAscii(time);
-                              final queueEn = staffDigitsToEnglishAscii(
-                                queue.isEmpty ? '—' : queue,
-                              );
 
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: kStaffSilverBorder,
-                                    width: kStaffCardOutlineWidth,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: kStaffPrimaryNavy
-                                          .withValues(alpha: 0.07),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Container(
-                                        width: 4,
-                                        color: kStaffAccentSlateBlue,
-                                      ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                            12,
-                                            14,
-                                            14,
-                                            14,
+                              SecretaryAppointmentCard buildCard(
+                                String phoneEn,
+                              ) {
+                                return SecretaryAppointmentCard(
+                                  animationIndex: i,
+                                  patientName: patient,
+                                  queueEn: queueEn,
+                                  phoneDisplay: phoneEn,
+                                  statusRaw: st,
+                                  busy: busy,
+                                  onCompleted: busy
+                                      ? null
+                                      : () => _confirmAndSetStatus(
+                                            context,
+                                            doc.id,
+                                            'completed',
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          s.translate(
-                                                            'doctor_appt_patient_name_label',
-                                                          ),
-                                                          style:
-                                                              staffLabelTextStyle(
-                                                            fontSize: 11,
-                                                          ).copyWith(
-                                                            color:
-                                                                kStaffAccentSlateBlue
-                                                                    .withValues(
-                                                              alpha: 0.78,
-                                                            ),
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 2),
-                                                        Text(
-                                                          patient,
-                                                          style:
-                                                              staffHeaderTextStyle(
-                                                            fontSize: 16,
-                                                          ).copyWith(
-                                                            color:
-                                                                kStaffAccentSlateBlue,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 5,
-                                                    ),
-                                                    decoration:
-                                                        badge.decoration,
-                                                    child: Text(
-                                                      _localizedPatientAppointmentStatus(
-                                                        context,
-                                                        st,
-                                                      ),
-                                                      style: TextStyle(
-                                                        color: badge.foreground,
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              Divider(
-                                                height: 22,
-                                                thickness: 0.8,
-                                                color: kStaffLuxGold
-                                                    .withValues(alpha: 0.42),
-                                              ),
-                                              Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Icon(
-                                                    Icons
-                                                        .calendar_today_outlined,
-                                                    size: 16,
-                                                    color: kStaffLuxGold,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Expanded(
-                                                    child: Wrap(
-                                                      spacing: 6,
-                                                      runSpacing: 4,
-                                                      crossAxisAlignment:
-                                                          WrapCrossAlignment
-                                                              .center,
-                                                      children: [
-                                                        Text(
-                                                          '${s.translate('ticket_date')}: ',
-                                                          style:
-                                                              staffLabelTextStyle(
-                                                            fontSize: 12.5,
-                                                          ),
-                                                        ),
-                                                        Directionality(
-                                                          textDirection:
-                                                              ui.TextDirection.ltr,
-                                                          child: Text(
-                                                            dateStr,
-                                                            style:
-                                                                staffLabelTextStyle(
-                                                              fontSize: 12.5,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '·',
-                                                          style: TextStyle(
-                                                            color: kStaffLuxGold
-                                                                .withValues(
-                                                              alpha: 0.75,
-                                                            ),
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                          ),
-                                                        ),
-                                                        Icon(
-                                                          Icons
-                                                              .access_time_rounded,
-                                                          size: 16,
-                                                          color: kStaffLuxGold,
-                                                        ),
-                                                        Text(
-                                                          '${s.translate('ticket_time')}: ',
-                                                          style:
-                                                              staffLabelTextStyle(
-                                                            fontSize: 12.5,
-                                                          ),
-                                                        ),
-                                                        Directionality(
-                                                          textDirection:
-                                                              ui.TextDirection.ltr,
-                                                          child: Text(
-                                                            timeEn,
-                                                            style:
-                                                                staffLabelTextStyle(
-                                                              fontSize: 12.5,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '·',
-                                                          style: TextStyle(
-                                                            color: kStaffLuxGold
-                                                                .withValues(
-                                                              alpha: 0.75,
-                                                            ),
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '#',
-                                                          style:
-                                                              staffLabelTextStyle(
-                                                            fontSize: 12.5,
-                                                          ),
-                                                        ),
-                                                        Directionality(
-                                                          textDirection:
-                                                              ui.TextDirection.ltr,
-                                                          child: Text(
-                                                            queueEn,
-                                                            style:
-                                                                staffLabelTextStyle(
-                                                              fontSize: 12.5,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              Divider(
-                                                height: 22,
-                                                thickness: 0.8,
-                                                color: kStaffLuxGold
-                                                    .withValues(alpha: 0.42),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.payments_outlined,
-                                                    size: 18,
-                                                    color: kStaffLuxGold,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Expanded(
-                                                    child: Text(
-                                                      _paymentLabel(
-                                                          context, data),
-                                                      style:
-                                                          staffLabelTextStyle(
-                                                        fontSize: 14,
-                                                        color: kStaffBodyText,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (receiptUrl.isNotEmpty)
-                                                    TextButton.icon(
-                                                      onPressed: busy
-                                                          ? null
-                                                          : () =>
-                                                              _showReceiptDialog(
-                                                                context,
-                                                                receiptUrl,
-                                                              ),
-                                                      style: TextButton
-                                                          .styleFrom(
-                                                        foregroundColor:
-                                                            kStaffLuxGoldDark,
-                                                      ),
-                                                      icon: Icon(
-                                                        Icons
-                                                            .receipt_long_rounded,
-                                                        size: 18,
-                                                        color: kStaffLuxGold,
-                                                      ),
-                                                      label: Text(
-                                                        s.translate(
-                                                          'secretary_view_receipt',
-                                                        ),
-                                                        style:
-                                                            staffLabelTextStyle(
-                                                          fontSize: 13,
-                                                          color:
-                                                              kStaffLuxGoldDark,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 10),
-                                              Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: [
-                                        StaffGoldGradientButton(
-                                          label: s.translate(
-                                            'secretary_action_confirm',
+                                  onCancelled: busy
+                                      ? null
+                                      : () => _confirmAndSetStatus(
+                                            context,
+                                            doc.id,
+                                            'cancelled',
                                           ),
-                                          onPressed: busy
-                                              ? null
-                                              : () => _setStatus(
-                                                    doc.id,
-                                                    'confirmed',
-                                                  ),
-                                        ),
-                                        StaffGoldGradientButton(
-                                          label: s.translate(
-                                            'secretary_action_arrived',
-                                          ),
-                                          onPressed: busy
-                                              ? null
-                                              : () => _setStatus(
-                                                    doc.id,
-                                                    'arrived',
-                                                  ),
-                                        ),
-                                        StaffGoldGradientButton(
-                                          label: s.translate(
-                                            'secretary_action_completed',
-                                          ),
-                                          onPressed: busy
-                                              ? null
-                                              : () => _confirmAndSetStatus(
-                                                    context,
-                                                    doc.id,
-                                                    'completed',
-                                                  ),
-                                        ),
-                                        _StaffCancelActionButton(
-                                          label: s.translate(
-                                            'secretary_action_cancel',
-                                          ),
-                                          onPressed: busy
-                                              ? null
-                                              : () => _confirmAndSetStatus(
-                                                    context,
-                                                    doc.id,
-                                                    'cancelled',
-                                                  ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                                );
+                              }
+
+                              if (patientId.isEmpty) {
+                                return buildCard('—');
+                              }
+
+                              return StreamBuilder<
+                                  DocumentSnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(patientId)
+                                    .snapshots(),
+                                builder: (context, snap) {
+                                  final phone = patientPhoneFromUserData(
+                                    snap.data?.data(),
+                                  );
+                                  final phoneEn = phone.isEmpty
+                                      ? '—'
+                                      : staffDigitsToEnglishAscii(phone);
+                                  return buildCard(phoneEn);
+                                },
+                              );
                             },
                           );
                         },
@@ -758,40 +360,6 @@ class _SecretaryBookingsDashboardScreenState
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StaffCancelActionButton extends StatelessWidget {
-  const _StaffCancelActionButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFFB71C1C),
-        side: const BorderSide(
-          color: Color(0xFFC62828),
-          width: kStaffCardOutlineWidth,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        visualDensity: VisualDensity.compact,
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: kPatientPrimaryFont,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
         ),
       ),
     );

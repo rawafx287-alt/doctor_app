@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,8 +12,6 @@ import '../auth/doctor_session_cache.dart';
 import '../auth/firestore_user_doc_id.dart';
 import 'appointments_screen.dart';
 import 'doctor_profile_screen.dart';
-import 'patient_list_screen.dart';
-import '../calendar/master_calendar_screen.dart';
 import '../schedule/schedule_management_screen.dart';
 import 'doctor_premium_shell.dart';
 
@@ -28,9 +28,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   int _bottomNavIndex = 0;
   String? _doctorUserId;
 
-  /// Premium gold for active nav icon + label (staff spec).
-  static const Color _navActiveGold = Color(0xFFD4A373);
-  static const Color _navInactiveGrey = Color(0xFF9CA3AF);
+  /// Muted label/icon when tab is inactive (soft white/gray).
+  static const Color _navInactiveMuted = Color(0xFFB8C0CC);
 
   @override
   void initState() {
@@ -89,37 +88,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         ),
       ),
       actions: [
-        if (_bottomNavIndex != 1)
-          IconButton(
-            tooltip: s.translate('master_calendar_tooltip'),
-            onPressed: () {
-              final uid = (_doctorUserId ?? '').trim();
-              if (uid.isEmpty) return;
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (context) => MasterCalendarScreen(
-                    doctorId: uid,
-                    canManage: true,
-                    useStaffShellTheme: true,
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.calendar_view_month_rounded),
-          ),
-        IconButton(
-          tooltip: s.translate('doctor_tooltip_patient_list'),
-          onPressed: () {
-            Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const PatientListScreen(),
-              ),
-            );
-          },
-          icon: const Icon(Icons.groups_rounded),
-        ),
         IconButton(
           tooltip: s.translate('tooltip_logout'),
           onPressed: _logout,
@@ -131,7 +99,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
   Widget _buildGlassBottomNav(BuildContext context) {
     final s = S.of(context);
-    const topRadius = 24.0;
+    const barRadius = 32.0;
+    const barHeight = 64.0;
     const labelStyle = TextStyle(
       fontFamily: kPatientPrimaryFont,
       fontSize: 10,
@@ -140,7 +109,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
 
     TextStyle labelFor(bool selected) => labelStyle.copyWith(
-      color: selected ? _navActiveGold : _navInactiveGrey,
+      color: selected ? kStaffLuxGold : _navInactiveMuted,
+      shadows: selected
+          ? <Shadow>[
+              Shadow(
+                color: kStaffLuxGold.withValues(alpha: 0.75),
+                blurRadius: 8,
+              ),
+            ]
+          : null,
     );
 
     Widget navItem({
@@ -149,22 +126,60 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       required String label,
     }) {
       final selected = _bottomNavIndex == index;
-      final color = selected ? _navActiveGold : _navInactiveGrey;
+      final gold = kStaffLuxGold;
+      final inactive = _navInactiveMuted;
+
+      final iconCore = Icon(
+        icon,
+        size: 22,
+        color: selected ? gold : inactive,
+      );
 
       return Expanded(
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: () => _onBottomNavTap(index),
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              height: 52,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.max,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 22, color: color),
-                  const SizedBox(height: 4),
+                  if (selected)
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: gold.withValues(alpha: 0.55),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: iconCore,
+                    )
+                  else
+                    iconCore,
+                  const SizedBox(height: 3),
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? gold : Colors.transparent,
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: gold.withValues(alpha: 0.65),
+                                blurRadius: 6,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Text(
                     label,
                     textAlign: TextAlign.center,
@@ -183,78 +198,74 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
         child: SizedBox(
-          height: 72,
+          height: 78,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
               Align(
                 alignment: Alignment.bottomCenter,
-                child: DecoratedBox(
+                child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(topRadius),
-                      topRight: Radius.circular(topRadius),
-                    ),
+                    borderRadius: BorderRadius.circular(barRadius),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 14,
-                        offset: const Offset(0, -2),
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 28,
+                        offset: const Offset(0, 14),
                       ),
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                        color: kStaffLuxGold.withValues(alpha: 0.12),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(topRadius),
-                      topRight: Radius.circular(topRadius),
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: kStaffNavDockBackground,
-                        border: Border(
-                          top: BorderSide(
-                            color: kStaffAccentSlateBlue.withValues(alpha: 0.2),
-                            width: kStaffCardOutlineWidth,
+                    borderRadius: BorderRadius.circular(barRadius),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                      child: Container(
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.07),
+                          border: Border(
+                            top: BorderSide(
+                              color: kStaffLuxGold.withValues(alpha: 0.78),
+                              width: 1,
+                            ),
                           ),
+                          borderRadius: BorderRadius.circular(barRadius),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: 8,
-                          right: 8,
-                          top: 18,
-                          bottom: 6,
-                        ),
-                        child: Builder(
-                          builder: (context) {
-                            final isRtl =
-                                Directionality.of(context) == TextDirection.rtl;
-                            final appt = navItem(
-                              index: 0,
-                              icon: Icons.calendar_month_rounded,
-                              label: s.translate('doctor_nav_appointments'),
-                            );
-                            final profile = navItem(
-                              index: 2,
-                              icon: Icons.person_rounded,
-                              label: s.translate('doctor_nav_profile'),
-                            );
-                            const hole = SizedBox(width: 76);
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: isRtl
-                                  ? <Widget>[profile, hole, appt]
-                                  : <Widget>[appt, hole, profile],
-                            );
-                          },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Builder(
+                            builder: (context) {
+                              final isRtl =
+                                  Directionality.of(context) ==
+                                  TextDirection.rtl;
+                              // RTL: start = right → appointments first; LTR: profile first = left.
+                              final appt = navItem(
+                                index: 0,
+                                icon: Icons.calendar_month_rounded,
+                                label: s.translate('doctor_nav_appointments'),
+                              );
+                              final profile = navItem(
+                                index: 2,
+                                icon: Icons.person_rounded,
+                                label: s.translate('doctor_nav_profile'),
+                              );
+                              const hole = SizedBox(width: 76);
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: isRtl
+                                    ? <Widget>[appt, hole, profile]
+                                    : <Widget>[profile, hole, appt],
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -262,7 +273,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 ),
               ),
               Positioned(
-                bottom: 34,
+                left: 0,
+                right: 0,
+                bottom: 36,
                 child: Tooltip(
                   message: s.translate('doctor_nav_schedule'),
                   child: Material(
@@ -283,10 +296,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                           boxShadow: [
                             BoxShadow(
                               color: kStaffLuxGold.withValues(
-                                alpha: _bottomNavIndex == 1 ? 0.5 : 0.3,
+                                alpha: _bottomNavIndex == 1 ? 0.55 : 0.32,
                               ),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
