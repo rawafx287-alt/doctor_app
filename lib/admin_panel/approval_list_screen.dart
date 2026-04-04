@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../theme/staff_premium_theme.dart';
 
 /// Pending doctor registrations: [role] Doctor, [isApproved] false.
 class ApprovalListScreen extends StatefulWidget {
@@ -12,7 +13,6 @@ class ApprovalListScreen extends StatefulWidget {
 }
 
 class _ApprovalListScreenState extends State<ApprovalListScreen> {
-  static const Color _approveGreen = Color(0xFF22C55E);
   static const Color _rejectRed = Color(0xFFEF4444);
 
   Future<void> _approve(String uid, String name) async {
@@ -151,7 +151,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _approveGreen,
+                                backgroundColor: kStaffAccentSlateBlue,
                                 foregroundColor: Colors.white,
                                 minimumSize: const Size(double.infinity, 46),
                                 shape: RoundedRectangleBorder(

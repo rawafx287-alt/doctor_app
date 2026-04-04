@@ -21,8 +21,8 @@ const String _kMasterCalendarBrandTitle = 'HR Nora';
 // ---------------------------------------------------------------------------
 // Secretary calendar — same cell physics as [PatientAvailableDaysList].
 // ---------------------------------------------------------------------------
-const Color _kSecPatOpenFill = Color(0xFF004D40);
-const Color _kSecPatOpenBorder = Color(0xFF002E26);
+const Color _kSecPatOpenFill = Color(0xFF1E3A8A);
+const Color _kSecPatOpenBorder = Color(0xFF172554);
 const Color _kSecPatClosedFill = Color(0xFFB71C1C);
 const Color _kSecPatClosedBorder = Color(0xFF7F1515);
 const Color _kSecPatSelectedNavy = Color(0xFF0D47A1);
@@ -31,6 +31,17 @@ const Color _kSecPatDowBlue = Color(0xFF0D47A1);
 const Color _kSecPatHeaderNavy = Color(0xFF0D2137);
 const Color _kSecPatChevronBlue = Color(0xFF1565C0);
 const Color _kSecPatNumericBlue = Color(0xFF1565C0);
+
+/// Matches [PatientAvailableDaysList._patientDayCell] corner radius.
+const double _kSecPatMonthCellRadius = 12.0;
+
+/// Past / outside tiles — same fills as patient booking calendar.
+const Color _kSecPatPastFill = Color(0xFFF1F3F5);
+const Color _kSecPatPastBorder = Color(0xFFDDE1E6);
+const Color _kSecPatPastSlate = Color(0xFF64748B);
+const Color _kSecPatOutsideFill = Color(0xFFF7F7F8);
+const Color _kSecPatOutsideBorder = Color(0xFFE8EAED);
+const Color _kSecPatSelectedNavyBorder = Color(0xFF0A3D91);
 
 /// Kurdish DOW labels, Saturday-first (matches [StartingDayOfWeek.saturday]).
 const List<String> _kSecretaryDowLabelsSatFirst = [
@@ -46,9 +57,15 @@ const List<String> _kSecretaryDowLabelsSatFirst = [
 String _secretaryDowLabelForDate(DateTime day) =>
     _kSecretaryDowLabelsSatFirst[(day.weekday + 1) % 7];
 
-/// Month grid: green = open slots, red = fully booked / no open slots.
-const Color _kCalGreenFill = Color(0xFF0F3D28);
-const Color _kCalGreenBorder = Color(0xFF22C55E);
+/// English (Western) numerals for secretary calendar dates, e.g. `2026 / 4 / 3`.
+String _secretaryEnglishNumeralDateYmd(DateTime d) {
+  final nf = NumberFormat.decimalPattern('en_US');
+  return '${nf.format(d.year)} / ${nf.format(d.month)} / ${nf.format(d.day)}';
+}
+
+/// Month grid: slate blue = open slots, red = fully booked / no open slots.
+const Color _kCalGreenFill = Color(0xFF1E3A8A);
+const Color _kCalGreenBorder = Color(0xFF60A5FA);
 const Color _kCalRedFill = Color(0xFF3D1418);
 const Color _kCalRedBorder = Color(0xFFEF4444);
 
@@ -95,7 +112,9 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
   void initState() {
     super.initState();
     _pickedDoctorId = widget.doctorId;
-    _selectedDay = DateTime.now();
+    _selectedDay = widget.isRootShell && widget.showDoctorPicker
+        ? null
+        : DateTime.now();
   }
 
   String? get _effectiveDoctorId =>
@@ -273,55 +292,129 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
 
     final closedOrFull = visual != MasterDayVisual.hasAvailability;
 
-    const cellR = 8.0;
-    final radius = BorderRadius.circular(cellR);
-    final dayAscii =
-        NumberFormat.decimalPattern('en_US').format(day.day);
+    final radius = BorderRadius.circular(_kSecPatMonthCellRadius);
+    final dayAscii = NumberFormat.decimalPattern('en_US').format(day.day);
 
-    final todayRing = isToday && !isSelected && !isOutside
-        ? Border.all(color: _kSecPatGoldRing, width: 2.5)
-        : null;
-
-    BoxDecoration decoration;
-    Color textColor;
-    var strikeThrough = false;
+    Color fill;
+    Color borderColor;
+    double borderWidth;
+    List<BoxShadow> cellShadow;
+    var showInnerDepth = false;
 
     if (isSelected) {
-      decoration = BoxDecoration(
-        color: _kSecPatSelectedNavy,
-        borderRadius: radius,
-        border: Border.all(color: _kSecPatGoldRing, width: 2),
-      );
-      textColor = Colors.white;
+      fill = _kSecPatSelectedNavy;
+      borderColor = _kSecPatGoldRing;
+      borderWidth = 2.0;
+      cellShadow = [
+        BoxShadow(
+          color: _kSecPatGoldRing.withValues(alpha: 0.5),
+          blurRadius: 14,
+          spreadRadius: 0.5,
+          offset: const Offset(0, 2),
+        ),
+        BoxShadow(
+          color: _kSecPatSelectedNavyBorder.withValues(alpha: 0.28),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ];
     } else if (isOutside) {
-      decoration = BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: radius,
-        border: Border.all(color: const Color(0xFFEEEEEE)),
-      );
-      textColor = const Color(0xFF9E9E9E);
+      fill = _kSecPatOutsideFill;
+      borderColor = _kSecPatOutsideBorder.withValues(alpha: 0.9);
+      borderWidth = 0.75;
+      cellShadow = [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
     } else if (isPast) {
-      decoration = BoxDecoration(
-        color: Colors.white,
-        borderRadius: radius,
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-      );
-      textColor = const Color(0xFF424242);
-      strikeThrough = true;
+      fill = _kSecPatPastFill;
+      borderColor = _kSecPatPastBorder;
+      borderWidth = 0.75;
+      cellShadow = [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
     } else if (!closedOrFull) {
-      decoration = BoxDecoration(
-        color: const Color(0xFF004D40),
-        borderRadius: radius,
-        border: todayRing,
-      );
-      textColor = Colors.white;
+      fill = _kSecPatOpenFill;
+      borderColor = _kSecPatOpenBorder;
+      borderWidth = 1.25;
+      showInnerDepth = true;
+      cellShadow = [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 5,
+          spreadRadius: -1,
+          offset: const Offset(0, 3),
+        ),
+        BoxShadow(
+          color: _kSecPatOpenFill.withValues(alpha: 0.35),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ];
     } else {
-      decoration = BoxDecoration(
-        color: const Color(0xFFB71C1C),
-        borderRadius: radius,
-        border: todayRing,
+      fill = _kSecPatClosedFill;
+      borderColor = _kSecPatClosedBorder;
+      borderWidth = 1.25;
+      showInnerDepth = true;
+      cellShadow = [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.22),
+          blurRadius: 5,
+          spreadRadius: -1,
+          offset: const Offset(0, 3),
+        ),
+        BoxShadow(
+          color: _kSecPatClosedFill.withValues(alpha: 0.3),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ];
+    }
+
+    if (isToday && !isSelected && !isOutside) {
+      borderColor = _kSecPatGoldRing;
+      borderWidth = 3.0;
+    }
+
+    final strikeThrough = isPast;
+    final textColor = isSelected
+        ? Colors.white
+        : isPast
+        ? _kSecPatPastSlate
+        : isOutside
+        ? const Color(0xFF90A4AE)
+        : Colors.white;
+
+    Widget innerDepthOverlay() {
+      return Positioned.fill(
+        child: IgnorePointer(
+          child: ClipRRect(
+            borderRadius: radius,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.26),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.white.withValues(alpha: 0.07),
+                  ],
+                  stops: const [0.0, 0.38, 0.62, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
       );
-      textColor = Colors.white;
     }
 
     final textWidget = Directionality(
@@ -335,10 +428,11 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
           fontSize: 13,
           height: 1,
           color: textColor,
-          decoration:
-              strikeThrough ? TextDecoration.lineThrough : TextDecoration.none,
-          decorationColor: const Color(0xFF757575),
-          decorationThickness: 1.5,
+          decoration: strikeThrough
+              ? TextDecoration.lineThrough
+              : TextDecoration.none,
+          decorationColor: _kSecPatPastSlate,
+          decorationThickness: 1.75,
         ),
       ),
     );
@@ -346,9 +440,20 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     final cellCore = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOutCubic,
-      decoration: decoration,
-      alignment: Alignment.center,
-      child: textWidget,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: cellShadow,
+      ),
+      child: Stack(
+        clipBehavior: Clip.antiAlias,
+        alignment: Alignment.center,
+        children: [
+          if (showInnerDepth) innerDepthOverlay(),
+          Center(child: textWidget),
+        ],
+      ),
     );
 
     return Padding(padding: const EdgeInsets.all(1.5), child: cellCore);
@@ -397,56 +502,462 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     );
   }
 
-  Widget _buildSecretaryTodayDateFooter(BuildContext context) {
-    final s = S.of(context);
-    final n = DateTime.now();
-    final line = '${n.day} / ${n.month} / ${n.year}';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>
+  _secretaryAppointmentsForLocalDay(
+    DateTime day,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> monthDocs,
+  ) {
+    final y = day.year;
+    final m = day.month;
+    final dD = day.day;
+    final out = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    for (final doc in monthDocs) {
+      final data = doc.data();
+      final st = (data[AppointmentFields.status] ?? 'pending')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (st == 'cancelled' || st == 'canceled') continue;
+      final ts = data[AppointmentFields.date];
+      if (ts is! Timestamp) continue;
+      final dt = ts.toDate();
+      if (dt.year != y || dt.month != m || dt.day != dD) continue;
+      out.add(doc);
+    }
+    return out;
+  }
+
+  int _secretaryAppointmentSortMinutes(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final t = (doc.data()[AppointmentFields.time] ?? '').toString().trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(t);
+    if (match != null) {
+      final h = int.tryParse(match.group(1)!) ?? 0;
+      final mi = int.tryParse(match.group(2)!) ?? 0;
+      return h * 60 + mi;
+    }
+    return 1 << 20;
+  }
+
+  Widget _buildMonthCalendarTable(
+    BuildContext context, {
+    required Map<DateTime, MasterDayVisual> visuals,
+    required Map<String, dynamic>? weekly,
+    Map<String, dynamic>? dateOverrides,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> appts,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> blocks,
+  }) {
+    final secUx = _secretaryCalendarUx;
+    final calendar = TableCalendar<void>(
+      firstDay: DateTime.utc(2024, 1, 1),
+      lastDay: DateTime.utc(2035, 12, 31),
+      focusedDay: _focusedDay,
+      rowHeight: secUx ? 40 : 52,
+      daysOfWeekHeight: secUx ? 28 : 36,
+      selectedDayPredicate: (d) =>
+          _selectedDay != null && isSameDay(_selectedDay!, d),
+      calendarFormat: CalendarFormat.month,
+      availableCalendarFormats: const {CalendarFormat.month: 'Month'},
+      startingDayOfWeek: StartingDayOfWeek.saturday,
+      locale: secUx ? 'en_US' : Localizations.localeOf(context).toLanguageTag(),
+      daysOfWeekStyle: DaysOfWeekStyle(
+        weekdayStyle: TextStyle(
+          color: secUx ? _kSecPatDowBlue : const Color(0xFF94A3B8),
+          fontFamily: kPatientPrimaryFont,
+          fontSize: secUx ? 11 : 12,
+          fontWeight: secUx ? FontWeight.w700 : FontWeight.w800,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              s.translate('schedule_today_heading'),
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 12.5,
-                letterSpacing: 0.35,
-                color: const Color(0xFF455A64).withValues(alpha: 0.92),
-                height: 1.2,
-              ),
+        weekendStyle: TextStyle(
+          color: secUx ? _kSecPatDowBlue : const Color(0xFF94A3B8),
+          fontFamily: kPatientPrimaryFont,
+          fontSize: secUx ? 11 : 12,
+          fontWeight: secUx ? FontWeight.w700 : FontWeight.w800,
+        ),
+      ),
+      headerStyle: HeaderStyle(
+        formatButtonVisible: false,
+        titleCentered: true,
+        headerPadding: EdgeInsets.zero,
+        titleTextFormatter: secUx
+            ? (date, _) {
+                final nf = NumberFormat.decimalPattern('en_US');
+                return '\u200E${nf.format(date.year)} / ${nf.format(date.month)}';
+              }
+            : null,
+        titleTextStyle: TextStyle(
+          color: secUx ? _kSecPatHeaderNavy : const Color(0xFFE8EEF4),
+          fontSize: secUx ? 15 : 17,
+          fontWeight: secUx ? FontWeight.w700 : FontWeight.w800,
+          fontFamily: kPatientPrimaryFont,
+          letterSpacing: secUx ? 0.2 : 0,
+        ),
+        leftChevronIcon: Icon(
+          Icons.chevron_left_rounded,
+          color: secUx ? _kSecPatChevronBlue : const Color(0xFF42A5F5),
+          size: secUx ? 20 : 24,
+        ),
+        rightChevronIcon: Icon(
+          Icons.chevron_right_rounded,
+          color: secUx ? _kSecPatChevronBlue : const Color(0xFF42A5F5),
+          size: secUx ? 20 : 24,
+        ),
+      ),
+      calendarStyle: const CalendarStyle(
+        outsideDaysVisible: true,
+        markersMaxCount: 0,
+        cellMargin: EdgeInsets.zero,
+        defaultDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        weekendDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        outsideDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        todayDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        selectedDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        disabledDecoration: BoxDecoration(shape: BoxShape.rectangle),
+        defaultTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+        weekendTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+        outsideTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+        todayTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+        selectedTextStyle: TextStyle(fontSize: 0.1, color: Colors.transparent),
+      ),
+      onPageChanged: (focused) {
+        setState(() {
+          _focusedDay = focused;
+        });
+      },
+      onDaySelected: (sel, foc) {
+        setState(() {
+          _selectedDay = sel;
+          _focusedDay = foc;
+        });
+        if (!_secretaryCalendarUx) {
+          _openDaySheet(
+            context: context,
+            day: sel,
+            weekly: weekly,
+            dateOverrides: dateOverrides,
+            monthAppointments: appts,
+            monthBlocks: blocks,
+            slotDurationMinutes: appointmentSlotMinutesForDateWithAllBlocks(
+              DateTime(sel.year, sel.month, sel.day),
+              blocks.map((e) => e.data()).toList(),
             ),
-            const SizedBox(height: 6),
-            Directionality(
-              textDirection: ui.TextDirection.ltr,
-              child: Text(
-                line,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
-                  height: 1.35,
-                  color: _kSecPatNumericBlue.withValues(alpha: 0.92),
+          );
+        }
+      },
+      calendarBuilders: CalendarBuilders(
+        dowBuilder: secUx
+            ? (context, day) {
+                return SizedBox.expand(
+                  child: Center(
+                    child: Text(
+                      _secretaryDowLabelForDate(day),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kSecPatDowBlue,
+                        fontFamily: kPatientPrimaryFont,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                );
+              }
+            : null,
+        defaultBuilder: (context, day, fd) {
+          final key = DateTime(day.year, day.month, day.day);
+          final sel = _selectedDay != null && isSameDay(_selectedDay!, day);
+          return _connectStyleMonthCell(
+            day: day,
+            focusedMonth: fd,
+            visual: visuals[key],
+            isToday: isSameDay(day, DateTime.now()),
+            isSelected: sel,
+          );
+        },
+        todayBuilder: (context, day, fd) {
+          final key = DateTime(day.year, day.month, day.day);
+          final sel = _selectedDay != null && isSameDay(_selectedDay!, day);
+          return _connectStyleMonthCell(
+            day: day,
+            focusedMonth: fd,
+            visual: visuals[key],
+            isToday: true,
+            isSelected: sel,
+          );
+        },
+        selectedBuilder: (context, day, fd) {
+          final key = DateTime(day.year, day.month, day.day);
+          return _connectStyleMonthCell(
+            day: day,
+            focusedMonth: fd,
+            visual: visuals[key],
+            isToday: isSameDay(day, DateTime.now()),
+            isSelected: true,
+          );
+        },
+        outsideBuilder: (context, day, fd) {
+          final key = DateTime(day.year, day.month, day.day);
+          final sel = _selectedDay != null && isSameDay(_selectedDay!, day);
+          return _connectStyleMonthCell(
+            day: day,
+            focusedMonth: fd,
+            visual: visuals[key],
+            isToday: isSameDay(day, DateTime.now()),
+            isSelected: sel,
+          );
+        },
+      ),
+    );
+    if (secUx) {
+      return _secretaryGlassCalendarShell(child: calendar);
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF12152A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
+        child: calendar,
+      ),
+    );
+  }
+
+  /// Secretary-only: large action card with selected day, numeric date, list, gold CTA.
+  Widget _buildSecretaryActionDashboard(
+    BuildContext context, {
+    required DateTime? selectedDay,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>>
+    monthAppointments,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> monthBlocks,
+    required Map<String, dynamic>? weekly,
+    Map<String, dynamic>? dateOverrides,
+  }) {
+    final s = S.of(context);
+    final nf = NumberFormat.decimalPattern('en_US');
+
+    var list = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    if (selectedDay != null) {
+      list = _secretaryAppointmentsForLocalDay(selectedDay, monthAppointments);
+      list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(list)
+        ..sort(
+          (a, b) => _secretaryAppointmentSortMinutes(
+            a,
+          ).compareTo(_secretaryAppointmentSortMinutes(b)),
+        );
+    }
+
+    final slotMinutes = selectedDay == null
+        ? 30
+        : appointmentSlotMinutesForDateWithAllBlocks(
+            DateTime(selectedDay.year, selectedDay.month, selectedDay.day),
+            monthBlocks.map((e) => e.data()).toList(),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.97),
+                  _kSecPatOpenFill.withValues(alpha: 0.06),
+                  Colors.white.withValues(alpha: 0.92),
+                ],
+                stops: const [0.0, 0.42, 1.0],
+              ),
+              border: Border.all(
+                color: _kSecPatGoldRing.withValues(alpha: 0.5),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: kStaffPrimaryNavy.withValues(alpha: 0.09),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                  spreadRadius: -2,
                 ),
+                BoxShadow(
+                  color: _kSecPatGoldRing.withValues(alpha: 0.14),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (selectedDay != null)
+                    Text(
+                      s.translate('secretary_calendar_selected_heading'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: _kSecPatHeaderNavy,
+                      ),
+                    )
+                  else
+                    Text(
+                      s.translate('secretary_calendar_select_day_hint'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        height: 1.4,
+                        color: kStaffMutedText,
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Directionality(
+                      textDirection: ui.TextDirection.ltr,
+                      child: Text(
+                        selectedDay == null ? '—' : nf.format(selectedDay.day),
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 58,
+                          height: 1,
+                          color: selectedDay == null
+                              ? kStaffMutedText.withValues(alpha: 0.35)
+                              : _kSecPatHeaderNavy,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Directionality(
+                    textDirection: ui.TextDirection.ltr,
+                    child: Text(
+                      selectedDay == null
+                          ? '— / — / —'
+                          : _secretaryEnglishNumeralDateYmd(selectedDay),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        letterSpacing: 0.3,
+                        color: _kSecPatNumericBlue,
+                      ),
+                    ),
+                  ),
+                  if (selectedDay != null) ...[
+                    const SizedBox(height: 16),
+                    if (list.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          s.translate('secretary_calendar_no_appointments_day'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: kStaffMutedText,
+                            height: 1.35,
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const ClampingScrollPhysics(),
+                          itemCount: list.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1, thickness: 0.6),
+                          itemBuilder: (context, i) {
+                            final doc = list[i];
+                            final data = doc.data();
+                            final name =
+                                (data[AppointmentFields.patientName] ?? '—')
+                                    .toString();
+                            final time = (data[AppointmentFields.time] ?? '—')
+                                .toString();
+                            final q =
+                                (data[AppointmentFields.queueNumber] ?? '')
+                                    .toString()
+                                    .trim();
+                            final sub = q.isEmpty ? time : '$time · #$q';
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                Icons.person_rounded,
+                                color: _kSecPatOpenFill,
+                                size: 22,
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: kStaffBodyText,
+                                ),
+                              ),
+                              subtitle: Directionality(
+                                textDirection: ui.TextDirection.ltr,
+                                child: Text(
+                                  sub,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                    color: kStaffMutedText,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 18),
+                  StaffGoldGradientButton(
+                    label: s.translate(
+                      'secretary_calendar_manage_appointments',
+                    ),
+                    onPressed: selectedDay == null
+                        ? null
+                        : () => _openDaySheet(
+                            context: context,
+                            day: selectedDay,
+                            weekly: weekly,
+                            dateOverrides: dateOverrides,
+                            monthAppointments: monthAppointments,
+                            monthBlocks: monthBlocks,
+                            slotDurationMinutes: slotMinutes,
+                          ),
+                    fontSize: 15,
+                    borderRadius: 16,
+                    minHeight: 52,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 15,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -510,7 +1021,7 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       textDirection: dir,
       child: Scaffold(
         backgroundColor: _staffChrome
-            ? kStaffShellBackground
+            ? Colors.transparent
             : const Color(0xFF0A0E21),
         appBar: AppBar(
           backgroundColor: kStaffPrimaryNavy,
@@ -675,7 +1186,12 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) => setState(() => _pickedDoctorId = v),
+                        onChanged: (v) => setState(() {
+                          _pickedDoctorId = v;
+                          if (_secretaryCalendarUx) {
+                            _selectedDay = null;
+                          }
+                        }),
                       );
                     },
                   ),
@@ -775,378 +1291,29 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
                                       ),
                                       child: Column(
                                         children: [
-                                          _LegendRow(
-                                            loc: S.of(context),
-                                            secretaryUx: _secretaryCalendarUx,
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Builder(
-                                            builder: (context) {
-                                              final secUx =
-                                                  _secretaryCalendarUx;
-                                              final calendar = TableCalendar<void>(
-                                                firstDay: DateTime.utc(
-                                                  2024,
-                                                  1,
-                                                  1,
-                                                ),
-                                                lastDay: DateTime.utc(
-                                                  2035,
-                                                  12,
-                                                  31,
-                                                ),
-                                                focusedDay: _focusedDay,
-                                                rowHeight: secUx ? 40 : 52,
-                                                daysOfWeekHeight: secUx
-                                                    ? 28
-                                                    : 36,
-                                                selectedDayPredicate: (d) =>
-                                                    _selectedDay != null &&
-                                                    isSameDay(_selectedDay!, d),
-                                                calendarFormat:
-                                                    CalendarFormat.month,
-                                                availableCalendarFormats:
-                                                    const {
-                                                      CalendarFormat.month:
-                                                          'Month',
-                                                    },
-                                                startingDayOfWeek:
-                                                    StartingDayOfWeek.saturday,
-                                                locale: secUx
-                                                    ? 'en_US'
-                                                    : Localizations.localeOf(
-                                                        context,
-                                                      ).toLanguageTag(),
-                                                daysOfWeekStyle:
-                                                    DaysOfWeekStyle(
-                                                      weekdayStyle: TextStyle(
-                                                        color: secUx
-                                                            ? _kSecPatDowBlue
-                                                            : const Color(
-                                                                0xFF94A3B8,
-                                                              ),
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontSize: secUx
-                                                            ? 11
-                                                            : 12,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                      weekendStyle: TextStyle(
-                                                        color: secUx
-                                                            ? _kSecPatDowBlue
-                                                            : const Color(
-                                                                0xFF94A3B8,
-                                                              ),
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontSize: secUx
-                                                            ? 11
-                                                            : 12,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                    ),
-                                                headerStyle: HeaderStyle(
-                                                  formatButtonVisible: false,
-                                                  titleCentered: true,
-                                                  headerPadding:
-                                                      EdgeInsets.zero,
-                                                  titleTextFormatter: secUx
-                                                      ? (date, _) =>
-                                                          '\u200E${date.month} / ${date.year}'
-                                                      : null,
-                                                  titleTextStyle: TextStyle(
-                                                    color: secUx
-                                                        ? _kSecPatHeaderNavy
-                                                        : const Color(
-                                                            0xFFE8EEF4,
-                                                          ),
-                                                    fontSize: secUx ? 15 : 17,
-                                                    fontWeight: FontWeight.w800,
-                                                    fontFamily:
-                                                        kPatientPrimaryFont,
-                                                    letterSpacing: secUx
-                                                        ? 0.2
-                                                        : 0,
-                                                  ),
-                                                  leftChevronIcon: Icon(
-                                                    Icons.chevron_left_rounded,
-                                                    color: secUx
-                                                        ? _kSecPatChevronBlue
-                                                        : const Color(
-                                                            0xFF42A5F5,
-                                                          ),
-                                                    size: secUx ? 20 : 24,
-                                                  ),
-                                                  rightChevronIcon: Icon(
-                                                    Icons.chevron_right_rounded,
-                                                    color: secUx
-                                                        ? _kSecPatChevronBlue
-                                                        : const Color(
-                                                            0xFF42A5F5,
-                                                          ),
-                                                    size: secUx ? 20 : 24,
-                                                  ),
-                                                ),
-                                                calendarStyle:
-                                                    const CalendarStyle(
-                                                      outsideDaysVisible: true,
-                                                      markersMaxCount: 0,
-                                                      cellMargin:
-                                                          EdgeInsets.zero,
-                                                      defaultDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      weekendDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      outsideDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      todayDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      selectedDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      disabledDecoration:
-                                                          BoxDecoration(
-                                                            shape: BoxShape
-                                                                .rectangle,
-                                                          ),
-                                                      defaultTextStyle:
-                                                          TextStyle(
-                                                            fontSize: 0.1,
-                                                            color: Colors
-                                                                .transparent,
-                                                          ),
-                                                      weekendTextStyle:
-                                                          TextStyle(
-                                                            fontSize: 0.1,
-                                                            color: Colors
-                                                                .transparent,
-                                                          ),
-                                                      outsideTextStyle:
-                                                          TextStyle(
-                                                            fontSize: 0.1,
-                                                            color: Colors
-                                                                .transparent,
-                                                          ),
-                                                      todayTextStyle: TextStyle(
-                                                        fontSize: 0.1,
-                                                        color:
-                                                            Colors.transparent,
-                                                      ),
-                                                      selectedTextStyle:
-                                                          TextStyle(
-                                                            fontSize: 0.1,
-                                                            color: Colors
-                                                                .transparent,
-                                                          ),
-                                                    ),
-                                                onPageChanged: (focused) {
-                                                  setState(() {
-                                                    _focusedDay = focused;
-                                                  });
-                                                },
-                                                onDaySelected: (sel, foc) {
-                                                  setState(() {
-                                                    _selectedDay = sel;
-                                                    _focusedDay = foc;
-                                                  });
-                                                  _openDaySheet(
-                                                    context: context,
-                                                    day: sel,
-                                                    weekly: weekly,
-                                                    dateOverrides:
-                                                        dateOverrides,
-                                                    monthAppointments: appts,
-                                                    monthBlocks: blocks,
-                                                    slotDurationMinutes:
-                                                        appointmentSlotMinutesForDateWithAllBlocks(
-                                                          DateTime(
-                                                            sel.year,
-                                                            sel.month,
-                                                            sel.day,
-                                                          ),
-                                                          blocks
-                                                              .map(
-                                                                (e) => e.data(),
-                                                              )
-                                                              .toList(),
-                                                        ),
-                                                  );
-                                                },
-                                                calendarBuilders: CalendarBuilders(
-                                                  dowBuilder: secUx
-                                                      ? (context, day) {
-                                                          return Center(
-                                                            child: Text(
-                                                              _secretaryDowLabelForDate(
-                                                                day,
-                                                              ),
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              style: TextStyle(
-                                                                color:
-                                                                    _kSecPatDowBlue,
-                                                                fontFamily:
-                                                                    kPatientPrimaryFont,
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w800,
-                                                              ),
-                                                            ),
-                                                          );
-                                                        }
-                                                      : null,
-                                                  defaultBuilder:
-                                                      (context, day, fd) {
-                                                        final key = DateTime(
-                                                          day.year,
-                                                          day.month,
-                                                          day.day,
-                                                        );
-                                                        final sel =
-                                                            _selectedDay !=
-                                                                null &&
-                                                            isSameDay(
-                                                              _selectedDay!,
-                                                              day,
-                                                            );
-                                                        return _connectStyleMonthCell(
-                                                          day: day,
-                                                          focusedMonth: fd,
-                                                          visual: visuals[key],
-                                                          isToday: isSameDay(
-                                                            day,
-                                                            DateTime.now(),
-                                                          ),
-                                                          isSelected: sel,
-                                                        );
-                                                      },
-                                                  todayBuilder: (context, day, fd) {
-                                                    final key = DateTime(
-                                                      day.year,
-                                                      day.month,
-                                                      day.day,
-                                                    );
-                                                    final sel =
-                                                        _selectedDay != null &&
-                                                        isSameDay(
-                                                          _selectedDay!,
-                                                          day,
-                                                        );
-                                                    return _connectStyleMonthCell(
-                                                      day: day,
-                                                      focusedMonth: fd,
-                                                      visual: visuals[key],
-                                                      isToday: true,
-                                                      isSelected: sel,
-                                                    );
-                                                  },
-                                                  selectedBuilder:
-                                                      (context, day, fd) {
-                                                        final key = DateTime(
-                                                          day.year,
-                                                          day.month,
-                                                          day.day,
-                                                        );
-                                                        return _connectStyleMonthCell(
-                                                          day: day,
-                                                          focusedMonth: fd,
-                                                          visual: visuals[key],
-                                                          isToday: isSameDay(
-                                                            day,
-                                                            DateTime.now(),
-                                                          ),
-                                                          isSelected: true,
-                                                        );
-                                                      },
-                                                  outsideBuilder:
-                                                      (context, day, fd) {
-                                                        final key = DateTime(
-                                                          day.year,
-                                                          day.month,
-                                                          day.day,
-                                                        );
-                                                        final sel =
-                                                            _selectedDay !=
-                                                                null &&
-                                                            isSameDay(
-                                                              _selectedDay!,
-                                                              day,
-                                                            );
-                                                        return _connectStyleMonthCell(
-                                                          day: day,
-                                                          focusedMonth: fd,
-                                                          visual: visuals[key],
-                                                          isToday: isSameDay(
-                                                            day,
-                                                            DateTime.now(),
-                                                          ),
-                                                          isSelected: sel,
-                                                        );
-                                                      },
-                                                ),
-                                              );
-                                              if (secUx) {
-                                                return _secretaryGlassCalendarShell(
-                                                  child: Localizations.override(
-                                                    context: context,
-                                                    locale: const Locale(
-                                                      'en',
-                                                      'US',
-                                                    ),
-                                                    child: calendar,
-                                                  ),
-                                                );
-                                              }
-                                              return DecoratedBox(
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFF12152A,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                  border: Border.all(
-                                                    color: Colors.white10,
-                                                  ),
-                                                ),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.fromLTRB(
-                                                        6,
-                                                        10,
-                                                        6,
-                                                        14,
-                                                      ),
-                                                  child: calendar,
-                                                ),
-                                              );
-                                            },
+                                          if (!_secretaryCalendarUx) ...[
+                                            _LegendRow(
+                                              loc: S.of(context),
+                                              secretaryUx: false,
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                          _buildMonthCalendarTable(
+                                            context,
+                                            visuals: visuals,
+                                            weekly: weekly,
+                                            dateOverrides: dateOverrides,
+                                            appts: appts,
+                                            blocks: blocks,
                                           ),
                                           if (_secretaryCalendarUx)
-                                            _buildSecretaryTodayDateFooter(
+                                            _buildSecretaryActionDashboard(
                                               context,
+                                              selectedDay: _selectedDay,
+                                              monthAppointments: appts,
+                                              monthBlocks: blocks,
+                                              weekly: weekly,
+                                              dateOverrides: dateOverrides,
                                             ),
                                           if (widget.canManage) ...[
                                             const SizedBox(height: 16),

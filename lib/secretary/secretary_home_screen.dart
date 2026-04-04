@@ -5,11 +5,12 @@ import '../calendar/master_calendar_screen.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../theme/staff_premium_theme.dart';
-import 'secretary_available_days_screen.dart';
+import '../doctor/doctor_premium_shell.dart';
 import 'secretary_bookings_dashboard_screen.dart';
 import 'secretary_clinic_settings_screen.dart';
+import 'secretary_schedule_screen.dart';
 
-/// Secretary home: calendar + available-days slot view (Firestore role: `Secretary`).
+/// Secretary home: calendar, bookings, clinic (Firestore role: `Secretary`).
 class SecretaryHomeScreen extends StatefulWidget {
   const SecretaryHomeScreen({super.key});
 
@@ -33,7 +34,7 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
     const topRadius = 24.0;
     const labelStyle = TextStyle(
       fontFamily: kPatientPrimaryFont,
-      fontSize: 10,
+      fontSize: 9.5,
       fontWeight: FontWeight.w700,
       height: 1.05,
     );
@@ -79,75 +80,131 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
       );
     }
 
-    const dockBg = Color(0xFFF0F7FC);
-
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(topRadius),
-              topRight: Radius.circular(topRadius),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, -2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(topRadius),
-              topRight: Radius.circular(topRadius),
-            ),
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: dockBg,
-                border: Border(
-                  top: BorderSide(
-                    color: kStaffSilverBorder,
-                    width: kStaffCardOutlineWidth,
+        child: SizedBox(
+          height: 70,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(topRadius),
+                      topRight: Radius.circular(topRadius),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 14,
+                        offset: const Offset(0, -2),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(topRadius),
+                      topRight: Radius.circular(topRadius),
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: kStaffNavDockBackground,
+                        border: Border(
+                          top: BorderSide(
+                            color: kStaffAccentSlateBlue.withValues(alpha: 0.2),
+                            width: kStaffCardOutlineWidth,
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(2, 16, 2, 5),
+                        child: Builder(
+                          builder: (context) {
+                            final isRtl =
+                                Directionality.of(context) == TextDirection.rtl;
+                            final cal = item(
+                              index: 0,
+                              icon: Icons.calendar_month_rounded,
+                              label: s.translate('secretary_nav_calendar'),
+                            );
+                            final book = item(
+                              index: 1,
+                              icon: Icons.list_alt_rounded,
+                              label: s.translate('secretary_nav_bookings'),
+                            );
+                            final clinic = item(
+                              index: 3,
+                              icon: Icons.apartment_rounded,
+                              label: s.translate('secretary_nav_clinic'),
+                            );
+                            const hole = SizedBox(width: 64);
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: isRtl
+                                  ? <Widget>[clinic, hole, book, cal]
+                                  : <Widget>[cal, book, hole, clinic],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 4, 4, 5),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    item(
-                      index: 0,
-                      icon: Icons.calendar_month_rounded,
-                      label: s.translate('secretary_nav_calendar'),
+              Positioned(
+                bottom: 32,
+                child: Tooltip(
+                  message: s.translate('secretary_nav_schedule'),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _onNavTap(2),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: kStaffGoldActionGradient,
+                          border: Border.all(
+                            color: _index == 2
+                                ? kStaffLuxGoldLight
+                                : kStaffSilverBorder,
+                            width: _index == 2 ? 2.2 : 1.1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kStaffLuxGold.withValues(
+                                alpha: _index == 2 ? 0.48 : 0.28,
+                              ),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const SizedBox(
+                          width: 54,
+                          height: 54,
+                          child: Icon(
+                            Icons.event_available_rounded,
+                            color: kStaffOnGoldText,
+                            size: 25,
+                          ),
+                        ),
+                      ),
                     ),
-                    item(
-                      index: 1,
-                      icon: Icons.event_available_rounded,
-                      label: s.translate('secretary_nav_available_days'),
-                    ),
-                    item(
-                      index: 2,
-                      icon: Icons.list_alt_rounded,
-                      label: s.translate('secretary_nav_bookings'),
-                    ),
-                    item(
-                      index: 3,
-                      icon: Icons.apartment_rounded,
-                      label: s.translate('secretary_nav_clinic'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -160,22 +217,28 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         extendBody: true,
-        backgroundColor: kStaffShellBackground,
-        body: SafeArea(
-          bottom: false,
-          child: IndexedStack(
-            index: _index,
-            children: const [
-              MasterCalendarScreen(
-                showDoctorPicker: true,
-                canManage: true,
-                isRootShell: true,
+        backgroundColor: kDoctorPremiumGradientBottom,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DoctorPremiumBackground(),
+            SafeArea(
+              bottom: false,
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  MasterCalendarScreen(
+                    showDoctorPicker: true,
+                    canManage: true,
+                    isRootShell: true,
+                  ),
+                  SecretaryBookingsDashboardScreen(),
+                  SecretaryScheduleScreen(),
+                  SecretaryClinicSettingsScreen(),
+                ],
               ),
-              SecretaryAvailableDaysScreen(),
-              SecretaryBookingsDashboardScreen(),
-              SecretaryClinicSettingsScreen(),
-            ],
-          ),
+            ),
+          ],
         ),
         bottomNavigationBar: _buildCompactBottomNav(context),
       ),

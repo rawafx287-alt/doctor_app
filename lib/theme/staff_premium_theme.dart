@@ -1,8 +1,44 @@
 import 'package:flutter/material.dart';
 
-import 'patient_premium_theme.dart' show kPatientPrimaryFont;
+import 'patient_premium_theme.dart'
+    show appointmentStatusBadgeColors, kPatientPrimaryFont;
 
 export 'patient_premium_theme.dart' show kPatientPrimaryFont;
+
+/// Admin / doctor / secretary background gradient (professional deep blue).
+const Color kStaffShellGradientTop = Color(0xFF0A192F);
+const Color kStaffShellGradientMid = Color(0xFF0E213E);
+const Color kStaffShellGradientBottom = Color(0xFF112240);
+
+const BoxDecoration kStaffShellGradientDecoration = BoxDecoration(
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      kStaffShellGradientTop,
+      kStaffShellGradientMid,
+      kStaffShellGradientBottom,
+    ],
+    stops: [0.0, 0.48, 1.0],
+  ),
+);
+
+/// Open days, leading strips, labels, completed pills (staff UI; replaces former green accent).
+const Color kStaffAccentSlateBlue = Color(0xFF1E3A8A);
+
+/// Bottom nav dock — cool tint that pairs with gold icons on blue shells.
+const Color kStaffNavDockBackground = Color(0xFFEEF2FF);
+
+/// Normalizes Eastern Arabic numerals to ASCII digits for time/date display.
+String staffDigitsToEnglishAscii(String input) {
+  const eastern = '٠١٢٣٤٥٦٧٨٩';
+  final b = StringBuffer();
+  for (final ch in input.split('')) {
+    final i = eastern.indexOf(ch);
+    b.write(i >= 0 ? '$i' : ch);
+  }
+  return b.toString();
+}
 
 /// Doctor / secretary shell — authoritative navy, patient-aligned gold, light surfaces.
 const Color kStaffPrimaryNavy = Color(0xFF1A237E);
@@ -27,6 +63,47 @@ const LinearGradient kStaffGoldActionGradient = LinearGradient(
     kStaffLuxGoldDark,
   ],
 );
+
+/// Status pill: completed = slate blue / white; cancelled = theme red; else gold gradient / dark text.
+({BoxDecoration decoration, Color foreground}) staffAppointmentStatusBadgeStyle(
+  String rawStatus,
+) {
+  final s = rawStatus.trim().toLowerCase();
+  if (s == 'completed') {
+    return (
+      decoration: BoxDecoration(
+        color: kStaffAccentSlateBlue,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      foreground: Colors.white,
+    );
+  }
+  if (s == 'cancelled' || s == 'canceled') {
+    final c = appointmentStatusBadgeColors(rawStatus);
+    return (
+      decoration: BoxDecoration(
+        color: c.$1,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 0.75,
+        ),
+      ),
+      foreground: c.$2,
+    );
+  }
+  return (
+    decoration: BoxDecoration(
+      gradient: kStaffGoldActionGradient,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(
+        color: kStaffLuxGold.withValues(alpha: 0.55),
+        width: 0.75,
+      ),
+    ),
+    foreground: const Color(0xFF102A43),
+  );
+}
 
 const Color kStaffBodyText = Color(0xFF263238);
 const Color kStaffMutedText = Color(0xFF546E7A);

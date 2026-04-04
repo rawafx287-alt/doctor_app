@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,6 @@ import '../firestore/appointment_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
-import '../theme/patient_premium_theme.dart';
 import '../theme/staff_premium_theme.dart';
 
 DateTime? _parseAppointmentDay(dynamic value) {
@@ -148,8 +149,12 @@ class _SecretaryBookingsDashboardScreenState
 
   String _formatDate(dynamic raw) {
     final d = _parseAppointmentDay(raw);
-    if (d == null) return (raw ?? '—').toString();
-    return DateFormat('yyyy/MM/dd').format(d);
+    if (d != null) {
+      return DateFormat('yyyy/MM/dd', 'en_US').format(d);
+    }
+    if (raw == null) return '—';
+    final s = raw.toString().trim();
+    return s.isEmpty ? '—' : staffDigitsToEnglishAscii(s);
   }
 
   String _paymentLabel(BuildContext context, Map<String, dynamic> data) {
@@ -193,7 +198,7 @@ class _SecretaryBookingsDashboardScreenState
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: kStaffShellBackground,
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),
@@ -378,107 +383,296 @@ class _SecretaryBookingsDashboardScreenState
                                       .toString()
                                       .trim();
                               final busy = _updating.contains(doc.id);
-                              final badge = appointmentStatusBadgeColors(st);
+                              final badge = staffAppointmentStatusBadgeStyle(st);
+                              final timeEn = staffDigitsToEnglishAscii(time);
+                              final queueEn = staffDigitsToEnglishAscii(
+                                queue.isEmpty ? '—' : queue,
+                              );
 
                               return Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: staffDashboardCardDecoration(),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            patient,
-                                            style: staffHeaderTextStyle(
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: badge.$1,
-                                            borderRadius:
-                                                BorderRadius.circular(999),
-                                            border: Border.all(
-                                              color: Colors.white
-                                                  .withValues(alpha: 0.22),
-                                              width: 0.75,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            _localizedPatientAppointmentStatus(
-                                              context,
-                                              st,
-                                            ),
-                                            style: TextStyle(
-                                              color: badge.$2,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              fontFamily: kPatientPrimaryFont,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: kStaffSilverBorder,
+                                    width: kStaffCardOutlineWidth,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kStaffPrimaryNavy
+                                          .withValues(alpha: 0.07),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '${s.translate('ticket_date')}: $dateStr   •   ${s.translate('ticket_time')}: $time   •   #${queue.isEmpty ? '—' : queue}',
-                                      style: staffLabelTextStyle(fontSize: 12.5),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.payments_outlined,
-                                          size: 18,
-                                          color: Colors.amber.shade200,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _paymentLabel(context, data),
-                                          style: staffLabelTextStyle(
-                                            fontSize: 14,
-                                            color: kStaffBodyText,
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Container(
+                                        width: 4,
+                                        color: kStaffAccentSlateBlue,
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            12,
+                                            14,
+                                            14,
+                                            14,
                                           ),
-                                        ),
-                                        if (receiptUrl.isNotEmpty) ...[
-                                          const SizedBox(width: 10),
-                                          TextButton.icon(
-                                            onPressed: busy
-                                                ? null
-                                                : () => _showReceiptDialog(
-                                                      context,
-                                                      receiptUrl,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          s.translate(
+                                                            'doctor_appt_patient_name_label',
+                                                          ),
+                                                          style:
+                                                              staffLabelTextStyle(
+                                                            fontSize: 11,
+                                                          ).copyWith(
+                                                            color:
+                                                                kStaffAccentSlateBlue
+                                                                    .withValues(
+                                                              alpha: 0.78,
+                                                            ),
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 2),
+                                                        Text(
+                                                          patient,
+                                                          style:
+                                                              staffHeaderTextStyle(
+                                                            fontSize: 16,
+                                                          ).copyWith(
+                                                            color:
+                                                                kStaffAccentSlateBlue,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: kStaffPrimaryNavy,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.receipt_long_rounded,
-                                              size: 18,
-                                            ),
-                                            label: Text(
-                                              s.translate(
-                                                'secretary_view_receipt',
+                                                  ),
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 5,
+                                                    ),
+                                                    decoration:
+                                                        badge.decoration,
+                                                    child: Text(
+                                                      _localizedPatientAppointmentStatus(
+                                                        context,
+                                                        st,
+                                                      ),
+                                                      style: TextStyle(
+                                                        color: badge.foreground,
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              style: staffLabelTextStyle(
-                                                fontSize: 13,
-                                                color: kStaffPrimaryNavy,
+                                              Divider(
+                                                height: 22,
+                                                thickness: 0.8,
+                                                color: kStaffLuxGold
+                                                    .withValues(alpha: 0.42),
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Wrap(
+                                              Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Icon(
+                                                    Icons
+                                                        .calendar_today_outlined,
+                                                    size: 16,
+                                                    color: kStaffLuxGold,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Wrap(
+                                                      spacing: 6,
+                                                      runSpacing: 4,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          '${s.translate('ticket_date')}: ',
+                                                          style:
+                                                              staffLabelTextStyle(
+                                                            fontSize: 12.5,
+                                                          ),
+                                                        ),
+                                                        Directionality(
+                                                          textDirection:
+                                                              ui.TextDirection.ltr,
+                                                          child: Text(
+                                                            dateStr,
+                                                            style:
+                                                                staffLabelTextStyle(
+                                                              fontSize: 12.5,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '·',
+                                                          style: TextStyle(
+                                                            color: kStaffLuxGold
+                                                                .withValues(
+                                                              alpha: 0.75,
+                                                            ),
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                        ),
+                                                        Icon(
+                                                          Icons
+                                                              .access_time_rounded,
+                                                          size: 16,
+                                                          color: kStaffLuxGold,
+                                                        ),
+                                                        Text(
+                                                          '${s.translate('ticket_time')}: ',
+                                                          style:
+                                                              staffLabelTextStyle(
+                                                            fontSize: 12.5,
+                                                          ),
+                                                        ),
+                                                        Directionality(
+                                                          textDirection:
+                                                              ui.TextDirection.ltr,
+                                                          child: Text(
+                                                            timeEn,
+                                                            style:
+                                                                staffLabelTextStyle(
+                                                              fontSize: 12.5,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '·',
+                                                          style: TextStyle(
+                                                            color: kStaffLuxGold
+                                                                .withValues(
+                                                              alpha: 0.75,
+                                                            ),
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '#',
+                                                          style:
+                                                              staffLabelTextStyle(
+                                                            fontSize: 12.5,
+                                                          ),
+                                                        ),
+                                                        Directionality(
+                                                          textDirection:
+                                                              ui.TextDirection.ltr,
+                                                          child: Text(
+                                                            queueEn,
+                                                            style:
+                                                                staffLabelTextStyle(
+                                                              fontSize: 12.5,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              Divider(
+                                                height: 22,
+                                                thickness: 0.8,
+                                                color: kStaffLuxGold
+                                                    .withValues(alpha: 0.42),
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.payments_outlined,
+                                                    size: 18,
+                                                    color: kStaffLuxGold,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      _paymentLabel(
+                                                          context, data),
+                                                      style:
+                                                          staffLabelTextStyle(
+                                                        fontSize: 14,
+                                                        color: kStaffBodyText,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (receiptUrl.isNotEmpty)
+                                                    TextButton.icon(
+                                                      onPressed: busy
+                                                          ? null
+                                                          : () =>
+                                                              _showReceiptDialog(
+                                                                context,
+                                                                receiptUrl,
+                                                              ),
+                                                      style: TextButton
+                                                          .styleFrom(
+                                                        foregroundColor:
+                                                            kStaffLuxGoldDark,
+                                                      ),
+                                                      icon: Icon(
+                                                        Icons
+                                                            .receipt_long_rounded,
+                                                        size: 18,
+                                                        color: kStaffLuxGold,
+                                                      ),
+                                                      label: Text(
+                                                        s.translate(
+                                                          'secretary_view_receipt',
+                                                        ),
+                                                        style:
+                                                            staffLabelTextStyle(
+                                                          fontSize: 13,
+                                                          color:
+                                                              kStaffLuxGoldDark,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Wrap(
                                       spacing: 6,
                                       runSpacing: 6,
                                       children: [
@@ -530,7 +724,12 @@ class _SecretaryBookingsDashboardScreenState
                                     ),
                                   ],
                                 ),
-                              );
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
                             },
                           );
                         },

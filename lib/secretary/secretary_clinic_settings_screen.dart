@@ -243,7 +243,7 @@ class _SecretaryClinicSettingsScreenState
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        backgroundColor: kStaffShellBackground,
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: kStaffPrimaryNavy,
           foregroundColor: const Color(0xFFD9E2EC),

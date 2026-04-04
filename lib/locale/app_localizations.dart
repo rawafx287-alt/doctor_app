@@ -1066,6 +1066,36 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا توجد مواعيد جديدة',
     'en': 'No appointments yet',
   },
+  'doctor_appointments_empty_today': {
+    'ckb': 'بۆ ئەمڕۆ هیچ نۆرەیەک نییە',
+    'ar': 'لا مواعيد اليوم',
+    'en': 'No appointments scheduled for today',
+  },
+  'doctor_today_stats_heading': {
+    'ckb': 'ئامارەکانی ئەمڕۆ',
+    'ar': 'إحصائيات اليوم',
+    'en': "Today's stats",
+  },
+  'doctor_today_stat_total': {
+    'ckb': 'کۆی گشتی',
+    'ar': 'الإجمالي',
+    'en': 'Total',
+  },
+  'doctor_today_stat_remaining': {
+    'ckb': 'ماوە',
+    'ar': 'المتبقي',
+    'en': 'Remaining',
+  },
+  'doctor_today_stat_completed': {
+    'ckb': 'تەواوبوو',
+    'ar': 'مكتمل',
+    'en': 'Done',
+  },
+  'doctor_today_timeline': {
+    'ckb': 'خشتەی کاتی ئەمڕۆ',
+    'ar': 'جدول اليوم',
+    'en': "Today's timeline",
+  },
   'doctor_appointments_update_error': {
     'ckb': 'هەڵە لە نوێکردنەوە',
     'ar': 'خطأ في التحديث',
@@ -1361,6 +1391,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'هیچ نەخۆشێک نەدۆزرایەوە',
     'ar': 'لم يتم العثور على مرضى',
     'en': 'No patients found',
+  },
+  'doctor_patients_last_visit': {
+    'ckb': 'دوایین سەردان: {date}',
+    'ar': 'آخر زيارة: {date}',
+    'en': 'Last visit: {date}',
+  },
+  'doctor_patients_no_date': {
+    'ckb': 'بەرواری نۆرە نییە',
+    'ar': 'لا تاريخ للموعد',
+    'en': 'No appointment date',
   },
   'doctor_patient_age_line': {
     'ckb': 'تەمەن: {age} ساڵ',
@@ -1715,6 +1755,141 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'يبدأ {time} · {minutes} د',
     'en': 'Starts {time} · {minutes} min slots',
   },
+  'schedule_management_title': {
+    'ckb': 'بەڕێوەبردنی خشتەی کات',
+    'ar': 'إدارة الجدول',
+    'en': 'Schedule management',
+  },
+  'schedule_manage_past_disabled': {
+    'ckb': 'ناتوانیت ڕۆژی ڕابردوو دەستکاری بکەیت.',
+    'ar': 'لا يمكن تعديل الأيام الماضية.',
+    'en': 'Past days cannot be edited.',
+  },
+  'schedule_sheet_open_toggle': {
+    'ckb': 'ڕۆژەکە بکەرەوە بۆ نۆرە',
+    'ar': 'فتح اليوم للحجز',
+    'en': 'Open day for booking',
+  },
+  'schedule_toggle_status': {
+    'ckb': 'گۆڕینی دۆخ',
+    'ar': 'تبديل الحالة',
+    'en': 'Toggle status',
+  },
+  'schedule_edit_times': {
+    'ckb': 'دەستکاری کاتەکان',
+    'ar': 'تعديل الأوقات',
+    'en': 'Edit times',
+  },
+  'schedule_panel_tap_hint': {
+    'ckb': 'دەست لێدە بۆ دەستکاری',
+    'ar': 'اضغط للتعديل',
+    'en': 'Tap to edit schedule',
+  },
+  'schedule_select_day_first': {
+    'ckb': 'ڕۆژێک لە کاڵێندەر هەڵبژێرە.',
+    'ar': 'اختر يوماً من التقويم.',
+    'en': 'Select a day on the calendar.',
+  },
+  'schedule_today_shifts_title': {
+    'ckb': 'نۆرەکانی ئەمڕۆ',
+    'ar': 'نوبات اليوم',
+    'en': "Today's shifts",
+  },
+  'schedule_future_day_sheet_title': {
+    'ckb': 'وردەکاری ڕۆژ',
+    'ar': 'تفاصيل اليوم',
+    'en': 'Day overview',
+  },
+  'schedule_detail_total_patients': {
+    'ckb': 'کۆی نەخۆش',
+    'ar': 'إجمالي المرضى',
+    'en': 'Total patients',
+  },
+  'schedule_detail_working_hours': {
+    'ckb': 'کاتژمێری کار',
+    'ar': 'ساعات العمل',
+    'en': 'Working hours',
+  },
+  'schedule_detail_patient_list': {
+    'ckb': 'لیستی نەخۆشەکان',
+    'ar': 'قائمة المرضى',
+    'en': 'Patient list',
+  },
+  'schedule_detail_no_appointments': {
+    'ckb': 'هیچ نۆرەیەک نییە.',
+    'ar': 'لا توجد مواعيد.',
+    'en': 'No appointments.',
+  },
+  'schedule_detail_patients_count': {
+    'ckb': '{n} نەخۆش',
+    'ar': '{n} مريض',
+    'en': '{n} patients',
+  },
+  'schedule_detail_day_closed': {
+    'ckb': 'داخراو',
+    'ar': 'مغلق',
+    'en': 'Closed',
+  },
+  'schedule_dashboard_section_control': {
+    'ckb': 'کۆنتڕۆڵ',
+    'ar': 'التحكم',
+    'en': 'Control',
+  },
+  'schedule_dashboard_working_hours': {
+    'ckb': 'کاتژمێری کار',
+    'ar': 'ساعات العمل',
+    'en': 'Working hours',
+  },
+  'schedule_slot_booked': {
+    'ckb': 'گیراوە',
+    'ar': 'محجوز',
+    'en': 'Booked',
+  },
+  'schedule_dashboard_save_hint': {
+    'ckb': 'پاشکەوتکردن لە تابی ڕێکخستن',
+    'ar': 'احفظ من تبويب الإعدادات',
+    'en': 'Save changes from the Settings tab.',
+  },
+  'schedule_today_focus_tab_time': {
+    'ckb': 'ڕێکخستنی کات',
+    'ar': 'إعداد الوقت',
+    'en': 'Time settings',
+  },
+  'schedule_today_focus_tab_list': {
+    'ckb': 'لیستی نۆرەکان',
+    'ar': 'قائمة المواعيد',
+    'en': 'Patient list',
+  },
+  'schedule_slot_available_ku': {
+    'ckb': 'بەردەستە',
+    'ar': 'متاح',
+    'en': 'Available',
+  },
+  'schedule_appointment_duration_ku': {
+    'ckb': 'ماوەی نۆرە',
+    'ar': 'مدة الموعد',
+    'en': 'Slot length',
+  },
+  'schedule_clinic_status_title': {
+    'ckb': 'بارودۆخی کلینیک',
+    'ar': 'حالة العيادة',
+    'en': 'Clinic status',
+  },
+  'schedule_control_start_time_label': {
+    'ckb': 'کاتی دەستپێک',
+    'ar': 'وقت البدء',
+    'en': 'Start time',
+  },
+  'schedule_control_end_time_label': {
+    'ckb': 'کاتی کۆتایی',
+    'ar': 'وقت الانتهاء',
+    'en': 'End time',
+  },
+  'schedule_duration_per_appointment_label': {
+    'ckb': 'ماوەی هەر نۆرەیەک',
+    'ar': 'مدة كل موعد',
+    'en': 'Duration per patient',
+  },
   'secretary_nav_calendar': {
     'ckb': 'کاڵێندەر',
     'ar': 'التقويم',
@@ -1729,6 +1904,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'نۆرەکان',
     'ar': 'المواعيد',
     'en': 'Bookings',
+  },
+  'secretary_nav_schedule': {
+    'ckb': 'خشتەی کات',
+    'ar': 'الجدول',
+    'en': 'Schedule',
   },
   'secretary_nav_clinic': {
     'ckb': 'کلینیک',
@@ -1819,9 +1999,9 @@ const Map<String, Map<String, String>> kAppStrings = {
   'available_days_calendar_legend': {
     'ckb':
         'سووری تۆخ = داخراو · سەوزی پزیشکی قووڵ = کراوە · ژمارە = ژمارەی نۆرە تۆمارکراوەکان',
-    'ar': 'أحمر غامق = مغلق · أخضر طبي داكن = مفتوح · الرقم = عدد الحجوزات',
+    'ar': 'أحمر غامق = مغلق · أزرق أردوازي داكن = مفتوح · الرقم = عدد الحجوزات',
     'en':
-        'Deep red = closed · Deep medical green = open · Number = bookings count',
+        'Deep red = closed · Slate blue = open · Number = bookings count',
   },
   'available_day_manage_tab_time': {
     'ckb': 'کات',
@@ -2109,10 +2289,30 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اختر طبيباً',
     'en': 'Select a doctor',
   },
+  'secretary_calendar_selected_heading': {
+    'ckb': 'ڕۆژی هەڵبژاردوو:',
+    'ar': 'اليوم المحدد:',
+    'en': 'Selected day:',
+  },
+  'secretary_calendar_manage_appointments': {
+    'ckb': 'بەڕێوەبردنی نۆرەکان',
+    'ar': 'إدارة المواعيد',
+    'en': 'Manage appointments',
+  },
+  'secretary_calendar_no_appointments_day': {
+    'ckb': 'هیچ نۆرەیەک بۆ ئەم ڕۆژە نییە.',
+    'ar': 'لا مواعيد لهذا اليوم.',
+    'en': 'No appointments on this day.',
+  },
+  'secretary_calendar_select_day_hint': {
+    'ckb': 'ڕۆژێک لە ڕۆژژمێرەوە هەڵبژێرە بۆ بینینی وردەکاری و بەڕێوەبردنی نۆرەکان.',
+    'ar': 'اختر يوماً من التقويم لعرض التفاصيل وإدارة المواعيد.',
+    'en': 'Select a day on the calendar to view details and manage appointments.',
+  },
   'master_calendar_legend_green': {
     'ckb': 'سەوز = کاتی بەردەست',
-    'ar': 'أخضر = يوجد وقت متاح',
-    'en': 'Green = slots open',
+    'ar': 'أزرق داكن = يوجد وقت متاح',
+    'en': 'Slate blue = slots open',
   },
   'master_calendar_legend_amber': {
     'ckb': 'نارەنجی = هەموو کاتەکان گیراون',
@@ -2238,6 +2438,76 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'کالێندار',
     'ar': 'التقويم',
     'en': 'Calendar',
+  },
+  'admin_dashboard_page_title': {
+    'ckb': 'بەشی ئەدمین',
+    'ar': 'لوحة المشرف',
+    'en': 'Admin',
+  },
+  'admin_dashboard_welcome': {
+    'ckb': 'بەخێربێیت، ئەدمین',
+    'ar': 'مرحباً، المشرف',
+    'en': 'Welcome, Admin',
+  },
+  'admin_dashboard_welcome_hint': {
+    'ckb': 'بەڕێوەبردنی پزیشکان، نەخۆشخانەکان و کالێندار',
+    'ar': 'إدارة الأطباء والمستشفيات والتقويم',
+    'en': 'Manage doctors, hospitals & schedules',
+  },
+  'admin_card_feedback_title': {
+    'ckb': 'بۆچوونەکان',
+    'ar': 'الملاحظات',
+    'en': 'Feedback',
+  },
+  'admin_card_feedback_subtitle': {
+    'ckb': 'بۆچوون و پێشنیارەکانی نەخۆشەکان',
+    'ar': 'ملاحظات واقتراحات المرضى',
+    'en': 'Patient comments and suggestions',
+  },
+  'admin_card_hospitals_title': {
+    'ckb': 'نەخۆشخانەکان',
+    'ar': 'المستشفيات',
+    'en': 'Hospitals',
+  },
+  'admin_card_hospitals_subtitle': {
+    'ckb': 'زیادکردن و سڕینەوەی نەخۆشخانە لە داتابەیس',
+    'ar': 'إضافة وحذف المستشفيات في قاعدة البيانات',
+    'en': 'Add or remove hospitals in the database',
+  },
+  'admin_card_approvals_title': {
+    'ckb': 'داواکارییەکان',
+    'ar': 'طلبات الموافقة',
+    'en': 'Approvals',
+  },
+  'admin_card_approvals_subtitle': {
+    'ckb': 'پزیشکەکان کە چاوەڕێی قبوڵکردنن',
+    'ar': 'أطباء بانتظار الموافقة',
+    'en': 'Doctors awaiting approval',
+  },
+  'admin_card_doctors_title': {
+    'ckb': 'لیستی پزیشکان',
+    'ar': 'قائمة الأطباء',
+    'en': 'Doctors list',
+  },
+  'admin_card_doctors_subtitle': {
+    'ckb': 'پزیشکە قبوڵکراوەکان و سڕینەوە',
+    'ar': 'الأطباء المعتمدون والحذف',
+    'en': 'Approved doctors and removal',
+  },
+  'admin_card_add_doctor_title': {
+    'ckb': 'زیادکردنی پزیشک',
+    'ar': 'إضافة طبيب',
+    'en': 'Add doctor',
+  },
+  'admin_card_add_doctor_subtitle': {
+    'ckb': 'زیادکردنی پزیشک بە دەستی',
+    'ar': 'إضافة طبيب يدوياً',
+    'en': 'Manually add a doctor account',
+  },
+  'admin_logout': {
+    'ckb': 'چوونەدەرەوە',
+    'ar': 'تسجيل الخروج',
+    'en': 'Log out',
   },
   'error_code': {
     'ckb': 'هەڵە ({code})',
