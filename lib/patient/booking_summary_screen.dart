@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart' show HapticFeedback, PlatformException;
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
@@ -40,6 +44,91 @@ const LinearGradient _kConfirmBookingGoldGradient = LinearGradient(
   end: Alignment.bottomCenter,
   colors: [_kConfirmGoldBright, _kConfirmGoldDarkRod],
 );
+
+/// Returned from the payment bottom sheet when a digital booking finished inside [_commitBooking] (parent must not commit again).
+final Object _kPaymentSheetDigitalCompletedMarker = Object();
+
+/// Firestore [AppointmentFields.paymentMethod] for FIB / FastPay digital checkout.
+String _patientDigitalPaymentMethodForFirestore(
+  String fibNumber,
+  String fastPayNumber,
+) {
+  final f = fibNumber.trim().isNotEmpty;
+  final p = fastPayNumber.trim().isNotEmpty;
+  if (f && p) return 'FIB_FastPay';
+  if (f) return 'FIB';
+  return 'FastPay';
+}
+
+/// Gallery / photos access for receipt [ImagePicker] (iOS + Android).
+Future<bool> _ensureBookingReceiptGalleryPermission() async {
+  if (!Platform.isIOS && !Platform.isAndroid) return true;
+  var status = await Permission.photos.status;
+  if (status.isGranted || status.isLimited) return true;
+  status = await Permission.photos.request();
+  if (status.isGranted || status.isLimited) return true;
+  if (Platform.isAndroid) {
+    final storage = await Permission.storage.status;
+    if (storage.isGranted) return true;
+    final s2 = await Permission.storage.request();
+    if (s2.isGranted) return true;
+  }
+  return false;
+}
+
+Future<bool> _ensureBookingReceiptCameraPermission() async {
+  if (!Platform.isIOS && !Platform.isAndroid) return true;
+  var status = await Permission.camera.status;
+  if (status.isGranted) return true;
+  status = await Permission.camera.request();
+  return status.isGranted;
+}
+
+void _showBookingReceiptSnack(BuildContext context, String message) {
+  if (!context.mounted) return;
+  final messenger = ScaffoldMessenger.maybeOf(context) ??
+      ScaffoldMessenger.maybeOf(
+        Navigator.of(context, rootNavigator: true).context,
+      );
+  if (messenger == null) return;
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(
+        message,
+        style: const TextStyle(fontFamily: kPatientPrimaryFont),
+      ),
+    ),
+  );
+}
+
+/// JPEG compress before Storage upload (falls back to original on failure).
+Future<File> _prepareReceiptImageForUpload(String sourcePath) async {
+  final original = File(sourcePath);
+  if (!await original.exists()) return original;
+  try {
+    final dir = await getTemporaryDirectory();
+    final outPath = p.join(
+      dir.path,
+      'receipt_cmp_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    final result = await FlutterImageCompress.compressAndGetFile(
+      sourcePath,
+      outPath,
+      quality: 78,
+      minWidth: 960,
+      minHeight: 960,
+      format: CompressFormat.jpeg,
+    );
+    if (result != null) {
+      final f = File(result.path);
+      if (await f.exists() && await f.length() > 0) return f;
+    }
+  } catch (e, st) {
+    debugPrint('Receipt compress: $e\n$st');
+  }
+  return original;
+}
 
 /// Final step before committing an [available_days] booking (patient).
 /// Shows only **available vs booked** per slot (no other patients' names).
@@ -435,8 +524,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return approved ?? false;
   }
 
-  Future<_PaymentSelectionResult?> _showPaymentSelectionSheet(
+  Future<Object?> _showPaymentSelectionSheet(
     BuildContext context,
+    PatientBookingFormResult form,
   ) async {
     final s = S.of(context);
     final picker = ImagePicker();
@@ -453,30 +543,134 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final hasDigital = fibNumber.isNotEmpty || fastPayNumber.isNotEmpty;
     _PaymentMethod method = _PaymentMethod.cash;
     XFile? receipt;
+    var pickingReceipt = false;
+    var sheetCommitting = false;
 
-    Future<void> pickReceipt(ImageSource src, StateSetter setModalState) async {
-      final file = await picker.pickImage(
-        source: src,
-        imageQuality: 85,
-        maxWidth: 1800,
-      );
-      if (file == null) return;
-      setModalState(() => receipt = file);
-    }
-
-    return showModalBottomSheet<_PaymentSelectionResult>(
+    return showModalBottomSheet<Object?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final dir = AppLocaleScope.of(ctx).textDirection;
+
+        Future<void> runDigitalSubmit(StateSetter setModalState) async {
+          final f = receipt;
+          if (f == null) {
+            _showBookingReceiptSnack(
+              context,
+              s.translate('booking_receipt_required_confirm'),
+            );
+            return;
+          }
+          setModalState(() => sheetCommitting = true);
+          try {
+            await _commitBooking(
+              context,
+              _PaymentSelectionResult(
+                method: _PaymentMethod.digital,
+                receipt: f,
+                firestorePaymentMethod:
+                    _patientDigitalPaymentMethodForFirestore(
+                  fibNumber,
+                  fastPayNumber,
+                ),
+              ),
+              form,
+              paymentSheetContext: ctx,
+            );
+          } catch (e, st) {
+            assert(() {
+              debugPrint('runDigitalSubmit error: $e\n$st');
+              return true;
+            }());
+            if (context.mounted) {
+              _showBookingReceiptSnack(
+                context,
+                s.translate('error_with_details', params: {'detail': '$e'}),
+              );
+            }
+          } finally {
+            if (ctx.mounted) {
+              setModalState(() => sheetCommitting = false);
+            }
+          }
+        }
+
+        Future<void> pickReceipt(ImageSource src, StateSetter setModalState) async {
+          if (pickingReceipt) return;
+          setModalState(() => pickingReceipt = true);
+          try {
+            if (src == ImageSource.gallery) {
+              final ok = await _ensureBookingReceiptGalleryPermission();
+              if (!ok) {
+                if (ctx.mounted) {
+                  _showBookingReceiptSnack(
+                    ctx,
+                    s.translate('booking_receipt_gallery_permission_denied'),
+                  );
+                }
+                return;
+              }
+            } else {
+              final ok = await _ensureBookingReceiptCameraPermission();
+              if (!ok) {
+                if (ctx.mounted) {
+                  _showBookingReceiptSnack(
+                    ctx,
+                    s.translate('booking_receipt_camera_permission_denied'),
+                  );
+                }
+                return;
+              }
+            }
+
+            XFile? file;
+            try {
+              file = await picker.pickImage(
+                source: src,
+                imageQuality: 85,
+                maxWidth: 1800,
+              );
+            } on PlatformException catch (e) {
+              if (ctx.mounted) {
+                _showBookingReceiptSnack(
+                  ctx,
+                  s.translate(
+                    'booking_receipt_pick_failed',
+                    params: {'detail': e.message ?? e.code},
+                  ),
+                );
+              }
+              return;
+            } catch (e) {
+              if (ctx.mounted) {
+                _showBookingReceiptSnack(
+                  ctx,
+                  s.translate(
+                    'booking_receipt_pick_failed',
+                    params: {'detail': '$e'},
+                  ),
+                );
+              }
+              return;
+            }
+
+            if (!ctx.mounted) return;
+            if (file != null) {
+              setModalState(() => receipt = file);
+            }
+          } finally {
+            if (ctx.mounted) {
+              setModalState(() => pickingReceipt = false);
+            }
+          }
+        }
+
         return Directionality(
           textDirection: dir,
           child: StatefulBuilder(
             builder: (context, setModalState) {
               final isCash = method == _PaymentMethod.cash || !hasDigital;
-              final digitalValid = receipt != null;
-              final canConfirm = isCash || (hasDigital && digitalValid);
               return SafeArea(
                 top: false,
                 child: Padding(
@@ -514,177 +708,296 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'شێوازی پارەدان هەڵبژێرە',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: _kNavy,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _paymentOptionTile(
-                              selected: isCash,
-                              title: 'کاش (Cash)',
-                              subtitle: 'تکایە لە کاتی سەردانیکردن پارەکە بدە',
-                              icon: Icons.payments_rounded,
-                              onTap: () => setModalState(() {
-                                method = _PaymentMethod.cash;
-                              }),
-                            ),
-                            const SizedBox(height: 10),
-                            _paymentOptionTile(
-                              selected: !isCash,
-                              title: 'فاستپەی / FIB',
-                              subtitle: hasDigital
-                                  ? 'پارەدان بە ڕێگای وەرگرتنی ژمارەی ئەکاونت'
-                                  : 'Not Available',
-                              icon: Icons.account_balance_wallet_rounded,
-                              onTap: hasDigital
-                                  ? () => setModalState(() {
-                                      method = _PaymentMethod.digital;
-                                    })
-                                  : () {},
-                            ),
-                            if (!isCash && hasDigital) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  border: Border.all(
-                                    color: _kSlotBorderBlue.withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (fibNumber.isNotEmpty)
-                                      Text(
-                                        'FIB: $fibNumber',
-                                        style: const TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: _kNavy,
-                                        ),
-                                      ),
-                                    if (fibNumber.isNotEmpty &&
-                                        fastPayNumber.isNotEmpty)
-                                      const SizedBox(height: 4),
-                                    if (fastPayNumber.isNotEmpty)
-                                      Text(
-                                        'FastPay: $fastPayNumber',
-                                        style: const TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: _kNavy,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(ctx).height * 0.92,
+                          ),
+                          child: Column(
+                                mainAxisSize: MainAxisSize.max,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: () => pickReceipt(
-                                        ImageSource.gallery,
-                                        setModalState,
-                                      ),
-                                      icon: const Icon(Icons.image_rounded, size: 18),
-                                      label: const Text('بارکردنی وێنەی پسوڵە'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: _kNavy,
-                                        side: BorderSide(
-                                          color: _kGoldMid.withValues(alpha: 0.72),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
+                                  Flexible(
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            'شێوازی پارەدان هەڵبژێرە',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              color: _kNavy,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 14),
+                                          _paymentOptionTile(
+                                            selected: isCash,
+                                            title: 'کاش (Cash)',
+                                            subtitle:
+                                                'تکایە لە کاتی سەردانیکردن پارەکە بدە',
+                                            icon: Icons.payments_rounded,
+                                            onTap: () => setModalState(() {
+                                              method = _PaymentMethod.cash;
+                                            }),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _paymentOptionTile(
+                                            selected: !isCash,
+                                            title: 'فاستپەی / FIB',
+                                            subtitle: hasDigital
+                                                ? 'پارەدان بە ڕێگای وەرگرتنی ژمارەی ئەکاونت'
+                                                : 'Not Available',
+                                            icon: Icons
+                                                .account_balance_wallet_rounded,
+                                            onTap: hasDigital
+                                                ? () => setModalState(() {
+                                                      method =
+                                                          _PaymentMethod.digital;
+                                                    })
+                                                : () {},
+                                          ),
+                                          if (!isCash && hasDigital) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.9),
+                                                border: Border.all(
+                                                  color: _kSlotBorderBlue
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  if (fibNumber.isNotEmpty)
+                                                    Text(
+                                                      'FIB: $fibNumber',
+                                                      style: const TextStyle(
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontSize: 13.5,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: _kNavy,
+                                                      ),
+                                                    ),
+                                                  if (fibNumber.isNotEmpty &&
+                                                      fastPayNumber.isNotEmpty)
+                                                    const SizedBox(height: 4),
+                                                  if (fastPayNumber.isNotEmpty)
+                                                    Text(
+                                                      'FastPay: $fastPayNumber',
+                                                      style: const TextStyle(
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontSize: 13.5,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: _kNavy,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: OutlinedButton.icon(
+                                                    onPressed: (pickingReceipt ||
+                                                            sheetCommitting)
+                                                        ? null
+                                                        : () => pickReceipt(
+                                                              ImageSource
+                                                                  .gallery,
+                                                              setModalState,
+                                                            ),
+                                                    icon: const Icon(
+                                                      Icons.image_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text(
+                                                      'بارکردنی وێنەی پسوڵە',
+                                                    ),
+                                                    style: OutlinedButton
+                                                        .styleFrom(
+                                                      foregroundColor: _kNavy,
+                                                      side: BorderSide(
+                                                        color: _kGoldMid
+                                                            .withValues(
+                                                                alpha: 0.72),
+                                                      ),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                IconButton.filledTonal(
+                                                  onPressed: (pickingReceipt ||
+                                                          sheetCommitting)
+                                                      ? null
+                                                      : () => pickReceipt(
+                                                            ImageSource.camera,
+                                                            setModalState,
+                                                          ),
+                                                  icon: const Icon(
+                                                    Icons.photo_camera_rounded,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (pickingReceipt) ...[
+                                              const SizedBox(height: 10),
+                                              const LinearProgressIndicator(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(4),
+                                                ),
+                                              ),
+                                            ],
+                                            if (receipt != null) ...[
+                                              const SizedBox(height: 10),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    color: Colors.green.shade700,
+                                                    size: 22,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      s.translate(
+                                                        'booking_receipt_attached',
+                                                      ),
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        fontSize: 13,
+                                                        color: Colors
+                                                            .green.shade800,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                child: Image.file(
+                                                  File(receipt!.path),
+                                                  height: 110,
+                                                  width: double.infinity,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ],
+                                            if (receipt == null) ...[
+                                              const SizedBox(height: 12),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 4,
+                                                ),
+                                                child: Text(
+                                                  s.translate(
+                                                    'booking_receipt_need_before_confirm',
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.35,
+                                                    color: _kBodyMuted
+                                                        .withValues(alpha: 0.9),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  IconButton.filledTonal(
-                                    onPressed: () => pickReceipt(
-                                      ImageSource.camera,
-                                      setModalState,
+                                  const SizedBox(height: 12),
+                                  if (isCash || !hasDigital)
+                                    DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: kPatientDeepBlue,
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: kPatientDeepBlue
+                                                .withValues(alpha: 0.32),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 5),
+                                          ),
+                                        ],
+                                      ),
+                                      child: TextButton(
+                                        onPressed: sheetCommitting
+                                            ? null
+                                            : () => Navigator.pop(
+                                                  ctx,
+                                                  _PaymentSelectionResult(
+                                                    method: _PaymentMethod.cash,
+                                                    receipt: null,
+                                                    firestorePaymentMethod:
+                                                        'Cash',
+                                                  ),
+                                                ),
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          s.translate('confirm_booking'),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontFamily: kPatientPrimaryFont,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    _PremiumGoldBookingButton(
+                                      enabled: receipt != null &&
+                                          !pickingReceipt &&
+                                          !sheetCommitting,
+                                      submitting: sheetCommitting,
+                                      label: s.translate('confirm_booking'),
+                                      onPressed: () {
+                                        runDigitalSubmit(setModalState);
+                                      },
                                     ),
-                                    icon: const Icon(Icons.photo_camera_rounded),
-                                  ),
                                 ],
                               ),
-                              if (receipt != null) ...[
-                                const SizedBox(height: 10),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(
-                                    File(receipt!.path),
-                                    height: 110,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ],
-                            ],
-                            const SizedBox(height: 14),
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: canConfirm
-                                    ? kPatientDeepBlue
-                                    : const Color(0xFF9E9E9E),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: canConfirm
-                                    ? [
-                                        BoxShadow(
-                                          color: kPatientDeepBlue.withValues(alpha: 0.32),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 5),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: TextButton(
-                                onPressed: canConfirm
-                                    ? () => Navigator.pop(
-                                          ctx,
-                                          _PaymentSelectionResult(
-                                            method: hasDigital
-                                                ? method
-                                                : _PaymentMethod.cash,
-                                            receipt: receipt,
-                                          ),
-                                        )
-                                    : null,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                child: Text(
-                                  s.translate('confirm_booking'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
                             ),
-                          ],
-                        ),
                       ),
                     ),
                   ),
@@ -798,22 +1111,47 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
     final legalApproved = await _showLegalWarningDialog(context);
     if (!context.mounted || !legalApproved) return;
-    final payment = await _showPaymentSelectionSheet(context);
-    if (payment == null || !context.mounted) return;
-    await _commitBooking(context, payment, form);
+    final sheetResult = await _showPaymentSelectionSheet(context, form);
+    if (!context.mounted) return;
+    if (identical(sheetResult, _kPaymentSheetDigitalCompletedMarker)) return;
+    if (sheetResult is! _PaymentSelectionResult) return;
+    await _commitBooking(context, sheetResult, form);
   }
 
+  /// Returns after Firestore success + sheet closed (digital) and success UI flow.
+  /// Shows errors on [paymentSheetContext] when provided, else [context].
   Future<void> _commitBooking(
     BuildContext context,
     _PaymentSelectionResult payment,
-    PatientBookingFormResult form,
-  ) async {
+    PatientBookingFormResult form, {
+    BuildContext? paymentSheetContext,
+  }) async {
     final s = S.of(context);
+    void snack(String message) {
+      final BuildContext c;
+      if (paymentSheetContext != null && paymentSheetContext.mounted) {
+        c = paymentSheetContext;
+      } else {
+        c = context;
+      }
+      if (c.mounted) _showBookingReceiptSnack(c, message);
+    }
+
     final uid = (FirebaseAuth.instance.currentUser?.uid ??
             await PatientSessionCache.readPatientRefId())
         ?.trim();
-    if (uid == null || uid.isEmpty) return;
+    if (uid == null || uid.isEmpty) {
+      snack(s.translate('login_required'));
+      return;
+    }
 
+    final doctorUid = _resolvedDoctorUid.trim();
+    if (doctorUid.isEmpty) {
+      snack(s.translate('booking_doctor_missing'));
+      return;
+    }
+
+    if (!mounted) return;
     setState(() => _submitting = true);
     try {
       var doctorName = widget.doctorDisplayName.trim();
@@ -824,46 +1162,102 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       }
       if (doctorName.isEmpty) doctorName = s.translate('doctor_default');
 
-      String? receiptUrl;
+      final apptRef = FirebaseFirestore.instance
+          .collection(AppointmentFields.collection)
+          .doc();
+
+      Reference? uploadedReceiptRef;
+      String? receiptImageUrl;
       if (payment.method == _PaymentMethod.digital && payment.receipt != null) {
         try {
-          final ref = FirebaseStorage.instance
+          final source = File(payment.receipt!.path);
+          if (!await source.exists()) {
+            if (!mounted) return;
+            snack(s.translate('booking_receipt_upload_issue'));
+            return;
+          }
+
+          final fileToUpload = await _prepareReceiptImageForUpload(source.path);
+
+          // Storage: receipts/{timestamp}.jpg — wait for TaskState.success, then URL.
+          final ts = DateTime.now().millisecondsSinceEpoch;
+          final objectName = '$ts.jpg';
+          uploadedReceiptRef = FirebaseStorage.instance
               .ref()
-              .child('appointment_receipts')
-              .child(uid)
-              .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await ref.putFile(File(payment.receipt!.path));
-          receiptUrl = await ref.getDownloadURL();
-        } catch (e) {
-          if (!mounted || !context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                s.translate('error_with_details', params: {'detail': '$e'}),
-                style: const TextStyle(fontFamily: kPatientPrimaryFont),
-              ),
-            ),
+              .child('receipts')
+              .child(objectName);
+
+          final uploadTask = uploadedReceiptRef.putFile(
+            fileToUpload,
+            SettableMetadata(contentType: 'image/jpeg'),
           );
+          final snapshot = await uploadTask;
+          if (snapshot.state != TaskState.success) {
+            if (!mounted) return;
+            snack(s.translate('booking_receipt_upload_issue'));
+            return;
+          }
+
+          receiptImageUrl = await uploadedReceiptRef.getDownloadURL();
+          if (receiptImageUrl.trim().isEmpty) {
+            if (!mounted) return;
+            snack(s.translate('booking_receipt_upload_issue'));
+            return;
+          }
+        } on FirebaseException catch (e) {
+          if (!mounted) return;
+          debugPrint('Receipt upload FirebaseException: ${e.code} ${e.message}');
+          snack(s.translate('booking_receipt_upload_issue'));
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          debugPrint('Receipt upload: $e');
+          snack(s.translate('booking_receipt_upload_issue'));
           return;
         }
       }
 
-      final pm = payment.method == _PaymentMethod.cash ? 'cash' : 'digital';
+      // Appointment [status] stays `pending` for queues/indexes; online payments use
+      // [paymentStatus] `pending_verification` (= pending payment verification).
+      final payStatus = payment.method == _PaymentMethod.cash
+          ? 'pending_cash'
+          : 'pending_verification';
 
       final displayName = form.fullName.trim().isEmpty
           ? widget.patientName.trim()
           : form.fullName.trim();
 
-      final err = await bookAvailableDayTransaction(
-        availableDayDocId: widget.availableDayDocId,
-        patientId: uid,
-        patientName: displayName.isEmpty ? widget.patientName : displayName,
-        doctorId: _resolvedDoctorUid,
-        doctorDisplayName: doctorName,
-        paymentMethod: pm,
-        receiptUrl: receiptUrl,
-        extraAppointmentData: form.toAppointmentExtras(),
-      );
+      String? err;
+      try {
+        err = await bookAvailableDayTransaction(
+          appointmentRef: apptRef,
+          availableDayDocId: widget.availableDayDocId,
+          patientId: uid,
+          patientName: displayName.isEmpty ? widget.patientName : displayName,
+          doctorId: doctorUid,
+          doctorDisplayName: doctorName,
+          paymentMethod: payment.firestorePaymentMethod,
+          paymentStatus: payStatus,
+          receiptImageUrl: receiptImageUrl,
+          extraAppointmentData: form.toAppointmentExtras(),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        snack(
+          s.translate('error_with_details', params: {'detail': '$e'}),
+        );
+        return;
+      }
+
+      if (err != null && uploadedReceiptRef != null) {
+        try {
+          await uploadedReceiptRef.delete();
+        } on FirebaseException catch (e) {
+          if (e.code != 'object-not-found') {
+            debugPrint('Receipt cleanup delete: ${e.code} ${e.message}');
+          }
+        } catch (_) {}
+      }
 
       if (!mounted || !context.mounted) return;
 
@@ -876,15 +1270,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           'login_required' => 'login_required',
           _ => 'available_day_tx_failed',
         };
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate(key),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
+        snack(s.translate(key));
         return;
+      }
+
+      if (!mounted || !context.mounted) return;
+
+      // Close payment sheet only after Storage + Firestore succeeded.
+      if (paymentSheetContext != null && paymentSheetContext.mounted) {
+        Navigator.pop(
+          paymentSheetContext,
+          _kPaymentSheetDigitalCompletedMarker,
+        );
       }
 
       if (!mounted || !context.mounted) return;
@@ -1023,6 +1420,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
       Navigator.of(context).popUntil((route) => route.isFirst);
+    } on Object catch (e, st) {
+      assert(() {
+        debugPrint('_commitBooking: $e\n$st');
+        return true;
+      }());
+      if (mounted) {
+        snack(s.translate('error_with_details', params: {'detail': '$e'}));
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -1660,10 +2065,14 @@ class _PaymentSelectionResult {
   const _PaymentSelectionResult({
     required this.method,
     this.receipt,
+    required this.firestorePaymentMethod,
   });
 
   final _PaymentMethod method;
   final XFile? receipt;
+
+  /// Stored as [AppointmentFields.paymentMethod] (`Cash`, `FIB`, `FastPay`, `FIB_FastPay`).
+  final String firestorePaymentMethod;
 }
 
 String _localizedDigitString(BuildContext context, int n) {
@@ -1825,7 +2234,7 @@ class _BookingCapacityStats extends StatelessWidget {
   }
 }
 
-class _PremiumGoldBookingButton extends StatefulWidget {
+class _PremiumGoldBookingButton extends StatelessWidget {
   const _PremiumGoldBookingButton({
     required this.enabled,
     required this.submitting,
@@ -1839,74 +2248,25 @@ class _PremiumGoldBookingButton extends StatefulWidget {
   final VoidCallback onPressed;
 
   @override
-  State<_PremiumGoldBookingButton> createState() =>
-      _PremiumGoldBookingButtonState();
-}
-
-class _PremiumGoldBookingButtonState extends State<_PremiumGoldBookingButton>
-    with SingleTickerProviderStateMixin {
-  static const double _kPressedScale = 0.96;
-
-  late final AnimationController _scaleController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 115),
-    reverseDuration: const Duration(milliseconds: 135),
-  );
-
-  late final Animation<double> _scale = Tween<double>(
-    begin: 1.0,
-    end: _kPressedScale,
-  ).animate(
-    CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeOutBack,
-    ),
-  );
-
-  @override
-  void dispose() {
-    _scaleController.dispose();
-    super.dispose();
-  }
-
-  void _pressDown() {
-    if (!widget.enabled || widget.submitting) return;
-    HapticFeedback.lightImpact();
-    _scaleController.forward();
-  }
-
-  void _pressEnd() {
-    _scaleController.reverse();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final active = widget.enabled && !widget.submitting;
-    final shell = Container(
-      width: double.infinity,
+    final active = enabled && !submitting;
+    final gradient = active
+        ? _kConfirmBookingGoldGradient
+        : const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+          );
+
+    return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: active
-            ? _kConfirmBookingGoldGradient
-            : const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
-              ),
-        border: Border.all(
-          color: active
-              ? _kConfirmButtonSilverBorder
-              : const Color(0xFFB0BEC5),
-          width: 0.8,
-        ),
         boxShadow: active
             ? [
                 BoxShadow(
                   color: _kConfirmGoldDarkRod.withValues(alpha: 0.40),
                   blurRadius: 14,
                   offset: const Offset(0, 5),
-                  spreadRadius: 0,
                 ),
                 BoxShadow(
                   color: const Color(0xFF8B6914).withValues(alpha: 0.22),
@@ -1923,47 +2283,56 @@ class _PremiumGoldBookingButtonState extends State<_PremiumGoldBookingButton>
                 ),
               ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: widget.submitting
-              ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: Color(0xFF1A120E),
-                  ),
-                )
-              : Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: active ? Colors.black : const Color(0xFFE5E7EB),
-                  ),
-                ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(30),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: active
+              ? () {
+                  HapticFeedback.lightImpact();
+                  onPressed();
+                }
+              : null,
+          borderRadius: BorderRadius.circular(30),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: active
+                    ? _kConfirmButtonSilverBorder
+                    : const Color(0xFFB0BEC5),
+                width: 0.8,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: submitting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Color(0xFF1A120E),
+                        ),
+                      )
+                    : Text(
+                        label,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: active
+                              ? Colors.black
+                              : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+              ),
+            ),
+          ),
         ),
-      ),
-    );
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _pressDown(),
-      onTapUp: (_) => _pressEnd(),
-      onTapCancel: _pressEnd,
-      onTap: active ? widget.onPressed : null,
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: active ? _scale.value : 1.0,
-            alignment: Alignment.center,
-            child: child,
-          );
-        },
-        child: shell,
       ),
     );
   }

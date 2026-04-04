@@ -99,6 +99,49 @@ class _SecretaryBookingsDashboardScreenState
     }
   }
 
+  String? _receiptUrlFromAppointment(Map<String, dynamic> data) {
+    final a = (data[AppointmentFields.receiptImageUrl] ?? '').toString().trim();
+    if (a.isNotEmpty) return a;
+    final b = (data[AppointmentFields.receiptUrl] ?? '').toString().trim();
+    if (b.isNotEmpty) return b;
+    return null;
+  }
+
+  bool _canSecretaryVerifyPayment(Map<String, dynamic> data) {
+    return (data[AppointmentFields.paymentStatus] ?? '')
+            .toString()
+            .toLowerCase()
+            .trim() ==
+        'pending_verification';
+  }
+
+  Future<void> _verifyPayment(BuildContext context, String docId) async {
+    final id = docId.trim();
+    if (id.isEmpty) return;
+    setState(() => _updating.add(id));
+    try {
+      await FirebaseFirestore.instance
+          .collection(AppointmentFields.collection)
+          .doc(id)
+          .update({
+            AppointmentFields.paymentStatus: 'confirmed',
+            AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+          });
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              S.of(context).translate('secretary_payment_verified_ok'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating.remove(id));
+    }
+  }
+
   Future<void> _confirmAndSetStatus(
     BuildContext context,
     String docId,
@@ -316,6 +359,21 @@ class _SecretaryBookingsDashboardScreenState
                                   phoneDisplay: phoneEn,
                                   statusRaw: st,
                                   busy: busy,
+                                  receiptImageUrl:
+                                      _receiptUrlFromAppointment(data),
+                                  paymentMethodRaw:
+                                      (data[AppointmentFields.paymentMethod] ??
+                                              '')
+                                          .toString(),
+                                  paymentStatusRaw:
+                                      (data[AppointmentFields.paymentStatus] ??
+                                              '')
+                                          .toString(),
+                                  onVerifyPayment: _canSecretaryVerifyPayment(
+                                    data,
+                                  )
+                                      ? () => _verifyPayment(context, doc.id)
+                                      : null,
                                   onCompleted: busy
                                       ? null
                                       : () => _confirmAndSetStatus(

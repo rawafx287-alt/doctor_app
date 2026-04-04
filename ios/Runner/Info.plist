@@ -34,11 +34,11 @@
 		<string>https</string>
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ئەم بەرنامەیە پێویستی بە دەستیگەیشتن بە گەلەری هەیە بۆ بارکردنی وێنەی پڕۆفایل.</string>
+	<string>ئەم بەرنامەیە پێویستی بە گەلەری هەیە بۆ بارکردنی وێنەی پڕۆفایل و وێنەی پسوڵەی پارەدان.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>پاشەکەوتی تیکەتی نۆرە و وێنەکان بۆ گەلەری.</string>
+	<string>پاشەکەوتی تیکەتی نۆرە، پسوڵە، و وێنەکان بۆ گەلەری.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>ئەم بەرنامەیە پێویستی بە کامێرایە بۆ وەرگرتنی وێنەی پڕۆفایل.</string>
+	<string>ئەم بەرنامەیە پێویستی بە کامێرایە بۆ وەرگرتنی وێنەی پڕۆفایل و پسوڵەی پارەدان.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

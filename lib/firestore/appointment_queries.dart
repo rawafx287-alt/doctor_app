@@ -30,10 +30,16 @@ abstract final class AppointmentFields {
   /// Links an [appointments] row to an [available_days] document (patient self-booking).
   static const String availableDayDocId = 'availableDayDocId';
 
-  /// `cash` | `digital` — set when patient completes booking + payment step.
+  /// `Cash` | `FIB` | `FastPay` | `FIB_FastPay` — set when patient completes booking + payment step.
   static const String paymentMethod = 'paymentMethod';
 
-  /// Firebase Storage download URL for digital payment receipt image, if any.
+  /// `pending_cash` | `pending_verification` | `confirmed` — payment / verification lifecycle.
+  static const String paymentStatus = 'paymentStatus';
+
+  /// Firebase Storage download URL for digital payment receipt (primary field).
+  static const String receiptImageUrl = 'receiptImageUrl';
+
+  /// Legacy alias; prefer [receiptImageUrl]. Kept in sync for older clients.
   static const String receiptUrl = 'receiptUrl';
 }
 

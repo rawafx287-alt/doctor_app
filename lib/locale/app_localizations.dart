@@ -1005,11 +1005,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اسم المستشفى أو العيادة',
     'en': 'Hospital or clinic name',
   },
-  /// Short label — shown on doctor profile editor for the home-card hospital line.
+  /// Doctor profile editor: single manual clinic/hospital name (replaces duplicate hospital text field).
   'doctor_field_hospital_display_simple': {
-    'ckb': 'ناوی نەخۆشخانە',
-    'ar': 'اسم المستشفى',
-    'en': 'Hospital name',
+    'ckb': 'ناوی کلینیک یان نەخۆشخانە',
+    'ar': 'اسم العيادة أو المستشفى',
+    'en': 'Clinic or hospital name',
   },
   'doctor_field_experience': {
     'ckb': 'ئەزموون (دەق)',
@@ -1547,6 +1547,59 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الكاميرا',
     'en': 'Camera',
   },
+  'booking_receipt_gallery_permission_denied': {
+    'ckb':
+        'مۆڵەتی گەلەری پێویستە بۆ بارکردنی وێنەی پسوڵە. تکایە لە ڕێکخستنەکاندا چالاکی بکە.',
+    'ar': 'يلزم إذن معرض الصور لرفع إيصال الدفع. فعّله من الإعدادات.',
+    'en': 'Photo library access is required to upload a receipt. Enable it in Settings.',
+  },
+  'booking_receipt_camera_permission_denied': {
+    'ckb':
+        'مۆڵەتی کامێرا پێویستە. تکایە لە ڕێکخستنەکاندا چالاکی بکە.',
+    'ar': 'يلزم إذن الكاميرا. فعّله من الإعدادات.',
+    'en': 'Camera access is required. Enable it in Settings.',
+  },
+  'booking_receipt_pick_failed': {
+    'ckb': 'هەڵە لە هەڵبژاردنی وێنە: {detail}',
+    'ar': 'تعذر اختيار الصورة: {detail}',
+    'en': 'Could not pick image: {detail}',
+  },
+  'booking_receipt_attached': {
+    'ckb': 'وێنەی پسوڵە هەڵبژێردرا',
+    'ar': 'تم اختيار صورة الإيصال',
+    'en': 'Receipt image selected',
+  },
+  'booking_receipt_need_before_confirm': {
+    'ckb': 'دووبارەکردنەوە تەنها دوای بارکردنی وێنەی پسوڵە دەردەکەوێت.',
+    'ar': 'يظهر زر التأكيد بعد رفع صورة الإيصال.',
+    'en': 'Confirm appears after you upload a receipt photo.',
+  },
+  'booking_receipt_required_confirm': {
+    'ckb': 'تکایە سەرەتا وێنەی پسوڵە بار بکە.',
+    'ar': 'يرجى رفع صورة الإيصال أولاً.',
+    'en': 'Please upload a receipt image first.',
+  },
+  'booking_receipt_upload_failed': {
+    'ckb': 'بارکردنی وێنەی پسوڵە سەرکەوتوو نەبوو: {detail}',
+    'ar': 'فشل رفع صورة الإيصال: {detail}',
+    'en': 'Could not upload receipt image: {detail}',
+  },
+  'booking_receipt_upload_retry': {
+    'ckb':
+        'کێشە لە بارکردنی وێنەکە هەیە، تکایە دووبارە هەوڵ بدەرەوە',
+    'ar': 'تعذر رفع الصورة. يرجى المحاولة مرة أخرى.',
+    'en': 'There was a problem uploading the image. Please try again.',
+  },
+  'booking_receipt_upload_issue': {
+    'ckb': 'کێشە لە بارکردنی وێنە هەیە',
+    'ar': 'تعذر رفع الصورة',
+    'en': 'Could not upload the image',
+  },
+  'booking_doctor_missing': {
+    'ckb': 'زانیاری دکتۆر بەردەست نییە. پەڕەکە نوێ بکەرەوە و دووبارە هەوڵ بدەرەوە.',
+    'ar': 'بيانات الطبيب غير متوفرة. حدّث الصفحة وحاول مرة أخرى.',
+    'en': 'Doctor information is missing. Refresh and try again.',
+  },
   'profile_save_changes': {
     'ckb': 'پاشکەوتکردنی گۆڕانکارییەکان',
     'ar': 'حفظ التغييرات',
@@ -1566,6 +1619,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'بەکارهێنەر نەدۆزرایەوە',
     'ar': 'المستخدم غير موجود',
     'en': 'User not found',
+  },
+  /// Doctor phone login has no Firebase Auth user; need cached Firestore doc id.
+  'profile_error_resolve_no_firebase_or_cache': {
+    'ckb':
+        'هیچ چوونەژوورەوەی Firebase نییە و ناسنامەی پڕۆفایل لە یادکردنەوە نییە. تکایە دووبارە بچۆ ژوورەوە.',
+    'ar': 'لا يوجد جلسة Firebase ولا مُعرّف ملف محفوظ. يرجى تسجيل الدخول مرة أخرى.',
+    'en':
+        'No Firebase sign-in and no saved profile id. Please log in again.',
+  },
+  'profile_error_resolve_empty_doc_id': {
+    'ckb':
+        'نەتوانرا ناسنامەی پڕۆفایل دیاری بکرێت (UID بەتاڵە). تکایە دووبارە بچۆ ژوورەوە.',
+    'ar': 'تعذر تحديد معرف الملف (المعرّف فارغ). يرجى تسجيل الدخول مرة أخرى.',
+    'en': 'Could not resolve profile id (empty UID). Please sign in again.',
+  },
+  'profile_error_auth_refresh': {
+    'ckb':
+        'کاتی چوونەژوورەوە تەواو بووە یان هەژمار نوێ نەکراوەتەوە ({code}). تکایە دووبارە بچۆ ژوورەوە.',
+    'ar': 'انتهت الجلسة أو فشل التحديث ({code}). يرجى تسجيل الدخول مرة أخرى.',
+    'en': 'Session expired or account refresh failed ({code}). Please sign in again.',
   },
   'profile_image_upload_ok': {
     'ckb': 'وێنەی پڕۆفایل بە سەرکەوتوویی بارکرا',
@@ -2093,10 +2166,15 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'نقدي',
     'en': 'Cash',
   },
+  'secretary_payment_route_label': {
+    'ckb': 'ڕێگای پارەدان: {method}',
+    'ar': 'طريقة الدفع: {method}',
+    'en': 'Payment method: {method}',
+  },
   'secretary_payment_digital': {
-    'ckb': 'دەیجیتاڵ',
-    'ar': 'رقمي',
-    'en': 'Digital',
+    'ckb': 'پارەدانی ئۆنلاین',
+    'ar': 'دفع إلكتروني',
+    'en': 'Online payment',
   },
   'secretary_view_receipt': {
     'ckb': 'بینینی پسوڵە',
@@ -2122,6 +2200,41 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'پاشگەزبوونەوە',
     'ar': 'إلغاء',
     'en': 'Cancel',
+  },
+  'secretary_receipt_view_tooltip': {
+    'ckb': 'بینینی وێنەی پسوڵە',
+    'ar': 'عرض إيصال الدفع',
+    'en': 'View payment receipt',
+  },
+  'secretary_payment_fib': {
+    'ckb': 'FIB',
+    'ar': 'FIB',
+    'en': 'FIB',
+  },
+  'secretary_payment_fastpay': {
+    'ckb': 'فاستپەی',
+    'ar': 'FastPay',
+    'en': 'FastPay',
+  },
+  'secretary_payment_fib_fastpay': {
+    'ckb': 'FIB / فاستپەی',
+    'ar': 'FIB / FastPay',
+    'en': 'FIB / FastPay',
+  },
+  'secretary_verify_payment': {
+    'ckb': 'دڵنیاکردنەوەی پارەدان',
+    'ar': 'تأكيد استلام الدفع',
+    'en': 'Verify payment',
+  },
+  'secretary_payment_verified_ok': {
+    'ckb': 'پارەدان دڵنیاکرایەوە',
+    'ar': 'تم تأكيد الدفع',
+    'en': 'Payment verified',
+  },
+  'secretary_receipt_need_image': {
+    'ckb': 'هیچ وێنەی پسوڵە نییە',
+    'ar': 'لا توجد صورة إيصال',
+    'en': 'No receipt image',
   },
   'secretary_ticket_number': {
     'ckb': 'ژمارەی پسوولە',

@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,6 +20,10 @@ class SecretaryAppointmentCard extends StatefulWidget {
     required this.onCompleted,
     required this.onCancelled,
     this.animationIndex = 0,
+    this.receiptImageUrl,
+    this.paymentMethodRaw = '',
+    this.paymentStatusRaw = '',
+    this.onVerifyPayment,
   });
 
   final String patientName;
@@ -29,6 +34,18 @@ class SecretaryAppointmentCard extends StatefulWidget {
   final VoidCallback? onCompleted;
   final VoidCallback? onCancelled;
   final int animationIndex;
+
+  /// HTTPS URL from [AppointmentFields.receiptImageUrl] / legacy [receiptUrl].
+  final String? receiptImageUrl;
+
+  /// Raw [AppointmentFields.paymentMethod] (`Cash`, `FIB`, `FastPay`, `FIB_FastPay`, …).
+  final String paymentMethodRaw;
+
+  /// Raw [AppointmentFields.paymentStatus].
+  final String paymentStatusRaw;
+
+  /// When [paymentStatusRaw] is `pending_verification`, secretary can confirm payment.
+  final Future<void> Function()? onVerifyPayment;
 
   @override
   State<SecretaryAppointmentCard> createState() =>
@@ -101,6 +118,165 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
         );
       }
     }
+  }
+
+  bool get _hasReceiptUrl {
+    final u = widget.receiptImageUrl?.trim() ?? '';
+    return u.isNotEmpty;
+  }
+
+  bool get _hasPaymentMethodField =>
+      widget.paymentMethodRaw.trim().isNotEmpty;
+
+  /// FIB / FastPay / legacy digital — blue eye opens receipt bottom sheet.
+  bool get _isDigitalPaymentMethod {
+    final p = widget.paymentMethodRaw.toLowerCase().trim();
+    if (p.isEmpty || p == 'cash') return false;
+    return p == 'fib' ||
+        p == 'fastpay' ||
+        p.contains('fib') ||
+        p.contains('fastpay') ||
+        p == 'digital';
+  }
+
+  String _paymentMethodValueForLabel() {
+    final t = widget.paymentMethodRaw.trim();
+    return t.isEmpty ? '—' : t;
+  }
+
+  bool get _canVerifyPayment {
+    final ps = widget.paymentStatusRaw.toLowerCase().trim();
+    return ps == 'pending_verification' && widget.onVerifyPayment != null;
+  }
+
+  static const Color _kReceiptEyeBlue = Color(0xFF1E88E5);
+
+  Future<void> _openReceiptViewer(BuildContext context) async {
+    final s = S.of(context);
+    final url = widget.receiptImageUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('secretary_receipt_need_image'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final h = MediaQuery.sizeOf(sheetCtx).height * 0.9;
+        return Directionality(
+          textDirection: AppLocaleScope.of(sheetCtx).textDirection,
+          child: Container(
+            height: h,
+            margin: const EdgeInsets.only(top: 8),
+            clipBehavior: Clip.antiAlias,
+            decoration: const BoxDecoration(
+              color: Color(0xFF0A1628),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 4, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.translate('secretary_receipt_view_tooltip'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                        onPressed: () => Navigator.pop(sheetCtx),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: Center(
+                        child: CachedNetworkImage(
+                          imageUrl: url,
+                          fit: BoxFit.contain,
+                          placeholder: (c, _) => const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(color: kStaffLuxGold),
+                          ),
+                          errorWidget: (c, _, err) => Icon(
+                            Icons.broken_image_outlined,
+                            size: 64,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_canVerifyPayment)
+                  SafeArea(
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: widget.busy
+                            ? null
+                            : () async {
+                                await widget.onVerifyPayment!.call();
+                                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kStaffLuxGold,
+                          foregroundColor: const Color(0xFF102A43),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          s.translate('secretary_verify_payment'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -200,6 +376,69 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
                           ),
                       ],
                     ),
+                    if (_hasPaymentMethodField) ...[
+                      const SizedBox(height: 5),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _isDigitalPaymentMethod
+                                ? Icons.account_balance_wallet_rounded
+                                : Icons.payments_rounded,
+                            size: 14,
+                            color: kStaffLuxGold.withValues(alpha: 0.72),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              s.translate(
+                                'secretary_payment_route_label',
+                                params: {
+                                  'method': _paymentMethodValueForLabel(),
+                                },
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11.5,
+                                height: 1.2,
+                                color: Color(0xFFB8C9D9),
+                              ),
+                            ),
+                          ),
+                          if (_isDigitalPaymentMethod)
+                            Tooltip(
+                              message:
+                                  s.translate('secretary_receipt_view_tooltip'),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: widget.busy
+                                      ? null
+                                      : () => _openReceiptViewer(context),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 2,
+                                    ),
+                                    child: Icon(
+                                      Icons.visibility_rounded,
+                                      size: 22,
+                                      color: _hasReceiptUrl
+                                          ? _kReceiptEyeBlue
+                                          : _kReceiptEyeBlue
+                                              .withValues(alpha: 0.45),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

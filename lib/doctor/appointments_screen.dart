@@ -947,29 +947,13 @@ int _queueSortValueForSlot(
   return 1 << 20;
 }
 
-/// Top: waiting / booked (not done, not rejected). Bottom: completed or cancelled. Sorted by queue #.
-({List<DateTime> active, List<DateTime> finished})
-    _partitionActiveAndFinishedBookedSlots({
+/// Single list: ticket / queue number order first, then slot time (tie-break). Status does not affect order.
+List<DateTime> _sortedBookedSlotsUnified({
   required List<DateTime> visibleSlots,
   required Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
   required Map<String, int> queueByDocId,
 }) {
-  final active = <DateTime>[];
-  final finished = <DateTime>[];
-  for (final slot in visibleSlots) {
-    final doc = byKeyAll[formatTimeHhMm(slot)];
-    if (doc == null) {
-      continue;
-    }
-    final st = AppointmentsScreen._statusKey(
-      doc.data()[AppointmentFields.status],
-    );
-    if (st == 'completed' || st == 'cancelled' || st == 'canceled') {
-      finished.add(slot);
-    } else {
-      active.add(slot);
-    }
-  }
+  final list = List<DateTime>.from(visibleSlots);
   int cmp(DateTime a, DateTime b) {
     final da = byKeyAll[formatTimeHhMm(a)]!;
     final db = byKeyAll[formatTimeHhMm(b)]!;
@@ -981,17 +965,15 @@ int _queueSortValueForSlot(
     return a.compareTo(b);
   }
 
-  active.sort(cmp);
-  finished.sort(cmp);
-  return (active: active, finished: finished);
+  list.sort(cmp);
+  return list;
 }
 
-String _groupedBookedListAnimationKey(
-  List<DateTime> active,
-  List<DateTime> finished,
+String _unifiedBookedListAnimationKey(
+  List<DateTime> ordered,
   Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
 ) {
-  String sig(List<DateTime> list) => list
+  return ordered
       .map((s) {
         final d = byKeyAll[formatTimeHhMm(s)]!;
         final st = AppointmentsScreen._statusKey(
@@ -1000,7 +982,6 @@ String _groupedBookedListAnimationKey(
         return '${d.id}:$st';
       })
       .join('|');
-  return '${sig(active)}~${sig(finished)}';
 }
 
 /// Yields immediately then every 30s so [DateTime.now] rolls over at local midnight.
@@ -1015,7 +996,7 @@ Stream<DateTime> _doctorDashboardTodayClock() async* {
 }
 
 /// Booked slots only (includes rejected when present in [byKeyAll]), filtered by patient name.
-/// Order is undefined; use [_partitionActiveAndFinishedBookedSlots] for queue order.
+/// Order is undefined; use [_sortedBookedSlotsUnified] for stable queue + time order.
 List<DateTime> _visibleBookedSlotsForSearch(
   List<DateTime> slots,
   Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
@@ -1320,13 +1301,11 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               byKeyAll,
               searchQuery,
             );
-            final split = _partitionActiveAndFinishedBookedSlots(
+            final orderedSlots = _sortedBookedSlotsUnified(
               visibleSlots: visibleSlots,
               byKeyAll: byKeyAll,
               queueByDocId: queueById,
             );
-            final activeSlots = split.active;
-            final finishedSlots = split.finished;
             final bottomListPadding =
                 16 + MediaQuery.paddingOf(context).bottom + 76;
 
@@ -1432,9 +1411,8 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                           },
                           child: ListView(
                             key: ValueKey<String>(
-                              _groupedBookedListAnimationKey(
-                                activeSlots,
-                                finishedSlots,
+                              _unifiedBookedListAnimationKey(
+                                orderedSlots,
                                 byKeyAll,
                               ),
                             ),
@@ -1448,90 +1426,20 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                               parent: AlwaysScrollableScrollPhysics(),
                             ),
                             children: [
-                              for (var i = 0; i < activeSlots.length; i++) ...[
+                              for (var i = 0; i < orderedSlots.length; i++) ...[
                                 if (i > 0) const SizedBox(height: 8),
                                 _DoctorSlotGlassCard(
                                   key: ValueKey<String>(
-                                    byKeyAll[formatTimeHhMm(activeSlots[i])]!.id,
-                                  ),
-                                  slotStart: activeSlots[i],
-                                  appointmentDoc:
-                                      byKeyAll[formatTimeHhMm(activeSlots[i])]!,
-                                  doctorUserId: doctorUserId,
-                                  dayLocal: todayOnly,
-                                  queueByDocId: queueById,
-                                  onSetStatus: onSetStatus,
-                                  completedSectionStyle: false,
-                                ),
-                              ],
-                              if (activeSlots.isNotEmpty &&
-                                  finishedSlots.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    4,
-                                    12,
-                                    4,
-                                    10,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Divider(
-                                          height: 1,
-                                          thickness: 0.8,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.22,
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                        ),
-                                        child: Text(
-                                          s.translate(
-                                            'doctor_today_completed_section_label',
-                                          ),
-                                          style: TextStyle(
-                                            fontFamily: kPatientPrimaryFont,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 11,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.55,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Divider(
-                                          height: 1,
-                                          thickness: 0.8,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.22,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              for (var i = 0; i < finishedSlots.length; i++) ...[
-                                if (i > 0)
-                                  const SizedBox(height: 8)
-                                else if (activeSlots.isNotEmpty)
-                                  const SizedBox(height: 8),
-                                _DoctorSlotGlassCard(
-                                  key: ValueKey<String>(
-                                    byKeyAll[formatTimeHhMm(finishedSlots[i])]!
+                                    byKeyAll[formatTimeHhMm(orderedSlots[i])]!
                                         .id,
                                   ),
-                                  slotStart: finishedSlots[i],
+                                  slotStart: orderedSlots[i],
                                   appointmentDoc: byKeyAll[
-                                      formatTimeHhMm(finishedSlots[i])]!,
+                                      formatTimeHhMm(orderedSlots[i])]!,
                                   doctorUserId: doctorUserId,
                                   dayLocal: todayOnly,
                                   queueByDocId: queueById,
                                   onSetStatus: onSetStatus,
-                                  completedSectionStyle: true,
                                 ),
                               ],
                             ],
@@ -1556,7 +1464,6 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     required this.dayLocal,
     required this.queueByDocId,
     required this.onSetStatus,
-    this.completedSectionStyle = false,
   });
 
   final DateTime slotStart;
@@ -1566,8 +1473,6 @@ class _DoctorSlotGlassCard extends StatelessWidget {
   final Map<String, int> queueByDocId;
   final Future<void> Function(BuildContext context, String docId, String status)
   onSetStatus;
-  /// Dimmed card + neutral strip for completed / rejected rows at the bottom.
-  final bool completedSectionStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -1583,11 +1488,14 @@ class _DoctorSlotGlassCard extends StatelessWidget {
         ? AppointmentsScreen._statusKey(apptData![AppointmentFields.status])
         : '';
     final showActions = booked && status == 'pending';
+    final isTerminal = booked &&
+        (status == 'completed' ||
+            status == 'cancelled' ||
+            status == 'canceled');
     final patientId = booked
         ? (apptData![AppointmentFields.patientId] ?? '').toString().trim()
         : '';
-    final stripGold =
-        booked && status == 'pending' && !completedSectionStyle;
+    final stripGold = booked && status == 'pending';
 
     Widget cardBody({
       required Map<String, dynamic>? profile,
@@ -1595,11 +1503,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       required String phone,
     }) {
       final showPhone = booked && phone.isNotEmpty;
-      final neutralFinished =
-          completedSectionStyle &&
-          (status == 'completed' ||
-              status == 'cancelled' ||
-              status == 'canceled');
+      final neutralFinished = isTerminal;
       final leftStripColor = neutralFinished
           ? const Color(0xFF455A64)
           : (stripGold ? null : kStaffAccentSlateBlue);
@@ -1658,7 +1562,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                 label: '${s.translate('secretary_ticket_number')} $queueEn',
                 child: _DoctorQueueGoldCircle(number: queueEn),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 11),
             ],
             Expanded(
               child: Column(
@@ -1898,6 +1802,55 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                           ],
                         ),
                       )
+                    else if (booked && isTerminal)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: 8,
+                          top: 6,
+                          bottom: 6,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Semantics(
+                              label: status == 'completed'
+                                  ? s.translate('doctor_appt_status_completed')
+                                  : s.translate('doctor_appt_status_cancelled'),
+                              child: Icon(
+                                status == 'completed'
+                                    ? Icons.check_circle_rounded
+                                    : Icons.cancel_rounded,
+                                color: status == 'completed'
+                                    ? vibrantGreen.withValues(alpha: 0.85)
+                                    : softRed.withValues(alpha: 0.88),
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            SizedBox(
+                              width: 72,
+                              child: Text(
+                                s.translate(
+                                  status == 'completed'
+                                      ? 'doctor_appt_status_completed'
+                                      : 'doctor_appt_status_cancelled',
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 8.5,
+                                  height: 1.1,
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     else
                       const SizedBox(width: 4),
                   ],
@@ -1907,8 +1860,8 @@ class _DoctorSlotGlassCard extends StatelessWidget {
           ),
         ),
       );
-      if (completedSectionStyle) {
-        return Opacity(opacity: 0.6, child: card);
+      if (isTerminal) {
+        return Opacity(opacity: 0.68, child: card);
       }
       return card;
     }
@@ -2239,7 +2192,7 @@ class _AppointmentCard extends StatelessWidget {
                                     '${s.translate('secretary_ticket_number')} $queueEn',
                                 child: _DoctorQueueGoldCircle(number: queueEn),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2337,39 +2290,67 @@ class _DoctorQueueGoldCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 52.0;
-    return Container(
+    // ~20% smaller than previous 52px — compact badge, not a dominant focal point.
+    const size = 42.0;
+    final gold = kStaffLuxGold;
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: kStaffGoldActionGradient,
-        boxShadow: [
-          BoxShadow(
-            color: kStaffLuxGold.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(2.4),
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF0A1628).withValues(alpha: 0.94),
+          boxShadow: [
+            BoxShadow(
+              color: gold.withValues(alpha: 0.32),
+              blurRadius: 5,
+              spreadRadius: 2,
+            ),
+          ],
         ),
-        alignment: Alignment.center,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            number,
-            maxLines: 1,
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w800,
-              fontSize: number.length > 2 ? 17 : 20,
-              height: 1,
-              color: kStaffLuxGold,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: gold.withValues(alpha: 0.88),
+              width: 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(1.5),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.42),
+                width: 0.75,
+              ),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF030305),
+                  Color(0xFF0B1F33),
+                  Color(0xFF0A1628),
+                ],
+              ),
+            ),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: Text(
+                  number,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: number.length > 2 ? 13.5 : 15.5,
+                    height: 1,
+                    letterSpacing: -0.2,
+                    color: gold.withValues(alpha: 0.96),
+                  ),
+                ),
+              ),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../firestore/hospital_queries.dart';
+import '../auth/doctor_session_cache.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -26,8 +27,6 @@ class ProfileSettingsScreen extends StatefulWidget {
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameKuController = TextEditingController();
-  final TextEditingController _fullNameArController = TextEditingController();
-  final TextEditingController _fullNameEnController = TextEditingController();
   final TextEditingController _consultationFeeController =
       TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -38,24 +37,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       TextEditingController();
 
   final TextEditingController _bioKuController = TextEditingController();
-  final TextEditingController _bioArController = TextEditingController();
-  final TextEditingController _bioEnController = TextEditingController();
 
   final TextEditingController _addressKuController = TextEditingController();
-  final TextEditingController _addressArController = TextEditingController();
-  final TextEditingController _addressEnController = TextEditingController();
-
-  final TextEditingController _hospitalKuController = TextEditingController();
-  final TextEditingController _hospitalArController = TextEditingController();
-  final TextEditingController _hospitalEnController = TextEditingController();
 
   /// Shown on patient home doctor cards (`users.hospitalName`).
   final TextEditingController _hospitalNameCardController =
       TextEditingController();
 
   final TextEditingController _experienceKuController = TextEditingController();
-  final TextEditingController _experienceArController = TextEditingController();
-  final TextEditingController _experienceEnController = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -74,48 +63,100 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     return '';
   }
 
+  /// Firestore `users` doc id: [FirebaseAuth] user when present, else [DoctorSessionCache]
+  /// (doctor phone/password login does not create a Firebase session).
+  Future<String?> _resolveUsersCollectionDocId({
+    required bool showErrorSnack,
+  }) async {
+    final s = S.of(context);
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        await user.reload();
+      } on FirebaseAuthException catch (e) {
+        if (!mounted) return null;
+        if (showErrorSnack) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                s.translate(
+                  'profile_error_auth_refresh',
+                  params: {'code': e.code},
+                ),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
+              ),
+            ),
+          );
+        }
+        return null;
+      } catch (_) {
+        // Offline / transient — keep using current snapshot.
+      }
+
+      var id = firestoreUserDocId(user).trim();
+      if (id.isEmpty) {
+        id = user.uid.trim();
+      }
+      if (id.isEmpty) {
+        if (mounted && showErrorSnack) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                s.translate('profile_error_resolve_empty_doc_id'),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
+              ),
+            ),
+          );
+        }
+        return null;
+      }
+      return id;
+    }
+
+    final cached = (await DoctorSessionCache.readDoctorRefId())?.trim() ?? '';
+    if (cached.isNotEmpty) return cached;
+
+    if (mounted && showErrorSnack) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('profile_error_resolve_no_firebase_or_cache'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadProfile();
+    });
   }
 
   @override
   void dispose() {
     _fullNameKuController.dispose();
-    _fullNameArController.dispose();
-    _fullNameEnController.dispose();
     _consultationFeeController.dispose();
     _phoneController.dispose();
     _yearsExperienceController.dispose();
     _fibNumberController.dispose();
     _fastPayNumberController.dispose();
     _bioKuController.dispose();
-    _bioArController.dispose();
-    _bioEnController.dispose();
     _addressKuController.dispose();
-    _addressArController.dispose();
-    _addressEnController.dispose();
-    _hospitalKuController.dispose();
-    _hospitalArController.dispose();
-    _hospitalEnController.dispose();
     _hospitalNameCardController.dispose();
     _experienceKuController.dispose();
-    _experienceArController.dispose();
-    _experienceEnController.dispose();
     super.dispose();
   }
 
   Future<void> _loadProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    final docId = firestoreUserDocId(user).trim();
-    if (docId.isEmpty) {
+    final docId = await _resolveUsersCollectionDocId(showErrorSnack: true);
+    if (docId == null || docId.isEmpty) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       return;
@@ -129,8 +170,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       final data = doc.data() ?? <String, dynamic>{};
 
       _fullNameKuController.text = _firstOf(data, ['fullName_ku', 'fullName']);
-      _fullNameArController.text = (data['fullName_ar'] ?? '').toString();
-      _fullNameEnController.text = (data['fullName_en'] ?? '').toString();
       final spec = (data['specialty'] ?? '').toString().trim();
       _selectedSpecialty = kDoctorSpecialtyOptions.contains(spec) ? spec : null;
       final hid = (data['hospitalId'] ?? '').toString().trim();
@@ -144,37 +183,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           .toString();
 
       _bioKuController.text = _firstOf(data, ['bio_ku', 'biography', 'about']);
-      _bioArController.text = (data['bio_ar'] ?? '').toString();
-      _bioEnController.text = (data['bio_en'] ?? '').toString();
 
       _addressKuController.text = _firstOf(data, [
         'address_ku',
         'clinicAddress',
       ]);
-      _addressArController.text = (data['address_ar'] ?? '').toString();
-      _addressEnController.text = (data['address_en'] ?? '').toString();
 
-      _hospitalKuController.text = _firstOf(data, [
+      _hospitalNameCardController.text = _firstOf(data, [
+        'hospitalName',
         'hospital_name_ku',
         'clinicName',
-        'hospitalName',
       ]);
-      _hospitalArController.text = (data['hospital_name_ar'] ?? '').toString();
-      _hospitalEnController.text = (data['hospital_name_en'] ?? '').toString();
-
-      _hospitalNameCardController.text = (data['hospitalName'] ?? '')
-          .toString()
-          .trim();
-      if (_hospitalNameCardController.text.isEmpty) {
-        _hospitalNameCardController.text = _firstOf(data, [
-          'hospital_name_ku',
-          'clinicName',
-        ]);
-      }
 
       _experienceKuController.text = (data['experience_ku'] ?? '').toString();
-      _experienceArController.text = (data['experience_ar'] ?? '').toString();
-      _experienceEnController.text = (data['experience_en'] ?? '').toString();
 
       final rawY = data['yearsExperience'];
       if (rawY is int) {
@@ -201,32 +222,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _saveChanges() async {
-    final user = FirebaseAuth.instance.currentUser;
     final s = S.of(context);
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: kPatientPrimaryFont),
-          ),
-        ),
-      );
-      return;
-    }
-
-    final docId = firestoreUserDocId(user).trim();
-    if (docId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: kPatientPrimaryFont),
-          ),
-        ),
-      );
-      return;
-    }
+    final docId = await _resolveUsersCollectionDocId(showErrorSnack: true);
+    if (docId == null || docId.isEmpty) return;
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -235,11 +233,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       final bioKu = _bioKuController.text.trim();
       final addressKu = _addressKuController.text.trim();
       final nameKu = _fullNameKuController.text.trim();
+      final hospitalDisplay = _hospitalNameCardController.text.trim();
 
       final payload = <String, dynamic>{
         'fullName_ku': nameKu,
-        'fullName_ar': _fullNameArController.text.trim(),
-        'fullName_en': _fullNameEnController.text.trim(),
         'fullName': nameKu,
         'specialty': (_selectedSpecialty ?? '').trim(),
         'consultationFee': _consultationFeeController.text.trim(),
@@ -247,18 +244,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'payment_fib_number': _fibNumberController.text.trim(),
         'payment_fastpay_number': _fastPayNumberController.text.trim(),
         'bio_ku': bioKu,
-        'bio_ar': _bioArController.text.trim(),
-        'bio_en': _bioEnController.text.trim(),
         'address_ku': addressKu,
-        'address_ar': _addressArController.text.trim(),
-        'address_en': _addressEnController.text.trim(),
-        'hospital_name_ku': _hospitalKuController.text.trim(),
-        'hospital_name_ar': _hospitalArController.text.trim(),
-        'hospital_name_en': _hospitalEnController.text.trim(),
-        'hospitalName': _hospitalNameCardController.text.trim(),
+        'hospital_name_ku': hospitalDisplay,
+        'hospitalName': hospitalDisplay,
         'experience_ku': _experienceKuController.text.trim(),
-        'experience_ar': _experienceArController.text.trim(),
-        'experience_en': _experienceEnController.text.trim(),
         'biography': bioKu,
         'clinicAddress': addressKu,
       };
@@ -307,37 +296,27 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _uploadProfileImageToFirebase(XFile file) async {
-    final user = FirebaseAuth.instance.currentUser;
     final s = S.of(context);
-    if (user == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            s.translate('profile_user_missing'),
-            style: const TextStyle(fontFamily: kPatientPrimaryFont),
-          ),
-        ),
-      );
-      return;
-    }
-
-    final docId = firestoreUserDocId(user).trim();
-    if (docId.isEmpty) return;
+    final user = FirebaseAuth.instance.currentUser;
+    final docId = await _resolveUsersCollectionDocId(showErrorSnack: true);
+    if (docId == null || docId.isEmpty) return;
 
     setState(() => _isUploadingImage = true);
     try {
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_pictures')
-          .child('${user.uid}.jpg');
+          .child('$docId.jpg');
 
       await storageRef.putData(await file.readAsBytes());
       final downloadUrl = await storageRef.getDownloadURL();
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'profileImageUrl': downloadUrl,
-      }, SetOptions(merge: true));
+      final uid = user?.uid.trim() ?? '';
+      if (uid.isNotEmpty && uid != docId) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'profileImageUrl': downloadUrl,
+        }, SetOptions(merge: true));
+      }
       await FirebaseFirestore.instance.collection('users').doc(docId).set({
         'profileImageUrl': downloadUrl,
       }, SetOptions(merge: true));
@@ -440,21 +419,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String translationKey) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 8),
-      child: Text(
-        S.of(context).translate(translationKey),
-        style: const TextStyle(
-          color: _kDoctorProfileGold,
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
-          fontFamily: kPatientPrimaryFont,
         ),
       ),
     );
@@ -598,7 +562,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 children: [
                   const DoctorPremiumBackground(),
                   SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      16 + MediaQuery.paddingOf(context).bottom,
+                    ),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -721,200 +690,32 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             icon: Icons.phone_android_rounded,
                             keyboardType: TextInputType.phone,
                           ),
-                          const SizedBox(height: 4),
-                          _sectionTitle('editor_section_kurdish'),
+                          const SizedBox(height: 8),
                           _field(
                             controller: _fullNameKuController,
                             label: s.translate('doctor_field_full_name'),
                             icon: Icons.person_rounded,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           _field(
                             controller: _bioKuController,
                             label: s.translate('doctor_field_bio'),
                             icon: Icons.info_outline_rounded,
                             maxLines: 4,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           _field(
                             controller: _addressKuController,
                             label: s.translate('doctor_field_address'),
                             icon: Icons.location_on_rounded,
                             maxLines: 2,
                           ),
-                          const SizedBox(height: 6),
-                          _field(
-                            controller: _hospitalKuController,
-                            label: s.translate('doctor_field_hospital'),
-                            icon: Icons.local_hospital_rounded,
-                          ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           _field(
                             controller: _experienceKuController,
                             label: s.translate('doctor_field_experience'),
                             icon: Icons.work_history_rounded,
                             maxLines: 3,
-                          ),
-                          Theme(
-                            data: Theme.of(context).copyWith(
-                              dividerColor: Colors.transparent,
-                              listTileTheme: const ListTileThemeData(
-                                iconColor: _kDoctorProfileBronze,
-                              ),
-                            ),
-                            child: ExpansionTile(
-                              tilePadding: const EdgeInsets.symmetric(
-                                horizontal: 2,
-                              ),
-                              initiallyExpanded: false,
-                              backgroundColor: Colors.black.withValues(
-                                alpha: 0.2,
-                              ),
-                              collapsedBackgroundColor: Colors.black.withValues(
-                                alpha: 0.2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                  color: kStaffSilverBorder,
-                                  width: kStaffCardOutlineWidth,
-                                ),
-                              ),
-                              collapsedShape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                  color: kStaffSilverBorder,
-                                  width: kStaffCardOutlineWidth,
-                                ),
-                              ),
-                              iconColor: kStaffLuxGold,
-                              collapsedIconColor: kStaffLuxGold,
-                              title: Text(
-                                s.translate('editor_section_arabic'),
-                                style: const TextStyle(
-                                  color: _kDoctorProfileGold,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  fontFamily: kPatientPrimaryFont,
-                                ),
-                              ),
-                              children: [
-                                _field(
-                                  controller: _fullNameArController,
-                                  label: s.translate('doctor_field_full_name'),
-                                  icon: Icons.person_rounded,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _bioArController,
-                                  label: s.translate('doctor_field_bio'),
-                                  icon: Icons.info_outline_rounded,
-                                  maxLines: 4,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _addressArController,
-                                  label: s.translate('doctor_field_address'),
-                                  icon: Icons.location_on_rounded,
-                                  maxLines: 2,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _hospitalArController,
-                                  label: s.translate('doctor_field_hospital'),
-                                  icon: Icons.local_hospital_rounded,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _experienceArController,
-                                  label: s.translate('doctor_field_experience'),
-                                  icon: Icons.work_history_rounded,
-                                  maxLines: 3,
-                                ),
-                                const SizedBox(height: 6),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Theme(
-                            data: Theme.of(context).copyWith(
-                              dividerColor: Colors.transparent,
-                              listTileTheme: const ListTileThemeData(
-                                iconColor: _kDoctorProfileBronze,
-                              ),
-                            ),
-                            child: ExpansionTile(
-                              tilePadding: const EdgeInsets.symmetric(
-                                horizontal: 2,
-                              ),
-                              initiallyExpanded: false,
-                              backgroundColor: Colors.black.withValues(
-                                alpha: 0.2,
-                              ),
-                              collapsedBackgroundColor: Colors.black.withValues(
-                                alpha: 0.2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                  color: kStaffSilverBorder,
-                                  width: kStaffCardOutlineWidth,
-                                ),
-                              ),
-                              collapsedShape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                  color: kStaffSilverBorder,
-                                  width: kStaffCardOutlineWidth,
-                                ),
-                              ),
-                              iconColor: kStaffLuxGold,
-                              collapsedIconColor: kStaffLuxGold,
-                              title: Text(
-                                s.translate('editor_section_english'),
-                                style: const TextStyle(
-                                  color: _kDoctorProfileGold,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  fontFamily: kPatientPrimaryFont,
-                                ),
-                              ),
-                              children: [
-                                _field(
-                                  controller: _fullNameEnController,
-                                  label: s.translate('doctor_field_full_name'),
-                                  icon: Icons.person_rounded,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _bioEnController,
-                                  label: s.translate('doctor_field_bio'),
-                                  icon: Icons.info_outline_rounded,
-                                  maxLines: 4,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _addressEnController,
-                                  label: s.translate('doctor_field_address'),
-                                  icon: Icons.location_on_rounded,
-                                  maxLines: 2,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _hospitalEnController,
-                                  label: s.translate('doctor_field_hospital'),
-                                  icon: Icons.local_hospital_rounded,
-                                ),
-                                const SizedBox(height: 6),
-                                _field(
-                                  controller: _experienceEnController,
-                                  label: s.translate('doctor_field_experience'),
-                                  icon: Icons.work_history_rounded,
-                                  maxLines: 3,
-                                ),
-                                const SizedBox(height: 6),
-                              ],
-                            ),
                           ),
                           const SizedBox(height: 8),
                           _field(

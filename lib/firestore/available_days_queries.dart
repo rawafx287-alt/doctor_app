@@ -361,13 +361,15 @@ Future<void> deleteAvailableDay({
 /// supports document reads, so appointment rows are loaded with `.get()` before
 /// each attempt; loop retries on contention.
 Future<String?> bookAvailableDayTransaction({
+  required DocumentReference<Map<String, dynamic>> appointmentRef,
   required String availableDayDocId,
   required String patientId,
   required String patientName,
   required String doctorId,
   required String doctorDisplayName,
   String? paymentMethod,
-  String? receiptUrl,
+  String? paymentStatus,
+  String? receiptImageUrl,
   Map<String, dynamic>? extraAppointmentData,
 }) async {
   final pid = patientId.trim();
@@ -448,9 +450,6 @@ Future<String?> bookAvailableDayTransaction({
           AvailableDayFields.currentBookings: FieldValue.increment(1),
         });
 
-        final apptRef = FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .doc();
         final apptPayload = <String, dynamic>{
           AppointmentFields.patientId: pid,
           AppointmentFields.userId: pid,
@@ -468,9 +467,14 @@ Future<String?> bookAvailableDayTransaction({
           AppointmentFields.availableDayDocId: availableDayDocId,
           if (paymentMethod != null && paymentMethod.trim().isNotEmpty)
             AppointmentFields.paymentMethod: paymentMethod.trim(),
-          if (receiptUrl != null && receiptUrl.trim().isNotEmpty)
-            AppointmentFields.receiptUrl: receiptUrl.trim(),
+          if (paymentStatus != null && paymentStatus.trim().isNotEmpty)
+            AppointmentFields.paymentStatus: paymentStatus.trim(),
         };
+        final receipt = receiptImageUrl?.trim();
+        if (receipt != null && receipt.isNotEmpty) {
+          apptPayload[AppointmentFields.receiptImageUrl] = receipt;
+          apptPayload[AppointmentFields.receiptUrl] = receipt;
+        }
         final extra = extraAppointmentData;
         if (extra != null) {
           for (final e in extra.entries) {
@@ -480,7 +484,7 @@ Future<String?> bookAvailableDayTransaction({
             apptPayload[e.key] = v;
           }
         }
-        transaction.set(apptRef, apptPayload);
+        transaction.set(appointmentRef, apptPayload);
 
         return null;
       });
