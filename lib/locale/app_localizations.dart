@@ -1146,6 +1146,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'إكمال',
     'en': 'Complete',
   },
+  'appt_action_confirm_title': {
+    'ckb': 'دڵنیای لە ئەنجامدانی ئەم کردارە؟',
+    'ar': 'هل أنت متأكد من تنفيذ هذا الإجراء؟',
+    'en': 'Are you sure you want to do this?',
+  },
+  'appt_action_confirm_yes': {
+    'ckb': 'بەڵێ، دڵنیام',
+    'ar': 'نعم، أنا متأكد',
+    'en': "Yes, I'm sure",
+  },
+  'appt_action_confirm_no': {
+    'ckb': 'نەخێر، پەشیمانم',
+    'ar': 'لا، تراجعت',
+    'en': 'No, go back',
+  },
   'doctor_appt_label_age': {
     'ckb': 'تەمەن',
     'ar': 'العمر',

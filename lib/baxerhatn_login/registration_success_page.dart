@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../theme/hr_nora_colors.dart';
 import 'login.dart';
 
 /// Shown after email/password sign-up and Firestore user document write.
@@ -83,17 +84,17 @@ class RegistrationSuccessPage extends StatelessWidget {
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF2E7D32)
+                                  color: HrNoraColors.openDayFill
                                       .withValues(alpha: 0.22),
                                   border: Border.all(
-                                    color: const Color(0xFF66BB6A)
-                                        .withValues(alpha: 0.6),
+                                    color: HrNoraColors.openDayGradientLight
+                                        .withValues(alpha: 0.55),
                                     width: 1.6,
                                   ),
                                 ),
                                 child: const Icon(
                                   Icons.check_rounded,
-                                  color: Color(0xFF81C784),
+                                  color: HrNoraColors.openDayGradientLight,
                                   size: 56,
                                 ),
                               ),

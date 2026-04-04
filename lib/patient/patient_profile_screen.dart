@@ -10,6 +10,7 @@ import '../auth/app_logout.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../locale/language_picker.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 import '../locale/hr_nora_about_dialog.dart';
 import 'patient_edit_profile_screen.dart';
@@ -27,11 +28,11 @@ const Color _kLogoutRedSoft = Color(0xFFE57373);
 const Color _kProfileSilverBorder = Color(0xFFD1D1D1);
 const double _kProfileSilverBorderWidth = 0.8;
 
-/// Emerald for primary menu row icons (badge, translate, sparkle).
-const Color _kProfileMenuEmerald = Color(0xFF1B4332);
+/// Deep teal for primary menu row icons (matches open-day theme).
+const Color _kProfileMenuEmerald = HrNoraColors.openDayFill;
 
 /// Avatar ring: deep forest green + classic gold ([SweepGradient] ring, not [Border.all]).
-const Color _kAvatarRingGreen = Color(0xFF1B4332);
+const Color _kAvatarRingGreen = HrNoraColors.openDayGradientLight;
 const Color _kAvatarRingGold = Color(0xFFD4AF37);
 const double _kAvatarRingWidth = 2.5;
 const double _kAvatarInnerDiameter = 78;

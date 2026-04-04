@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_fonts.dart';
+import 'hr_nora_colors.dart';
 
 export 'app_fonts.dart' show kAppFontFamily;
 
@@ -15,7 +16,7 @@ const Color kPatientNavyText = Color(0xFF0D2137);
 const Color kPatientDeepBlue = Color(0xFF1A237E);
 
 /// Professional appointment status pills — use across patient, doctor, secretary, previews.
-const Color kAppointmentStatusCompletedBg = Color(0xFF2E7D32);
+const Color kAppointmentStatusCompletedBg = HrNoraColors.openDayFill;
 const Color kAppointmentStatusCompletedFg = Color(0xFFFFFFFF);
 
 const Color kAppointmentStatusPendingBg = Color(0xFFEF6C00);

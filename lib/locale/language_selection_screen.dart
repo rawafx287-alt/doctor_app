@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../baxerhatn_login/login.dart';
+import '../theme/app_fonts.dart';
 import '../theme/hr_nora_colors.dart';
 import 'app_locale.dart';
 import 'app_localizations.dart';
@@ -27,6 +28,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
   late final AnimationController _entryController;
   late final AnimationController _ambientController;
+  late final AnimationController _continueRevealController;
+
+  static const Color _selectionGold = Color(0xFFE8C547);
+  static const Color _selectionGreen = HrNoraColors.openDayGradientLight;
 
   @override
   void initState() {
@@ -39,12 +44,17 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       vsync: this,
       duration: const Duration(milliseconds: 5600),
     )..repeat();
+    _continueRevealController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
   }
 
   @override
   void dispose() {
     _entryController.dispose();
     _ambientController.dispose();
+    _continueRevealController.dispose();
     super.dispose();
   }
 
@@ -58,20 +68,27 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     precacheImage(const AssetImage('assets/images/british_flag.png'), context);
   }
 
-  Future<void> _select(HrNoraLanguage language) async {
+  Future<void> _onLanguageCardTap(HrNoraLanguage language) async {
     if (_isSwitching) return;
+    await HapticFeedback.lightImpact();
+    final hadSelection = _selectedLanguage != null;
+    setState(() => _selectedLanguage = language);
+    if (!hadSelection) {
+      _continueRevealController.forward(from: 0);
+    }
+  }
+
+  Future<void> _onContinue() async {
+    final language = _selectedLanguage;
+    if (language == null || _isSwitching) return;
+
     final locale = AppLocaleScope.of(context);
     final navigator = Navigator.of(context, rootNavigator: true);
-    await HapticFeedback.lightImpact();
-    setState(() {
-      _isSwitching = true;
-      _selectedLanguage = language;
-    });
+    await HapticFeedback.mediumImpact();
+    setState(() => _isSwitching = true);
 
-    // Save preference in parallel with route transition.
     unawaited(locale.setLanguage(language));
 
-    // Short delay lets the glass overlay appear smoothly before transition.
     await Future<void>.delayed(const Duration(milliseconds: 220));
     if (!mounted) return;
     navigator.pushReplacement(_loginRoute());
@@ -150,19 +167,40 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                           ),
                           const SizedBox(height: 36),
                           Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                for (var i = 0; i < cards.length; i++) ...[
-                                  _buildAnimatedCard(
-                                    index: i,
-                                    language: cards[i].language,
-                                    flagAsset: cards[i].flagAsset,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: constraints.maxHeight,
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        for (var i = 0; i < cards.length; i++) ...[
+                                          _buildAnimatedCard(
+                                            index: i,
+                                            language: cards[i].language,
+                                            flagAsset: cards[i].flagAsset,
+                                          ),
+                                          if (i != cards.length - 1)
+                                            const SizedBox(height: 16),
+                                        ],
+                                        const SizedBox(height: 24),
+                                        _ContinueBar(
+                                          controller: _continueRevealController,
+                                          hasSelection:
+                                              _selectedLanguage != null,
+                                          busy: _isSwitching,
+                                          onPressed: _onContinue,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  if (i != cards.length - 1)
-                                    const SizedBox(height: 16),
-                                ],
-                              ],
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -212,8 +250,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
           flagAsset: flagAsset,
           accentColor: accent,
           selected: _selectedLanguage == language,
+          selectionGold: _selectionGold,
+          selectionGreen: _selectionGreen,
           enabled: !_isSwitching,
-          onTap: () => _select(language),
+          onTap: () => _onLanguageCardTap(language),
         ),
       ),
     );
@@ -228,6 +268,120 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       case HrNoraLanguage.en:
         return const Color(0xFF42A5F5);
     }
+  }
+}
+
+/// Gold-gradient continue control; Kurdish label uses NRT bold (NRT-Bd).
+/// Dims and sits low until [hasSelection]; then fades and slides up into focus.
+class _ContinueBar extends StatelessWidget {
+  const _ContinueBar({
+    required this.controller,
+    required this.hasSelection,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  final AnimationController controller;
+  final bool hasSelection;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  static const Color _goldGlow = Color(0xFFE8C547);
+
+  static const LinearGradient _activeGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFC9A227),
+      Color(0xFFF4D03F),
+      Color(0xFFD4AF37),
+      Color(0xFFB8860B),
+    ],
+    stops: [0.0, 0.35, 0.7, 1.0],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final interactive = hasSelection && !busy;
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final t = hasSelection
+            ? Curves.easeOutCubic.transform(controller.value)
+            : 0.0;
+        final opacity = 0.40 + (1.0 - 0.40) * t;
+        final dy = (1.0 - t) * 14.0;
+        final shadowGold = _goldGlow.withValues(alpha: 0.22 + 0.32 * t);
+        final shadowDepth = 6.0 + 16.0 * t;
+        final labelColor = Color.lerp(
+          HrNoraColors.textSoft.withValues(alpha: 0.42),
+          HrNoraColors.primary,
+          t,
+        )!;
+
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, dy),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: interactive ? onPressed : null,
+                    borderRadius: BorderRadius.circular(30),
+                    child: Ink(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.white.withValues(
+                            alpha: interactive ? 0.34 : 0.16,
+                          ),
+                          width: 1.1,
+                        ),
+                        gradient: _activeGradient,
+                        boxShadow: [
+                          BoxShadow(
+                            color: shadowGold,
+                            blurRadius: shadowDepth,
+                            offset: Offset(0, 4 + shadowDepth * 0.35),
+                            spreadRadius: -2,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: interactive ? 0.32 : 0.18,
+                            ),
+                            blurRadius: interactive ? 18 : 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          'بەردەوامبە',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kAppFontFamily,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 19,
+                            letterSpacing: 0.2,
+                            color: labelColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -304,6 +458,8 @@ class _LanguageCard extends StatelessWidget {
     required this.flagAsset,
     required this.accentColor,
     required this.selected,
+    required this.selectionGold,
+    required this.selectionGreen,
     required this.onTap,
     this.enabled = true,
   });
@@ -313,6 +469,8 @@ class _LanguageCard extends StatelessWidget {
   final String flagAsset;
   final Color accentColor;
   final bool selected;
+  final Color selectionGold;
+  final Color selectionGreen;
   final VoidCallback onTap;
   final bool enabled;
 
@@ -328,23 +486,28 @@ class _LanguageCard extends StatelessWidget {
             onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(20),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white.withValues(alpha: 0.08),
                 border: Border.all(
                   color: selected
-                      ? accentColor.withValues(alpha: 0.95)
+                      ? selectionGold
                       : Colors.white.withValues(alpha: 0.22),
-                  width: selected ? 1.6 : 1.1,
+                  width: selected ? 2.35 : 1.1,
                 ),
                 boxShadow: selected
                     ? [
                         BoxShadow(
-                          color: accentColor.withValues(alpha: 0.28),
-                          blurRadius: 20,
-                          spreadRadius: 1,
+                          color: selectionGold.withValues(alpha: 0.55),
+                          blurRadius: 22,
+                          spreadRadius: 0,
+                        ),
+                        BoxShadow(
+                          color: selectionGreen.withValues(alpha: 0.38),
+                          blurRadius: 28,
+                          spreadRadius: -4,
                         ),
                       ]
                     : null,
@@ -389,7 +552,7 @@ class _LanguageCard extends StatelessWidget {
                     Icon(
                       Icons.arrow_forward_ios_rounded,
                       color: selected
-                          ? accentColor.withValues(alpha: 0.9)
+                          ? selectionGold.withValues(alpha: 0.92)
                           : HrNoraColors.accentLight.withValues(alpha: 0.78),
                       size: 18,
                     ),

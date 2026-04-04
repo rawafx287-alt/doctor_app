@@ -16,6 +16,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import 'my_appointments_screen.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 
 const Color _kNavy = Color(0xFF0D2137);
@@ -23,9 +24,9 @@ const Color _kBodyMuted = Color(0xFF455A64);
 const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
 const Color _kGoldShine = Color(0xFFFFE082);
-const Color _kEmeraldAvailable = Color(0xFF1B5E20);
+const Color _kEmeraldAvailable = HrNoraColors.openDayFill;
 const Color _kSlotBorderBlue = Color(0xFF1565C0);
-const Color _kBookedRed = Color(0xFFB91C1C);
+const Color _kBookedRed = HrNoraColors.closedDayFill;
 
 /// «دووپاتکردنەوەی نۆرە» — bright gold → dark goldenrod (matches home CTA spec).
 const Color _kConfirmGoldBright = Color(0xFFE6B800);
@@ -759,7 +760,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             if (selected)
               const Icon(
                 Icons.check_circle_rounded,
-                color: Color(0xFF2E7D32),
+                color: HrNoraColors.openDayFill,
               ),
           ],
         ),
@@ -925,13 +926,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                const Color(0xFF81C784).withValues(alpha: 0.28),
-                                const Color(0xFF2E7D32).withValues(alpha: 0.16),
+                                HrNoraColors.openDayGradientLight
+                                    .withValues(alpha: 0.32),
+                                HrNoraColors.openDayFill.withValues(alpha: 0.18),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2E7D32).withValues(alpha: 0.26),
+                                color: HrNoraColors.openDayFill
+                                    .withValues(alpha: 0.28),
                                 blurRadius: 16,
                                 spreadRadius: 1,
                               ),
@@ -940,7 +943,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           child: const Icon(
                             Icons.check_circle_rounded,
                             size: 46,
-                            color: Color(0xFF1B5E20),
+                            color: HrNoraColors.openDayFill,
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -1302,7 +1305,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                           ),
                                           style: const TextStyle(
                                             fontFamily: kPatientPrimaryFont,
-                                            color: Color(0xFFE53935),
+                                            color: HrNoraColors.closedDayFill,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
                                           ),
@@ -1623,7 +1626,7 @@ class _BookingSummaryInfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  static const Color _iconCircleGreen = Color(0xFF1B5E20);
+  static const Color _iconCircleGreen = HrNoraColors.openDayFill;
 
   @override
   Widget build(BuildContext context) {

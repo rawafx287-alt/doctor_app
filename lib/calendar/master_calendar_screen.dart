@@ -13,7 +13,10 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../patient/create_patient_appointment.dart';
+import '../theme/calendar_crystal_surfaces.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/staff_premium_theme.dart';
+import '../widgets/appointment_action_confirm_dialog.dart';
 import 'calendar_slot_logic.dart';
 
 const String _kMasterCalendarBrandTitle = 'HR Nora';
@@ -21,10 +24,10 @@ const String _kMasterCalendarBrandTitle = 'HR Nora';
 // ---------------------------------------------------------------------------
 // Secretary calendar — same cell physics as [PatientAvailableDaysList].
 // ---------------------------------------------------------------------------
-const Color _kSecPatOpenFill = Color(0xFF1E3A8A);
-const Color _kSecPatOpenBorder = Color(0xFF172554);
-const Color _kSecPatClosedFill = Color(0xFFB71C1C);
-const Color _kSecPatClosedBorder = Color(0xFF7F1515);
+const Color _kSecPatOpenFill = HrNoraColors.openDayFill;
+const Color _kSecPatOpenBorder = HrNoraColors.openDayBorder;
+const Color _kSecPatClosedFill = HrNoraColors.closedDayFill;
+const Color _kSecPatClosedBorder = HrNoraColors.closedDayBorder;
 const Color _kSecPatSelectedNavy = Color(0xFF0D47A1);
 const Color _kSecPatGoldRing = Color(0xFFD4AF37);
 const Color _kSecPatDowBlue = Color(0xFF0D47A1);
@@ -41,7 +44,6 @@ const Color _kSecPatPastBorder = Color(0xFFDDE1E6);
 const Color _kSecPatPastSlate = Color(0xFF64748B);
 const Color _kSecPatOutsideFill = Color(0xFFF7F7F8);
 const Color _kSecPatOutsideBorder = Color(0xFFE8EAED);
-const Color _kSecPatSelectedNavyBorder = Color(0xFF0A3D91);
 
 /// Kurdish DOW labels, Saturday-first (matches [StartingDayOfWeek.saturday]).
 const List<String> _kSecretaryDowLabelsSatFirst = [
@@ -63,11 +65,11 @@ String _secretaryEnglishNumeralDateYmd(DateTime d) {
   return '${nf.format(d.year)} / ${nf.format(d.month)} / ${nf.format(d.day)}';
 }
 
-/// Month grid: slate blue = open slots, red = fully booked / no open slots.
-const Color _kCalGreenFill = Color(0xFF1E3A8A);
-const Color _kCalGreenBorder = Color(0xFF60A5FA);
-const Color _kCalRedFill = Color(0xFF3D1418);
-const Color _kCalRedBorder = Color(0xFFEF4444);
+/// Month grid: slate blue = open slots, maroon = non-working / closed.
+const Color _kCalGreenFill = HrNoraColors.openDayFill;
+const Color _kCalGreenBorder = HrNoraColors.openDayGradientLight;
+const Color _kCalRedFill = HrNoraColors.closedDayFill;
+const Color _kCalRedBorder = HrNoraColors.closedDayBorder;
 
 /// Day has hours but every slot is booked / blocked.
 const Color _kCalAmberFill = Color(0xFF3D2A0F);
@@ -205,34 +207,37 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
 
     final isOutside = day.month != focusedMonth.month;
 
-    Color fill;
-    Color edgeColor;
+    late final LinearGradient crystalGrad;
+    late final Color edgeColor;
     switch (visual) {
       case MasterDayVisual.hasAvailability:
-        fill = _kCalGreenFill;
-        edgeColor = _kCalGreenBorder;
+        crystalGrad = CalendarCrystalSurfaces.greenCrystalBase;
+        edgeColor = CalendarCrystalSurfaces.greenCrystalEdge;
       case MasterDayVisual.fullyBooked:
-        fill = _kCalAmberFill;
-        edgeColor = _kCalAmberBorder;
+        crystalGrad = CalendarCrystalSurfaces.amberCrystalBase;
+        edgeColor = CalendarCrystalSurfaces.amberCrystalEdge;
       case MasterDayVisual.nonWorking:
       default:
-        fill = _kCalRedFill;
-        edgeColor = _kCalRedBorder;
-    }
-    if (isOutside) {
-      fill = fill.withValues(alpha: 0.45);
-      edgeColor = edgeColor.withValues(alpha: 0.45);
+        crystalGrad = CalendarCrystalSurfaces.redCrystalBase;
+        edgeColor = CalendarCrystalSurfaces.redCrystalEdge;
     }
 
     final textColor = isOutside
         ? const Color(0xFF829AB1).withValues(alpha: 0.5)
         : const Color(0xFFE8EEF4);
 
+    const kMasterGoldRing = Color(0xFFD4AF37);
+    final br = BorderRadius.circular(10);
     final Border cellBorder;
-    if (isToday) {
+    if (isSelected) {
+      cellBorder = Border.all(
+        color: visual == MasterDayVisual.nonWorking
+            ? kMasterGoldRing
+            : const Color(0xFF6366F1),
+        width: 2,
+      );
+    } else if (isToday) {
       cellBorder = Border.all(color: const Color(0xFF38BDF8), width: 2);
-    } else if (isSelected) {
-      cellBorder = Border.all(color: const Color(0xFF6366F1), width: 2);
     } else {
       cellBorder = Border.all(
         color: edgeColor,
@@ -240,39 +245,38 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       );
     }
 
-    return Container(
+    final inner = Container(
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: br,
         border: cellBorder,
-        boxShadow: [
-          if (!isOutside && visual == MasterDayVisual.hasAvailability)
-            BoxShadow(
-              color: _kCalGreenBorder.withValues(alpha: 0.12),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+        gradient: crystalGrad,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CalendarCrystalSurfaces.glossOverlay(borderRadius: br),
             ),
-          if (!isOutside && visual == MasterDayVisual.fullyBooked)
-            BoxShadow(
-              color: _kCalAmberBorder.withValues(alpha: 0.14),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+          ),
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              fontFamily: 'NRT',
+              fontWeight:
+                  isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
+              fontSize: 15,
+              height: 1,
+              color: textColor,
             ),
+          ),
         ],
       ),
-      child: Text(
-        '${day.day}',
-        style: TextStyle(
-          fontFamily: 'NRT',
-          fontWeight: isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
-          fontSize: 15,
-          height: 1,
-          color: textColor,
-        ),
-      ),
     );
+
+    return isOutside ? Opacity(opacity: 0.45, child: inner) : inner;
   }
 
   /// Secretary month grid: explicit open / closed / past / outside / selection.
@@ -295,87 +299,43 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     final radius = BorderRadius.circular(_kSecPatMonthCellRadius);
     final dayAscii = NumberFormat.decimalPattern('en_US').format(day.day);
 
-    Color fill;
+    final showGreenCrystal = !isPast && !isOutside && !closedOrFull;
+    final showRedCrystal = !isPast && !isOutside && closedOrFull;
+    final navySelected =
+        isSelected && !isPast && !isOutside && !closedOrFull;
+
+    Color? flatFill;
     Color borderColor;
     double borderWidth;
-    List<BoxShadow> cellShadow;
-    var showInnerDepth = false;
+    LinearGradient? cellGradient;
 
-    if (isSelected) {
-      fill = _kSecPatSelectedNavy;
-      borderColor = _kSecPatGoldRing;
-      borderWidth = 2.0;
-      cellShadow = [
-        BoxShadow(
-          color: _kSecPatGoldRing.withValues(alpha: 0.5),
-          blurRadius: 14,
-          spreadRadius: 0.5,
-          offset: const Offset(0, 2),
-        ),
-        BoxShadow(
-          color: _kSecPatSelectedNavyBorder.withValues(alpha: 0.28),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
-    } else if (isOutside) {
-      fill = _kSecPatOutsideFill;
+    if (isOutside) {
+      flatFill = _kSecPatOutsideFill;
       borderColor = _kSecPatOutsideBorder.withValues(alpha: 0.9);
       borderWidth = 0.75;
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
     } else if (isPast) {
-      fill = _kSecPatPastFill;
+      flatFill = _kSecPatPastFill;
       borderColor = _kSecPatPastBorder;
       borderWidth = 0.75;
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    } else if (!closedOrFull) {
-      fill = _kSecPatOpenFill;
-      borderColor = _kSecPatOpenBorder;
+    } else if (navySelected) {
+      flatFill = _kSecPatSelectedNavy;
+      borderColor = _kSecPatGoldRing;
+      borderWidth = 2.0;
+    } else if (isSelected && showRedCrystal) {
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.redCrystalBase;
+      borderColor = _kSecPatGoldRing;
+      borderWidth = 2.0;
+    } else if (showGreenCrystal) {
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.greenCrystalBase;
+      borderColor = CalendarCrystalSurfaces.greenCrystalEdge;
       borderWidth = 1.25;
-      showInnerDepth = true;
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 5,
-          spreadRadius: -1,
-          offset: const Offset(0, 3),
-        ),
-        BoxShadow(
-          color: _kSecPatOpenFill.withValues(alpha: 0.35),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ];
     } else {
-      fill = _kSecPatClosedFill;
-      borderColor = _kSecPatClosedBorder;
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.redCrystalBase;
+      borderColor = CalendarCrystalSurfaces.redCrystalEdge;
       borderWidth = 1.25;
-      showInnerDepth = true;
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.22),
-          blurRadius: 5,
-          spreadRadius: -1,
-          offset: const Offset(0, 3),
-        ),
-        BoxShadow(
-          color: _kSecPatClosedFill.withValues(alpha: 0.3),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ];
     }
 
     if (isToday && !isSelected && !isOutside) {
@@ -392,30 +352,8 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
         ? const Color(0xFF90A4AE)
         : Colors.white;
 
-    Widget innerDepthOverlay() {
-      return Positioned.fill(
-        child: IgnorePointer(
-          child: ClipRRect(
-            borderRadius: radius,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.26),
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.white.withValues(alpha: 0.07),
-                  ],
-                  stops: const [0.0, 0.38, 0.62, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    final crystalGloss = cellGradient != null;
+    final navyGloss = navySelected;
 
     final textWidget = Directionality(
       textDirection: ui.TextDirection.ltr,
@@ -441,16 +379,31 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: fill,
+        color: flatFill,
+        gradient: cellGradient,
         borderRadius: radius,
         border: Border.all(color: borderColor, width: borderWidth),
-        boxShadow: cellShadow,
       ),
       child: Stack(
         clipBehavior: Clip.antiAlias,
         alignment: Alignment.center,
         children: [
-          if (showInnerDepth) innerDepthOverlay(),
+          if (crystalGloss)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CalendarCrystalSurfaces.glossOverlay(
+                  borderRadius: radius,
+                ),
+              ),
+            ),
+          if (navyGloss)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CalendarCrystalSurfaces.glossOverlaySubtle(
+                  borderRadius: radius,
+                ),
+              ),
+            ),
           Center(child: textWidget),
         ],
       ),
@@ -1698,12 +1651,22 @@ class _DayAgendaPanel extends StatelessWidget {
                         ),
                         onSelected: (v) async {
                           if (v == 'cancel') {
+                            final ok = await showAppointmentActionConfirmDialog(
+                              context,
+                              isCompleteAction: false,
+                            );
+                            if (ok != true || !context.mounted) return;
                             await aptDoc.reference.update({
                               AppointmentFields.status: 'cancelled',
                               AppointmentFields.updatedAt:
                                   FieldValue.serverTimestamp(),
                             });
                           } else if (v == 'done') {
+                            final ok = await showAppointmentActionConfirmDialog(
+                              context,
+                              isCompleteAction: true,
+                            );
+                            if (ok != true || !context.mounted) return;
                             await aptDoc.reference.update({
                               AppointmentFields.status: 'completed',
                               AppointmentFields.updatedAt:

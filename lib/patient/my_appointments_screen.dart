@@ -14,6 +14,7 @@ import '../auth/phone_normalization.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 
 /// Rose-gold / peach accents for bookings UI (section bars, cards, ticket highlights).
@@ -384,7 +385,9 @@ class _DashedLinePainter extends CustomPainter {
 Color _statusPillBorder(String status, {required bool isPast}) {
   if (isPast) return const Color(0xFF432818).withValues(alpha: 0.38);
   final s = status.toLowerCase().trim();
-  if (s == 'completed') return const Color(0xFF1B5E20).withValues(alpha: 0.65);
+  if (s == 'completed') {
+    return HrNoraColors.openDayFill.withValues(alpha: 0.65);
+  }
   if (s == 'pending') return const Color(0xFFBF360C).withValues(alpha: 0.58);
   if (s == 'cancelled' || s == 'canceled') {
     return const Color(0xFF8B0000).withValues(alpha: 0.55);

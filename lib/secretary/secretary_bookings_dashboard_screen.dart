@@ -11,6 +11,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../theme/staff_premium_theme.dart';
+import '../widgets/appointment_action_confirm_dialog.dart';
 
 DateTime? _parseAppointmentDay(dynamic value) {
   if (value == null) return null;
@@ -99,6 +100,24 @@ class _SecretaryBookingsDashboardScreenState
         setState(() => _updating.remove(id));
       }
     }
+  }
+
+  Future<void> _confirmAndSetStatus(
+    BuildContext context,
+    String docId,
+    String status,
+  ) async {
+    final st = status.trim().toLowerCase();
+    if (st == 'completed' ||
+        st == 'cancelled' ||
+        st == 'canceled') {
+      final ok = await showAppointmentActionConfirmDialog(
+        context,
+        isCompleteAction: st == 'completed',
+      );
+      if (ok != true || !context.mounted) return;
+    }
+    await _setStatus(docId, status);
   }
 
   void _showReceiptDialog(BuildContext context, String url) {
@@ -704,7 +723,8 @@ class _SecretaryBookingsDashboardScreenState
                                           ),
                                           onPressed: busy
                                               ? null
-                                              : () => _setStatus(
+                                              : () => _confirmAndSetStatus(
+                                                    context,
                                                     doc.id,
                                                     'completed',
                                                   ),
@@ -715,7 +735,8 @@ class _SecretaryBookingsDashboardScreenState
                                           ),
                                           onPressed: busy
                                               ? null
-                                              : () => _setStatus(
+                                              : () => _confirmAndSetStatus(
+                                                    context,
                                                     doc.id,
                                                     'cancelled',
                                                   ),

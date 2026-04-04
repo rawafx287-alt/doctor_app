@@ -10,6 +10,8 @@ import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../theme/calendar_crystal_surfaces.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 import 'booking_summary_screen.dart';
 
@@ -19,16 +21,7 @@ const Color _kHintGrey = Color(0xFF455A64);
 const Color _kCellMuted = Color(0xFF90A4AE);
 const Color _kToastTextGrey = Color(0xFF546E7A);
 
-/// Open / available — deep emerald field, white numerals.
-const Color _kOpenDayFill = Color(0xFF1B5E20);
-const Color _kOpenDayBorder = Color(0xFF0D3D16);
-
-/// Booked / closed — dark ruby, white numerals.
-const Color _kClosedDayFill = Color(0xFFB71C1C);
-const Color _kClosedDayBorder = Color(0xFF7F1515);
-
 const Color _kSelectedNavy = Color(0xFF0D47A1);
-const Color _kSelectedNavyBorder = Color(0xFF0A3D91);
 /// Metallic gold — thick ring for today & selected accent.
 const Color _kSelectedGoldRing = Color(0xFFD4AF37);
 
@@ -202,7 +195,7 @@ class _PatientCalendarToastState extends State<_PatientCalendarToast>
   }
 }
 
-/// Patient: [TableCalendar] — deep emerald open, ruby closed, slate past + struck; tap open day to book.
+/// Patient: [TableCalendar] — crystal green/red open/closed (no outer glow), slate past + struck.
 class PatientAvailableDaysList extends StatefulWidget {
   const PatientAvailableDaysList({
     super.key,
@@ -471,8 +464,8 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     final statusDot = !hasSelection
         ? const Color(0xFF94A3B8)
         : bookable
-            ? const Color(0xFF2ECC71)
-            : const Color(0xFFE74C3C);
+            ? const Color(0xFF00C853)
+            : HrNoraColors.closedDayFill;
     final weekdayLabel =
         sel != null ? s.translate(_weekdayTranslationKey(sel)) : '—';
     final numericDate =
@@ -541,8 +534,8 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                             color: !hasSelection
                                 ? const Color(0xFFECEFF1)
                                 : bookable
-                                    ? const Color(0xFF2ECC71)
-                                    : const Color(0xFFFFEBEE),
+                                    ? const Color(0xFF00C853)
+                                    : HrNoraColors.closedDayFill,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Row(
@@ -567,7 +560,7 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
                                       ? _kDoctorNameNavy
                                       : bookable
                                           ? Colors.white
-                                          : const Color(0xFFB71C1C),
+                                          : Colors.white,
                                 ),
                               ),
                             ],
@@ -1165,33 +1158,48 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     final dayOnly = _dateOnly(day);
     final isPast = dayOnly.isBefore(today);
 
-    Color fill;
+    final showGreenCrystal =
+        !isPast && !isOutside && !closedOrFull;
+    final showRedCrystal = !isPast && !isOutside && closedOrFull;
+    final navySelected =
+        isSelected && !isPast && !isOutside && !closedOrFull;
+
+    Color? flatFill;
     Color borderColor;
     double borderWidth;
+    LinearGradient? cellGradient;
 
-    if (isSelected) {
-      fill = _kSelectedNavy;
-      borderColor = _kSelectedGoldRing;
-      borderWidth = 2.0;
-    } else if (isOutside) {
-      fill = const Color(0xFFF7F7F8);
+    if (isOutside) {
+      flatFill = const Color(0xFFF7F7F8);
       borderColor = const Color(0xFFE8EAED).withValues(alpha: 0.9);
       borderWidth = 0.75;
     } else if (isPast) {
-      fill = _kPastFill;
+      flatFill = _kPastFill;
       borderColor = _kPastBorder;
       borderWidth = 0.75;
-    } else if (!closedOrFull) {
-      fill = _kOpenDayFill;
-      borderColor = _kOpenDayBorder;
+    } else if (navySelected) {
+      flatFill = _kSelectedNavy;
+      borderColor = _kSelectedGoldRing;
+      borderWidth = 2.0;
+      cellGradient = null;
+    } else if (isSelected && showRedCrystal) {
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.redCrystalBase;
+      borderColor = _kSelectedGoldRing;
+      borderWidth = 2.0;
+    } else if (showGreenCrystal) {
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.greenCrystalBase;
+      borderColor = CalendarCrystalSurfaces.greenCrystalEdge;
       borderWidth = 1.25;
     } else {
-      fill = _kClosedDayFill;
-      borderColor = _kClosedDayBorder;
+      flatFill = null;
+      cellGradient = CalendarCrystalSurfaces.redCrystalBase;
+      borderColor = CalendarCrystalSurfaces.redCrystalEdge;
       borderWidth = 1.25;
     }
 
-    if (isToday && !isSelected) {
+    if (isToday && !isSelected && !isOutside) {
       borderColor = _kSelectedGoldRing;
       borderWidth = 3.0;
     }
@@ -1215,59 +1223,6 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
     const double kCellCornerRadius = 12.0;
     final radius = BorderRadius.circular(kCellCornerRadius);
 
-    final List<BoxShadow> cellShadow;
-    if (isSelected) {
-      cellShadow = [
-        BoxShadow(
-          color: _kSelectedGoldRing.withValues(alpha: 0.5),
-          blurRadius: 14,
-          spreadRadius: 0.5,
-          offset: const Offset(0, 2),
-        ),
-        BoxShadow(
-          color: _kSelectedNavyBorder.withValues(alpha: 0.28),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
-    } else if (!isPast && !isOutside && !closedOrFull && !isSelected) {
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 5,
-          spreadRadius: -1,
-          offset: const Offset(0, 3),
-        ),
-        BoxShadow(
-          color: _kOpenDayFill.withValues(alpha: 0.35),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    } else if (!isPast && !isOutside && closedOrFull && !isSelected) {
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.22),
-          blurRadius: 5,
-          spreadRadius: -1,
-          offset: const Offset(0, 3),
-        ),
-        BoxShadow(
-          color: _kClosedDayFill.withValues(alpha: 0.3),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    } else {
-      cellShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    }
-
     final textWidget = Text(
       '${day.day}',
       style: TextStyle(
@@ -1282,51 +1237,38 @@ class _PatientAvailableDaysListState extends State<PatientAvailableDaysList>
       ),
     );
 
-    final isOpenGreen =
-        !isPast && !isOutside && !closedOrFull && !isSelected;
-    final isClosedRed =
-        !isPast && !isOutside && closedOrFull && !isSelected;
-
-    /// Simulates an inner shadow (inset depth) on bold green/red tiles.
-    Widget innerDepthOverlay() {
-      return Positioned.fill(
-        child: IgnorePointer(
-          child: ClipRRect(
-            borderRadius: radius,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.26),
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.white.withValues(alpha: 0.07),
-                  ],
-                  stops: const [0.0, 0.38, 0.62, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    final crystalGloss = cellGradient != null;
+    final navyGloss = navySelected;
 
     final cellCore = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: fill,
+        color: flatFill,
+        gradient: cellGradient,
         borderRadius: radius,
         border: Border.all(color: borderColor, width: borderWidth),
-        boxShadow: cellShadow,
       ),
       child: Stack(
         clipBehavior: Clip.antiAlias,
         alignment: Alignment.center,
         children: [
-          if (isOpenGreen || isClosedRed) innerDepthOverlay(),
+          if (crystalGloss)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CalendarCrystalSurfaces.glossOverlay(
+                  borderRadius: radius,
+                ),
+              ),
+            ),
+          if (navyGloss)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CalendarCrystalSurfaces.glossOverlaySubtle(
+                  borderRadius: radius,
+                ),
+              ),
+            ),
           Center(child: textWidget),
         ],
       ),

@@ -10,6 +10,7 @@ import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
@@ -57,7 +58,7 @@ Color _categorySoftTint(String catKey) {
 Color _categoryAccentIcon(String catKey) {
   switch (catKey) {
     case kPatientSpecialtyAllKey:
-      return const Color(0xFF00796B);
+      return HrNoraColors.openDayFill;
     case 'dentist_specialty':
       return const Color(0xFF1565C0);
     case 'cardiology_specialty':
@@ -77,7 +78,7 @@ Color _categoryAccentIcon(String catKey) {
     case 'obgyn_specialty':
       return const Color(0xFFD84315);
     case 'gastroenterology_specialty':
-      return const Color(0xFF2E7D32);
+      return HrNoraColors.openDayFill;
     default:
       return const Color(0xFF1976D2);
   }

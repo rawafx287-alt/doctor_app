@@ -15,6 +15,7 @@ import '../models/doctor_localized_content.dart';
 import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../theme/staff_premium_theme.dart';
+import '../widgets/appointment_action_confirm_dialog.dart';
 import 'doctor_premium_shell.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -471,6 +472,24 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     return doctorIds.first;
   }
 
+  Future<void> _confirmSetStatus(
+    BuildContext context,
+    String docId,
+    String status,
+  ) async {
+    final st = status.trim().toLowerCase();
+    if (st == 'completed' ||
+        st == 'cancelled' ||
+        st == 'canceled') {
+      final ok = await showAppointmentActionConfirmDialog(
+        context,
+        isCompleteAction: st == 'completed',
+      );
+      if (ok != true || !context.mounted) return;
+    }
+    await _setStatus(context, docId, status);
+  }
+
   Future<void> _setStatus(
     BuildContext context,
     String docId,
@@ -573,7 +592,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   doctorUserId: uid,
                   todayDocs: today,
                   currentIndex: cur,
-                  onSetStatus: _setStatus,
+                  onSetStatus: _confirmSetStatus,
                 );
               }
 
@@ -647,8 +666,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                             )
                           : null,
                       onComplete: () =>
-                          _setStatus(context, doc.id, 'completed'),
-                      onCancel: () => _setStatus(context, doc.id, 'cancelled'),
+                          _confirmSetStatus(context, doc.id, 'completed'),
+                      onCancel: () =>
+                          _confirmSetStatus(context, doc.id, 'cancelled'),
                     );
                   }
 

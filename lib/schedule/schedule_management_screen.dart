@@ -16,13 +16,15 @@ import '../doctor/doctor_premium_shell.dart'
         doctorPremiumAppBar,
         kDoctorPremiumGradientBottom,
         kDoctorPremiumGradientDecoration;
+import '../theme/calendar_crystal_surfaces.dart';
+import '../theme/hr_nora_colors.dart';
 import '../theme/staff_premium_theme.dart';
+import '../theme/staff_time_picker_theme.dart';
 
 /// Secretary/doctor schedule UI — aligned with patient month grid (rounded cells, glass shell).
-/// Vibrant medical greens (Material-style A700 → darker anchor).
-const Color _kSchedVibrantGreen = Color(0xFF00C853);
-const Color _kSchedOpenFill = _kSchedVibrantGreen;
-const Color _kSchedClosedFill = Color(0xFFB71C1C);
+/// Deep teal “open” (matches [HrNoraColors.openDayFill]).
+const Color _kSchedOpenFill = HrNoraColors.openDayFill;
+const Color _kSchedClosedFill = HrNoraColors.closedDayFill;
 const Color _kSchedGoldRing = Color(0xFFD4AF37);
 const double _kDayBoxR = 10.0;
 const double _kSelectedGoldBorder = 2.0;
@@ -233,14 +235,19 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: false,
       builder: (ctx) {
-        final h = MediaQuery.sizeOf(ctx).height * 0.52;
+        final mq = MediaQuery.of(ctx);
+        final screenH = mq.size.height;
+        final topInset = mq.padding.top + 12;
+        final maxH = (screenH * 0.58).clamp(320.0, screenH - topInset - 16);
         return Padding(
           padding: EdgeInsets.only(
+            top: topInset,
             bottom: MediaQuery.viewInsetsOf(ctx).bottom,
           ),
           child: SizedBox(
-            height: h,
+            height: maxH,
             child: Directionality(
               textDirection: AppLocaleScope.of(ctx).textDirection,
               child: _DayScheduleGlassSheet(
@@ -273,17 +280,24 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: false,
       builder: (ctx) {
-        final h = MediaQuery.sizeOf(ctx).height * 0.62;
-        return SizedBox(
-          height: h,
-          child: Directionality(
-            textDirection: AppLocaleScope.of(ctx).textDirection,
-            child: _FutureDayDetailsGlassSheet(
-              doctorUserId: uid,
-              dateLocal: d0,
-              dayRow: row,
-              strings: S.of(ctx),
+        final mq = MediaQuery.of(ctx);
+        final screenH = mq.size.height;
+        final topInset = mq.padding.top + 12;
+        final maxH = (screenH * 0.42).clamp(240.0, screenH - topInset - 16);
+        return Padding(
+          padding: EdgeInsets.only(top: topInset),
+          child: SizedBox(
+            height: maxH,
+            child: Directionality(
+              textDirection: AppLocaleScope.of(ctx).textDirection,
+              child: _FutureDayDetailsGlassSheet(
+                doctorUserId: uid,
+                dateLocal: d0,
+                dayRow: row,
+                strings: S.of(ctx),
+              ),
             ),
           ),
         );
@@ -373,7 +387,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     final fill = Colors.white.withValues(alpha: 0.1);
 
     final borderColor = isTodayColumn
-        ? _kSchedVibrantGreen.withValues(alpha: 0.88)
+        ? _kSchedOpenFill.withValues(alpha: 0.88)
         : kStaffLuxGold.withValues(alpha: 0.55);
     final borderW = isTodayColumn ? 0.85 : _kDowCapsuleBorderThin;
 
@@ -385,12 +399,12 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       ),
       if (isTodayColumn) ...[
         BoxShadow(
-          color: _kSchedVibrantGreen.withValues(alpha: 0.45),
+          color: _kSchedOpenFill.withValues(alpha: 0.45),
           blurRadius: 14,
           spreadRadius: 0,
         ),
         BoxShadow(
-          color: _kSchedVibrantGreen.withValues(alpha: 0.28),
+          color: _kSchedOpenFill.withValues(alpha: 0.28),
           blurRadius: 22,
           spreadRadius: -1,
         ),
@@ -476,19 +490,23 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     final nf = NumberFormat.decimalPattern('en_US');
     final dayAscii = nf.format(day.day);
 
-    Color fill;
+    Color? flatFill;
+    LinearGradient? crystalGrad;
     Color textColor;
     var strike = false;
 
     if (isPast) {
-      fill = const Color(0xFFF1F3F5);
+      flatFill = const Color(0xFFF1F3F5);
+      crystalGrad = null;
       textColor = const Color(0xFF64748B);
       strike = true;
     } else if (!closedLook) {
-      fill = _kSchedOpenFill;
+      flatFill = null;
+      crystalGrad = CalendarCrystalSurfaces.greenCrystalBase;
       textColor = Colors.white;
     } else {
-      fill = _kSchedClosedFill;
+      flatFill = null;
+      crystalGrad = CalendarCrystalSurfaces.redCrystalBase;
       textColor = Colors.white;
     }
 
@@ -502,31 +520,53 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           width: side,
           height: side,
           decoration: BoxDecoration(
-            color: fill,
+            color: flatFill,
+            gradient: crystalGrad,
             borderRadius: radius,
             border: isSelected
                 ? Border.all(color: _kSchedGoldRing, width: _kSelectedGoldBorder)
-                : null,
+                : crystalGrad != null
+                    ? Border.all(
+                        color: closedLook
+                            ? CalendarCrystalSurfaces.redCrystalEdge
+                            : CalendarCrystalSurfaces.greenCrystalEdge,
+                        width: 1.05,
+                      )
+                    : null,
           ),
-          child: Center(
-            child: Directionality(
-              textDirection: ui.TextDirection.ltr,
-              child: Text(
-                dayAscii,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: (side * 0.36).clamp(14.0, 19.0),
-                  height: 1,
-                  color: textColor,
-                  decoration:
-                      strike ? TextDecoration.lineThrough : TextDecoration.none,
-                  decorationColor: const Color(0xFF64748B),
-                  decorationThickness: 1.5,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (crystalGrad != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CalendarCrystalSurfaces.glossOverlay(
+                      borderRadius: radius,
+                    ),
+                  ),
+                ),
+              Center(
+                child: Directionality(
+                  textDirection: ui.TextDirection.ltr,
+                  child: Text(
+                    dayAscii,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: (side * 0.36).clamp(14.0, 19.0),
+                      height: 1,
+                      color: textColor,
+                      decoration: strike
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor: const Color(0xFF64748B),
+                      decorationThickness: 1.5,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -728,10 +768,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     required AppLocalizations strings,
   }) {
     const radius = 20.0;
-    final border = Border.all(
-      color: kStaffLuxGold.withValues(alpha: 0.5),
-      width: 0.5,
-    );
     final uid = widget.managedDoctorUserId?.trim() ?? '';
     final docId = uid.isEmpty
         ? ''
@@ -745,143 +781,143 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         : null;
     final isRtl = Directionality.of(context) == ui.TextDirection.rtl;
 
+    final panelGrad = open
+        ? CalendarCrystalSurfaces.scheduleTodayOpenPanelGradient
+        : CalendarCrystalSurfaces.scheduleTodayClosedPanelGradient;
+    final goldBorder = Border.all(
+      color: kStaffLuxGold,
+      width: 1.35,
+    );
+
     return Tooltip(
       message: strings.translate('schedule_panel_tap_hint'),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _openDayEditorSheet(context, today, map),
-              splashColor: Colors.white.withValues(alpha: 0.12),
-              highlightColor: Colors.white.withValues(alpha: 0.05),
-              child: Ink(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(radius),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      kStaffShellGradientTop.withValues(alpha: 0.88),
-                      const Color(0xFF0A1528).withValues(alpha: 0.94),
-                    ],
-                  ),
-                  border: border,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openDayEditorSheet(context, today, map),
+            splashColor: Colors.white.withValues(alpha: 0.14),
+            highlightColor: Colors.white.withValues(alpha: 0.06),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(radius),
+                gradient: panelGrad,
+                border: goldBorder,
+              ),
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CalendarCrystalSurfaces.glossOverlay(
+                        borderRadius: BorderRadius.circular(radius),
+                      ),
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              strings.translate('schedule_today_shifts_title'),
-                              style: TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
-                                color: kStaffLuxGold.withValues(alpha: 0.95),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Directionality(
-                              textDirection: ui.TextDirection.ltr,
-                              child: Text(
-                                _enNum(today),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                strings.translate(
+                                  'schedule_today_shifts_title',
+                                ),
                                 style: TextStyle(
                                   fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.82),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  color: kStaffLuxGold.withValues(alpha: 0.98),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: open
-                                        ? _kSchedVibrantGreen
-                                        : _kSchedClosedFill,
-                                    boxShadow: open
-                                        ? [
-                                            BoxShadow(
-                                              color: _kSchedVibrantGreen
-                                                  .withValues(alpha: 0.5),
-                                              blurRadius: 6,
+                              const SizedBox(height: 4),
+                              Directionality(
+                                textDirection: ui.TextDirection.ltr,
+                                child: Text(
+                                  _enNum(today),
+                                  style: const TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: open
+                                          ? const Color(0xFF00E676)
+                                          : const Color(0xFFFF5252),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      open
+                                          ? strings.translate(
+                                              'booking_summary_status_open',
+                                            )
+                                          : strings.translate(
+                                              'booking_summary_status_closed',
                                             ),
-                                          ]
-                                        : null,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    open
-                                        ? strings.translate(
-                                            'booking_summary_status_open',
-                                          )
-                                        : strings.translate(
-                                            'booking_summary_status_closed',
-                                          ),
-                                    style: TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 11,
-                                      color: Colors.white.withValues(alpha: 0.76),
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                        color:
+                                            Colors.white.withValues(alpha: 0.9),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (open)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Directionality(
-                                  textDirection: ui.TextDirection.ltr,
-                                  child: Text(
-                                    rangeLine!,
-                                    style: TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                      color: kStaffLuxGold.withValues(alpha: 0.92),
-                                    ),
-                                  ),
-                                ),
+                                ],
                               ),
-                          ],
+                              if (open)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Directionality(
+                                    textDirection: ui.TextDirection.ltr,
+                                    child: Text(
+                                      rangeLine!,
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                        color: kStaffLuxGold
+                                            .withValues(alpha: 0.95),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isRtl
-                            ? Icons.chevron_left_rounded
-                            : Icons.chevron_right_rounded,
-                        color: kStaffLuxGold.withValues(alpha: 0.75),
-                        size: 26,
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Icon(
+                          isRtl
+                              ? Icons.chevron_left_rounded
+                              : Icons.chevron_right_rounded,
+                          color: kStaffLuxGold.withValues(alpha: 0.85),
+                          size: 26,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -1043,40 +1079,64 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
   }
 }
 
-Widget _scheduleFutureDetailStatRow({
+/// One compact stat cell for the future-day details sheet (half-width in a row).
+Widget _scheduleFutureDetailCompactStatHalf({
   required IconData icon,
   required String label,
   required String value,
+  bool ltrValue = false,
 }) {
+  const valueStyle = TextStyle(
+    fontFamily: kPatientPrimaryFont,
+    fontWeight: FontWeight.w800,
+    fontSize: 12,
+    height: 1.15,
+    color: Color(0xFFE8EEF5),
+  );
+  final valueChild = ltrValue
+      ? Directionality(
+          textDirection: ui.TextDirection.ltr,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(value, maxLines: 1, style: valueStyle),
+          ),
+        )
+      : Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: valueStyle,
+        );
+
   return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, color: kStaffLuxGold, size: 22),
-      const SizedBox(width: 12),
+      Icon(
+        icon,
+        color: kStaffLuxGold.withValues(alpha: 0.88),
+        size: 16,
+      ),
+      const SizedBox(width: 6),
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: 10,
+                height: 1.1,
+                color: Colors.white.withValues(alpha: 0.52),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-                height: 1.2,
-                color: Color(0xFFE8EEF5),
-              ),
-            ),
+            const SizedBox(height: 1),
+            valueChild,
           ],
         ),
       ),
@@ -1114,17 +1174,23 @@ class _FutureDayDetailsGlassSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nf = NumberFormat.decimalPattern('en_US');
+    const topRadius = Radius.circular(22);
+    const sheetBorderSide = BorderSide(
+      color: Color(0x80D4AF37),
+      width: 0.5,
+    );
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: const BorderRadius.vertical(top: topRadius),
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(
-              color: kStaffLuxGold.withValues(alpha: 0.5),
-              width: 0.5,
+            borderRadius: const BorderRadius.vertical(top: topRadius),
+            border: const Border(
+              top: sheetBorderSide,
+              left: sheetBorderSide,
+              right: sheetBorderSide,
             ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -1135,57 +1201,58 @@ class _FutureDayDetailsGlassSheet extends StatelessWidget {
                 const Color(0xFF0D2137).withValues(alpha: 0.96),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 24,
-                offset: const Offset(0, -4),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.max,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Center(
                 child: Container(
-                  width: 42,
+                  width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: kStaffLuxGold.withValues(alpha: 0.65),
+                    color: kStaffLuxGold.withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  strings.translate('schedule_future_day_sheet_title'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                    color: Color(0xFFE8EEF5),
-                  ),
-                ),
-              ),
               const SizedBox(height: 4),
-              Directionality(
-                textDirection: ui.TextDirection.ltr,
-                child: Text(
-                  _enNum(dateLocal),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: kStaffLuxGold.withValues(alpha: 0.9),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      strings.translate('schedule_future_day_sheet_title'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        height: 1.1,
+                        color: Color(0xFFE8EEF5),
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Directionality(
+                      textDirection: ui.TextDirection.ltr,
+                      child: Text(
+                        _enNum(dateLocal),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          height: 1.1,
+                          color: kStaffLuxGold.withValues(alpha: 0.92),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               Expanded(
                 child: StreamBuilder<
                     List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
@@ -1201,17 +1268,29 @@ class _FutureDayDetailsGlassSheet extends StatelessWidget {
                         expectedCompositeIndexHint:
                             kAppointmentsDoctorDateStatusIndexHint,
                       );
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                        children: [
-                          Text(
-                            strings.translate('schedule_load_error'),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontFamily: kPatientPrimaryFont,
-                            ),
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Text(
+                          strings.translate('schedule_load_error'),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontFamily: kPatientPrimaryFont,
+                            fontSize: 12,
                           ),
-                        ],
+                        ),
+                      );
+                    }
+                    if (snap.connectionState == ConnectionState.waiting &&
+                        !snap.hasData) {
+                      return const Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFD4AF37),
+                          ),
+                        ),
                       );
                     }
                     final raw =
@@ -1224,94 +1303,141 @@ class _FutureDayDetailsGlassSheet extends StatelessWidget {
                         .toList();
                     final count = active.length;
 
-                    return ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                      children: [
-                        _scheduleFutureDetailStatRow(
-                          icon: Icons.people_alt_rounded,
-                          label: strings.translate(
-                            'schedule_detail_total_patients',
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _scheduleFutureDetailCompactStatHalf(
+                                  icon: Icons.people_alt_rounded,
+                                  label: strings.translate(
+                                    'schedule_detail_total_patients',
+                                  ),
+                                  value: strings.translate(
+                                    'schedule_detail_patients_count',
+                                    params: {'n': nf.format(count)},
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _scheduleFutureDetailCompactStatHalf(
+                                  icon: Icons.schedule_rounded,
+                                  label: strings.translate(
+                                    'schedule_detail_working_hours',
+                                  ),
+                                  value: _hoursSummary(),
+                                  ltrValue: true,
+                                ),
+                              ),
+                            ],
                           ),
-                          value: strings.translate(
-                            'schedule_detail_patients_count',
-                            params: {'n': nf.format(count)},
+                          const SizedBox(height: 6),
+                          Divider(
+                            height: 1,
+                            thickness: 0.5,
+                            color: kStaffLuxGold.withValues(alpha: 0.38),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _scheduleFutureDetailStatRow(
-                          icon: Icons.schedule_rounded,
-                          label: strings.translate(
-                            'schedule_detail_working_hours',
-                          ),
-                          value: _hoursSummary(),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          strings.translate('schedule_detail_patient_list'),
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.72),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (active.isEmpty)
+                          const SizedBox(height: 4),
                           Text(
-                            strings.translate(
-                              'schedule_detail_no_appointments',
-                            ),
+                            strings.translate('schedule_detail_patient_list'),
                             style: TextStyle(
                               fontFamily: kPatientPrimaryFont,
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.55),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              height: 1.1,
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
-                          )
-                        else
-                          ...active.map((doc) {
-                            final data = doc.data();
-                            final name =
-                                (data[AppointmentFields.patientName] ?? '')
-                                    .toString()
-                                    .trim();
-                            final t = staffDigitsToEnglishAscii(
-                              (data[AppointmentFields.time] ?? '')
-                                  .toString()
-                                  .trim(),
-                            );
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      name.isEmpty ? '—' : name,
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                        color: Color(0xFFF0F4FA),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    t.isEmpty ? '—' : t,
-                                    style: TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                      color: kStaffLuxGold.withValues(
-                                        alpha: 0.95,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                          ),
+                          const SizedBox(height: 3),
+                          if (active.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2, bottom: 4),
+                              child: Text(
+                                strings.translate(
+                                  'schedule_detail_no_appointments',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontSize: 11,
+                                  height: 1.2,
+                                  color: Colors.white.withValues(alpha: 0.48),
+                                ),
                               ),
-                            );
-                          }),
-                      ],
+                            )
+                          else
+                            Expanded(
+                              child: ListView.separated(
+                                physics: const BouncingScrollPhysics(),
+                                padding: const EdgeInsets.only(bottom: 6),
+                                itemCount: active.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 3),
+                                itemBuilder: (context, i) {
+                                  final doc = active[i];
+                                  final data = doc.data();
+                                  final name =
+                                      (data[AppointmentFields.patientName] ??
+                                              '')
+                                          .toString()
+                                          .trim();
+                                  final t = staffDigitsToEnglishAscii(
+                                    (data[AppointmentFields.time] ?? '')
+                                        .toString()
+                                        .trim(),
+                                  );
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 3,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            name.isEmpty ? '—' : name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                              height: 1.15,
+                                              color: Color(0xFFF0F4FA),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Directionality(
+                                          textDirection: ui.TextDirection.ltr,
+                                          child: Text(
+                                            t.isEmpty ? '—' : t,
+                                            style: TextStyle(
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                              height: 1.1,
+                                              color: kStaffLuxGold.withValues(
+                                                alpha: 0.95,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1409,9 +1535,12 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
       context: context,
       initialTime: _start,
       initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (c, ch) => Directionality(
-        textDirection: AppLocaleScope.of(c).textDirection,
-        child: ch ?? const SizedBox.shrink(),
+      builder: (c, ch) => Theme(
+        data: staffTimePickerDialogTheme(Theme.of(c)),
+        child: Directionality(
+          textDirection: AppLocaleScope.of(c).textDirection,
+          child: ch ?? const SizedBox.shrink(),
+        ),
       ),
     );
     if (p != null) setState(() => _start = p);
@@ -1422,9 +1551,12 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
       context: context,
       initialTime: _end,
       initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (c, ch) => Directionality(
-        textDirection: AppLocaleScope.of(c).textDirection,
-        child: ch ?? const SizedBox.shrink(),
+      builder: (c, ch) => Theme(
+        data: staffTimePickerDialogTheme(Theme.of(c)),
+        child: Directionality(
+          textDirection: AppLocaleScope.of(c).textDirection,
+          child: ch ?? const SizedBox.shrink(),
+        ),
       ),
     );
     if (p != null) setState(() => _end = p);
@@ -1562,19 +1694,19 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
                 : Colors.white.withValues(alpha: 0.04),
             border: Border.all(
               color: sel
-                  ? _kSchedVibrantGreen.withValues(alpha: 0.9)
+                  ? _kSchedOpenFill.withValues(alpha: 0.9)
                   : kStaffLuxGold.withValues(alpha: 0.22),
               width: sel ? 1 : 0.45,
             ),
             boxShadow: sel
                 ? [
                     BoxShadow(
-                      color: _kSchedVibrantGreen.withValues(alpha: 0.55),
+                      color: _kSchedOpenFill.withValues(alpha: 0.55),
                       blurRadius: 14,
                       spreadRadius: 0,
                     ),
                     BoxShadow(
-                      color: _kSchedVibrantGreen.withValues(alpha: 0.25),
+                      color: _kSchedOpenFill.withValues(alpha: 0.25),
                       blurRadius: 22,
                       spreadRadius: -2,
                     ),
@@ -1644,7 +1776,7 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
           CupertinoSwitch(
             value: _isOpen,
             onChanged: (v) => setState(() => _isOpen = v),
-            activeTrackColor: _kSchedVibrantGreen,
+            activeTrackColor: _kSchedOpenFill,
             inactiveTrackColor: _kSchedClosedFill.withValues(alpha: 0.55),
             thumbColor: CupertinoColors.white,
           ),
@@ -1759,18 +1891,18 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             color: selected
-                ? _kSchedVibrantGreen.withValues(alpha: 0.14)
+                ? _kSchedOpenFill.withValues(alpha: 0.14)
                 : Colors.white.withValues(alpha: 0.05),
             border: Border.all(
               color: selected
-                  ? _kSchedVibrantGreen.withValues(alpha: 0.92)
+                  ? _kSchedOpenFill.withValues(alpha: 0.92)
                   : kStaffLuxGold.withValues(alpha: 0.38),
               width: selected ? 1.05 : 0.5,
             ),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: _kSchedVibrantGreen.withValues(alpha: 0.45),
+                      color: _kSchedOpenFill.withValues(alpha: 0.45),
                       blurRadius: 10,
                       spreadRadius: 0,
                     ),
@@ -1864,7 +1996,7 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
                     shape: BoxShape.circle,
                     color: booked
                         ? const Color(0xFF90A4AE)
-                        : _kSchedVibrantGreen,
+                        : _kSchedOpenFill,
                     border: Border.all(
                       color: kStaffLuxGold.withValues(alpha: 0.45),
                       width: 0.4,
@@ -1873,7 +2005,7 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
                         ? null
                         : [
                             BoxShadow(
-                              color: _kSchedVibrantGreen.withValues(alpha: 0.55),
+                              color: _kSchedOpenFill.withValues(alpha: 0.55),
                               blurRadius: 6,
                             ),
                           ],
@@ -1965,11 +2097,11 @@ class _DayScheduleGlassSheetState extends State<_DayScheduleGlassSheet> {
                           height: 6,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _kSchedVibrantGreen,
+                            color: _kSchedOpenFill,
                             boxShadow: [
                               BoxShadow(
                                 color:
-                                    _kSchedVibrantGreen.withValues(alpha: 0.5),
+                                    _kSchedOpenFill.withValues(alpha: 0.5),
                                 blurRadius: 5,
                               ),
                             ],

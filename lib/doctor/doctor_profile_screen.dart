@@ -138,7 +138,7 @@ class DoctorProfileScreen extends StatelessWidget {
                     clinicValue: city.isEmpty ? '—' : city,
                     photoUrl: photoUrl,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _DoctorProfileGlassMenuTile(
                     icon: Icons.edit_outlined,
                     title: s.translate('doctor_profile_tile_edit'),
@@ -185,7 +185,7 @@ class DoctorProfileScreen extends StatelessWidget {
   }
 }
 
-/// Main profile card: silver border, gold avatar ring, hospital + specialty/clinic rows.
+/// Compact header card: silver border, gold avatar ring, hospital + specialty/clinic rows.
 class _DoctorProfileHeaderCard extends StatelessWidget {
   const _DoctorProfileHeaderCard({
     required this.name,
@@ -207,8 +207,8 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
   final String clinicValue;
   final String photoUrl;
 
-  static const double _avatarOuter = 108;
-  static const double _goldRing = 3.2;
+  static const double _avatarOuter = 88;
+  static const double _goldRing = 2.6;
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +219,7 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.16),
             borderRadius: BorderRadius.circular(20),
@@ -248,9 +248,9 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                     gradient: kStaffGoldActionGradient,
                     boxShadow: [
                       BoxShadow(
-                        color: kStaffLuxGold.withValues(alpha: 0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
+                        color: kStaffLuxGold.withValues(alpha: 0.32),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -273,20 +273,20 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Text(
                 name,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w800,
-                  fontSize: 22,
+                  fontSize: 19,
                   color: Colors.white,
-                  height: 1.2,
+                  height: 1.15,
                 ),
               ),
               if (hospital.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 5),
                 Row(
                   textDirection: textDir,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -294,10 +294,10 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.local_hospital_rounded,
-                      size: 20,
+                      size: 17,
                       color: kStaffLuxGold,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         hospital,
@@ -307,7 +307,7 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                         style: const TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w700,
-                          fontSize: 15,
+                          fontSize: 13.5,
                           color: Color(0xFFE8F4F0),
                         ),
                       ),
@@ -315,17 +315,17 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 6),
               Row(
                 textDirection: textDir,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.alternate_email_rounded,
-                    size: 18,
+                    size: 16,
                     color: kStaffLuxGold.withValues(alpha: 0.75),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       email,
@@ -335,26 +335,27 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
+                        fontSize: 12.5,
                         color: _kDoctorProfileSubtitle.withValues(alpha: 0.95),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 8),
               Divider(
                 height: 1,
+                thickness: 1,
                 color: kStaffSilverBorder.withValues(alpha: 0.55),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               _InfoChipRow(
                 textDirection: textDir,
                 icon: Icons.workspace_premium_rounded,
                 label: specialtyLabel,
                 value: specialtyValue,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 7),
               _InfoChipRow(
                 textDirection: textDir,
                 icon: Icons.apartment_rounded,
@@ -372,7 +373,7 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
     return ColoredBox(
       color: kDoctorPremiumGradientMid,
       child: const Center(
-        child: Icon(Icons.person_rounded, size: 48, color: kStaffLuxGold),
+        child: Icon(Icons.person_rounded, size: 38, color: kStaffLuxGold),
       ),
     );
   }
@@ -398,10 +399,10 @@ class _InfoChipRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 22, color: kStaffLuxGold),
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(icon, size: 19, color: kStaffLuxGold),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,20 +412,20 @@ class _InfoChipRow extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
-                  fontSize: 11,
+                  fontSize: 10.5,
                   color: _kDoctorProfileSubtitle.withValues(alpha: 0.9),
-                  letterSpacing: 0.2,
+                  letterSpacing: 0.15,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
-                  fontSize: 15,
+                  fontSize: 14,
                   color: Colors.white,
-                  height: 1.25,
+                  height: 1.2,
                 ),
               ),
             ],

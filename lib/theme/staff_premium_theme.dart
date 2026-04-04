@@ -23,7 +23,7 @@ const BoxDecoration kStaffShellGradientDecoration = BoxDecoration(
   ),
 );
 
-/// Open days, leading strips, labels, completed pills (staff UI; replaces former green accent).
+/// Navy slate accent for staff strips and timeline (calendar “open” cells use [HrNoraColors] in those screens).
 const Color kStaffAccentSlateBlue = Color(0xFF1E3A8A);
 
 /// Bottom nav dock — cool tint that pairs with gold icons on blue shells.
