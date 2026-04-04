@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore/appointment_queries.dart';
+import '../firestore/available_days_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +17,7 @@ import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
+import '../patient/create_patient_appointment.dart';
 import 'doctor_premium_shell.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -1170,6 +1172,664 @@ class _TimelineGlassCard extends StatelessWidget {
   }
 }
 
+String _doctorApptTimelineBadgeLabel(BuildContext context, String st) {
+  final s = S.of(context);
+  switch (AppointmentsScreen._statusKey(st)) {
+    case 'completed':
+      return s.translate('doctor_appt_status_completed');
+    case 'cancelled':
+      return s.translate('doctor_appt_status_cancelled');
+    case 'confirmed':
+      return s.translate('status_confirmed');
+    case 'arrived':
+      return s.translate('status_arrived');
+    case 'pending':
+    default:
+      return s.translate('doctor_appt_status_pending');
+  }
+}
+
+Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> _appointmentsBySlotHhMm(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  final m = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+  for (final d in docs) {
+    final st = AppointmentsScreen._statusKey(d.data()[AppointmentFields.status]);
+    if (st == 'cancelled' || st == 'canceled') continue;
+    final k = normalizeAppointmentTimeToHhMm(d.data()[AppointmentFields.time]);
+    if (k.isEmpty) continue;
+    m.putIfAbsent(k, () => d);
+  }
+  return m;
+}
+
+Future<void> _openStaffWalkInBooking(
+  BuildContext context, {
+  required String doctorUserId,
+  required DateTime dayLocal,
+  required DateTime slotStart,
+}) async {
+  final s = S.of(context);
+  final nameController = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dctx) {
+      return AlertDialog(
+        backgroundColor: const Color(0xFF1D1E33),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          s.translate('master_calendar_add_walkin'),
+          style: const TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            color: Color(0xFFD9E2EC),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: TextField(
+          controller: nameController,
+          style: const TextStyle(
+            color: Color(0xFFD9E2EC),
+            fontFamily: kPatientPrimaryFont,
+          ),
+          decoration: InputDecoration(
+            labelText: s.translate('doctor_appt_patient_name_label'),
+            labelStyle: const TextStyle(color: Color(0xFF829AB1)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: Text(
+              s.translate('action_cancel'),
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                color: Color(0xFF42A5F5),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text(
+              s.translate('confirm_booking'),
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                color: Color(0xFF42A5F5),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+  if (ok != true) {
+    nameController.dispose();
+    return;
+  }
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final slotMinutes = slotStart.hour * 60 + slotStart.minute;
+  final err = await createStaffAppointment(
+    doctorId: doctorUserId,
+    dateLocal: dayLocal,
+    slotStartMinutes: slotMinutes,
+    patientName: nameController.text,
+    createdByUid: uid,
+  );
+  nameController.dispose();
+  if (!context.mounted) return;
+  if (err != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          s.translate(err),
+          style: const TextStyle(fontFamily: kPatientPrimaryFont),
+        ),
+      ),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          s.translate('master_calendar_saved'),
+          style: const TextStyle(fontFamily: kPatientPrimaryFont),
+        ),
+      ),
+    );
+  }
+}
+
+class _DoctorTodaySlotsSection extends StatelessWidget {
+  const _DoctorTodaySlotsSection({
+    required this.doctorUserId,
+    required this.onSetStatus,
+  });
+
+  final String doctorUserId;
+  final Future<void> Function(BuildContext context, String docId, String status)
+  onSetStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final now = DateTime.now();
+    final todayOnly = DateTime(now.year, now.month, now.day);
+    final dayDocId = availableDayDocumentId(
+      doctorUserId: doctorUserId,
+      dateLocal: todayOnly,
+    );
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection(AvailableDayFields.collection)
+          .doc(dayDocId)
+          .snapshots(),
+      builder: (context, daySnap) {
+        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: watchDoctorAppointmentsForLocalDay(
+            doctorUserId: doctorUserId,
+            dayLocal: todayOnly,
+          ),
+          builder: (context, apptSnap) {
+            if (apptSnap.hasError) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  s.translate('schedule_load_error'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+            if (apptSnap.connectionState == ConnectionState.waiting &&
+                !apptSnap.hasData) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: kStaffLuxGold,
+                    ),
+                  ),
+                ),
+              );
+            }
+            final dayData = daySnap.data?.data();
+            if (dayData == null || !availableDayIsOpen(dayData)) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  s.translate('schedule_timeline_no_hours'),
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    height: 1.25,
+                    color: Colors.white.withValues(alpha: 0.62),
+                  ),
+                ),
+              );
+            }
+            final start = normalizeAvailableDayStartTimeHhMm(
+              dayData[AvailableDayFields.startTime],
+            );
+            final end = normalizeAvailableDayClosingTimeHhMm(
+              dayData[AvailableDayFields.closingTime],
+            );
+            final dur = normalizeAppointmentDurationMinutes(
+              dayData[AvailableDayFields.appointmentDuration],
+            );
+            final slots = generatedSlotStartsForDay(
+              dateOnly: todayOnly,
+              startTimeHhMm: start,
+              closingTimeHhMm: end,
+              durationMinutes: dur,
+            );
+            if (slots.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  s.translate('schedule_timeline_no_hours'),
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.62),
+                  ),
+                ),
+              );
+            }
+            final byKey = _appointmentsBySlotHhMm(apptSnap.data ?? const []);
+            return Column(
+              children: [
+                for (var i = 0; i < slots.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 10),
+                  _DoctorSlotGlassCard(
+                    slotStart: slots[i],
+                    appointmentDoc: byKey[formatTimeHhMm(slots[i])],
+                    doctorUserId: doctorUserId,
+                    dayLocal: todayOnly,
+                    onSetStatus: onSetStatus,
+                  ),
+                ],
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DoctorSlotGlassCard extends StatelessWidget {
+  const _DoctorSlotGlassCard({
+    required this.slotStart,
+    required this.appointmentDoc,
+    required this.doctorUserId,
+    required this.dayLocal,
+    required this.onSetStatus,
+  });
+
+  final DateTime slotStart;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? appointmentDoc;
+  final String doctorUserId;
+  final DateTime dayLocal;
+  final Future<void> Function(BuildContext context, String docId, String status)
+  onSetStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final timeEn = DateFormat.jm('en_US').format(slotStart);
+    final doc = appointmentDoc;
+    final booked = doc != null;
+    final apptData = doc?.data();
+    final patientName = booked
+        ? (apptData![AppointmentFields.patientName] ?? '—').toString()
+        : '';
+    final status = booked
+        ? AppointmentsScreen._statusKey(apptData![AppointmentFields.status])
+        : '';
+    final showActions = booked && status == 'pending';
+    final dateTimeLine =
+        booked ? AppointmentsScreen._formatDateTime(apptData!) : '';
+    final patientId = booked
+        ? (apptData![AppointmentFields.patientId] ?? '').toString().trim()
+        : '';
+    final badge = staffAppointmentStatusBadgeStyle(
+      booked ? status : 'pending',
+    );
+    final stripGold = booked && status == 'pending';
+
+    String slotStatusBadgeText() {
+      if (!booked) return '';
+      if (status == 'pending') {
+        return s.translate('doctor_appt_status_pending');
+      }
+      if (status == 'completed' ||
+          status == 'cancelled' ||
+          status == 'canceled') {
+        return _doctorApptTimelineBadgeLabel(context, status);
+      }
+      return s.translate('schedule_slot_booked');
+    }
+
+    void openDetail(Map<String, dynamic>? profile) {
+      if (!booked) return;
+      AppointmentsScreen._showPatientDetail(
+        context,
+        patientProfile: profile,
+        fallbackPatientName: patientName,
+        dateTimeLine: dateTimeLine,
+        status: status,
+      );
+    }
+
+    Widget cardBody({
+      required Map<String, dynamic>? profile,
+      required bool patientLoading,
+      required String phone,
+    }) {
+      final showPhone = booked && phone.isNotEmpty;
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: booked
+              ? () => openDetail(profile)
+              : () => _openStaffWalkInBooking(
+                    context,
+                    doctorUserId: doctorUserId,
+                    dayLocal: dayLocal,
+                    slotStart: slotStart,
+                  ),
+          borderRadius: BorderRadius.circular(16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color(
+                    0xFF0E213E,
+                  ).withValues(alpha: booked ? 0.42 : 0.36),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: stripGold
+                        ? kStaffLuxGold.withValues(alpha: 0.48)
+                        : kStaffSilverBorder,
+                    width: kStaffCardOutlineWidth,
+                  ),
+                  boxShadow: stripGold
+                      ? [
+                          BoxShadow(
+                            color: kStaffLuxGold.withValues(alpha: 0.22),
+                            blurRadius: 14,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        width: 4,
+                        decoration: BoxDecoration(
+                          gradient: stripGold ? kStaffGoldActionGradient : null,
+                          color: stripGold ? null : kStaffAccentSlateBlue,
+                          borderRadius: const BorderRadius.horizontal(
+                            left: Radius.circular(15),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 76,
+                                    child: Directionality(
+                                      textDirection: ui.TextDirection.ltr,
+                                      child: Text(
+                                        timeEn,
+                                        style: TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13.5,
+                                          color: kStaffLuxGold.withValues(
+                                            alpha: 0.98,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      booked
+                                          ? patientName
+                                          : s.translate(
+                                              'schedule_slot_available_ku',
+                                            ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14.5,
+                                        color: booked
+                                            ? const Color(0xFFF8FFFC)
+                                            : Colors.white.withValues(
+                                                alpha: 0.88,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (booked)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: badge.decoration,
+                                      child: Text(
+                                        slotStatusBadgeText(),
+                                        style: TextStyle(
+                                          color: badge.foreground,
+                                          fontWeight: FontWeight.w700,
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Padding(
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(
+                                        Icons.add_rounded,
+                                        color: kStaffLuxGold.withValues(
+                                          alpha: 0.92,
+                                        ),
+                                        size: 26,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (booked) ...[
+                                const SizedBox(height: 6),
+                                AppointmentsScreen._ageGenderPhoneSummary(
+                                  context,
+                                  profile,
+                                  patientLoading,
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                      tooltip: s.translate(
+                                        'doctor_appt_patient_profile_title',
+                                      ),
+                                      onPressed: () => openDetail(profile),
+                                      icon: const Icon(
+                                        Icons.medical_services_rounded,
+                                        color: kStaffLuxGold,
+                                        size: 22,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                      tooltip: s.translate(
+                                        'doctor_appt_medical_history_section',
+                                      ),
+                                      onPressed: () => openDetail(profile),
+                                      icon: const Icon(
+                                        Icons.medication_liquid_rounded,
+                                        color: kStaffLuxGold,
+                                        size: 22,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                      tooltip: s.translate(
+                                        'doctor_appt_medical_history_section',
+                                      ),
+                                      onPressed: () => openDetail(profile),
+                                      icon: const Icon(
+                                        Icons.history_rounded,
+                                        color: kStaffLuxGold,
+                                        size: 22,
+                                      ),
+                                    ),
+                                    if (showPhone) ...[
+                                      const Spacer(),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 36,
+                                          minHeight: 36,
+                                        ),
+                                        onPressed: () =>
+                                            AppointmentsScreen._launchTel(
+                                              context,
+                                              phone,
+                                            ),
+                                        icon: const Icon(
+                                          Icons.phone_rounded,
+                                          color: kStaffLuxGold,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (showActions) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () => onSetStatus(
+                                            context,
+                                            doc.id,
+                                            'cancelled',
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: const Color(
+                                              0xFFFF8A95,
+                                            ),
+                                            side: const BorderSide(
+                                              color: Color(0xFFFF8A95),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
+                                            minimumSize: const Size(0, 36),
+                                            tapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            s.translate(
+                                              'doctor_appt_action_decline',
+                                            ),
+                                            style: const TextStyle(
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: StaffGoldGradientButton(
+                                          label: s.translate(
+                                            'doctor_appt_action_complete',
+                                          ),
+                                          onPressed: () => onSetStatus(
+                                            context,
+                                            doc.id,
+                                            'completed',
+                                          ),
+                                          fontSize: 12,
+                                          borderRadius: 10,
+                                          minHeight: 36,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 8,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ] else ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  s.translate('master_calendar_add_walkin'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!booked) {
+      return cardBody(profile: null, patientLoading: false, phone: '');
+    }
+    if (patientId.isEmpty) {
+      return cardBody(profile: null, patientLoading: false, phone: '');
+    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(patientId)
+          .snapshots(),
+      builder: (context, patientSnap) {
+        final loading = patientSnap.connectionState ==
+                ConnectionState.waiting &&
+            !patientSnap.hasData;
+        final profile = patientSnap.data?.data();
+        final phone = patientPhoneFromUserData(profile);
+        return cardBody(
+          profile: profile,
+          patientLoading: loading,
+          phone: phone,
+        );
+      },
+    );
+  }
+}
+
 class _DoctorTodayDashboard extends StatelessWidget {
   const _DoctorTodayDashboard({
     required this.doctorUserId,
@@ -1226,9 +1886,14 @@ class _DoctorTodayDashboard extends StatelessWidget {
       return st != 'completed' && st != 'cancelled' && st != 'canceled';
     }).length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    final bottomInset =
+        24 + MediaQuery.paddingOf(context).bottom + 72;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -1355,132 +2020,160 @@ class _DoctorTodayDashboard extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(
-          child: todayDocs.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      s.translate('doctor_appointments_empty_today'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
+        if (todayDocs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Text(
+              s.translate('doctor_appointments_empty_today'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+            child: Column(
+              children: [
+                for (var index = 0; index < todayDocs.length; index++) ...[
+                  if (index > 0) const SizedBox(height: 10),
+                  _DoctorTodayTimelineEntry(
+                    doc: todayDocs[index],
+                    isCurrent: index == currentIndex,
+                    onSetStatus: onSetStatus,
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                  itemCount: todayDocs.length,
-                  separatorBuilder: (context, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final doc = todayDocs[index];
-                    final data = doc.data();
-                    final patientName =
-                        (data[AppointmentFields.patientName] ?? '—').toString();
-                    final status = AppointmentsScreen._statusKey(
-                      data[AppointmentFields.status],
-                    );
-                    final dateTimeLine = AppointmentsScreen._formatDateTime(
-                      data,
-                    );
-                    final patientId = (data[AppointmentFields.patientId] ?? '')
-                        .toString()
-                        .trim();
-                    final isCurrent = index == currentIndex;
-                    final timeRaw = staffDigitsToEnglishAscii(
-                      (data[AppointmentFields.time] ?? '').toString().trim(),
-                    );
-                    final timeFallback = timeRaw.isNotEmpty ? timeRaw : '—';
-                    final dtParts = dateTimeLine.split(RegExp(r'\s+•\s+'));
-                    final datePartEn = dtParts.isNotEmpty
-                        ? dtParts[0].trim()
-                        : '';
-                    final timePartEn = dtParts.length > 1
-                        ? dtParts[1].trim()
-                        : timeFallback;
-
-                    void openDetail(Map<String, dynamic>? profile) {
-                      AppointmentsScreen._showPatientDetail(
-                        context,
-                        patientProfile: profile,
-                        fallbackPatientName: patientName,
-                        dateTimeLine: dateTimeLine,
-                        status: status,
-                      );
-                    }
-
-                    if (patientId.isEmpty) {
-                      return _TimelineGlassCard(
-                        datePartEn: datePartEn,
-                        timePartEn: timePartEn,
-                        isCurrent: isCurrent,
-                        patientName: patientName,
-                        status: status,
-                        showActions: status == 'pending',
-                        phoneForCall: '',
-                        ageLine: AppointmentsScreen._ageGenderPhoneSummary(
-                          context,
-                          null,
-                          false,
-                        ),
-                        onDetail: () => openDetail(null),
-                        onCall: null,
-                        onComplete: () =>
-                            onSetStatus(context, doc.id, 'completed'),
-                        onCancel: () =>
-                            onSetStatus(context, doc.id, 'cancelled'),
-                      );
-                    }
-
-                    return StreamBuilder<
-                      DocumentSnapshot<Map<String, dynamic>>
-                    >(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(patientId)
-                          .snapshots(),
-                      builder: (context, patientSnap) {
-                        final loading =
-                            patientSnap.connectionState ==
-                                ConnectionState.waiting &&
-                            !patientSnap.hasData;
-                        final profile = patientSnap.data?.data();
-                        final phone = patientPhoneFromUserData(profile);
-                        return _TimelineGlassCard(
-                          datePartEn: datePartEn,
-                          timePartEn: timePartEn,
-                          isCurrent: isCurrent,
-                          patientName: patientName,
-                          status: status,
-                          showActions: status == 'pending',
-                          phoneForCall: phone,
-                          ageLine: AppointmentsScreen._ageGenderPhoneSummary(
-                            context,
-                            profile,
-                            loading,
-                          ),
-                          onDetail: () => openDetail(profile),
-                          onCall: phone.isNotEmpty
-                              ? () => AppointmentsScreen._launchTel(
-                                  context,
-                                  phone,
-                                )
-                              : null,
-                          onComplete: () =>
-                              onSetStatus(context, doc.id, 'completed'),
-                          onCancel: () =>
-                              onSetStatus(context, doc.id, 'cancelled'),
-                        );
-                      },
-                    );
-                  },
-                ),
+                ],
+              ],
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              s.translate('doctor_today_slots_heading'),
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: kStaffLuxGold.withValues(alpha: 0.88),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: _DoctorTodaySlotsSection(
+            doctorUserId: doctorUserId,
+            onSetStatus: onSetStatus,
+          ),
         ),
       ],
+      ),
+    );
+  }
+}
+
+/// One appointment row in the “خشتەی کاتی ئەمڕۆ” block (extracted from the former [ListView]).
+class _DoctorTodayTimelineEntry extends StatelessWidget {
+  const _DoctorTodayTimelineEntry({
+    required this.doc,
+    required this.isCurrent,
+    required this.onSetStatus,
+  });
+
+  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
+  final bool isCurrent;
+  final Future<void> Function(BuildContext context, String docId, String status)
+  onSetStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = doc.data();
+    final patientName =
+        (data[AppointmentFields.patientName] ?? '—').toString();
+    final status = AppointmentsScreen._statusKey(
+      data[AppointmentFields.status],
+    );
+    final dateTimeLine = AppointmentsScreen._formatDateTime(data);
+    final patientId =
+        (data[AppointmentFields.patientId] ?? '').toString().trim();
+    final timeRaw = staffDigitsToEnglishAscii(
+      (data[AppointmentFields.time] ?? '').toString().trim(),
+    );
+    final timeFallback = timeRaw.isNotEmpty ? timeRaw : '—';
+    final dtParts = dateTimeLine.split(RegExp(r'\s+•\s+'));
+    final datePartEn = dtParts.isNotEmpty ? dtParts[0].trim() : '';
+    final timePartEn =
+        dtParts.length > 1 ? dtParts[1].trim() : timeFallback;
+
+    void openDetail(Map<String, dynamic>? profile) {
+      AppointmentsScreen._showPatientDetail(
+        context,
+        patientProfile: profile,
+        fallbackPatientName: patientName,
+        dateTimeLine: dateTimeLine,
+        status: status,
+      );
+    }
+
+    if (patientId.isEmpty) {
+      return _TimelineGlassCard(
+        datePartEn: datePartEn,
+        timePartEn: timePartEn,
+        isCurrent: isCurrent,
+        patientName: patientName,
+        status: status,
+        showActions: status == 'pending',
+        phoneForCall: '',
+        ageLine: AppointmentsScreen._ageGenderPhoneSummary(
+          context,
+          null,
+          false,
+        ),
+        onDetail: () => openDetail(null),
+        onCall: null,
+        onComplete: () => onSetStatus(context, doc.id, 'completed'),
+        onCancel: () => onSetStatus(context, doc.id, 'cancelled'),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(patientId)
+          .snapshots(),
+      builder: (context, patientSnap) {
+        final loading = patientSnap.connectionState ==
+                ConnectionState.waiting &&
+            !patientSnap.hasData;
+        final profile = patientSnap.data?.data();
+        final phone = patientPhoneFromUserData(profile);
+        return _TimelineGlassCard(
+          datePartEn: datePartEn,
+          timePartEn: timePartEn,
+          isCurrent: isCurrent,
+          patientName: patientName,
+          status: status,
+          showActions: status == 'pending',
+          phoneForCall: phone,
+          ageLine: AppointmentsScreen._ageGenderPhoneSummary(
+            context,
+            profile,
+            loading,
+          ),
+          onDetail: () => openDetail(profile),
+          onCall: phone.isNotEmpty
+              ? () => AppointmentsScreen._launchTel(context, phone)
+              : null,
+          onComplete: () => onSetStatus(context, doc.id, 'completed'),
+          onCancel: () => onSetStatus(context, doc.id, 'cancelled'),
+        );
+      },
     );
   }
 }

@@ -1096,6 +1096,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'جدول اليوم',
     'en': "Today's timeline",
   },
+  /// Section below the timeline cards: one row per scheduled slot (by working hours).
+  'doctor_today_slots_heading': {
+    'ckb': 'نۆرەکان بەپێی کات',
+    'ar': 'المواعيد حسب الوقت',
+    'en': "Today's slots",
+  },
   'doctor_appointments_update_error': {
     'ckb': 'هەڵە لە نوێکردنەوە',
     'ar': 'خطأ في التحديث',
@@ -1794,6 +1800,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'دەستکاری کاتەکان',
     'ar': 'تعديل الأوقات',
     'en': 'Edit times',
+  },
+  'schedule_time_row_tap_hint': {
+    'ckb': 'دەست لێدە بۆ گۆڕینی کات',
+    'ar': 'اضغط لتغيير الوقت',
+    'en': 'Tap to change time',
   },
   'schedule_panel_tap_hint': {
     'ckb': 'دەست لێدە بۆ دەستکاری',
