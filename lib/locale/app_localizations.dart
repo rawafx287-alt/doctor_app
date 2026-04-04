@@ -1102,6 +1102,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'المواعيد حسب الوقت',
     'en': "Today's slots",
   },
+  /// Doctor dashboard: no working hours / closed day / zero generated slots.
+  'doctor_today_no_slots_message': {
+    'ckb': 'هیچ نۆرەیەک بۆ ئەمڕۆ بوونی نییە',
+    'ar': 'لا توجد مواعيد لهذا اليوم',
+    'en': 'There are no slots for today',
+  },
+  /// Doctor dashboard: clinic has hours but no booked appointments to list.
+  'doctor_today_no_booked_list_message': {
+    'ckb': 'هیچ نۆرەیەکی تۆمارکراو بۆ ئەمڕۆ نییە',
+    'ar': 'لا توجد مواعيد مسجلة لهذا اليوم',
+    'en': 'No booked appointments for today',
+  },
+  /// Label between active and completed appointment groups on the doctor dashboard.
+  'doctor_today_completed_section_label': {
+    'ckb': 'نۆرە تەواوبووەکان',
+    'ar': 'المواعيد المكتملة',
+    'en': 'Completed appointments',
+  },
   'doctor_appointments_update_error': {
     'ckb': 'هەڵە لە نوێکردنەوە',
     'ar': 'خطأ في التحديث',
