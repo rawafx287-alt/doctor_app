@@ -7,6 +7,7 @@ import '../firestore/appointment_queries.dart';
 import '../firestore/available_days_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -783,8 +784,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     Map<String, dynamic>? profile, {
                     required bool patientLoading,
                   }) {
+                    final slotStart =
+                        AppointmentsScreen.slotStartFromAppointmentDoc(doc);
+                    final timeLabel =
+                        DateFormat.jm('en_US').format(slotStart);
+
                     return _AppointmentCard(
                       patientName: patientName,
+                      appointmentTimeLabel: timeLabel,
                       queueEn: formatDailyQueueTicketEnglish(doc, queueById),
                       status: status,
                       showActions: status == 'pending',
@@ -1471,6 +1478,72 @@ class _DoctorCompletedAppointmentsSectionHeader extends StatelessWidget {
   }
 }
 
+/// Clock + time pill for doctor slot cards (secondary to the patient name chip).
+class _DoctorSlotTimePill extends StatelessWidget {
+  const _DoctorSlotTimePill({
+    required this.timeLabel,
+    this.alignment = Alignment.center,
+  });
+
+  final String timeLabel;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor =
+        Color.lerp(kStaffLuxGold, const Color(0xFFF8FAFC), 0.42)!;
+    return Align(
+      alignment: alignment,
+      child: Directionality(
+        textDirection: ui.TextDirection.ltr,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: const Color(0xFF121826).withValues(alpha: 0.78),
+            border: Border.all(
+              color: kStaffLuxGold.withValues(alpha: 0.4),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 13.5,
+                  color: kStaffLuxGold.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  timeLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.15,
+                    letterSpacing: 0.35,
+                    color: textColor.withValues(alpha: 0.94),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DoctorSlotGlassCard extends StatelessWidget {
   const _DoctorSlotGlassCard({
     super.key,
@@ -1566,71 +1639,101 @@ class _DoctorSlotGlassCard extends StatelessWidget {
           ? formatDailyQueueTicketEnglish(apptDoc, queueByDocId)
           : '—';
 
-      /// Time + name (or empty-slot copy) only; ticket sits in the outer card [Row].
+      /// Name (chip) then time for booked; empty slots: copy then time at bottom.
+      /// Ticket stays in the outer card [Row] on the end.
       Widget mainTapChild = Padding(
-        padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
-        child: Column(
-          crossAxisAlignment: booked
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Directionality(
-              textDirection: ui.TextDirection.ltr,
-              child: Text(
-                timeEn,
-                textAlign: booked ? TextAlign.center : TextAlign.start,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11.5,
-                  height: 1.05,
-                  color: kStaffLuxGold.withValues(alpha: 0.88),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 108),
+          child: Column(
+            crossAxisAlignment: booked
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (booked) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(
+                        alpha: stripGold ? 0.11 : 0.07,
+                      ),
+                      border: Border.all(
+                        color: kStaffLuxGold.withValues(
+                          alpha: stripGold ? 0.42 : 0.32,
+                        ),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        patientName,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          height: 1.22,
+                          letterSpacing: -0.2,
+                          color: Color(0xFFF8FAFC),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            if (booked) ...[
-              const SizedBox(height: 4),
-              Text(
-                patientName,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  height: 1.12,
-                  color: kStaffLuxGold.withValues(alpha: 0.97),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: _DoctorSlotTimePill(timeLabel: timeEn),
                 ),
-              ),
+              ],
+              if (!booked) ...[
+                Text(
+                  s.translate('schedule_slot_available_ku'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    height: 1.12,
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.translate('master_calendar_add_walkin'),
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 9.5,
+                    color: Colors.white.withValues(alpha: 0.48),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _DoctorSlotTimePill(
+                  timeLabel: timeEn,
+                  alignment: Alignment.centerLeft,
+                ),
+              ],
             ],
-            if (!booked) ...[
-              const SizedBox(height: 2),
-              Text(
-                s.translate('schedule_slot_available_ku'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  height: 1.12,
-                  color: Colors.white.withValues(alpha: 0.92),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                s.translate('master_calendar_add_walkin'),
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 9.5,
-                  color: Colors.white.withValues(alpha: 0.48),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       );
 
@@ -2027,6 +2130,7 @@ class _AppointmentsDashboardSearchField extends StatelessWidget {
 class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({
     required this.patientName,
+    required this.appointmentTimeLabel,
     required this.queueEn,
     required this.status,
     required this.showActions,
@@ -2036,6 +2140,7 @@ class _AppointmentCard extends StatelessWidget {
   });
 
   final String patientName;
+  final String appointmentTimeLabel;
   final String queueEn;
   final String status;
   final bool showActions;
@@ -2075,15 +2180,15 @@ class _AppointmentCard extends StatelessWidget {
                   : null,
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (showActions) ...[
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
-                        start: 4,
-                        end: 8,
+                        start: 0,
+                        end: 6,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2112,36 +2217,83 @@ class _AppointmentCard extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: onCardTap,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                patientName,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16,
-                                  height: 1.15,
-                                  color: kStaffLuxGold.withValues(
-                                    alpha: 0.98,
+                        borderRadius: BorderRadius.circular(14),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: 108,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 2,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      color: Colors.white.withValues(
+                                        alpha: stripGold ? 0.11 : 0.07,
+                                      ),
+                                      border: Border.all(
+                                        color: kStaffLuxGold.withValues(
+                                          alpha: stripGold ? 0.42 : 0.32,
+                                        ),
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.18,
+                                          ),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      child: Text(
+                                        patientName,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 18,
+                                          height: 1.22,
+                                          letterSpacing: -0.2,
+                                          color: Color(0xFFF8FAFC),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: _DoctorSlotTimePill(
+                                    timeLabel: appointmentTimeLabel,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 10),
+                    padding: const EdgeInsetsDirectional.only(end: 8),
                     child: Semantics(
                       label:
                           '${s.translate('secretary_ticket_number')} $queueEn',
