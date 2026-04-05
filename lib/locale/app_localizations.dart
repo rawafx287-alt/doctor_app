@@ -1910,6 +1910,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'فصيلة الدم',
     'en': 'Blood group',
   },
+  'doctor_appt_label_resident_place': {
+    'ckb': 'شوێنی نیشتەجێبوون',
+    'ar': 'مكان الإقامة',
+    'en': 'Resident place',
+  },
+  'doctor_appt_no_booking_notes': {
+    'ckb': 'هیچ تێبینییەک نییە',
+    'ar': 'لا توجد ملاحظات طبية',
+    'en': 'No medical notes',
+  },
   'action_cancel': {
     'ckb': 'پاشگەزبوونەوە',
     'ar': 'إلغاء',

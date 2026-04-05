@@ -45,6 +45,22 @@ String appointmentBloodGroupRaw(Map<String, dynamic>? appointmentData) {
       .trim();
 }
 
+/// City / area from the patient booking form ([AppointmentFields.bookingCityArea]).
+String appointmentResidentPlaceRaw(Map<String, dynamic>? appointmentData) {
+  return (appointmentData?[AppointmentFields.bookingCityArea] ?? '')
+      .toString()
+      .trim();
+}
+
+/// Medical notes saved on the appointment at booking time only.
+String appointmentBookingMedicalNotesRaw(
+  Map<String, dynamic>? appointmentData,
+) {
+  return (appointmentData?[AppointmentFields.bookingMedicalNotes] ?? '')
+      .toString()
+      .trim();
+}
+
 /// Medical notes from booking form plus optional profile history.
 String appointmentMedicalNotesCombined(
   Map<String, dynamic>? appointmentData,

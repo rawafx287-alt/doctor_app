@@ -18,6 +18,7 @@ class AppointmentModel {
     this.phoneNumber,
     this.gender,
     this.medicalNotes,
+    this.residentPlace,
   });
 
   final String id;
@@ -54,6 +55,9 @@ class AppointmentModel {
   /// [AppointmentFields.bookingMedicalNotes] only (not merged with profile).
   final String? medicalNotes;
 
+  /// [AppointmentFields.bookingCityArea] — city / resident area from booking form.
+  final String? residentPlace;
+
   factory AppointmentModel.fromFirestore(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
   ) {
@@ -86,6 +90,8 @@ class AppointmentModel {
         (m[AppointmentFields.bookingGender] ?? '').toString().trim();
     final mn =
         (m[AppointmentFields.bookingMedicalNotes] ?? '').toString().trim();
+    final rp =
+        (m[AppointmentFields.bookingCityArea] ?? '').toString().trim();
 
     return AppointmentModel(
       id: doc.id,
@@ -103,6 +109,7 @@ class AppointmentModel {
       phoneNumber: bp.isEmpty ? null : bp,
       gender: g.isEmpty ? null : g,
       medicalNotes: mn.isEmpty ? null : mn,
+      residentPlace: rp.isEmpty ? null : rp,
     );
   }
 }

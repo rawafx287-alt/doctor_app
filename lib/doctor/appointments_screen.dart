@@ -244,9 +244,13 @@ class AppointmentsScreen extends StatefulWidget {
               : _localizedGenderLabel(sheetContext, genderRaw);
           final bloodRaw = appointmentBloodGroupRaw(apptData);
           final bloodText = bloodRaw.isEmpty ? notRec : bloodRaw;
-          final history =
-              appointmentMedicalNotesCombined(apptData, profile);
-          final hasHistory = history.isNotEmpty;
+          final residentRaw = appointmentResidentPlaceRaw(apptData);
+          final residentDisplay =
+              residentRaw.isEmpty ? notRec : residentRaw;
+          final bookingMn = appointmentBookingMedicalNotesRaw(apptData);
+          final profileMn = patientLoading
+              ? ''
+              : patientMedicalHistoryFromUserData(profile);
 
           Widget detailCell({
             required String label,
@@ -404,8 +408,62 @@ class AppointmentsScreen extends StatefulWidget {
                 label: s.translate('doctor_appt_label_blood'),
                 value: Text(bloodText),
               ),
-              if (hasHistory) ...[
-                const SizedBox(height: 18),
+              const SizedBox(height: 16),
+              detailCell(
+                label: s.translate('doctor_appt_label_resident_place'),
+                value: Text(residentDisplay),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: kStaffLuxGold.withValues(alpha: 0.5),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kStaffLuxGold.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.translate('booking_form_medical_notes'),
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: kStaffLuxGold.withValues(alpha: 0.95),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      bookingMn.isEmpty
+                          ? s.translate('doctor_appt_no_booking_notes')
+                          : bookingMn,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Colors.white.withValues(
+                          alpha: bookingMn.isEmpty ? 0.55 : 0.9,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (profileMn.isNotEmpty) ...[
+                const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -430,7 +488,7 @@ class AppointmentsScreen extends StatefulWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        history,
+                        profileMn,
                         style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w600,
