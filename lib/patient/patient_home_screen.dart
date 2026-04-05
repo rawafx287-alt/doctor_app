@@ -802,7 +802,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 context,
                 specialtyRaw,
               );
-              final hospitalName = localizedDoctorHospitalName(data, lang);
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -814,7 +813,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                   PatientDoctorCard(
                     name: name,
                     specialty: specialty,
-                    hospitalName: hospitalName,
                     profileImageUrl:
                         (data['profileImageUrl'] ?? '').toString(),
                     onBook: () {
@@ -965,7 +963,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     const menuOffset = Offset(-10, 45);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 12, 6),
+      padding: const EdgeInsets.fromLTRB(16, 8, 12, 6),
       child: Row(
         // LTR keeps the title on the left and the ⋮ menu on the right in RTL apps.
         textDirection: TextDirection.ltr,
