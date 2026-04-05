@@ -864,6 +864,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'ملاحظات',
     'en': 'Feedback',
   },
+  'patient_home_menu_notifications': {
+    'ckb': 'ئاگادارکردنەوەکان',
+    'ar': 'الإشعارات',
+    'en': 'Notifications',
+  },
+  'patient_notifications_screen_title': {
+    'ckb': 'ئاگادارکردنەوەکان',
+    'ar': 'الإشعارات',
+    'en': 'Notifications',
+  },
+  'patient_notifications_empty': {
+    'ckb': 'هێشتا ئاگادارکردنەوەیەک نییە',
+    'ar': 'لا توجد إشعارات بعد',
+    'en': 'No notifications yet',
+  },
+  'patient_notifications_login': {
+    'ckb': 'تکایە بچۆ ژوورەوە',
+    'ar': 'يرجى تسجيل الدخول',
+    'en': 'Please sign in',
+  },
   'tooltip_logout': {
     'ckb': 'چوونەدەرەوە',
     'ar': 'تسجيل الخروج',

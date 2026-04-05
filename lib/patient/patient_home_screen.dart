@@ -1,11 +1,13 @@
 import 'dart:ui' show ImageFilter, MaskFilter, Path, PathOperation;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../auth/app_logout.dart';
+import '../auth/firestore_user_doc_id.dart';
 import '../push/patient_push_registration.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -20,6 +22,7 @@ import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
+import 'patient_notifications_screen.dart';
 import 'home_ad_carousel.dart';
 
 /// Search bar height (fixed above home [CustomScrollView]).
@@ -136,6 +139,7 @@ Widget _patientGlassMenuInkRow({
   required Color iconColor,
   required String label,
   required String value,
+  bool showUnreadDot = false,
 }) {
   return InkWell(
     onTap: () => Navigator.pop(menuContext, value),
@@ -143,7 +147,30 @@ Widget _patientGlassMenuInkRow({
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: iconColor),
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, size: 22, color: iconColor),
+                if (showUnreadDot)
+                  Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53935),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -999,7 +1026,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     // vertically so it reads as opening from the icon.
     const menuOffset = Offset(-10, 45);
 
-    return Padding(
+    final user = FirebaseAuth.instance.currentUser;
+    final inboxDocId =
+        user != null ? firestoreUserDocId(user).trim() : '';
+
+    Widget topBarShell({required bool hasUnreadNotifications}) {
+      return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 12, 6),
       child: Row(
         // LTR keeps the title on the left and the ⋮ menu on the right in RTL apps.
@@ -1104,6 +1136,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       builder: (context) => const ContactSupportScreen(),
                     ),
                   );
+                } else if (value == 'notifications') {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const PatientNotificationsScreen(),
+                    ),
+                  );
                 } else if (value == 'logout') {
                   await _logout();
                 }
@@ -1111,6 +1150,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               itemBuilder: (ctx) {
                 const profileBlue = Color(0xFF1565C0);
                 const feedbackTeal = Color(0xFF00897B);
+                const notificationsIndigo = Color(0xFF5C6BC0);
                 const logoutCoral = Color(0xFFE57373);
                 final dividerColor = Colors.grey.withValues(alpha: 0.15);
                 return [
@@ -1168,6 +1208,22 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                               ),
                               _patientGlassMenuInkRow(
                                 menuContext: ctx,
+                                icon: Icons.notifications_none_rounded,
+                                iconColor: notificationsIndigo,
+                                label:
+                                    s.translate('patient_home_menu_notifications'),
+                                value: 'notifications',
+                                showUnreadDot: hasUnreadNotifications,
+                              ),
+                              Divider(
+                                height: 1,
+                                thickness: 0.5,
+                                indent: 14,
+                                endIndent: 14,
+                                color: dividerColor,
+                              ),
+                              _patientGlassMenuInkRow(
+                                menuContext: ctx,
                                 icon: Icons.logout_rounded,
                                 iconColor: logoutCoral,
                                 label: s.translate('logout'),
@@ -1186,6 +1242,25 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
           ),
         ],
       ),
+    );
+    }
+
+    if (inboxDocId.isEmpty) {
+      return topBarShell(hasUnreadNotifications: false);
+    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(inboxDocId)
+          .collection('notificationInbox')
+          .where('read', isEqualTo: false)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snap) {
+        final hasUnread =
+            snap.hasData && (snap.data?.docs.isNotEmpty ?? false);
+        return topBarShell(hasUnreadNotifications: hasUnread);
+      },
     );
   }
 
