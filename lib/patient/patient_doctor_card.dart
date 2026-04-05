@@ -46,7 +46,8 @@ const List<BoxShadow> _kDoctorCardLayeredShadows = [
   ),
 ];
 
-/// Compact doctor row: vertical image on the end side, text + book CTA, overflow menu.
+/// Compact doctor row: vertical image on the end side, specialty + centered name
+/// and book CTA; ⋮ opens details (no dropdown).
 class PatientDoctorCard extends StatelessWidget {
   const PatientDoctorCard({
     super.key,
@@ -55,7 +56,6 @@ class PatientDoctorCard extends StatelessWidget {
     required this.onBook,
     required this.onOpenDetails,
     this.profileImageUrl,
-    this.hospitalName,
   });
 
   final String name;
@@ -64,8 +64,6 @@ class PatientDoctorCard extends StatelessWidget {
   final VoidCallback onOpenDetails;
   /// Firestore `profileImageUrl`; placeholder if null/empty.
   final String? profileImageUrl;
-  /// Localized hospital/clinic line; hidden when null/empty.
-  final String? hospitalName;
 
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
@@ -73,6 +71,12 @@ class PatientDoctorCard extends StatelessWidget {
   static const Color _navyText = kPatientNavyText;
 
   static const Color _deepBlue = Color(0xFF1565C0);
+
+  /// Muted tone for specialty badge text (does not compete with the name).
+  static const Color _kSpecialtySubtitle = Color(0xFF6B7F96);
+
+  /// Very light fill for specialty capsule (premium chip).
+  static const Color _kSpecialtyBadgeFill = Color(0xFF1565C0);
 
   static const double _radius = 20;
   static const double _kSilverBorderWidth = 0.9;
@@ -91,7 +95,6 @@ class PatientDoctorCard extends StatelessWidget {
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
     final rAfterSilver = _radius - _kSilverBorderWidth;
     final innerR = rAfterSilver - _kLightLeakBorder;
-    final hospitalLine = hospitalName?.trim() ?? '';
     final rawProfile = profileImageUrl?.trim() ?? '';
     final avatarUrl =
         rawProfile.isNotEmpty ? rawProfile : _placeholderImageUrl;
@@ -180,154 +183,111 @@ class PatientDoctorCard extends StatelessWidget {
                                     4,
                                     6,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: Stack(
-                                          clipBehavior: Clip.none,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final innerW = constraints.maxWidth;
+                                      final specialtyLabel =
+                                          S.of(context).translate(
+                                        'field_specialty',
+                                      );
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
                                           children: [
-                                            Center(
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                ),
+                                            Align(
+                                              alignment:
+                                                  Alignment.centerRight,
+                                              child:
+                                                  _PatientDoctorSpecialtyBadge(
+                                                label: specialtyLabel,
+                                                specialty: specialty,
+                                                maxWidth: innerW,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Expanded(
+                                              child: Center(
                                                 child: Column(
                                                   mainAxisSize:
                                                       MainAxisSize.min,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.center,
                                                   children: [
-                                                    Directionality(
-                                                      textDirection:
-                                                          nameDirection,
-                                                      child: Text(
-                                                        name.trim(),
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              kPatientPrimaryFont,
-                                                          fontSize: 17.5,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          height: 1.18,
-                                                          color: Color(
-                                                            0xFF1B365D,
-                                                          ),
-                                                        ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                        horizontal: 4,
                                                       ),
-                                                    ),
-                                                    if (hospitalLine
-                                                        .isNotEmpty) ...[
-                                                      const SizedBox(height: 5),
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons
-                                                                .local_hospital_rounded,
-                                                            size: 11,
-                                                            color: _kLuxGold
-                                                                .withValues(
-                                                              alpha: 0.88,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          ConstrainedBox(
-                                                            constraints:
-                                                                const BoxConstraints(
-                                                              maxWidth: 140,
-                                                            ),
+                                                      child: SizedBox(
+                                                        width: innerW,
+                                                        child: FittedBox(
+                                                          fit: BoxFit
+                                                              .scaleDown,
+                                                          alignment:
+                                                              Alignment
+                                                                  .center,
+                                                          child:
+                                                              Directionality(
+                                                            textDirection:
+                                                                nameDirection,
                                                             child: Text(
-                                                              hospitalLine,
+                                                              name.trim(),
                                                               textAlign:
                                                                   TextAlign
                                                                       .center,
                                                               maxLines: 1,
+                                                              softWrap: false,
                                                               overflow:
                                                                   TextOverflow
                                                                       .ellipsis,
-                                                              style: TextStyle(
+                                                              style:
+                                                                  const TextStyle(
                                                                 fontFamily:
                                                                     kPatientPrimaryFont,
+                                                                fontSize:
+                                                                    18.25,
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .w600,
-                                                                fontSize: 10,
-                                                                color: _navyText
-                                                                    .withValues(
-                                                                  alpha: 0.65,
+                                                                        .w800,
+                                                                height: 1.15,
+                                                                letterSpacing:
+                                                                    -0.12,
+                                                                color: Color(
+                                                                  0xFF0A1628,
                                                                 ),
                                                               ),
                                                             ),
                                                           ),
-                                                        ],
+                                                        ),
                                                       ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 0,
-                                              right: 0,
-                                              child: ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxWidth: 168,
-                                                ),
-                                                child: Text(
-                                                  '${S.of(context).translate('field_specialty')}: $specialty',
-                                                  textAlign: TextAlign.right,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontFamily:
-                                                        kPatientPrimaryFont,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w600,
-                                                    height: 1.2,
-                                                    letterSpacing: 0.1,
-                                                    color: _navyText.withValues(
-                                                      alpha: 0.75,
                                                     ),
-                                                  ),
+                                                    const SizedBox(height: 12),
+                                                    Center(
+                                                      child:
+                                                          _DoctorCardPressableButton(
+                                                        onTap: onBook,
+                                                        child:
+                                                            _BookNowPrimaryButton(
+                                                          bookCtaText: S
+                                                              .of(context)
+                                                              .translate(
+                                                            'patient_doctor_card_book_cta',
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Center(
-                                          child: _DoctorCardPressableButton(
-                                            onTap: onBook,
-                                            child: _BookNowPrimaryButton(
-                                              bookCtaText: S.of(context)
-                                                  .translate(
-                                                'patient_doctor_card_book_cta',
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
@@ -379,38 +339,27 @@ class PatientDoctorCard extends StatelessWidget {
                             ],
                           ),
                           Positioned(
-                            left: 2,
-                            top: -6,
+                            left: 0,
+                            top: -4,
                             child: Material(
                               color: Colors.transparent,
-                              child: PopupMenuButton<String>(
-                                padding: EdgeInsets.zero,
-                                tooltip: S.of(context).translate(
-                                  'patient_doctor_card_details_short',
-                                ),
-                                icon: Icon(
-                                  Icons.more_vert_rounded,
-                                  size: 21,
-                                  color: _navyText.withValues(alpha: 0.72),
-                                ),
-                                onSelected: (v) {
-                                  if (v == 'details') {
-                                    onOpenDetails();
-                                  }
+                              child: InkWell(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  onOpenDetails();
                                 },
-                                itemBuilder: (ctx) => [
-                                  PopupMenuItem<String>(
-                                    value: 'details',
-                                    child: Text(
-                                      S.of(ctx).translate(
-                                        'patient_doctor_card_details_short',
-                                      ),
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                      ),
-                                    ),
+                                splashColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                                hoverColor: Colors.transparent,
+                                borderRadius: BorderRadius.circular(22),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.more_vert_rounded,
+                                    size: 21,
+                                    color: _navyText.withValues(alpha: 0.72),
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -419,6 +368,60 @@ class PatientDoctorCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Rounded capsule for specialty — top-right of the card text area.
+class _PatientDoctorSpecialtyBadge extends StatelessWidget {
+  const _PatientDoctorSpecialtyBadge({
+    required this.label,
+    required this.specialty,
+    required this.maxWidth,
+  });
+
+  final String label;
+  final String specialty;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = '$label | $specialty';
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: maxWidth.clamp(48, 176),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: PatientDoctorCard._kSpecialtyBadgeFill.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+              alpha: 0.2,
+            ),
+            width: 0.5,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            line,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontSize: 8.75,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.06,
+              color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+                alpha: 0.95,
               ),
             ),
           ),

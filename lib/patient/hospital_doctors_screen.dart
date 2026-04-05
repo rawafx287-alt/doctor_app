@@ -231,12 +231,9 @@ class HospitalDoctorsScreen extends StatelessWidget {
                             context,
                             specialtyRaw,
                           );
-                          final hospitalName =
-                              localizedDoctorHospitalName(data, lang);
                           return PatientDoctorCard(
                             name: dname,
                             specialty: specialty,
-                            hospitalName: hospitalName,
                             profileImageUrl:
                                 (data['profileImageUrl'] ?? '').toString(),
                             onBook: () {
