@@ -1820,6 +1820,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الاسم الكامل',
     'en': 'Full name',
   },
+  'booking_form_full_name_hint': {
+    'ckb': 'ناوی سیانیت لێرە بنووسە...',
+    'ar': 'اكتب اسمك الكامل هنا...',
+    'en': 'Type your full name here…',
+  },
   'booking_form_age': {
     'ckb': 'تەمەن',
     'ar': 'العمر',

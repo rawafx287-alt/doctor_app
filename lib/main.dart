@@ -276,10 +276,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    height: 24,
-                    child: Center(child: iconWidget),
-                  ),
+                  SizedBox(height: 24, child: Center(child: iconWidget)),
                   const SizedBox(height: 3),
                   Container(
                     width: 5,

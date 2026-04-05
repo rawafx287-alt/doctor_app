@@ -39,13 +39,11 @@ const List<String> _kCityAreas = [
 class BookingDetailsPage extends StatefulWidget {
   const BookingDetailsPage({
     super.key,
-    required this.initialFullName,
     required this.doctorDisplayName,
     required this.dateLocal,
     required this.slotTimeLabelEn,
   });
 
-  final String initialFullName;
   final String doctorDisplayName;
   final DateTime dateLocal;
   /// First free slot label using English numerals (e.g. 9:00 AM).
@@ -67,12 +65,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   bool _male = true;
 
   static final _digitsOnly = FilteringTextInputFormatter.digitsOnly;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl.text = widget.initialFullName.trim();
-  }
 
   @override
   void dispose() {
@@ -265,7 +257,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       style: _inputStyle,
                       decoration: _inputDecoration(
                         icon: Icons.person_rounded,
-                        hint: s.translate('booking_form_full_name'),
+                        hint: s.translate('booking_form_full_name_hint'),
                       ),
                       textInputAction: TextInputAction.next,
                       validator: (v) {
@@ -345,10 +337,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       style: _inputStyle,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [_digitsOnly],
+                      maxLength: 11,
                       decoration: _inputDecoration(
                         icon: Icons.phone_rounded,
                         hint: '0750…',
-                      ),
+                      ).copyWith(counterText: ''),
                       textInputAction: TextInputAction.next,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {

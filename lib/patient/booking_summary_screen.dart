@@ -1090,7 +1090,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     final form = await Navigator.of(context).push<PatientBookingFormResult>(
       MaterialPageRoute<PatientBookingFormResult>(
         builder: (_) => BookingDetailsPage(
-          initialFullName: widget.patientName,
           doctorDisplayName: widget.doctorDisplayName,
           dateLocal: widget.dateLocal,
           slotTimeLabelEn: slotTimeLabelEn,
