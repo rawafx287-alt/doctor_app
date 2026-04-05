@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +13,7 @@ import 'doctor_profile_screen.dart';
 import '../schedule/schedule_management_screen.dart';
 import 'doctor_premium_shell.dart';
 
-/// Doctor shell: profile / history / schedule / appointments (gold FAB + label).
+/// Doctor shell: profile / history / schedule / appointments.
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
 
@@ -24,12 +22,11 @@ class DoctorHomeScreen extends StatefulWidget {
 }
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
-  /// 0 = appointments (gold FAB), 1 = schedule, 2 = history/archive, 3 = profile
+  /// 0 = appointments, 1 = schedule, 2 = history/archive, 3 = profile
   int _bottomNavIndex = 0;
   String? _doctorUserId;
 
-  /// Muted label/icon when tab is inactive (soft white/gray).
-  static const Color _navInactiveMuted = Color(0xFFB8C0CC);
+  static const Color _navStrip = Color(0xFF0E1628);
 
   @override
   void initState() {
@@ -99,226 +96,99 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  Widget _buildGlassBottomNav(BuildContext context) {
+  /// LTR: profile → history → schedule → appointments. RTL: reversed.
+  List<({int navIndex, IconData icon, String label})> _navSlots(
+    BuildContext context,
+    bool isRtl,
+  ) {
     final s = S.of(context);
-    const barRadius = 32.0;
-    const barHeight = 82.0;
-    const labelStyle = TextStyle(
-      fontFamily: kPatientPrimaryFont,
-      fontSize: 10,
-      fontWeight: FontWeight.w700,
-      height: 1.05,
-    );
-
-    TextStyle labelFor(bool selected) => labelStyle.copyWith(
-          color: selected ? kStaffLuxGold : _navInactiveMuted,
-        );
-
-    Widget navItem({
-      required int index,
-      required IconData icon,
-      required String label,
-    }) {
-      final selected = _bottomNavIndex == index;
-      final gold = kStaffLuxGold;
-      final inactive = _navInactiveMuted;
-
-      final iconCore = Icon(
-        icon,
-        size: 22,
-        color: selected ? gold : inactive,
-      );
-
-      return Expanded(
-        child: _DoctorNavTabScale(
-          selected: selected,
-          onTap: () => _onBottomNavTap(index),
-          child: Material(
-            color: Colors.transparent,
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 24,
-                    child: Center(child: iconCore),
-                  ),
-                  const SizedBox(height: 3),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected ? gold : Colors.transparent,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: labelFor(selected),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    if (isRtl) {
+      return [
+        (
+          navIndex: 0,
+          icon: Icons.calendar_view_month_rounded,
+          label: s.translate('doctor_nav_appointments'),
         ),
-      );
-    }
-
-    /// Gold circle FAB + dot + label (نۆرەکان).
-    Widget appointmentsPrimaryFab() {
-      const index = 0;
-      final selected = _bottomNavIndex == index;
-      final gold = kStaffLuxGold;
-      return Expanded(
-        child: _DoctorNavTabScale(
-          selected: selected,
-          onTap: () => _onBottomNavTap(index),
-          child: Material(
-            color: Colors.transparent,
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: kStaffGoldActionGradient,
-                      border: Border.all(
-                        color: selected ? kStaffLuxGoldLight : kStaffSilverBorder,
-                        width: selected ? 2.0 : 1.0,
-                      ),
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: kStaffLuxGold.withValues(alpha: 0.22),
-                                blurRadius: 9,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: const Icon(
-                      Icons.calendar_view_month_rounded,
-                      color: kStaffOnGoldText,
-                      size: 21,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected ? gold : Colors.transparent,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    s.translate('doctor_nav_appointments'),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: labelFor(selected),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        (
+          navIndex: 1,
+          icon: Icons.event_note_rounded,
+          label: s.translate('doctor_nav_schedule'),
         ),
-      );
+        (
+          navIndex: 2,
+          icon: Icons.manage_history_rounded,
+          label: s.translate('doctor_nav_history'),
+        ),
+        (
+          navIndex: 3,
+          icon: Icons.person_rounded,
+          label: s.translate('doctor_nav_profile'),
+        ),
+      ];
     }
+    return [
+      (
+        navIndex: 3,
+        icon: Icons.person_rounded,
+        label: s.translate('doctor_nav_profile'),
+      ),
+      (
+        navIndex: 2,
+        icon: Icons.manage_history_rounded,
+        label: s.translate('doctor_nav_history'),
+      ),
+      (
+        navIndex: 1,
+        icon: Icons.event_note_rounded,
+        label: s.translate('doctor_nav_schedule'),
+      ),
+      (
+        navIndex: 0,
+        icon: Icons.calendar_view_month_rounded,
+        label: s.translate('doctor_nav_appointments'),
+      ),
+    ];
+  }
+
+  Widget _buildDoctorBottomNav(BuildContext context) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final slots = _navSlots(context, isRtl);
 
     return SafeArea(
       top: false,
+      maintainBottomViewPadding: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-        child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(barRadius),
+            color: _navStrip,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: kStaffLuxGold.withValues(alpha: 0.14),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 28,
-                offset: const Offset(0, 14),
-              ),
-              BoxShadow(
-                color: kStaffLuxGold.withValues(alpha: 0.12),
-                blurRadius: 18,
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(barRadius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-              child: Container(
-                height: barHeight,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.07),
-                  border: Border(
-                    top: BorderSide(
-                      color: kStaffLuxGold.withValues(alpha: 0.78),
-                      width: 1,
+          child: SizedBox(
+            height: 76,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final slot in slots)
+                  Expanded(
+                    child: _DoctorBottomNavItem(
+                      icon: slot.icon,
+                      label: slot.label,
+                      selected: _bottomNavIndex == slot.navIndex,
+                      onTap: () => _onBottomNavTap(slot.navIndex),
                     ),
                   ),
-                  borderRadius: BorderRadius.circular(barRadius),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Builder(
-                    builder: (context) {
-                      final isRtl =
-                          Directionality.of(context) == TextDirection.rtl;
-                      final appointmentsFab = appointmentsPrimaryFab();
-                      final schedule = navItem(
-                        index: 1,
-                        icon: Icons.event_note_rounded,
-                        label: s.translate('doctor_nav_schedule'),
-                      );
-                      final history = navItem(
-                        index: 2,
-                        icon: Icons.manage_history_rounded,
-                        label: s.translate('doctor_nav_history'),
-                      );
-                      final profile = navItem(
-                        index: 3,
-                        icon: Icons.person_rounded,
-                        label: s.translate('doctor_nav_profile'),
-                      );
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: isRtl
-                            ? <Widget>[
-                                appointmentsFab,
-                                schedule,
-                                history,
-                                profile,
-                              ]
-                            : <Widget>[
-                                profile,
-                                history,
-                                schedule,
-                                appointmentsFab,
-                              ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+              ],
             ),
           ),
         ),
@@ -332,7 +202,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
-        extendBody: true,
+        extendBody: false,
         extendBodyBehindAppBar: true,
         backgroundColor: kDoctorPremiumGradientBottom,
         appBar: _buildAppBar(context),
@@ -372,40 +242,87 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: _buildGlassBottomNav(context),
+        bottomNavigationBar: _buildDoctorBottomNav(context),
       ),
     );
   }
 }
 
-/// Selected tab is larger; inactive tabs stay at 1.0. Snappy linear transition on change.
-class _DoctorNavTabScale extends StatelessWidget {
-  const _DoctorNavTabScale({
+class _DoctorBottomNavItem extends StatelessWidget {
+  const _DoctorBottomNavItem({
+    required this.icon,
+    required this.label,
     required this.selected,
     required this.onTap,
-    required this.child,
   });
 
+  final IconData icon;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
-  final Widget child;
 
-  static const Duration _animDuration = Duration(milliseconds: 100);
+  static const Color _inactiveIcon = Color(0xFFE2E8F0);
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: AnimatedScale(
-          scale: selected ? 1.28 : 1.0,
-          duration: _animDuration,
-          curve: Curves.linear,
-          alignment: Alignment.center,
-          filterQuality: FilterQuality.medium,
-          child: child,
+    final gold = kStaffLuxGold;
+    final iconColor = selected ? gold : _inactiveIcon;
+    final textColor = selected ? gold : const Color(0xFF9CA8B8);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: gold.withValues(alpha: 0.12),
+        highlightColor: gold.withValues(alpha: 0.06),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 24, color: iconColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 8,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    width: selected ? 5 : 0,
+                    height: selected ? 5 : 0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? gold : Colors.transparent,
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: gold.withValues(alpha: 0.55),
+                                blurRadius: 8,
+                                spreadRadius: 0.5,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
