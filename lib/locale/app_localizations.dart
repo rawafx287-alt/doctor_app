@@ -2959,6 +2959,84 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'إضافة طبيب يدوياً',
     'en': 'Manually add a doctor account',
   },
+  'admin_card_ads_title': {
+    'ckb': 'ڕیکلامەکان',
+    'ar': 'الإعلانات',
+    'en': 'Ads',
+  },
+  'admin_card_ads_subtitle': {
+    'ckb': 'بەڕێوەبردنی وێنەی ڕیکلام لە سەرەتا',
+    'ar': 'إدارة صور الإعلانات في الصفحة الرئيسية',
+    'en': 'Manage home promo banner images',
+  },
+  'admin_ads_page_title': {
+    'ckb': 'ڕیکلامەکان',
+    'ar': 'الإعلانات',
+    'en': 'Manage ads',
+  },
+  'admin_ads_intro': {
+    'ckb':
+        'وێنەکان لە نێوان گەڕان و پسپۆڕییەکان دەردەکەون. دەتوانیت چەند وێنە هەڵبژێریت یان ڕیکلام بسڕیتەوە.',
+    'ar':
+        'تظهر الصور بين البحث والتخصصات. يمكنك اختيار عدة صور أو حذف إعلان.',
+    'en':
+        'Banners appear between search and specialties. Select multiple images or remove ads.',
+  },
+  'admin_ads_upload': {
+    'ckb': 'بارکردنی وێنە (یان چەند وێنە)',
+    'ar': 'رفع صورة أو عدة صور',
+    'en': 'Upload image(s)',
+  },
+  'admin_ads_uploading': {
+    'ckb': 'باردەکرێت...',
+    'ar': 'جاري الرفع...',
+    'en': 'Uploading...',
+  },
+  'admin_ads_upload_ok': {
+    'ckb': 'وێنەکە پاشەکەوت کرا',
+    'ar': 'تم حفظ الصورة',
+    'en': 'Image saved',
+  },
+  'admin_ads_upload_ok_batch': {
+    'ckb': '{count} وێنە بە سەرکەوتوویی بارکران',
+    'ar': 'تم رفع {count} صورة',
+    'en': 'Uploaded {count} images',
+  },
+  'admin_ads_active_list_title': {
+    'ckb': 'ڕیکلامە چالاکەکان',
+    'ar': 'الإعلانات النشطة',
+    'en': 'Active ads',
+  },
+  'admin_ads_deleted_ok': {
+    'ckb': 'ڕیکلامەکە سڕایەوە',
+    'ar': 'تم حذف الإعلان',
+    'en': 'Ad removed',
+  },
+  'admin_ads_delete': {
+    'ckb': 'سڕینەوە',
+    'ar': 'حذف',
+    'en': 'Delete',
+  },
+  'admin_ads_empty': {
+    'ckb': 'هیچ ڕیکلامێک نییە — وێنە بار بکە بۆ پیشاندان لە سەرەتا.',
+    'ar': 'لا توجد إعلانات — ارفع صورة لعرضها في الصفحة الرئيسية.',
+    'en': 'No ads yet — upload an image to show on home.',
+  },
+  'admin_ads_error': {
+    'ckb': 'هەڵە',
+    'ar': 'خطأ',
+    'en': 'Error',
+  },
+  'admin_ads_delete_confirm_title': {
+    'ckb': 'سڕینەوەی ڕیکلام',
+    'ar': 'حذف الإعلان',
+    'en': 'Remove ad',
+  },
+  'admin_ads_delete_confirm_body': {
+    'ckb': 'دڵنیایت لە سڕینەوەی ئەم ڕیکلامە؟',
+    'ar': 'هل تريد حذف هذا الإعلان؟',
+    'en': 'Remove this ad from the slider?',
+  },
   'admin_logout': {
     'ckb': 'چوونەدەرەوە',
     'ar': 'تسجيل الخروج',
