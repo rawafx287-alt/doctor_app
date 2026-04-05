@@ -10,63 +10,8 @@ import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
 import '../widgets/secretary_appointment_card.dart';
 
-DateTime? _parseAppointmentDay(dynamic value) {
-  if (value == null) return null;
-  if (value is Timestamp) {
-    final d = value.toDate();
-    return DateTime(d.year, d.month, d.day);
-  }
-  if (value is DateTime) {
-    return DateTime(value.year, value.month, value.day);
-  }
-  final s = value.toString().trim();
-  if (s.isEmpty) return null;
-  final ymd = RegExp(r'^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})');
-  final m = ymd.firstMatch(s);
-  if (m != null) {
-    return DateTime(
-      int.parse(m.group(1)!),
-      int.parse(m.group(2)!),
-      int.parse(m.group(3)!),
-    );
-  }
-  try {
-    final d = DateTime.parse(s);
-    return DateTime(d.year, d.month, d.day);
-  } catch (_) {
-    return null;
-  }
-}
-
-int _timeSortMinutes(dynamic timeVal) {
-  final s = (timeVal ?? '').toString().trim();
-  final m = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(s);
-  if (m != null) {
-    return int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
-  }
-  return 1 << 20;
-}
-
-void _sortAppointmentsByDateThenTime(
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
-) {
-  list.sort((a, b) {
-    final da = _parseAppointmentDay(a.data()[AppointmentFields.date]);
-    final db = _parseAppointmentDay(b.data()[AppointmentFields.date]);
-    if (da != null && db != null) {
-      final c = da.compareTo(db);
-      if (c != 0) return c;
-    } else if (da != null) {
-      return -1;
-    } else if (db != null) {
-      return 1;
-    }
-    return _timeSortMinutes(a.data()[AppointmentFields.time])
-        .compareTo(_timeSortMinutes(b.data()[AppointmentFields.time]));
-  });
-}
-
-/// Secretary: all appointments for a selected doctor, chronological order, status + payment actions.
+/// Secretary: appointments for selected doctor — active (earliest first), then
+/// completed/cancelled (most recently updated first). Re-sorts on each snapshot.
 class SecretaryBookingsDashboardScreen extends StatefulWidget {
   const SecretaryBookingsDashboardScreen({super.key});
 
@@ -79,6 +24,23 @@ class _SecretaryBookingsDashboardScreenState
     extends State<SecretaryBookingsDashboardScreen> {
   String? _pickedDoctorId;
   final Set<String> _updating = {};
+  final ScrollController _appointmentsScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _appointmentsScrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollAppointmentsToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final c = _appointmentsScrollController;
+      if (c.hasClients) {
+        c.jumpTo(0);
+      }
+    });
+  }
 
   Future<void> _setStatus(String docId, String status) async {
     final id = docId.trim();
@@ -95,6 +57,7 @@ class _SecretaryBookingsDashboardScreenState
     } finally {
       if (mounted) {
         setState(() => _updating.remove(id));
+        _scrollAppointmentsToTop();
       }
     }
   }
@@ -308,7 +271,7 @@ class _SecretaryBookingsDashboardScreenState
                                   Map<String, dynamic>>>.from(
                             snapshot.data?.docs ?? [],
                           );
-                          _sortAppointmentsByDateThenTime(docs);
+                          sortStaffAppointmentsInPlace(docs);
                           final queueById = dailyQueueNumberByDocId(docs);
 
                           if (docs.isEmpty) {
@@ -321,6 +284,7 @@ class _SecretaryBookingsDashboardScreenState
                           }
 
                           return ListView.separated(
+                            controller: _appointmentsScrollController,
                             padding: EdgeInsets.fromLTRB(
                               16,
                               4,
@@ -393,31 +357,38 @@ class _SecretaryBookingsDashboardScreenState
                                 );
                               }
 
+                              final Widget row;
                               if (patientId.isEmpty) {
                                 final raw = appointmentBookingPhoneRaw(data, null);
                                 final phoneEn = raw.trim().isEmpty
                                     ? s.translate('booking_detail_not_recorded')
                                     : staffDigitsToEnglishAscii(raw);
-                                return buildCard(phoneEn, raw);
+                                row = buildCard(phoneEn, raw);
+                              } else {
+                                row = StreamBuilder<
+                                    DocumentSnapshot<Map<String, dynamic>>>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(patientId)
+                                      .snapshots(),
+                                  builder: (context, snap) {
+                                    final userData = snap.data?.data();
+                                    final raw = appointmentBookingPhoneRaw(
+                                      data,
+                                      userData,
+                                    );
+                                    final phoneEn = raw.trim().isEmpty
+                                        ? s.translate(
+                                            'booking_detail_not_recorded',
+                                          )
+                                        : staffDigitsToEnglishAscii(raw);
+                                    return buildCard(phoneEn, raw);
+                                  },
+                                );
                               }
-
-                              return StreamBuilder<
-                                  DocumentSnapshot<Map<String, dynamic>>>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(patientId)
-                                    .snapshots(),
-                                builder: (context, snap) {
-                                  final userData = snap.data?.data();
-                                  final raw =
-                                      appointmentBookingPhoneRaw(data, userData);
-                                  final phoneEn = raw.trim().isEmpty
-                                      ? s.translate(
-                                          'booking_detail_not_recorded',
-                                        )
-                                      : staffDigitsToEnglishAscii(raw);
-                                  return buildCard(phoneEn, raw);
-                                },
+                              return KeyedSubtree(
+                                key: ValueKey<String>(doc.id),
+                                child: row,
                               );
                             },
                           );

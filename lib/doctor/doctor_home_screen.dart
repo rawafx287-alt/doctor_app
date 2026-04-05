@@ -2,7 +2,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
@@ -11,11 +10,13 @@ import '../auth/app_logout.dart';
 import '../auth/doctor_session_cache.dart';
 import '../auth/firestore_user_doc_id.dart';
 import 'appointments_screen.dart';
+import 'doctor_patient_archive_screen.dart';
 import 'doctor_profile_screen.dart';
 import '../schedule/schedule_management_screen.dart';
 import 'doctor_premium_shell.dart';
+import '../widgets/pressable_scale.dart';
 
-/// Doctor shell: appointments + schedule (center gold) + profile.
+/// Doctor shell: profile / history / schedule / appointments (gold FAB + label).
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
 
@@ -24,7 +25,7 @@ class DoctorHomeScreen extends StatefulWidget {
 }
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
-  /// 0 = appointments, 1 = schedule, 2 = profile
+  /// 0 = appointments (gold FAB), 1 = schedule, 2 = history/archive, 3 = profile
   int _bottomNavIndex = 0;
   String? _doctorUserId;
 
@@ -56,7 +57,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   void _onBottomNavTap(int index) {
-    HapticFeedback.lightImpact();
+    if (index == _bottomNavIndex) return;
     setState(() => _bottomNavIndex = index);
   }
 
@@ -68,6 +69,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       case 1:
         return s.translate('doctor_nav_schedule');
       case 2:
+        return s.translate('doctor_nav_history');
+      case 3:
         return s.translate('doctor_nav_profile');
       default:
         return '';
@@ -100,7 +103,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Widget _buildGlassBottomNav(BuildContext context) {
     final s = S.of(context);
     const barRadius = 32.0;
-    const barHeight = 64.0;
+    const barHeight = 82.0;
     const labelStyle = TextStyle(
       fontFamily: kPatientPrimaryFont,
       fontSize: 10,
@@ -109,8 +112,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
 
     TextStyle labelFor(bool selected) => labelStyle.copyWith(
-      color: selected ? kStaffLuxGold : _navInactiveMuted,
-    );
+          color: selected ? kStaffLuxGold : _navInactiveMuted,
+        );
 
     Widget navItem({
       required int index,
@@ -128,12 +131,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       );
 
       return Expanded(
-        child: Material(
-          color: Colors.transparent,
-          elevation: 0,
-          child: InkWell(
-            onTap: () => _onBottomNavTap(index),
-            borderRadius: BorderRadius.circular(20),
+        child: PressableScale(
+          onTap: () => _onBottomNavTap(index),
+          child: Material(
+            color: Colors.transparent,
+            elevation: 0,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
@@ -156,6 +158,75 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelFor(selected),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    /// Gold circle FAB + dot + label (نۆرەکان).
+    Widget appointmentsPrimaryFab() {
+      const index = 0;
+      final selected = _bottomNavIndex == index;
+      final gold = kStaffLuxGold;
+      return Expanded(
+        child: PressableScale(
+          scale: 0.94,
+          onTap: () => _onBottomNavTap(index),
+          child: Material(
+            color: Colors.transparent,
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: kStaffGoldActionGradient,
+                      border: Border.all(
+                        color: selected ? kStaffLuxGoldLight : kStaffSilverBorder,
+                        width: selected ? 2.4 : 1.1,
+                      ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: kStaffLuxGold.withValues(alpha: 0.28),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: const Icon(
+                      Icons.event_note_rounded,
+                      color: kStaffOnGoldText,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? gold : Colors.transparent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    s.translate('doctor_nav_appointments'),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -211,55 +282,37 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                     builder: (context) {
                       final isRtl =
                           Directionality.of(context) == TextDirection.rtl;
-                      // RTL: start = right → appointments first; LTR: profile left.
-                      final appt = navItem(
-                        index: 0,
-                        icon: Icons.calendar_month_rounded,
-                        label: s.translate('doctor_nav_appointments'),
+                      final appointmentsFab = appointmentsPrimaryFab();
+                      final schedule = navItem(
+                        index: 1,
+                        icon: Icons.calendar_view_month_rounded,
+                        label: s.translate('doctor_nav_schedule'),
+                      );
+                      final history = navItem(
+                        index: 2,
+                        icon: Icons.manage_history_rounded,
+                        label: s.translate('doctor_nav_history'),
                       );
                       final profile = navItem(
-                        index: 2,
+                        index: 3,
                         icon: Icons.person_rounded,
                         label: s.translate('doctor_nav_profile'),
-                      );
-                      final scheduleButton = Tooltip(
-                        message: s.translate('doctor_nav_schedule'),
-                        child: Material(
-                          color: Colors.transparent,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () => _onBottomNavTap(1),
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: kStaffGoldActionGradient,
-                                border: Border.all(
-                                  color: _bottomNavIndex == 1
-                                      ? kStaffLuxGoldLight
-                                      : kStaffSilverBorder,
-                                  width: _bottomNavIndex == 1 ? 2.4 : 1.1,
-                                ),
-                              ),
-                              child: const SizedBox(
-                                width: 56,
-                                height: 56,
-                                child: Icon(
-                                  Icons.event_available_rounded,
-                                  color: kStaffOnGoldText,
-                                  size: 26,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       );
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: isRtl
-                            ? <Widget>[appt, scheduleButton, profile]
-                            : <Widget>[profile, scheduleButton, appt],
+                            ? <Widget>[
+                                appointmentsFab,
+                                schedule,
+                                history,
+                                profile,
+                              ]
+                            : <Widget>[
+                                profile,
+                                history,
+                                schedule,
+                                appointmentsFab,
+                              ],
                       );
                     },
                   ),
@@ -274,6 +327,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final doctorId = _doctorUserId;
     return Directionality(
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
@@ -289,16 +343,29 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               bottom: false,
               child: IndexedStack(
                 index: _bottomNavIndex,
+                sizing: StackFit.expand,
                 children: [
-                  AppointmentsScreen(
-                    embedded: true,
-                    doctorUserId: _doctorUserId,
+                  _DoctorTabKeepAlive(
+                    child: AppointmentsScreen(
+                      embedded: true,
+                      doctorUserId: doctorId,
+                    ),
                   ),
-                  ScheduleManagementScreen(
-                    embedded: true,
-                    managedDoctorUserId: _doctorUserId,
+                  _DoctorTabKeepAlive(
+                    child: ScheduleManagementScreen(
+                      embedded: true,
+                      managedDoctorUserId: doctorId,
+                    ),
                   ),
-                  DoctorProfileScreen(doctorUserId: _doctorUserId),
+                  _DoctorTabKeepAlive(
+                    child: DoctorPatientArchiveScreen(
+                      embedded: true,
+                      doctorUserId: doctorId ?? '',
+                    ),
+                  ),
+                  _DoctorTabKeepAlive(
+                    child: DoctorProfileScreen(doctorUserId: doctorId),
+                  ),
                 ],
               ),
             ),
@@ -307,5 +374,27 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         bottomNavigationBar: _buildGlassBottomNav(context),
       ),
     );
+  }
+}
+
+/// Keeps scroll/state inside each doctor shell tab under [IndexedStack].
+class _DoctorTabKeepAlive extends StatefulWidget {
+  const _DoctorTabKeepAlive({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DoctorTabKeepAlive> createState() => _DoctorTabKeepAliveState();
+}
+
+class _DoctorTabKeepAliveState extends State<_DoctorTabKeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

@@ -99,6 +99,88 @@ Query<Map<String, dynamic>> appointmentsForDoctorDateRange({
       .orderBy(AppointmentFields.status, descending: false);
 }
 
+/// All appointments for [doctorUserId] in a local calendar month (for archive / reporting).
+Stream<QuerySnapshot<Map<String, dynamic>>> watchDoctorAppointmentsForLocalMonth({
+  required String doctorUserId,
+  required int year,
+  required int month,
+}) {
+  final start = DateTime(year, month, 1);
+  final end = DateTime(year, month + 1, 1);
+  return appointmentsForDoctorDateRange(
+    doctorUserId: doctorUserId.trim(),
+    rangeStartInclusiveLocal: start,
+    rangeEndExclusiveLocal: end,
+  ).snapshots();
+}
+
+/// Time range granularity for doctor history / archive lists.
+enum DoctorArchiveGranularity {
+  day,
+  week,
+  month,
+  year,
+}
+
+/// Midnight local on the **Saturday** that starts the Saturday–Friday week
+/// containing [dayLocal]. (Week runs Saturday → Friday inclusive.)
+DateTime archiveWeekRangeStartSaturday(DateTime dayLocal) {
+  final d = DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final w = d.weekday;
+  final daysSinceSaturday = w == DateTime.saturday
+      ? 0
+      : w == DateTime.sunday
+          ? 1
+          : w + 1;
+  return d.subtract(Duration(days: daysSinceSaturday));
+}
+
+/// Unified stream of appointment docs for [DoctorArchiveGranularity].
+///
+/// [anchorLocal] — calendar day used as anchor: the specific day (daily), any day
+/// within the target week (weekly, **Saturday–Friday**), any day in the month
+/// (monthly), or any day in the year (yearly). Day/time parts outside the selected
+/// granularity are ignored where appropriate.
+Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+    watchDoctorArchiveAppointmentDocs({
+  required String doctorUserId,
+  required DoctorArchiveGranularity granularity,
+  required DateTime anchorLocal,
+}) {
+  final did = doctorUserId.trim();
+  final a = DateTime(anchorLocal.year, anchorLocal.month, anchorLocal.day);
+
+  switch (granularity) {
+    case DoctorArchiveGranularity.day:
+      return watchDoctorAppointmentsForLocalDay(
+        doctorUserId: did,
+        dayLocal: a,
+      );
+    case DoctorArchiveGranularity.week:
+      final start = archiveWeekRangeStartSaturday(a);
+      final end = start.add(const Duration(days: 7));
+      return appointmentsForDoctorDateRange(
+        doctorUserId: did,
+        rangeStartInclusiveLocal: start,
+        rangeEndExclusiveLocal: end,
+      ).snapshots().map((s) => s.docs);
+    case DoctorArchiveGranularity.month:
+      return watchDoctorAppointmentsForLocalMonth(
+        doctorUserId: did,
+        year: anchorLocal.year,
+        month: anchorLocal.month,
+      ).map((s) => s.docs);
+    case DoctorArchiveGranularity.year:
+      final start = DateTime(anchorLocal.year, 1, 1);
+      final end = DateTime(anchorLocal.year + 1, 1, 1);
+      return appointmentsForDoctorDateRange(
+        doctorUserId: did,
+        rangeStartInclusiveLocal: start,
+        rangeEndExclusiveLocal: end,
+      ).snapshots().map((s) => s.docs);
+  }
+}
+
 /// Real-time bookings tied to one [available_days] document (same field as stored on create).
 ///
 /// Composite index (if the console prompts): `appointments` —
@@ -241,6 +323,84 @@ Query<Map<String, dynamic>> patientAppointmentsQuery({
 bool appointmentStatusIsCancelled(String raw) {
   final s = raw.trim().toLowerCase();
   return s == 'cancelled' || s == 'canceled';
+}
+
+/// `true` when the row should sort **after** active patients (doctor & secretary lists).
+/// Matches: pending/active first, then completed/cancelled at bottom.
+bool appointmentStatusIsTerminalForStaffSort(String raw) {
+  final s = raw.trim().toLowerCase();
+  if (s.isEmpty) return false;
+  return s == 'completed' ||
+      s == 'complete' ||
+      s == 'done' ||
+      s == 'cancelled' ||
+      s == 'canceled';
+}
+
+int _timeMinutesFromAppointmentField(dynamic timeVal) {
+  final s = (timeVal ?? '').toString().trim();
+  final m = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(s);
+  if (m != null) {
+    return int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
+  }
+  return 1 << 20;
+}
+
+/// Slot instant for ordering (uses `dateTime` when set, else [AppointmentFields.date] + [time]).
+DateTime appointmentSlotDateTimeForStaffSort(Map<String, dynamic> data) {
+  final raw = data['dateTime'];
+  if (raw is Timestamp) return raw.toDate();
+  final day = appointmentLocalDateOnlyFromData(data);
+  final mins = _timeMinutesFromAppointmentField(data[AppointmentFields.time]);
+  if (day != null) {
+    return DateTime(day.year, day.month, day.day, mins ~/ 60, mins % 60);
+  }
+  return DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+DateTime? _updatedOrCreatedForStaffSort(Map<String, dynamic> data) {
+  final u = data[AppointmentFields.updatedAt];
+  if (u is Timestamp) return u.toDate();
+  final c = data[AppointmentFields.createdAt];
+  if (c is Timestamp) return c.toDate();
+  return null;
+}
+
+/// Primary: active (`isCompleted == false`) first, terminal last — same rule as
+/// `(a,b) => a.isCompleted==b.isCompleted ? 0 : a.isCompleted ? 1 : -1`.
+/// Secondary: slot time ↑ within active; terminal by [updatedAt]/[createdAt] ↓.
+int compareStaffAppointmentDocuments(
+  QueryDocumentSnapshot<Map<String, dynamic>> a,
+  QueryDocumentSnapshot<Map<String, dynamic>> b,
+) {
+  final da = a.data();
+  final db = b.data();
+  final ca = appointmentStatusIsTerminalForStaffSort(
+    (da[AppointmentFields.status] ?? 'pending').toString(),
+  );
+  final cb = appointmentStatusIsTerminalForStaffSort(
+    (db[AppointmentFields.status] ?? 'pending').toString(),
+  );
+  if (ca != cb) {
+    return ca ? 1 : -1;
+  }
+  if (!ca) {
+    return appointmentSlotDateTimeForStaffSort(da)
+        .compareTo(appointmentSlotDateTimeForStaffSort(db));
+  }
+  final ua = _updatedOrCreatedForStaffSort(da);
+  final ub = _updatedOrCreatedForStaffSort(db);
+  if (ua != null && ub != null) return ub.compareTo(ua);
+  if (ua != null) return -1;
+  if (ub != null) return 1;
+  return appointmentSlotDateTimeForStaffSort(db)
+      .compareTo(appointmentSlotDateTimeForStaffSort(da));
+}
+
+void sortStaffAppointmentsInPlace(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
+) {
+  list.sort(compareStaffAppointmentDocuments);
 }
 
 /// Local calendar day from [AppointmentFields.date] (Timestamp, DateTime, or `yyyy/MM/dd` string).

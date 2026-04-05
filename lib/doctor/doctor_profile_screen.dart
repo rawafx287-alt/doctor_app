@@ -14,6 +14,7 @@ import '../auth/firestore_user_doc_id.dart';
 import '../auth/doctor_session_cache.dart';
 import '../specialty_categories.dart';
 import '../theme/staff_premium_theme.dart';
+import 'doctor_patient_archive_screen.dart';
 import 'doctor_premium_shell.dart';
 import 'profile_settings_screen.dart';
 
@@ -148,6 +149,22 @@ class DoctorProfileScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute<void>(
                           builder: (_) => const ProfileSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _DoctorProfileGlassMenuTile(
+                    icon: Icons.folder_copy_outlined,
+                    title: s.translate('doctor_archive_title'),
+                    subtitle: s.translate('doctor_archive_subtitle'),
+                    onTap: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => DoctorPatientArchiveScreen(
+                            doctorUserId: uid,
+                          ),
                         ),
                       );
                     },

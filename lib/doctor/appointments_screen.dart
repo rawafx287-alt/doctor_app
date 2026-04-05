@@ -39,20 +39,6 @@ class AppointmentsScreen extends StatefulWidget {
     return (raw ?? 'pending').toString().trim().toLowerCase();
   }
 
-  static List<QueryDocumentSnapshot<Map<String, dynamic>>> _sortNewestFirst(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    final list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
-    int ts(QueryDocumentSnapshot<Map<String, dynamic>> d) {
-      final c = d.data()[AppointmentFields.createdAt];
-      if (c is Timestamp) return c.millisecondsSinceEpoch;
-      return 0;
-    }
-
-    list.sort((a, b) => ts(b).compareTo(ts(a)));
-    return list;
-  }
-
   static Uri? _telUri(String raw) {
     final cleaned = raw.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
     if (cleaned.isEmpty) return null;
@@ -826,7 +812,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 );
               }
 
-              final sorted = AppointmentsScreen._sortNewestFirst(docs);
+              final sorted =
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
+              sortStaffAppointmentsInPlace(sorted);
               final queueById = dailyQueueNumberByDocId(sorted);
 
               if (sorted.isEmpty) {
@@ -1025,7 +1013,8 @@ int _queueSortValueForSlot(
   return 1 << 20;
 }
 
-/// Single list: ticket / queue number order first, then slot time (tie-break). Status does not affect order.
+/// Booked slots: **active (no green / not completed) first**, then terminal rows.
+/// Within each group: ticket / queue number, then slot time (tie-break).
 List<DateTime> _sortedBookedSlotsUnified({
   required List<DateTime> visibleSlots,
   required Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
@@ -1035,6 +1024,16 @@ List<DateTime> _sortedBookedSlotsUnified({
   int cmp(DateTime a, DateTime b) {
     final da = byKeyAll[formatTimeHhMm(a)]!;
     final db = byKeyAll[formatTimeHhMm(b)]!;
+    final ta = appointmentStatusIsTerminalForStaffSort(
+      (da.data()[AppointmentFields.status] ?? 'pending').toString(),
+    );
+    final tb = appointmentStatusIsTerminalForStaffSort(
+      (db.data()[AppointmentFields.status] ?? 'pending').toString(),
+    );
+    // Same as: !isCompleted before isCompleted
+    if (ta != tb) {
+      return ta ? 1 : -1;
+    }
     final qa = _queueSortValueForSlot(da, queueByDocId);
     final qb = _queueSortValueForSlot(db, queueByDocId);
     if (qa != qb) {
@@ -1465,63 +1464,39 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                                   ),
                           ),
                         )
-                      : AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 380),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, anim) {
-                            final slide = Tween<Offset>(
-                              begin: const Offset(0, 0.06),
-                              end: Offset.zero,
-                            ).animate(
-                              CurvedAnimation(
-                                parent: anim,
-                                curve: Curves.easeOutCubic,
-                              ),
-                            );
-                            return FadeTransition(
-                              opacity: anim,
-                              child: SlideTransition(
-                                position: slide,
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: ListView(
-                            key: ValueKey<String>(
-                              _unifiedBookedListAnimationKey(
-                                orderedSlots,
-                                byKeyAll,
-                              ),
+                      : ListView(
+                          key: ValueKey<String>(
+                            _unifiedBookedListAnimationKey(
+                              orderedSlots,
+                              byKeyAll,
                             ),
-                            padding: EdgeInsets.fromLTRB(
-                              12,
-                              0,
-                              12,
-                              bottomListPadding,
-                            ),
-                            physics: const BouncingScrollPhysics(
-                              parent: AlwaysScrollableScrollPhysics(),
-                            ),
-                            children: [
-                              for (var i = 0; i < orderedSlots.length; i++) ...[
-                                if (i > 0) const SizedBox(height: 8),
-                                _DoctorSlotGlassCard(
-                                  key: ValueKey<String>(
-                                    byKeyAll[formatTimeHhMm(orderedSlots[i])]!
-                                        .id,
-                                  ),
-                                  slotStart: orderedSlots[i],
-                                  appointmentDoc: byKeyAll[
-                                      formatTimeHhMm(orderedSlots[i])]!,
-                                  doctorUserId: doctorUserId,
-                                  dayLocal: todayOnly,
-                                  queueByDocId: queueById,
-                                  onSetStatus: onSetStatus,
-                                ),
-                              ],
-                            ],
                           ),
+                          padding: EdgeInsets.fromLTRB(
+                            12,
+                            0,
+                            12,
+                            bottomListPadding,
+                          ),
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                          children: [
+                            for (var i = 0; i < orderedSlots.length; i++) ...[
+                              if (i > 0) const SizedBox(height: 8),
+                              _DoctorSlotGlassCard(
+                                key: ValueKey<String>(
+                                  byKeyAll[formatTimeHhMm(orderedSlots[i])]!.id,
+                                ),
+                                slotStart: orderedSlots[i],
+                                appointmentDoc:
+                                    byKeyAll[formatTimeHhMm(orderedSlots[i])]!,
+                                doctorUserId: doctorUserId,
+                                dayLocal: todayOnly,
+                                queueByDocId: queueById,
+                                onSetStatus: onSetStatus,
+                              ),
+                            ],
+                          ],
                         ),
                 ),
               ],

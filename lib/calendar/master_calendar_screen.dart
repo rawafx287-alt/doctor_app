@@ -480,19 +480,6 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     return out;
   }
 
-  int _secretaryAppointmentSortMinutes(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final t = (doc.data()[AppointmentFields.time] ?? '').toString().trim();
-    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(t);
-    if (match != null) {
-      final h = int.tryParse(match.group(1)!) ?? 0;
-      final mi = int.tryParse(match.group(2)!) ?? 0;
-      return h * 60 + mi;
-    }
-    return 1 << 20;
-  }
-
   Widget _buildMonthCalendarTable(
     BuildContext context, {
     required Map<DateTime, MasterDayVisual> visuals,
@@ -695,12 +682,8 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     var list = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
     if (selectedDay != null) {
       list = _secretaryAppointmentsForLocalDay(selectedDay, monthAppointments);
-      list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(list)
-        ..sort(
-          (a, b) => _secretaryAppointmentSortMinutes(
-            a,
-          ).compareTo(_secretaryAppointmentSortMinutes(b)),
-        );
+      list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(list);
+      sortStaffAppointmentsInPlace(list);
     }
 
     final slotMinutes = selectedDay == null

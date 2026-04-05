@@ -1046,10 +1046,170 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'الجدول',
     'en': 'Schedule',
   },
+  'doctor_nav_history': {
+    'ckb': 'مێژوو',
+    'ar': 'السجل',
+    'en': 'History',
+  },
   'doctor_nav_profile': {
     'ckb': 'پڕۆفایل',
     'ar': 'الملف',
     'en': 'Profile',
+  },
+  'doctor_archive_title': {
+    'ckb': 'ئەرشیفی نەخۆشەکان',
+    'ar': 'أرشيف المرضى',
+    'en': 'Patient archive',
+  },
+  'doctor_archive_subtitle': {
+    'ckb': 'نۆرە تەواوکراوەکان و تێبینی پزیشکی',
+    'ar': 'المواعيد المكتملة والملاحظات',
+    'en': 'Completed visits and medical notes',
+  },
+  'doctor_archive_month_total': {
+    'ckb': 'کۆی گشتی نەخۆشەکان لەم مانگەدا: {count}',
+    'ar': 'إجمالي المرضى هذا الشهر: {count}',
+    'en': 'Total patients this month: {count}',
+  },
+  'doctor_archive_filter_month': {
+    'ckb': 'مانگ',
+    'ar': 'الشهر',
+    'en': 'Month',
+  },
+  'doctor_archive_filter_year': {
+    'ckb': 'ساڵ',
+    'ar': 'السنة',
+    'en': 'Year',
+  },
+  'doctor_archive_view_notes': {
+    'ckb': 'بینینی تێبینی پزیشکی',
+    'ar': 'عرض الملاحظات الطبية',
+    'en': 'View medical notes',
+  },
+  'doctor_archive_notes_dialog_title': {
+    'ckb': 'تێبینی پزیشکی',
+    'ar': 'ملاحظات طبية',
+    'en': 'Medical notes',
+  },
+  'doctor_archive_no_notes': {
+    'ckb': 'هیچ تێبینییەک تۆمار نەکراوە.',
+    'ar': 'لا توجد ملاحظات مسجلة.',
+    'en': 'No notes were recorded for this visit.',
+  },
+  'doctor_archive_empty': {
+    'ckb': 'لەم مانگەدا هیچ نۆرەیەکی تەواوکراو نییە.',
+    'ar': 'لا مواعيد مكتملة لهذا الشهر.',
+    'en': 'No completed appointments for this month.',
+  },
+  'doctor_archive_visit_date': {
+    'ckb': 'بەروار',
+    'ar': 'التاريخ',
+    'en': 'Date',
+  },
+  'doctor_archive_unavailable': {
+    'ckb': 'ناتوانرێت ئەرشیف بکرێت — هەژماری پزیشک دیاری نەکراوە.',
+    'ar': 'تعذر فتح الأرشيف — لم يُحدد حساب الطبيب.',
+    'en': 'Archive unavailable — doctor account is not set.',
+  },
+  'doctor_archive_period_daily': {
+    'ckb': 'ڕۆژانە',
+    'ar': 'يومي',
+    'en': 'Daily',
+  },
+  'doctor_archive_period_weekly': {
+    'ckb': 'حەفتانە',
+    'ar': 'أسبوعي',
+    'en': 'Weekly',
+  },
+  'doctor_archive_period_monthly': {
+    'ckb': 'مانگانە',
+    'ar': 'شهري',
+    'en': 'Monthly',
+  },
+  'doctor_archive_period_yearly': {
+    'ckb': 'ساڵانە',
+    'ar': 'سنوي',
+    'en': 'Yearly',
+  },
+  'doctor_archive_total_period_daily': {
+    'ckb': 'کۆی گشتی ئەم ڕۆژە: {count}',
+    'ar': 'إجمالي المرضى اليوم: {count}',
+    'en': 'Total for this day: {count}',
+  },
+  'doctor_archive_total_period_weekly': {
+    'ckb': 'کۆی گشتی ئەم حەفتەیە: {count}',
+    'ar': 'إجمالي المرضى هذا الأسبوع: {count}',
+    'en': 'Total for this week: {count}',
+  },
+  'doctor_archive_total_period_monthly': {
+    'ckb': 'کۆی گشتی ئەم مانگە: {count}',
+    'ar': 'إجمالي المرضى هذا الشهر: {count}',
+    'en': 'Total for this month: {count}',
+  },
+  'doctor_archive_total_period_yearly': {
+    'ckb': 'کۆی گشتی ئەم ساڵە: {count}',
+    'ar': 'إجمالي المرضى هذا العام: {count}',
+    'en': 'Total for this year: {count}',
+  },
+  'doctor_archive_pick_date': {
+    'ckb': 'بەروار هەڵبژێرە',
+    'ar': 'اختر التاريخ',
+    'en': 'Choose date',
+  },
+  'doctor_archive_calendar_jump': {
+    'ckb': 'گۆڕینی مانگ',
+    'ar': 'انتقال سريع',
+    'en': 'Jump to date',
+  },
+  'doctor_archive_select_day_button': {
+    'ckb': 'ڕۆژێک هەڵبژێرە',
+    'ar': 'اختر يوماً',
+    'en': 'Select a day',
+  },
+  'doctor_archive_week_caption': {
+    'ckb': 'شەممە — هەینی',
+    'ar': 'السبت — الجمعة',
+    'en': 'Sat — Fri',
+  },
+  'doctor_archive_empty_period': {
+    'ckb': 'لەم ماوەیەدا هیچ نۆرەیەکی تەواوکراو نییە.',
+    'ar': 'لا مواعيد مكتملة في هذه الفترة.',
+    'en': 'No completed appointments in this period.',
+  },
+  'doctor_archive_field_full_name': {
+    'ckb': 'ناوی تەواو',
+    'ar': 'الاسم الكامل',
+    'en': 'Full name',
+  },
+  'doctor_archive_field_phone': {
+    'ckb': 'ژمارەی مۆبایل',
+    'ar': 'رقم الهاتف',
+    'en': 'Phone',
+  },
+  'doctor_archive_field_age': {
+    'ckb': 'تەمەن',
+    'ar': 'العمر',
+    'en': 'Age',
+  },
+  'doctor_archive_field_gender': {
+    'ckb': 'ڕەگەز',
+    'ar': 'الجنس',
+    'en': 'Gender',
+  },
+  'doctor_archive_field_blood': {
+    'ckb': 'گرووپی خوێن',
+    'ar': 'فصيلة الدم',
+    'en': 'Blood group',
+  },
+  'doctor_archive_field_notes': {
+    'ckb': 'تێبینی پزیشکی',
+    'ar': 'ملاحظات طبية',
+    'en': 'Medical notes',
+  },
+  'doctor_archive_detail_visit': {
+    'ckb': 'کاتی نۆرە',
+    'ar': 'موعد الزيارة',
+    'en': 'Visit',
   },
   'doctor_tooltip_patient_list': {
     'ckb': 'لیستی نەخۆشەکان',
