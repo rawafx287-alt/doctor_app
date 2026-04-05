@@ -752,10 +752,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       final priorData = priorSnap.data()!;
       await apptRef.update(patch);
       if (st == 'cancelled' || st == 'canceled') {
+        final copy = patientAppointmentRejectedNotificationCopy(priorData);
         await createPatientRootNotification(
           appointmentData: priorData,
           appointmentDocId: docId,
-          message: s.translate('root_notif_body_slot_cancelled'),
+          title: copy.$1,
+          message: copy.$2,
         );
       }
       if (context.mounted) {
