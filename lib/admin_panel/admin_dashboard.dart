@@ -11,6 +11,7 @@ import '../theme/staff_premium_theme.dart';
 import '../doctor/doctor_premium_shell.dart';
 import '../calendar/master_calendar_screen.dart';
 import 'add_doctor_screen.dart';
+import 'admin_ads_screen.dart';
 import 'admin_feedback_screen.dart';
 import 'admin_hospital_management_screen.dart';
 import 'approval_list_screen.dart';
@@ -97,6 +98,11 @@ class AdminDashboard extends StatelessWidget {
         subtitleKey: 'admin_card_add_doctor_subtitle',
         icon: Icons.person_add_alt_1_rounded,
       ),
+      _AdminAction(
+        titleKey: 'admin_card_ads_title',
+        subtitleKey: 'admin_card_ads_subtitle',
+        icon: Icons.campaign_rounded,
+      ),
     ];
   }
 
@@ -150,6 +156,14 @@ class AdminDashboard extends StatelessWidget {
           context,
           MaterialPageRoute<void>(
             builder: (context) => const AddDoctorScreen(),
+          ),
+        );
+        break;
+      case 6:
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => const AdminAdsScreen(),
           ),
         );
         break;

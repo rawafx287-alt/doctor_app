@@ -19,11 +19,10 @@ import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
+import 'home_ad_carousel.dart';
 
 /// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
 const double _kHomeSearchHeaderExtent = 44;
-/// Fixed height for specialty block (title + chip row + padding) under search.
-const double _kHomeSpecialtiesHeaderExtent = 132;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
@@ -539,6 +538,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: HomeAdCarousel(height: homeAdBannerHeight(context)),
+          ),
+          SizedBox(height: kHomeAdBannerGap),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Align(
@@ -1557,7 +1561,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Home: fixed search + specialty strip; only category title + doctor list scroll (title passes under strip).
+  /// Home: fixed search + ad carousel + specialty strip; doctor list scrolls below pinned header.
   Widget _buildHomeContent() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _approvedDoctorsStream,
@@ -1585,7 +1589,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     slivers: [
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: _kHomeSpecialtiesHeaderExtent,
+                          height: pinnedHomeHeaderTotalHeight(context),
                         ),
                       ),
                       ..._buildDoctorSlivers(context, snapshot),
@@ -1595,7 +1599,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: _kHomeSpecialtiesHeaderExtent,
+                    height: pinnedHomeHeaderTotalHeight(context),
                     child: Material(
                       color: kPatientSkyTop,
                       surfaceTintColor: Colors.transparent,
