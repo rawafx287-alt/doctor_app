@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/appointment_booking_details.dart';
 import '../models/doctor_localized_content.dart';
 import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
@@ -89,11 +90,13 @@ class AppointmentsScreen extends StatefulWidget {
   }
 
   /// Phone only (English digits); no age/gender.
+  /// Uses [AppointmentFields.bookingPhone] on [appointmentData] when set.
   static Widget _phoneOnlyLine(
     BuildContext context,
     Map<String, dynamic>? profile,
     bool patientLoading, {
     bool compactDashboard = false,
+    Map<String, dynamic>? appointmentData,
   }) {
     if (patientLoading) {
       return Padding(
@@ -123,10 +126,12 @@ class AppointmentsScreen extends StatefulWidget {
       );
     }
 
-    final phone = patientPhoneFromUserData(profile);
+    final raw = appointmentBookingPhoneRaw(appointmentData, profile);
     final digits =
-        phone.isEmpty ? '' : staffDigitsToEnglishAscii(phone);
+        raw.trim().isEmpty ? '' : staffDigitsToEnglishAscii(raw);
+    final notRec = S.of(context).translate('booking_detail_not_recorded');
     final fs = compactDashboard ? 11.0 : 13.5;
+    final hasPhone = digits.isNotEmpty;
 
     return Row(
       children: [
@@ -134,7 +139,7 @@ class AppointmentsScreen extends StatefulWidget {
           Icons.phone_in_talk_rounded,
           size: compactDashboard ? 15 : 17,
           color: kStaffLuxGold.withValues(
-            alpha: digits.isEmpty ? 0.35 : 0.92,
+            alpha: hasPhone ? 0.92 : 0.35,
           ),
         ),
         const SizedBox(width: 6),
@@ -142,15 +147,15 @@ class AppointmentsScreen extends StatefulWidget {
           child: Directionality(
             textDirection: ui.TextDirection.ltr,
             child: Text(
-              digits.isEmpty ? '—' : digits,
+              hasPhone ? digits : notRec,
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
                 fontWeight: FontWeight.w600,
                 fontSize: fs,
                 height: 1.2,
-                color: digits.isEmpty
-                    ? Colors.white.withValues(alpha: 0.45)
-                    : const Color(0xFFE8F4F0),
+                color: hasPhone
+                    ? const Color(0xFFE8F4F0)
+                    : Colors.white.withValues(alpha: 0.45),
               ),
             ),
           ),
@@ -225,14 +230,22 @@ class AppointmentsScreen extends StatefulWidget {
 
         Widget buildBody(Map<String, dynamic>? profile, bool patientLoading) {
           final s = S.of(sheetContext);
-          final phone = patientPhoneFromUserData(profile);
+          final notRec = s.translate('booking_detail_not_recorded');
+          final rawPhone = appointmentBookingPhoneRaw(apptData, profile);
           final phoneDigits =
-              phone.isEmpty ? '' : staffDigitsToEnglishAscii(phone);
-          final ageYears = patientAgeYearsFromUserData(profile);
-          final ageText = ageYears == null ? '—' : nf.format(ageYears);
-          final genderRaw = patientGenderRawFromUserData(profile);
-          final genderLabel = _localizedGenderLabel(sheetContext, genderRaw);
-          final history = patientMedicalHistoryFromUserData(profile);
+              rawPhone.trim().isEmpty ? '' : staffDigitsToEnglishAscii(rawPhone);
+          final ageYears = appointmentBookingAgeYears(apptData, profile);
+          final ageText =
+              ageYears == null ? notRec : nf.format(ageYears);
+          final genderRaw =
+              appointmentBookingGenderRaw(apptData, profile);
+          final genderLabel = genderRaw.isEmpty
+              ? notRec
+              : _localizedGenderLabel(sheetContext, genderRaw);
+          final bloodRaw = appointmentBloodGroupRaw(apptData);
+          final bloodText = bloodRaw.isEmpty ? notRec : bloodRaw;
+          final history =
+              appointmentMedicalNotesCombined(apptData, profile);
           final hasHistory = history.isNotEmpty;
 
           Widget detailCell({
@@ -320,11 +333,11 @@ class AppointmentsScreen extends StatefulWidget {
                           detailCell(
                             label: s.translate('doctor_appt_label_phone'),
                             value: phoneDigits.isEmpty
-                                ? Text('—')
+                                ? Text(notRec)
                                 : InkWell(
                                     onTap: () => AppointmentsScreen._launchTel(
                                       sheetContext,
-                                      phone,
+                                      rawPhone,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                     child: Padding(
@@ -386,6 +399,11 @@ class AppointmentsScreen extends StatefulWidget {
                     ),
                   ],
                 ),
+              const SizedBox(height: 16),
+              detailCell(
+                label: s.translate('doctor_appt_label_blood'),
+                value: Text(bloodText),
+              ),
               if (hasHistory) ...[
                 const SizedBox(height: 18),
                 Container(
@@ -795,21 +813,23 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     Map<String, dynamic>? profile, {
                     required bool patientLoading,
                   }) {
+                    final dialRaw = appointmentBookingPhoneRaw(data, profile);
                     return _AppointmentCard(
                       patientName: patientName,
                       queueEn: formatDailyQueueTicketEnglish(doc, queueById),
                       status: status,
                       showActions: status == 'pending',
-                      phoneForCall: patientPhoneFromUserData(profile),
+                      phoneForCall: dialRaw,
                       phoneLine: AppointmentsScreen._phoneOnlyLine(
                         context,
                         profile,
                         patientLoading,
+                        appointmentData: data,
                       ),
-                      onCallTap: patientPhoneFromUserData(profile).isNotEmpty
+                      onCallTap: dialRaw.trim().isNotEmpty
                           ? () => AppointmentsScreen._launchTel(
                               context,
-                              patientPhoneFromUserData(profile),
+                              dialRaw,
                             )
                           : null,
                       onCardTap: () =>
@@ -1500,9 +1520,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     Widget cardBody({
       required Map<String, dynamic>? profile,
       required bool patientLoading,
-      required String phone,
     }) {
-      final showPhone = booked && phone.isNotEmpty;
+      final rawPhone = appointmentBookingPhoneRaw(apptData, profile);
+      final showPhone = booked && rawPhone.trim().isNotEmpty;
       final neutralFinished = isTerminal;
       final leftStripColor = neutralFinished
           ? const Color(0xFF455A64)
@@ -1606,6 +1626,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                             profile,
                             patientLoading,
                             compactDashboard: true,
+                            appointmentData: apptData,
                           ),
                         ),
                         if (showPhone)
@@ -1619,7 +1640,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                             tooltip: s.translate('doctor_appt_label_phone'),
                             onPressed: () => AppointmentsScreen._launchTel(
                               context,
-                              phone,
+                              rawPhone,
                             ),
                             icon: Icon(
                               Icons.phone_rounded,
@@ -1867,10 +1888,10 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     }
 
     if (!booked) {
-      return cardBody(profile: null, patientLoading: false, phone: '');
+      return cardBody(profile: null, patientLoading: false);
     }
     if (patientId.isEmpty) {
-      return cardBody(profile: null, patientLoading: false, phone: '');
+      return cardBody(profile: null, patientLoading: false);
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -1882,11 +1903,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                 ConnectionState.waiting &&
             !patientSnap.hasData;
         final profile = patientSnap.data?.data();
-        final phone = patientPhoneFromUserData(profile);
         return cardBody(
           profile: profile,
           patientLoading: loading,
-          phone: phone,
         );
       },
     );

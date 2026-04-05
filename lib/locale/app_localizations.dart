@@ -1900,6 +1900,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'يرجى اختيار فصيلة الدم.',
     'en': 'Please select a blood group.',
   },
+  'booking_detail_not_recorded': {
+    'ckb': 'تۆمار نەکراوە',
+    'ar': 'غير مسجل',
+    'en': 'Not recorded',
+  },
+  'doctor_appt_label_blood': {
+    'ckb': 'گروپی خوێن',
+    'ar': 'فصيلة الدم',
+    'en': 'Blood group',
+  },
   'action_cancel': {
     'ckb': 'پاشگەزبوونەوە',
     'ar': 'إلغاء',

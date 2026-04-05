@@ -15,6 +15,7 @@ class SecretaryAppointmentCard extends StatefulWidget {
     required this.patientName,
     required this.queueEn,
     required this.phoneDisplay,
+    this.phoneDialRaw,
     required this.statusRaw,
     required this.busy,
     required this.onCompleted,
@@ -29,6 +30,8 @@ class SecretaryAppointmentCard extends StatefulWidget {
   final String patientName;
   final String queueEn;
   final String phoneDisplay;
+  /// Raw digits for `tel:`; when null, derived from [phoneDisplay] if it looks numeric.
+  final String? phoneDialRaw;
   final String statusRaw;
   final bool busy;
   final VoidCallback? onCompleted;
@@ -287,7 +290,10 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
         st != 'cancelled' &&
         st != 'canceled';
     final phoneDigits = widget.phoneDisplay.trim();
-    final canDial = phoneDigits.isNotEmpty && phoneDigits != '—';
+    final dial = (widget.phoneDialRaw ?? '').trim();
+    final digitCount =
+        dial.replaceAll(RegExp(r'[^\d]'), '').length;
+    final canDial = digitCount >= 6;
 
     final inner = BackdropFilter(
       filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
@@ -344,7 +350,9 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
                           child: Directionality(
                             textDirection: ui.TextDirection.ltr,
                             child: Text(
-                              phoneDigits.isEmpty ? '—' : phoneDigits,
+                              phoneDigits.isEmpty
+                                  ? s.translate('booking_detail_not_recorded')
+                                  : phoneDigits,
                               style: TextStyle(
                                 fontFamily: kPatientPrimaryFont,
                                 fontWeight: FontWeight.w600,
@@ -362,7 +370,9 @@ class _SecretaryAppointmentCardState extends State<SecretaryAppointmentCard>
                             child: InkWell(
                               onTap: widget.busy
                                   ? null
-                                  : () => _launchTel(phoneDigits),
+                                  : () => _launchTel(
+                                        dial.isNotEmpty ? dial : phoneDigits,
+                                      ),
                               borderRadius: BorderRadius.circular(8),
                               child: Padding(
                                 padding: const EdgeInsets.all(4),

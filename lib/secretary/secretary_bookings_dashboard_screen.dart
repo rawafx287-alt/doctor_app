@@ -4,8 +4,8 @@ import '../auth/app_logout.dart';
 import '../firestore/appointment_queries.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/appointment_booking_details.dart';
 import '../models/doctor_localized_content.dart';
-import '../models/patient_profile_read.dart';
 import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
 import '../widgets/secretary_appointment_card.dart';
@@ -351,12 +351,14 @@ class _SecretaryBookingsDashboardScreenState
 
                               SecretaryAppointmentCard buildCard(
                                 String phoneEn,
+                                String dialRaw,
                               ) {
                                 return SecretaryAppointmentCard(
                                   animationIndex: i,
                                   patientName: patient,
                                   queueEn: queueEn,
                                   phoneDisplay: phoneEn,
+                                  phoneDialRaw: dialRaw.isEmpty ? null : dialRaw,
                                   statusRaw: st,
                                   busy: busy,
                                   receiptImageUrl:
@@ -392,7 +394,11 @@ class _SecretaryBookingsDashboardScreenState
                               }
 
                               if (patientId.isEmpty) {
-                                return buildCard('—');
+                                final raw = appointmentBookingPhoneRaw(data, null);
+                                final phoneEn = raw.trim().isEmpty
+                                    ? s.translate('booking_detail_not_recorded')
+                                    : staffDigitsToEnglishAscii(raw);
+                                return buildCard(phoneEn, raw);
                               }
 
                               return StreamBuilder<
@@ -402,13 +408,15 @@ class _SecretaryBookingsDashboardScreenState
                                     .doc(patientId)
                                     .snapshots(),
                                 builder: (context, snap) {
-                                  final phone = patientPhoneFromUserData(
-                                    snap.data?.data(),
-                                  );
-                                  final phoneEn = phone.isEmpty
-                                      ? '—'
-                                      : staffDigitsToEnglishAscii(phone);
-                                  return buildCard(phoneEn);
+                                  final userData = snap.data?.data();
+                                  final raw =
+                                      appointmentBookingPhoneRaw(data, userData);
+                                  final phoneEn = raw.trim().isEmpty
+                                      ? s.translate(
+                                          'booking_detail_not_recorded',
+                                        )
+                                      : staffDigitsToEnglishAscii(raw);
+                                  return buildCard(phoneEn, raw);
                                 },
                               );
                             },

@@ -41,6 +41,14 @@ abstract final class AppointmentFields {
 
   /// Legacy alias; prefer [receiptImageUrl]. Kept in sync for older clients.
   static const String receiptUrl = 'receiptUrl';
+
+  // --- Patient booking form ([BookingDetailsPage]) — stored on appointment doc ---
+  static const String bookingAge = 'bookingAge';
+  static const String bloodGroup = 'bloodGroup';
+  static const String bookingPhone = 'bookingPhone';
+  static const String bookingGender = 'bookingGender';
+  static const String bookingMedicalNotes = 'bookingMedicalNotes';
+  static const String bookingCityArea = 'bookingCityArea';
 }
 
 /// Doctor + local date range on [AppointmentFields.date].

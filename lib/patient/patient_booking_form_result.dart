@@ -1,3 +1,5 @@
+import '../firestore/appointment_queries.dart';
+
 /// Patient-completed fields from [BookingDetailsPage], persisted on the appointment.
 class PatientBookingFormResult {
   const PatientBookingFormResult({
@@ -20,14 +22,14 @@ class PatientBookingFormResult {
 
   Map<String, dynamic> toAppointmentExtras() {
     return <String, dynamic>{
-      'bookingAge': age,
-      'bloodGroup': bloodGroup,
-      'bookingPhone': phoneDigits,
-      'bookingGender': isMale ? 'male' : 'female',
+      AppointmentFields.bookingAge: age,
+      AppointmentFields.bloodGroup: bloodGroup,
+      AppointmentFields.bookingPhone: phoneDigits,
+      AppointmentFields.bookingGender: isMale ? 'male' : 'female',
       if (medicalNotes != null && medicalNotes!.trim().isNotEmpty)
-        'bookingMedicalNotes': medicalNotes!.trim(),
+        AppointmentFields.bookingMedicalNotes: medicalNotes!.trim(),
       if (cityArea != null && cityArea!.trim().isNotEmpty)
-        'bookingCityArea': cityArea!.trim(),
+        AppointmentFields.bookingCityArea: cityArea!.trim(),
     };
   }
 }
