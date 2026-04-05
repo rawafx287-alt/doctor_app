@@ -1,6 +1,8 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +15,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
 import 'locale/app_localizations.dart';
+import 'push/firebase_messaging_background.dart';
+import 'push/patient_push_registration.dart';
 import 'splash_screen.dart';
 // Auth routing: [AuthGate] listens to FirebaseAuth.instance.authStateChanges;
 // patient login also uses Navigator.pushAndRemoveUntil to [PatientHomeScreen] for instant UI.
@@ -31,6 +35,9 @@ Future<void> main() async {
   ensureSharedPreferencesRegistered();
   // Android: place `google-services.json` in `android/app/` (see Firebase console).
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
   final localeController = LocaleController();
   await localeController.load();
   runApp(HrNoraAppRoot(localeController: localeController));
@@ -228,6 +235,14 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PatientPushRegistration.registerForCurrentUser();
+    });
+  }
+
   int _currentIndex = 0;
   static const Color _mainBgTop = Colors.white;
   static const Color _mainBgBottom = Color(0xFFE3F2FD);

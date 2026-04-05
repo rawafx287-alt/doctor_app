@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../auth/app_logout.dart';
+import '../push/patient_push_registration.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
@@ -913,6 +914,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
     _homeFabIntroController.forward();
     _searchFocusNode.addListener(_onSearchFocusChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PatientPushRegistration.registerForCurrentUser();
+    });
   }
 
   void _onSearchFocusChanged() {

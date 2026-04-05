@@ -352,8 +352,9 @@ class _DashedLinePainter extends CustomPainter {
 
 (Color bg, Color fg, String label) _appointmentStatusBadge(
   BuildContext context,
-  String status,
-) {
+  String status, {
+  String? cancellationReason,
+}) {
   final tr = S.of(context);
   final s = status.toLowerCase();
   if (s == 'completed') {
@@ -364,6 +365,13 @@ class _DashedLinePainter extends CustomPainter {
     );
   }
   if (s == 'cancelled' || s == 'canceled') {
+    if (cancellationReason == kAppointmentCancellationReasonClinicClosed) {
+      return (
+        const Color(0xFFC62828),
+        kAppointmentStatusPendingFg,
+        tr.translate('patient_appt_status_cancelled_clinic_closed'),
+      );
+    }
     return (
       const Color(0xFFC62828),
       kAppointmentStatusPendingFg,
@@ -406,6 +414,7 @@ class _PremiumBookingCard extends StatelessWidget {
     required this.dateStr,
     required this.timeStr,
     required this.status,
+    this.cancellationReason = '',
     this.isPast = false,
   });
 
@@ -416,6 +425,7 @@ class _PremiumBookingCard extends StatelessWidget {
   final String dateStr;
   final String timeStr;
   final String status;
+  final String cancellationReason;
   final bool isPast;
 
   (String label, Color bg, Color fg) _statusStyle(BuildContext context) {
@@ -429,6 +439,13 @@ class _PremiumBookingCard extends StatelessWidget {
       );
     }
     if (s == 'cancelled' || s == 'canceled') {
+      if (cancellationReason == kAppointmentCancellationReasonClinicClosed) {
+        return (
+          tr.translate('patient_appt_status_cancelled_clinic_closed'),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFB71C1C),
+        );
+      }
       return (
         tr.translate('status_cancelled'),
         const Color(0xFFFFEBEE),
@@ -493,6 +510,9 @@ class _PremiumBookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(context);
+    final stNorm = _normAppointmentStatus(status);
+    final lineThroughDoctor =
+        stNorm == 'cancelled' || stNorm == 'canceled';
 
     final shadows = isPast
         ? const <BoxShadow>[
@@ -566,11 +586,16 @@ class _PremiumBookingCard extends StatelessWidget {
                 doctorName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                   color: _kPastBookingTextBrown,
+                  decoration:
+                      lineThroughDoctor ? TextDecoration.lineThrough : null,
+                  decorationColor:
+                      _kPastBookingTextBrown.withValues(alpha: 0.55),
+                  decorationThickness: 1.15,
                 ),
               ),
               const SizedBox(height: 3),
@@ -689,6 +714,7 @@ class _TicketVisual extends StatelessWidget {
     required this.dateStr,
     required this.timeStr,
     required this.status,
+    this.cancellationReason = '',
     required this.queueLabel,
     required this.daysStyle,
     required this.holeColor,
@@ -701,6 +727,7 @@ class _TicketVisual extends StatelessWidget {
   final String dateStr;
   final String timeStr;
   final String status;
+  final String cancellationReason;
   final String queueLabel;
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
@@ -719,7 +746,12 @@ class _TicketVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge = _appointmentStatusBadge(context, status);
+    final badge = _appointmentStatusBadge(
+      context,
+      status,
+      cancellationReason:
+          cancellationReason.trim().isEmpty ? null : cancellationReason.trim(),
+    );
     final isRtl = Directionality.of(context) == ui.TextDirection.rtl;
     final textEnd = isRtl ? TextAlign.right : TextAlign.left;
     final rowDir = Directionality.of(context);
@@ -1153,6 +1185,7 @@ class _AppointmentDetailCard extends StatelessWidget {
     required this.dateStr,
     required this.timeStr,
     required this.status,
+    this.cancellationReason = '',
     required this.queueLabel,
     required this.daysStyle,
     required this.holeColor,
@@ -1165,6 +1198,7 @@ class _AppointmentDetailCard extends StatelessWidget {
   final String dateStr;
   final String timeStr;
   final String status;
+  final String cancellationReason;
   final String queueLabel;
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
@@ -1214,6 +1248,7 @@ class _AppointmentDetailCard extends StatelessWidget {
                         dateStr: dateStr,
                         timeStr: timeStr,
                         status: status,
+                        cancellationReason: cancellationReason,
                         queueLabel: queueLabel,
                         daysStyle: daysStyle,
                         holeColor: holeColor,
@@ -1295,6 +1330,7 @@ void _openTicketPreview(
   required String dateStr,
   required String timeStr,
   required String status,
+  String cancellationReason = '',
   required String queueLabel,
   required _DaysRemainingStyle? daysStyle,
   required Color holeColor,
@@ -1317,6 +1353,7 @@ void _openTicketPreview(
         dateStr: dateStr,
         timeStr: timeStr,
         status: status,
+        cancellationReason: cancellationReason,
         queueLabel: queueLabel,
         daysStyle: daysStyle,
         holeColor: holeColor,
@@ -1603,6 +1640,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       )
                     : null;
                 final queueLabel = _appointmentQueueLabel(data, orderIndex);
+                final cancelReason =
+                    (data[AppointmentFields.cancellationReason] ?? '')
+                        .toString()
+                        .trim();
                 final docId = docSnap.id;
                 final heroTag = 'appointment_ticket_$docId';
                 final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
@@ -1623,6 +1664,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       dateStr: dateStr,
                       timeStr: timeStr,
                       status: status,
+                      cancellationReason: cancelReason,
                       queueLabel: queueLabel,
                       daysStyle: daysStyle,
                       holeColor: _holeColor,
@@ -1664,6 +1706,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             dateStr: dateStr,
                             timeStr: timeStr,
                             status: status,
+                            cancellationReason: cancelReason,
                             isPast: isPastSection,
                           ),
                         ),

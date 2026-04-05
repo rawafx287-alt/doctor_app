@@ -26,6 +26,7 @@ const double _kGoldBorderWidth = 0.8;
 Future<bool> showAppointmentActionConfirmDialog(
   BuildContext context, {
   required bool isCompleteAction,
+  String? titleKey,
 }) async {
   final barrierLabel =
       MaterialLocalizations.of(context).modalBarrierDismissLabel;
@@ -42,6 +43,7 @@ Future<bool> showAppointmentActionConfirmDialog(
             textDirection: AppLocaleScope.of(ctx).textDirection,
             child: _AppointmentActionConfirmPanel(
               isCompleteAction: isCompleteAction,
+              titleKey: titleKey,
             ),
           ),
         ),
@@ -66,9 +68,13 @@ Future<bool> showAppointmentActionConfirmDialog(
 }
 
 class _AppointmentActionConfirmPanel extends StatelessWidget {
-  const _AppointmentActionConfirmPanel({required this.isCompleteAction});
+  const _AppointmentActionConfirmPanel({
+    required this.isCompleteAction,
+    this.titleKey,
+  });
 
   final bool isCompleteAction;
+  final String? titleKey;
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +144,7 @@ class _AppointmentActionConfirmPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      s.translate('appt_action_confirm_title'),
+                      s.translate(titleKey ?? 'appt_action_confirm_title'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontFamily: kPatientPrimaryFont,

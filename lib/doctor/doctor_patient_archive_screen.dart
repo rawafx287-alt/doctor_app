@@ -51,7 +51,7 @@ class _DoctorPatientArchiveScreenState extends State<DoctorPatientArchiveScreen>
     }
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _completedFromDocs(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _historyTerminalFromDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>>? docs,
   ) {
     if (docs == null) return [];
@@ -60,7 +60,9 @@ class _DoctorPatientArchiveScreenState extends State<DoctorPatientArchiveScreen>
           .toString()
           .trim()
           .toLowerCase();
-      return st == 'completed';
+      return st == 'completed' ||
+          st == 'cancelled' ||
+          st == 'canceled';
     }).toList();
     out.sort(
       (a, b) => appointmentSlotDateTimeForStaffSort(b.data()).compareTo(
@@ -719,6 +721,16 @@ class _DoctorPatientArchiveScreenState extends State<DoctorPatientArchiveScreen>
         (data[AppointmentFields.patientName] ?? '—').toString();
     final subtitle = _compactVisitLine(context, data);
     final initials = _archivePatientInitials(name);
+    final st = (data[AppointmentFields.status] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    final isCancelled = st == 'cancelled' || st == 'canceled';
+    final clinicClosed = (data[AppointmentFields.cancellationReason] ?? '')
+            .toString()
+            .trim() ==
+        kAppointmentCancellationReasonClinicClosed;
+    final s = S.of(context);
 
     return PressableScale(
       onTap: () => _showArchivePatientDetail(context, data),
@@ -757,14 +769,47 @@ class _DoctorPatientArchiveScreenState extends State<DoctorPatientArchiveScreen>
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.w800,
                         fontSize: 13.5,
                         color: Colors.white,
                         height: 1.2,
+                        decoration: isCancelled
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor:
+                            Colors.white.withValues(alpha: 0.45),
+                        decorationThickness: 1.1,
                       ),
                     ),
+                    if (clinicClosed && isCancelled) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB71C1C)
+                              .withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: const Color(0xFFE57373)
+                                .withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          s.translate('doctor_appt_tag_clinic_closed'),
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 9,
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
@@ -855,7 +900,7 @@ class _DoctorPatientArchiveScreenState extends State<DoctorPatientArchiveScreen>
           anchorLocal: _anchorDate,
         ),
         builder: (context, snapshot) {
-          final completed = _completedFromDocs(snapshot.data);
+          final completed = _historyTerminalFromDocs(snapshot.data);
           final count = completed.length;
 
           return Column(

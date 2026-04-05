@@ -27,6 +27,9 @@ abstract final class AppointmentFields {
   static const String updatedAt = 'updatedAt';
   static const String createdByStaff = 'createdByStaff';
 
+  /// `doctor` | `clinic_closed` — why the appointment was cancelled (optional).
+  static const String cancellationReason = 'cancellationReason';
+
   /// Links an [appointments] row to an [available_days] document (patient self-booking).
   static const String availableDayDocId = 'availableDayDocId';
 
@@ -323,6 +326,111 @@ Query<Map<String, dynamic>> patientAppointmentsQuery({
 bool appointmentStatusIsCancelled(String raw) {
   final s = raw.trim().toLowerCase();
   return s == 'cancelled' || s == 'canceled';
+}
+
+/// Doctor-initiated cancellation from the appointments UI.
+const String kAppointmentCancellationReasonDoctor = 'doctor';
+
+/// Bulk cancellation when the clinic closes the day in schedule management.
+const String kAppointmentCancellationReasonClinicClosed = 'clinic_closed';
+
+/// Secretary cancelled the slot from schedule management (same patient push as doctor cancel).
+const String kAppointmentCancellationReasonSecretary = 'secretary';
+
+/// Bookings that still count as “active” for day-close bulk operations (not completed/cancelled).
+bool appointmentIsActiveForClinicOperations(String raw) {
+  return !appointmentStatusIsTerminalForStaffSort(raw);
+}
+
+int countActiveAppointmentsForClinicOps(
+  Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  var n = 0;
+  for (final d in docs) {
+    final st =
+        (d.data()[AppointmentFields.status] ?? 'pending').toString();
+    if (appointmentIsActiveForClinicOperations(st)) n++;
+  }
+  return n;
+}
+
+/// Same merge as [watchDoctorAppointmentsForLocalDay], one-shot for batch updates.
+Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+    fetchMergedDoctorAppointmentDocsForLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) async {
+  final did = doctorUserId.trim();
+  final start = DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final endExclusive = start.add(const Duration(days: 1));
+  final dateStringKey = DateFormat('yyyy/MM/dd').format(start);
+
+  final tsSnap = await appointmentsForDoctorDateRange(
+    doctorUserId: did,
+    rangeStartInclusiveLocal: start,
+    rangeEndExclusiveLocal: endExclusive,
+  ).get();
+
+  final strSnap = await FirebaseFirestore.instance
+      .collection(AppointmentFields.collection)
+      .where(AppointmentFields.doctorId, isEqualTo: did)
+      .where(AppointmentFields.date, isEqualTo: dateStringKey)
+      .get();
+
+  final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+  for (final d in tsSnap.docs) {
+    byId[d.id] = d;
+  }
+  for (final d in strSnap.docs) {
+    byId[d.id] = d;
+  }
+  return byId.values.toList();
+}
+
+Future<int> countActiveAppointmentsForDoctorLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) async {
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: doctorUserId,
+    dayLocal: dayLocal,
+  );
+  return countActiveAppointmentsForClinicOps(docs);
+}
+
+/// Cancels all active (non-terminal) appointments for the doctor on [dayLocal].
+/// Returns how many documents were updated.
+Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+  required String cancellationReason,
+}) async {
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: doctorUserId,
+    dayLocal: dayLocal,
+  );
+  final active = docs.where((d) {
+    final st =
+        (d.data()[AppointmentFields.status] ?? 'pending').toString();
+    return appointmentIsActiveForClinicOperations(st);
+  }).toList();
+
+  const chunk = 450;
+  var total = 0;
+  for (var i = 0; i < active.length; i += chunk) {
+    final batch = FirebaseFirestore.instance.batch();
+    final slice = active.skip(i).take(chunk).toList();
+    for (final doc in slice) {
+      batch.update(doc.reference, {
+        AppointmentFields.status: 'cancelled',
+        AppointmentFields.cancellationReason: cancellationReason,
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    total += slice.length;
+  }
+  return total;
 }
 
 /// `true` when the row should sort **after** active patients (doctor & secretary lists).

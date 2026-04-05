@@ -1357,6 +1357,44 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا، تراجعت',
     'en': 'No, go back',
   },
+  'doctor_appt_cancel_confirm_title': {
+    'ckb': 'دڵنیای لە هەڵوەشاندنەوەی ئەم چاوەڕوانییە؟',
+    'ar': 'هل أنت متأكد أنك تريد إلغاء هذا الموعد؟',
+    'en': 'Are you sure you want to cancel this appointment?',
+  },
+  'doctor_appt_action_cancel_appointment': {
+    'ckb': 'هەڵوەشاندنەوە',
+    'ar': 'إلغاء الموعد',
+    'en': 'Cancel appointment',
+  },
+  'doctor_appt_more_actions': {
+    'ckb': 'کردارەکان',
+    'ar': 'المزيد',
+    'en': 'More actions',
+  },
+  'doctor_appt_tag_clinic_closed': {
+    'ckb': 'داخراو',
+    'ar': 'مغلق',
+    'en': 'Closed',
+  },
+  'schedule_close_day_bulk_title': {
+    'ckb': 'داخستنی ڕۆژ',
+    'ar': 'إغلاق اليوم',
+    'en': 'Close day',
+  },
+  'schedule_close_day_bulk_body': {
+    'ckb':
+        'ئەم ڕۆژە {count} چاوەڕوانی چالاکی هەیە. داخستنی ڕۆژ هەموویان ڕەتدەکاتەوە. بەردەوام بیت؟',
+    'ar':
+        'يحتوي هذا اليوم على {count} حجوزات نشطة. إغلاق اليوم سيلغيها جميعاً. هل تريد المتابعة؟',
+    'en':
+        'This day has {count} active bookings. Closing the day will reject all of them. Proceed?',
+  },
+  'patient_appt_status_cancelled_clinic_closed': {
+    'ckb': 'هەڵوەشاوە — کلینیک داخراوە',
+    'ar': 'ملغى — العيادة مغلقة',
+    'en': 'Cancelled — clinic closed',
+  },
   'doctor_appt_label_age': {
     'ckb': 'تەمەن',
     'ar': 'العمر',
@@ -2254,6 +2292,31 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'گیراوە',
     'ar': 'محجوز',
     'en': 'Booked',
+  },
+  'schedule_slot_cancel_confirm_title': {
+    'ckb': 'ئایا دڵنیای لە هەڵوەشاندنەوەی ئەم نۆرەیە؟',
+    'ar': 'هل أنت متأكد من إلغاء هذا الموعد؟',
+    'en': 'Are you sure you want to cancel this booking?',
+  },
+  'schedule_slot_cancel_yes': {
+    'ckb': 'بەڵێ',
+    'ar': 'نعم',
+    'en': 'Yes',
+  },
+  'schedule_slot_cancel_no': {
+    'ckb': 'نەخێر',
+    'ar': 'لا',
+    'en': 'No',
+  },
+  'schedule_slot_cancel_ok_snack': {
+    'ckb': 'نۆرەکە هەڵوەشایەوە و نەخۆش ئاگادار دەکرێتەوە.',
+    'ar': 'تم إلغاء الموعد وسيُبلَغ المريض.',
+    'en': 'Booking cancelled; the patient will be notified.',
+  },
+  'schedule_slot_cancel_error_snack': {
+    'ckb': 'نەتوانرا نۆرەکە هەڵبوەشێنرێتەوە.',
+    'ar': 'تعذر إلغاء الموعد.',
+    'en': 'Could not cancel this booking.',
   },
   'schedule_dashboard_save_hint': {
     'ckb': 'پاشکەوتکردن لە تابی ڕێکخستن',

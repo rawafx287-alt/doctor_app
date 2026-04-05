@@ -989,9 +989,82 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
     try {
       final id = widget.existingDocId;
       final hasDoc = widget.dayRow != null;
+      final wasOpen = hasDoc && availableDayIsOpen(widget.dayRow!);
 
       if (!_isOpen) {
         if (hasDoc) {
+          if (wasOpen) {
+            final activeCount = await countActiveAppointmentsForDoctorLocalDay(
+              doctorUserId: widget.doctorUserId,
+              dayLocal: widget.dateLocal,
+            );
+            if (activeCount > 0) {
+              if (!mounted) return;
+              setState(() => _saving = false);
+              final proceed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) {
+                  final loc = S.of(ctx);
+                  final nf = NumberFormat.decimalPattern('en_US');
+                  return AlertDialog(
+                    backgroundColor: const Color(0xFF0D2137),
+                    title: Text(
+                      loc.translate('schedule_close_day_bulk_title'),
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE8EEF4),
+                      ),
+                    ),
+                    content: Text(
+                      loc.translate(
+                        'schedule_close_day_bulk_body',
+                        params: {'count': nf.format(activeCount)},
+                      ),
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        height: 1.35,
+                        color: Colors.white.withValues(alpha: 0.88),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(
+                          loc.translate('appt_action_confirm_no'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: Text(
+                          loc.translate('appt_action_confirm_yes'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE57373),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+              if (!mounted) return;
+              if (proceed != true) return;
+              setState(() => _saving = true);
+              await bulkCancelActiveAppointmentsForDoctorLocalDay(
+                doctorUserId: widget.doctorUserId,
+                dayLocal: widget.dateLocal,
+                cancellationReason: kAppointmentCancellationReasonClinicClosed,
+              );
+            }
+          }
           await setAvailableDayOpenState(availableDayDocId: id, isOpen: false);
         }
       } else {
@@ -1163,31 +1236,128 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
     );
   }
 
-  Map<String, String> _patientNameBySlotHhMm(
+  /// Active booking per slot: patient name, appointment doc id, status (for cancel rules).
+  Map<String, (String name, String docId, String status)>
+      _activeSlotBookingsByHhMm(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
-    final m = <String, String>{};
+    final m = <String, (String, String, String)>{};
     for (final d in docs) {
       final data = d.data();
       final st = (data[AppointmentFields.status] ?? 'pending')
           .toString()
           .trim()
           .toLowerCase();
-      if (st == 'cancelled') continue;
+      if (st == 'cancelled' || st == 'canceled') continue;
       final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
       if (k.isEmpty) continue;
       final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
       if (n.isEmpty) continue;
-      m.putIfAbsent(k, () => n);
+      m.putIfAbsent(k, () => (n, d.id, st));
     }
     return m;
   }
 
+  Future<void> _confirmAndCancelSecretaryBooking(
+    BuildContext context,
+    AppLocalizations loc, {
+    required String appointmentDocId,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final yesStyle = TextButton.styleFrom(
+          foregroundColor: const Color(0xFFE57373),
+        );
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0D2137),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: kStaffLuxGold.withValues(alpha: 0.45),
+            ),
+          ),
+          title: Text(
+            loc.translate('schedule_slot_cancel_confirm_title'),
+            style: const TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              height: 1.35,
+              color: Color(0xFFE8EEF4),
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                loc.translate('schedule_slot_cancel_no'),
+                style: const TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFB0BEC5),
+                ),
+              ),
+            ),
+            TextButton(
+              style: yesStyle,
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                loc.translate('schedule_slot_cancel_yes'),
+                style: const TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection(AppointmentFields.collection)
+          .doc(appointmentDocId)
+          .update({
+        AppointmentFields.status: 'cancelled',
+        AppointmentFields.cancellationReason:
+            kAppointmentCancellationReasonSecretary,
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              loc.translate('schedule_slot_cancel_ok_snack'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              loc.translate('schedule_slot_cancel_error_snack'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _slotRowGlass({
+    required BuildContext context,
     required AppLocalizations loc,
     required DateTime slotStart,
     required bool booked,
     required String patientName,
+    required bool showCancelButton,
+    String? appointmentDocId,
   }) {
     final timeEn = DateFormat.jm('en_US').format(slotStart);
     return Padding(
@@ -1257,6 +1427,31 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
                       ),
                     ),
                   ),
+                  if (booked &&
+                      showCancelButton &&
+                      appointmentDocId != null &&
+                      appointmentDocId.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _confirmAndCancelSecretaryBooking(
+                          context,
+                          loc,
+                          appointmentDocId: appointmentDocId,
+                        ),
+                        customBorder: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.cancel_outlined,
+                            size: 18,
+                            color: const Color(0xCCE57373),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ] else ...[
                   Container(
                     width: 6,
@@ -1360,7 +1555,7 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
         final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
           snap.data ?? [],
         );
-        final byKey = _patientNameBySlotHhMm(docs);
+        final byKey = _activeSlotBookingsByHhMm(docs);
 
         if (slots.isEmpty) {
           return Padding(
@@ -1386,13 +1581,19 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
             itemBuilder: (context, i) {
               final slot = slots[i];
               final k = formatTimeHhMm(slot);
-              final name = byKey[k];
-              final booked = name != null;
+              final booking = byKey[k];
+              final booked = booking != null;
+              final showCancel = booking != null &&
+                  !_isPast &&
+                  !appointmentStatusIsTerminalForStaffSort(booking.$3);
               return _slotRowGlass(
+                context: context,
                 loc: loc,
                 slotStart: slot,
                 booked: booked,
-                patientName: name ?? '',
+                patientName: booking?.$1 ?? '',
+                showCancelButton: showCancel,
+                appointmentDocId: booking?.$2,
               );
             },
           ),
