@@ -1404,7 +1404,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                                 const _DoctorCompletedAppointmentsSectionHeader(),
                                 const SizedBox(height: 8),
                               ] else if (i > 0)
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                               _DoctorSlotGlassCard(
                                 key: ValueKey<String>(
                                   byKeyAll[formatTimeHhMm(orderedSlots[i])]!.id,
@@ -1506,32 +1506,32 @@ class _DoctorSlotTimePill extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 5,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.access_time_rounded,
-                  size: 13.5,
+                  size: 12,
                   color: kStaffLuxGold.withValues(alpha: 0.8),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
                   timeLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    height: 1.15,
-                    letterSpacing: 0.35,
+                    height: 1.12,
+                    letterSpacing: 0.3,
                     color: textColor.withValues(alpha: 0.94),
                   ),
                 ),
@@ -1621,13 +1621,13 @@ class _DoctorSlotGlassCard extends StatelessWidget {
               onTap: onPressed,
               customBorder: const CircleBorder(),
               child: Ink(
-                height: 40,
-                width: 40,
+                height: 34,
+                width: 34,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: fill,
                 ),
-                child: Icon(icon, color: Colors.white, size: 20),
+                child: Icon(icon, color: Colors.white, size: 17),
               ),
             ),
           ),
@@ -1642,9 +1642,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       /// Name (chip) then time for booked; empty slots: copy then time at bottom.
       /// Ticket stays in the outer card [Row] on the end.
       Widget mainTapChild = Padding(
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 108),
+          constraints: const BoxConstraints(minHeight: 82),
           child: Column(
             crossAxisAlignment: booked
                 ? CrossAxisAlignment.center
@@ -1657,7 +1657,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                   width: double.infinity,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       color: Colors.white.withValues(
                         alpha: stripGold ? 0.11 : 0.07,
                       ),
@@ -1669,16 +1669,16 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: 10,
+                        vertical: 6,
                       ),
                       child: Text(
                         patientName,
@@ -1688,8 +1688,8 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                         style: const TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          height: 1.22,
+                          fontSize: 16,
+                          height: 1.18,
                           letterSpacing: -0.2,
                           color: Color(0xFFF8FAFC),
                         ),
@@ -1697,7 +1697,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 SizedBox(
                   width: double.infinity,
                   child: _DoctorSlotTimePill(timeLabel: timeEn),
@@ -1711,22 +1711,22 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    height: 1.12,
+                    fontSize: 13,
+                    height: 1.1,
                     color: Colors.white.withValues(alpha: 0.92),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   s.translate('master_calendar_add_walkin'),
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.w600,
-                    fontSize: 9.5,
+                    fontSize: 9,
                     color: Colors.white.withValues(alpha: 0.48),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
                 _DoctorSlotTimePill(
                   timeLabel: timeEn,
                   alignment: Alignment.centerLeft,
@@ -1738,15 +1738,15 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       );
 
       Widget card = ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFF0A1628).withValues(
                 alpha: booked ? 0.52 : 0.44,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: cardBorderColor,
                 width: 1,
@@ -1773,17 +1773,17 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                         gradient: leftStripGradient,
                         color: leftStripColor,
                         borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(15),
+                          left: Radius.circular(13),
                         ),
                       ),
                     ),
                     if (showActions)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
-                          start: 10,
-                          end: 6,
-                          top: 6,
-                          bottom: 6,
+                          start: 8,
+                          end: 4,
+                          top: 4,
+                          bottom: 4,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1800,7 +1800,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                                 'completed',
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             circleAction(
                               fill: softRed,
                               icon: Icons.close_rounded,
@@ -1818,10 +1818,10 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                     if (booked && isTerminal)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
-                          start: 10,
-                          end: 6,
-                          top: 6,
-                          bottom: 6,
+                          start: 8,
+                          end: 4,
+                          top: 4,
+                          bottom: 4,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1838,12 +1838,12 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                                 color: status == 'completed'
                                     ? vibrantGreen.withValues(alpha: 0.85)
                                     : softRed.withValues(alpha: 0.88),
-                                size: 28,
+                                size: 24,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             SizedBox(
-                              width: 72,
+                              width: 64,
                               child: Text(
                                 s.translate(
                                   status == 'completed'
@@ -1898,9 +1898,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                     if (booked)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
-                          end: 10,
-                          top: 6,
-                          bottom: 6,
+                          end: 8,
+                          top: 4,
+                          bottom: 4,
                         ),
                         child: Center(
                           child: Semantics(
@@ -1913,9 +1913,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                     if (!booked)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
-                          end: 8,
-                          top: 8,
-                          bottom: 8,
+                          end: 6,
+                          top: 4,
+                          bottom: 4,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1923,11 +1923,11 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                             Icon(
                               Icons.add_circle_rounded,
                               color: kStaffLuxGold.withValues(alpha: 0.95),
-                              size: 28,
+                              size: 24,
                             ),
                             const SizedBox(height: 2),
                             SizedBox(
-                              width: 64,
+                              width: 58,
                               child: Text(
                                 s.translate('book_now'),
                                 textAlign: TextAlign.center,
@@ -2156,13 +2156,13 @@ class _AppointmentCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: stripGold ? 0.2 : 0.12),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: stripGold
                     ? kStaffLuxGold.withValues(alpha: 0.45)
@@ -2180,7 +2180,7 @@ class _AppointmentCard extends StatelessWidget {
                   : null,
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -2188,7 +2188,7 @@ class _AppointmentCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
                         start: 0,
-                        end: 6,
+                        end: 4,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2200,7 +2200,7 @@ class _AppointmentCard extends StatelessWidget {
                                 s.translate('doctor_appt_action_complete'),
                             onPressed: onComplete,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           _DoctorApptDoneRejectCircle(
                             fill: const Color(0xFFDC2626),
                             icon: Icons.close_rounded,
@@ -2217,14 +2217,14 @@ class _AppointmentCard extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: onCardTap,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
-                            minHeight: 108,
+                            minHeight: 82,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                              vertical: 10,
+                              vertical: 6,
                               horizontal: 2,
                             ),
                             child: Column(
@@ -2236,7 +2236,7 @@ class _AppointmentCard extends StatelessWidget {
                                   width: double.infinity,
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(12),
                                       color: Colors.white.withValues(
                                         alpha: stripGold ? 0.11 : 0.07,
                                       ),
@@ -2249,17 +2249,17 @@ class _AppointmentCard extends StatelessWidget {
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withValues(
-                                            alpha: 0.18,
+                                            alpha: 0.16,
                                           ),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
+                                        horizontal: 10,
+                                        vertical: 6,
                                       ),
                                       child: Text(
                                         patientName,
@@ -2269,8 +2269,8 @@ class _AppointmentCard extends StatelessWidget {
                                         style: const TextStyle(
                                           fontFamily: kPatientPrimaryFont,
                                           fontWeight: FontWeight.w800,
-                                          fontSize: 18,
-                                          height: 1.22,
+                                          fontSize: 16,
+                                          height: 1.18,
                                           letterSpacing: -0.2,
                                           color: Color(0xFFF8FAFC),
                                         ),
@@ -2278,7 +2278,7 @@ class _AppointmentCard extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 SizedBox(
                                   width: double.infinity,
                                   child: _DoctorSlotTimePill(
@@ -2293,7 +2293,7 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 8),
+                    padding: const EdgeInsetsDirectional.only(end: 6),
                     child: Semantics(
                       label:
                           '${s.translate('secretary_ticket_number')} $queueEn',
@@ -2317,8 +2317,7 @@ class _DoctorQueueGoldCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ~20% smaller than previous 52px — compact badge, not a dominant focal point.
-    const size = 42.0;
+    const size = 36.0;
     final gold = kStaffLuxGold;
     return SizedBox(
       width: size,
@@ -2328,9 +2327,9 @@ class _DoctorQueueGoldCircle extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: gold.withValues(alpha: 0.32),
-              blurRadius: 5,
-              spreadRadius: 2,
+              color: gold.withValues(alpha: 0.28),
+              blurRadius: 4,
+              spreadRadius: 1,
             ),
           ],
         ),
@@ -2371,7 +2370,7 @@ class _DoctorQueueGoldCircle extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.w600,
-                    fontSize: number.length > 2 ? 13.5 : 15.5,
+                    fontSize: number.length > 2 ? 12 : 14,
                     height: 1,
                     letterSpacing: -0.2,
                     color: gold.withValues(alpha: 0.96),
@@ -2411,13 +2410,13 @@ class _DoctorApptDoneRejectCircle extends StatelessWidget {
           onTap: onPressed,
           customBorder: const CircleBorder(),
           child: Ink(
-            height: 40,
-            width: 40,
+            height: 34,
+            width: 34,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: fill,
             ),
-            child: Icon(icon, color: Colors.white, size: 20),
+            child: Icon(icon, color: Colors.white, size: 17),
           ),
         ),
       ),
