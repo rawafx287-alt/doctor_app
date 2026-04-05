@@ -4,21 +4,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'appointment_queries.dart';
 
-/// Top-level [notifications] collection — patient apps listen with
-/// `arrayContains` on [RootNotificationFields.recipientKeys].
+/// Top-level [notifications] collection — patient apps query
+/// `where(patientId == …).orderBy(createdAt desc)` (matches Firestore composite index).
 abstract final class RootNotificationFields {
   static const String collection = 'notifications';
 
   /// Firestore user doc ids that should receive this row (patientId, userId, …).
   static const String recipientKeys = 'recipientKeys';
 
-  /// Primary [AppointmentFields.patientId] for rules/debugging.
+  /// Indexed with [createdAt] for patient list queries.
   static const String patientId = 'patientId';
 
   static const String message = 'message';
   static const String title = 'title';
 
-  /// Server time; used for ordering (composite index with [recipientKeys]).
+  /// Prefer for ordering and display (matches your Firestore index).
+  static const String createdAt = 'createdAt';
+
+  /// Legacy field on older rows; fallback when [createdAt] is missing.
   static const String timestamp = 'timestamp';
 
   /// `unread` | `read`
@@ -70,8 +73,29 @@ String formatAppointmentDateForNotificationKu(Map<String, dynamic> data) {
   return s.isEmpty ? '—' : s;
 }
 
-/// Creates a patient-visible notification row and triggers server FCM via
-/// [onNotificationCreated] Cloud Function.
+/// Display time for list tiles (prefers [RootNotificationFields.createdAt]).
+Timestamp? notificationDisplayTime(Map<String, dynamic> data) {
+  final c = data[RootNotificationFields.createdAt];
+  if (c is Timestamp) return c;
+  final t = data[RootNotificationFields.timestamp];
+  if (t is Timestamp) return t;
+  return null;
+}
+
+int _notificationTimeMs(Map<String, dynamic> data) {
+  final t = notificationDisplayTime(data);
+  return t?.millisecondsSinceEpoch ?? 0;
+}
+
+String _mergeDedupeKey(Map<String, dynamic> data, String docId) {
+  final appt =
+      (data[RootNotificationFields.appointmentId] ?? '').toString().trim();
+  if (appt.isNotEmpty) return appt;
+  return docId;
+}
+
+/// Creates patient-visible notification rows (one per recipient id so each
+/// login alias matches `patientId` queries) and triggers FCM via Cloud Function.
 Future<void> createPatientRootNotification({
   required Map<String, dynamic> appointmentData,
   required String appointmentDocId,
@@ -81,20 +105,23 @@ Future<void> createPatientRootNotification({
 }) async {
   final keys = recipientKeysFromAppointmentData(appointmentData);
   if (keys.isEmpty) return;
-  final pid =
-      (appointmentData[AppointmentFields.patientId] ?? '').toString().trim();
-  await FirebaseFirestore.instance
-      .collection(RootNotificationFields.collection)
-      .add({
-    RootNotificationFields.recipientKeys: keys.toList(),
-    RootNotificationFields.patientId: pid.isNotEmpty ? pid : keys.first,
-    RootNotificationFields.message: message,
-    RootNotificationFields.title: title,
-    RootNotificationFields.timestamp: FieldValue.serverTimestamp(),
-    RootNotificationFields.status: 'unread',
-    RootNotificationFields.appointmentId: appointmentDocId,
-    RootNotificationFields.type: type,
-  });
+  final batch = FirebaseFirestore.instance.batch();
+  for (final key in keys) {
+    final ref =
+        FirebaseFirestore.instance.collection(RootNotificationFields.collection).doc();
+    batch.set(ref, {
+      RootNotificationFields.patientId: key,
+      RootNotificationFields.recipientKeys: [key],
+      RootNotificationFields.message: message,
+      RootNotificationFields.title: title,
+      RootNotificationFields.createdAt: FieldValue.serverTimestamp(),
+      RootNotificationFields.timestamp: FieldValue.serverTimestamp(),
+      RootNotificationFields.status: 'unread',
+      RootNotificationFields.appointmentId: appointmentDocId,
+      RootNotificationFields.type: type,
+    });
+  }
+  await batch.commit();
 }
 
 Query<Map<String, dynamic>> rootNotificationsForRecipientQuery(
@@ -103,10 +130,10 @@ Query<Map<String, dynamic>> rootNotificationsForRecipientQuery(
   return FirebaseFirestore.instance
       .collection(RootNotificationFields.collection)
       .where(
-        RootNotificationFields.recipientKeys,
-        arrayContains: recipientKey,
+        RootNotificationFields.patientId,
+        isEqualTo: recipientKey,
       )
-      .orderBy(RootNotificationFields.timestamp, descending: true)
+      .orderBy(RootNotificationFields.createdAt, descending: true)
       .limit(50);
 }
 
@@ -131,21 +158,26 @@ Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       QueryDocumentSnapshot<Map<String, dynamic>> a,
       QueryDocumentSnapshot<Map<String, dynamic>> b,
     ) {
-      final ta = a.data()[RootNotificationFields.timestamp];
-      final tb = b.data()[RootNotificationFields.timestamp];
-      final ma = ta is Timestamp ? ta.millisecondsSinceEpoch : 0;
-      final mb = tb is Timestamp ? tb.millisecondsSinceEpoch : 0;
+      final ma = _notificationTimeMs(a.data());
+      final mb = _notificationTimeMs(b.data());
       return mb.compareTo(ma);
     }
 
     void emit() {
-      final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      final byDedupe =
+          <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
       for (final snap in latest.values) {
         for (final d in snap.docs) {
-          byId[d.id] = d;
+          final data = d.data();
+          final k = _mergeDedupeKey(data, d.id);
+          final existing = byDedupe[k];
+          if (existing == null ||
+              _notificationTimeMs(data) > _notificationTimeMs(existing.data())) {
+            byDedupe[k] = d;
+          }
         }
       }
-      final out = byId.values.toList()..sort(compareDocs);
+      final out = byDedupe.values.toList()..sort(compareDocs);
       controller.add(out);
     }
 
@@ -169,15 +201,21 @@ Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
   });
 }
 
-Stream<QuerySnapshot<Map<String, dynamic>>> unreadRootNotificationsSnapshot(
-  String recipientKey,
-) {
+/// Whether this user has any unread notification (uses only the patientId+createdAt index).
+Stream<bool> unreadRootNotificationsSnapshot(String recipientKey) {
   return FirebaseFirestore.instance
       .collection(RootNotificationFields.collection)
-      .where(RootNotificationFields.recipientKeys, arrayContains: recipientKey)
-      .where(RootNotificationFields.status, isEqualTo: 'unread')
-      .limit(1)
-      .snapshots();
+      .where(RootNotificationFields.patientId, isEqualTo: recipientKey)
+      .orderBy(RootNotificationFields.createdAt, descending: true)
+      .limit(40)
+      .snapshots()
+      .map(
+        (snap) => snap.docs.any(
+          (d) =>
+              (d.data()[RootNotificationFields.status] ?? '').toString() ==
+              'unread',
+        ),
+      );
 }
 
 /// One notification per distinct patient-day for clinic closure (avoids spam).
@@ -193,13 +231,13 @@ Stream<bool> watchHasUnreadRootNotificationAnyKey(Set<String> keys) {
       controller.add(hasUnread.values.any((v) => v));
     }
 
-    final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    final subs = <StreamSubscription<bool>>[];
     for (final k in list) {
       hasUnread[k] = false;
       subs.add(
         unreadRootNotificationsSnapshot(k).listen(
-          (snap) {
-            hasUnread[k] = snap.docs.isNotEmpty;
+          (unread) {
+            hasUnread[k] = unread;
             emit();
           },
           onError: controller.addError,

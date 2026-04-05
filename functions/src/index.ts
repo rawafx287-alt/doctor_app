@@ -83,9 +83,13 @@ export const onRootNotificationCreated = onDocumentCreated(
     }
     const data = snap.data();
     const rawKeys = data.recipientKeys;
-    const keys = Array.isArray(rawKeys)
+    let keys = Array.isArray(rawKeys)
       ? rawKeys.map((k) => String(k).trim()).filter(Boolean)
       : [];
+    const singlePatient = String(data.patientId ?? "").trim();
+    if (keys.length === 0 && singlePatient.length > 0) {
+      keys = [singlePatient];
+    }
     const title = String(data.title ?? NOTIF_TITLE).trim() || NOTIF_TITLE;
     const body = String(data.message ?? "").trim();
     if (!body) {

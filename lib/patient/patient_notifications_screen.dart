@@ -48,11 +48,14 @@ class _PatientNotificationsScreenState
         if (k.isEmpty) continue;
         final snap = await FirebaseFirestore.instance
             .collection(RootNotificationFields.collection)
-            .where(RootNotificationFields.recipientKeys, arrayContains: k)
-            .where(RootNotificationFields.status, isEqualTo: 'unread')
+            .where(RootNotificationFields.patientId, isEqualTo: k)
+            .orderBy(RootNotificationFields.createdAt, descending: true)
             .limit(40)
             .get();
         for (final d in snap.docs) {
+          final st =
+              (d.data()[RootNotificationFields.status] ?? '').toString();
+          if (st != 'unread') continue;
           if (touched.add(d.reference)) {
             batch.update(d.reference, {RootNotificationFields.status: 'read'});
             hasWrites = true;
@@ -233,9 +236,9 @@ class _PatientNotificationsScreenState
                                     final isCancel = type.contains('cancel') ||
                                         type == 'clinic_closed';
                                     final created =
-                                        row[RootNotificationFields.timestamp];
+                                        notificationDisplayTime(row);
                                     var timeStr = '';
-                                    if (created is Timestamp) {
+                                    if (created != null) {
                                       timeStr = DateFormat.yMMMd()
                                           .add_jm()
                                           .format(created.toDate());
