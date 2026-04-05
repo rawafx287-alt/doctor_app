@@ -23,6 +23,8 @@ import 'patient_profile_screen.dart';
 import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
 import 'patient_notifications_screen.dart';
+import 'patient_recipient_keys.dart';
+import '../firestore/root_notifications_firestore.dart';
 import 'home_ad_carousel.dart';
 
 /// Search bar height (fixed above home [CustomScrollView]).
@@ -306,6 +308,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       .where('role', isEqualTo: 'Doctor')
       .where('isApproved', isEqualTo: true)
       .snapshots();
+
+  late final Future<Set<String>> _patientRecipientKeysFuture =
+      resolvePatientRecipientKeys();
 
   /// Maps selected chip key ([kPatientSpecialtyAllKey] or translation key) to Firestore `specialty` string.
   String _firestoreValueForSelectedCategory() {
@@ -1245,21 +1250,42 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
     }
 
-    if (inboxDocId.isEmpty) {
-      return topBarShell(hasUnreadNotifications: false);
+    Widget withInboxAndRoot(bool rootUnread) {
+      if (inboxDocId.isEmpty) {
+        return topBarShell(hasUnreadNotifications: rootUnread);
+      }
+      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(inboxDocId)
+            .collection('notificationInbox')
+            .where('read', isEqualTo: false)
+            .limit(1)
+            .snapshots(),
+        builder: (context, inboxSnap) {
+          final inboxUnread = inboxSnap.hasData &&
+              (inboxSnap.data?.docs.isNotEmpty ?? false);
+          return topBarShell(
+            hasUnreadNotifications: inboxUnread || rootUnread,
+          );
+        },
+      );
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(inboxDocId)
-          .collection('notificationInbox')
-          .where('read', isEqualTo: false)
-          .limit(1)
-          .snapshots(),
-      builder: (context, snap) {
-        final hasUnread =
-            snap.hasData && (snap.data?.docs.isNotEmpty ?? false);
-        return topBarShell(hasUnreadNotifications: hasUnread);
+
+    return FutureBuilder<Set<String>>(
+      future: _patientRecipientKeysFuture,
+      builder: (context, keySnap) {
+        final keys = keySnap.data ?? {};
+        if (keys.isEmpty) {
+          return withInboxAndRoot(false);
+        }
+        return StreamBuilder<bool>(
+          stream: watchHasUnreadRootNotificationAnyKey(keys),
+          builder: (context, rootSnap) {
+            final rootUnread = rootSnap.data ?? false;
+            return withInboxAndRoot(rootUnread);
+          },
+        );
       },
     );
   }

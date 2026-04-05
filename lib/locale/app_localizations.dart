@@ -884,6 +884,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'يرجى تسجيل الدخول',
     'en': 'Please sign in',
   },
+  /// Stored on Firestore [notifications].message when staff cancels a slot.
+  'root_notif_body_slot_cancelled': {
+    'ckb': 'نۆرەکەت ڕەتکرایەوە',
+    'ar': 'تم رفض موعدك',
+    'en': 'Your appointment was rejected.',
+  },
   'tooltip_logout': {
     'ckb': 'چوونەدەرەوە',
     'ar': 'تسجيل الخروج',

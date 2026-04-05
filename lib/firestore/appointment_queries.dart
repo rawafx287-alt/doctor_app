@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+import '../locale/app_locale.dart';
+import '../locale/app_localizations.dart';
+import 'root_notifications_firestore.dart';
+
 /// [appointments] collection — field names must match composite indexes exactly.
 /// Use [doctorId] (capital **I** in `Id`), never `doctorld` or `doctor_id`.
 abstract final class AppointmentFields {
@@ -417,6 +421,10 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
 
   const chunk = 450;
   var total = 0;
+  final seenClinicDayKeys = <String>{};
+  final bulkMsg = AppLocalizations.forLang(HrNoraLanguage.ckb)
+      .translate('root_notif_body_slot_cancelled');
+
   for (var i = 0; i < active.length; i += chunk) {
     final batch = FirebaseFirestore.instance.batch();
     final slice = active.skip(i).take(chunk).toList();
@@ -429,6 +437,36 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
     }
     await batch.commit();
     total += slice.length;
+
+    for (final doc in slice) {
+      final data = doc.data();
+      if (cancellationReason == kAppointmentCancellationReasonClinicClosed) {
+        final keys = recipientKeysFromAppointmentData(data);
+        if (keys.isEmpty) continue;
+        final dk = appointmentNotificationDayKey(data) ?? 'unknown';
+        final sorted = keys.toList()..sort();
+        final dedupe = '${sorted.join('|')}|$dk';
+        if (seenClinicDayKeys.contains(dedupe)) continue;
+        seenClinicDayKeys.add(dedupe);
+        final dateLabel = formatAppointmentDateForNotificationKu(data);
+        final body = kClinicClosurePatientNotificationMessageKu.replaceAll(
+          '{date}',
+          dateLabel,
+        );
+        await createPatientRootNotification(
+          appointmentData: data,
+          appointmentDocId: doc.id,
+          message: body,
+          type: 'clinic_closed',
+        );
+      } else {
+        await createPatientRootNotification(
+          appointmentData: data,
+          appointmentDocId: doc.id,
+          message: bulkMsg,
+        );
+      }
+    }
   }
   return total;
 }

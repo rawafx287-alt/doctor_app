@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore/appointment_queries.dart';
+import '../firestore/root_notifications_firestore.dart';
 import '../firestore/available_days_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -731,10 +732,32 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       } else if (st == 'completed') {
         patch[AppointmentFields.cancellationReason] = FieldValue.delete();
       }
-      await FirebaseFirestore.instance
+      final apptRef = FirebaseFirestore.instance
           .collection(AppointmentFields.collection)
-          .doc(docId)
-          .update(patch);
+          .doc(docId);
+      final priorSnap = await apptRef.get();
+      if (!priorSnap.exists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                s.translate('doctor_appointments_update_error'),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final priorData = priorSnap.data()!;
+      await apptRef.update(patch);
+      if (st == 'cancelled' || st == 'canceled') {
+        await createPatientRootNotification(
+          appointmentData: priorData,
+          appointmentDocId: docId,
+          message: s.translate('root_notif_body_slot_cancelled'),
+        );
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

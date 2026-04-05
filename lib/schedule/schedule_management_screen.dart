@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
+import '../firestore/root_notifications_firestore.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_locale.dart';
@@ -1317,15 +1318,35 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
     );
     if (ok != true || !context.mounted) return;
     try {
-      await FirebaseFirestore.instance
+      final ref = FirebaseFirestore.instance
           .collection(AppointmentFields.collection)
-          .doc(appointmentDocId)
-          .update({
+          .doc(appointmentDocId);
+      final priorSnap = await ref.get();
+      if (!priorSnap.exists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                loc.translate('schedule_slot_cancel_error_snack'),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final priorData = priorSnap.data()!;
+      await ref.update({
         AppointmentFields.status: 'cancelled',
         AppointmentFields.cancellationReason:
             kAppointmentCancellationReasonSecretary,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });
+      await createPatientRootNotification(
+        appointmentData: priorData,
+        appointmentDocId: appointmentDocId,
+        message: loc.translate('root_notif_body_slot_cancelled'),
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

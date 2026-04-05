@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
@@ -7,40 +7,6 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const NOTIF_TITLE = "نۆرینگە";
-
-function normStatus(raw: unknown): string {
-  return String(raw ?? "pending").trim().toLowerCase();
-}
-
-function isCancelledStatus(s: string): boolean {
-  return s === "cancelled" || s === "canceled" || s === "rejected";
-}
-
-/** Display date for Kurdish notification body (matches common app `yyyy/MM/dd`). */
-function formatAppointmentDate(data: admin.firestore.DocumentData): string {
-  const d = data.date;
-  if (d && typeof (d as admin.firestore.Timestamp).toDate === "function") {
-    const dt = (d as admin.firestore.Timestamp).toDate();
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, "0");
-    const day = String(dt.getDate()).padStart(2, "0");
-    return `${y}/${m}/${day}`;
-  }
-  if (typeof d === "string" && d.trim().length > 0) {
-    return d.trim();
-  }
-  return "—";
-}
-
-function dayKeyFromDateLabel(dateLabel: string): string {
-  return dateLabel.replace(/\//g, "-").replace(/[^\w\-]/g, "_");
-}
-
-function patientPairKey(patientId: string, userId: string): string {
-  const parts = [patientId, userId].map((s) => s.trim()).filter(Boolean);
-  parts.sort();
-  return parts.length > 0 ? parts.join("|") : "unknown";
-}
 
 async function collectFcmTokens(
   patientId: string,
@@ -60,6 +26,16 @@ async function collectFcmTokens(
     }
     const legacy = data.fcmToken as string | undefined;
     if (legacy && legacy.length > 20) tokens.add(legacy);
+  }
+  return [...tokens];
+}
+
+async function collectFcmTokensForKeys(keys: string[]): Promise<string[]> {
+  const tokens = new Set<string>();
+  for (const id of keys) {
+    for (const t of await collectFcmTokens(id, "")) {
+      tokens.add(t);
+    }
   }
   return [...tokens];
 }
@@ -94,116 +70,44 @@ async function sendMulticast(
   }
 }
 
-async function addNotificationInboxEntries(
-  patientId: string,
-  userId: string,
-  entry: {
-    title: string;
-    body: string;
-    type: string;
-    appointmentId: string;
-  },
-): Promise<void> {
-  const ids = [...new Set([patientId, userId].map((s) => s.trim()).filter(Boolean))];
-  const batch = db.batch();
-  for (const id of ids) {
-    const ref = db
-      .collection("users")
-      .doc(id)
-      .collection("notificationInbox")
-      .doc();
-    batch.set(ref, {
-      ...entry,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      read: false,
-    });
-  }
-  await batch.commit();
-}
-
 /**
- * When an appointment becomes cancelled/rejected, notify the patient via FCM and
- * append an inbox row. Clinic-day bulk cancels dedupe to one push per patient per day.
+ * Client writes [notifications] rows; this sends the lock-screen FCM payload.
+ * Avoids duplicate pushes from a separate [appointments] update trigger.
  */
-export const onAppointmentCancelledNotify = onDocumentUpdated(
-  "appointments/{apptId}",
+export const onRootNotificationCreated = onDocumentCreated(
+  "notifications/{notifId}",
   async (event) => {
-    const before = event.data?.before.data();
-    const after = event.data?.after.data();
-    if (!before || !after) {
+    const snap = event.data;
+    if (!snap) {
       return;
     }
-
-    const sb = normStatus(before.status);
-    const sa = normStatus(after.status);
-    if (isCancelledStatus(sb) || !isCancelledStatus(sa)) {
+    const data = snap.data();
+    const rawKeys = data.recipientKeys;
+    const keys = Array.isArray(rawKeys)
+      ? rawKeys.map((k) => String(k).trim()).filter(Boolean)
+      : [];
+    const title = String(data.title ?? NOTIF_TITLE).trim() || NOTIF_TITLE;
+    const body = String(data.message ?? "").trim();
+    if (!body) {
+      logger.warn("onRootNotificationCreated: empty body", { id: snap.id });
       return;
     }
+    const type = String(data.type ?? "unknown");
+    const appointmentId = String(data.appointmentId ?? "");
 
-    const apptId = event.params.apptId as string;
-    const patientId = String(after.patientId ?? "").trim();
-    const userId = String(after.userId ?? "").trim();
-    const reason = String(after.cancellationReason ?? "").trim();
-    const dateLabel = formatAppointmentDate(after);
-
-    const isClinicClosure = reason === "clinic_closed";
-
-    const bodyIndividual =
-      `ببوورە، نۆرەکەت لە ڕێکەوتی ${dateLabel} لەلایەن نۆرینگەوە هەڵوەشایەوە.`;
-    const bodyClinic =
-      `ئاگاداری: نۆرینگە لە ڕێکەوتی ${dateLabel} داخراوە، تکایە نۆرەیەکی نوێ وەربگرە.`;
-
-    const body = isClinicClosure ? bodyClinic : bodyIndividual;
-    const type = isClinicClosure ? "clinic_closed" : "appointment_cancelled";
-
-    const dataPayload: Record<string, string> = {
-      type,
-      appointmentId: apptId,
-      date: dateLabel,
-    };
-
-    if (isClinicClosure) {
-      const dk = dayKeyFromDateLabel(dateLabel);
-      const pair = patientPairKey(patientId, userId);
-      const dedupeId = `${pair}_${dk}`.replace(/[^a-zA-Z0-9_|\-]/g, "_");
-      const dedupeRef = db.collection("clinicClosureNotifyDedupe").doc(dedupeId);
-
-      let shouldNotify = false;
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(dedupeRef);
-        if (snap.exists) {
-          return;
-        }
-        shouldNotify = true;
-        tx.set(dedupeRef, {
-          firstAppointmentId: apptId,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      });
-
-      if (!shouldNotify) {
-        logger.info("Skip duplicate clinic-closure notify", { dedupeId, apptId });
-        return;
-      }
-
-      const tokens = await collectFcmTokens(patientId, userId);
-      await sendMulticast(tokens, NOTIF_TITLE, body, dataPayload);
-      await addNotificationInboxEntries(patientId, userId, {
-        title: NOTIF_TITLE,
-        body,
-        type,
-        appointmentId: apptId,
+    const tokens = await collectFcmTokensForKeys(keys);
+    if (tokens.length === 0) {
+      logger.info("onRootNotificationCreated: no tokens", {
+        id: snap.id,
+        keys,
       });
       return;
     }
 
-    const tokens = await collectFcmTokens(patientId, userId);
-    await sendMulticast(tokens, NOTIF_TITLE, body, dataPayload);
-    await addNotificationInboxEntries(patientId, userId, {
-      title: NOTIF_TITLE,
-      body,
+    await sendMulticast(tokens, title, body, {
       type,
-      appointmentId: apptId,
+      appointmentId,
+      notificationId: snap.id,
     });
   },
 );
