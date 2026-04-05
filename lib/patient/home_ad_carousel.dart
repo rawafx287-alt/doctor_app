@@ -19,13 +19,6 @@ double homeAdBannerHeight(BuildContext context) {
   return (h * 0.265).clamp(200.0, 220.0);
 }
 
-/// Total pinned header: ad + gap + specialties (search bar is separate).
-double pinnedHomeHeaderTotalHeight(BuildContext context) {
-  return homeAdBannerHeight(context) +
-      kHomeAdBannerGap +
-      kHomeSpecialtiesBlockExtent;
-}
-
 /// Firestore-backed promo carousel for patient home (collection: `ads`).
 class HomeAdCarousel extends StatelessWidget {
   const HomeAdCarousel({super.key, required this.height});

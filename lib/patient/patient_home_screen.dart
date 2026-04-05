@@ -21,7 +21,7 @@ import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
 import 'home_ad_carousel.dart';
 
-/// Sticky header heights for [SliverPersistentHeader] (keep in sync with widgets).
+/// Search bar height (fixed above home [CustomScrollView]).
 const double _kHomeSearchHeaderExtent = 44;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
@@ -469,13 +469,33 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  Widget _buildPinnedSpecialtiesSection(BuildContext context) {
+  /// Ad carousel + gap — scrolls away inside [CustomScrollView].
+  Widget _buildHomeAdBannerBlock(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
+          child: HomeAdCarousel(height: homeAdBannerHeight(context)),
+        ),
+        const SizedBox(height: kHomeAdBannerGap),
+      ],
+    );
+  }
+
+  /// Specialties title + horizontal chips — used inside pinned [SliverPersistentHeader].
+  Widget _buildSpecialtiesStickyStrip(
+    BuildContext context, {
+    required bool overlapsContent,
+  }) {
     final scrollableCategoryKeys = patientSpecialtyFilterCategoryKeys
         .where((k) => k != kPatientSpecialtyAllKey)
         .toList();
     final allSelected = _selectedCategory == kPatientSpecialtyAllKey;
     final allSoft = _categorySoftTint(kPatientSpecialtyAllKey);
     final allAcc = _categoryAccentIcon(kPatientSpecialtyAllKey);
+
     Widget specialtyTile({
       required String catKey,
       required bool selected,
@@ -534,185 +554,194 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       );
     }
 
-    return SingleChildScrollView(
+    return Material(
+      color: kPatientSkyTop,
+      surfaceTintColor: Colors.transparent,
+      elevation: overlapsContent ? 3.5 : 0,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
-            child: HomeAdCarousel(height: homeAdBannerHeight(context)),
-          ),
-          SizedBox(height: kHomeAdBannerGap),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                S.of(context).translate('specialties'),
-                style: const TextStyle(
-                  color: _kDarkBlue,
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12.5,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  S.of(context).translate('specialties'),
+                  style: const TextStyle(
+                    color: _kDarkBlue,
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: SizedBox(
-              height: 104,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InkWell(
-                        onTap: () =>
-                            setState(() => _selectedCategory = kPatientSpecialtyAllKey),
-                        borderRadius: BorderRadius.circular(22),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 74,
-                              height: 96,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 58,
-                                        height: _CategoryGlassOrb._cardH + 8,
-                                        child: Center(
-                                          child: AnimatedScale(
-                                            scale: allSelected ? 1.15 : 1.0,
-                                            duration: const Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            curve: Curves.easeOut,
-                                            alignment: Alignment.center,
-                                            child: _CategoryGlassOrb(
-                                              categoryKey: kPatientSpecialtyAllKey,
-                                              selected: allSelected,
-                                              softTint: allSoft,
-                                              accent: allAcc,
-                                              floating: true,
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: SizedBox(
+                height: 104,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(
+                            () => _selectedCategory = kPatientSpecialtyAllKey,
+                          ),
+                          borderRadius: BorderRadius.circular(22),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 74,
+                                height: 96,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 58,
+                                          height:
+                                              _CategoryGlassOrb._cardH + 8,
+                                          child: Center(
+                                            child: AnimatedScale(
+                                              scale: allSelected ? 1.15 : 1.0,
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              curve: Curves.easeOut,
+                                              alignment: Alignment.center,
+                                              child: _CategoryGlassOrb(
+                                                categoryKey:
+                                                    kPatientSpecialtyAllKey,
+                                                selected: allSelected,
+                                                softTint: allSoft,
+                                                accent: allAcc,
+                                                floating: true,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Container(
-                                        width: 1.25,
-                                        height: _CategoryGlassOrb._cardH,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(10),
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              _kBrandLuxGoldLight.withValues(
-                                                alpha: 0.22,
-                                              ),
-                                              _kBrandLuxGold.withValues(alpha: 0.96),
-                                              _kBrandLuxGoldLight.withValues(
-                                                alpha: 0.22,
-                                              ),
-                                            ],
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          width: 1.25,
+                                          height: _CategoryGlassOrb._cardH,
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                _kBrandLuxGoldLight.withValues(
+                                                  alpha: 0.22,
+                                                ),
+                                                _kBrandLuxGold
+                                                    .withValues(alpha: 0.96),
+                                                _kBrandLuxGoldLight.withValues(
+                                                  alpha: 0.22,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  SizedBox(
-                                    width: 54,
-                                    height: 28,
-                                    child: Text(
-                                      S.of(context).translate(kPatientSpecialtyAllKey),
-                                      maxLines: 2,
-                                      softWrap: true,
-                                      overflow: TextOverflow.fade,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 9.5,
-                                        height: 1.1,
-                                        color: allSelected
-                                            ? _categoryLabelDark(
-                                                kPatientSpecialtyAllKey,
-                                              )
-                                            : _categoryLabelDark(
-                                                kPatientSpecialtyAllKey,
-                                              ).withValues(alpha: 0.82),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    SizedBox(
+                                      width: 54,
+                                      height: 28,
+                                      child: Text(
+                                        S.of(context)
+                                            .translate(kPatientSpecialtyAllKey),
+                                        maxLines: 2,
+                                        softWrap: true,
+                                        overflow: TextOverflow.fade,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 9.5,
+                                          height: 1.1,
+                                          color: allSelected
+                                              ? _categoryLabelDark(
+                                                  kPatientSpecialtyAllKey,
+                                                )
+                                              : _categoryLabelDark(
+                                                  kPatientSpecialtyAllKey,
+                                                ).withValues(alpha: 0.82),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                            ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        clipBehavior: Clip.antiAlias,
+                        child: ColoredBox(
+                          color: kPatientSkyTop.withValues(alpha: 0.82),
+                          child: ListView.separated(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              8,
+                              5,
+                              14,
+                              4,
+                            ),
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            clipBehavior: Clip.none,
+                            itemCount: scrollableCategoryKeys.length,
+                            separatorBuilder: (context, _) =>
+                                const SizedBox(width: 6),
+                            itemBuilder: (context, index) {
+                              final catKey = scrollableCategoryKeys[index];
+                              final selected = _selectedCategory == catKey;
+                              final soft = _categorySoftTint(catKey);
+                              final acc = _categoryAccentIcon(catKey);
+                              return InkWell(
+                                onTap: () =>
+                                    setState(() => _selectedCategory = catKey),
+                                borderRadius: BorderRadius.circular(22),
+                                child: specialtyTile(
+                                  catKey: catKey,
+                                  selected: selected,
+                                  soft: soft,
+                                  acc: acc,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    clipBehavior: Clip.antiAlias,
-                    child: ColoredBox(
-                      color: kPatientSkyTop.withValues(alpha: 0.82),
-                      child: ListView.separated(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          8,
-                          5,
-                          14,
-                          4,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        clipBehavior: Clip.none,
-                        itemCount: scrollableCategoryKeys.length,
-                        separatorBuilder: (context, _) => const SizedBox(width: 6),
-                        itemBuilder: (context, index) {
-                          final catKey = scrollableCategoryKeys[index];
-                          final selected = _selectedCategory == catKey;
-                          final soft = _categorySoftTint(catKey);
-                          final acc = _categoryAccentIcon(catKey);
-                          return InkWell(
-                            onTap: () => setState(() => _selectedCategory = catKey),
-                            borderRadius: BorderRadius.circular(22),
-                            child: specialtyTile(
-                              catKey: catKey,
-                              selected: selected,
-                              soft: soft,
-                              acc: acc,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            ),
-          ),
-        ],
+          ],
       ),
     );
   }
@@ -1561,7 +1590,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Home: fixed search + ad carousel + specialty strip; doctor list scrolls below pinned header.
+  /// Home: static search bar; [CustomScrollView] with scrolling ad, pinned specialties, doctors.
   Widget _buildHomeContent() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _approvedDoctorsStream,
@@ -1580,36 +1609,26 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               ),
             ),
             Expanded(
-              child: Stack(
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  CustomScrollView(
-                    key: const ValueKey<String>('home_doctors_scroll'),
-                    physics: patientHomePrimaryScrollPhysics,
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: pinnedHomeHeaderTotalHeight(context),
-                        ),
-                      ),
-                      ..._buildDoctorSlivers(context, snapshot),
-                    ],
+              child: CustomScrollView(
+                key: const ValueKey<String>('home_doctors_scroll'),
+                physics: patientHomePrimaryScrollPhysics,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildHomeAdBannerBlock(context),
                   ),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: pinnedHomeHeaderTotalHeight(context),
-                    child: Material(
-                      color: kPatientSkyTop,
-                      surfaceTintColor: Colors.transparent,
-                      elevation: 10,
-                      shadowColor: Colors.black26,
-                      child: ClipRect(
-                        child: _buildPinnedSpecialtiesSection(context),
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _PatientSpecialtiesPinnedDelegate(
+                      extent: kHomeSpecialtiesBlockExtent,
+                      selectedCategory: _selectedCategory,
+                      builder: (ctx, overlaps) =>
+                          _buildSpecialtiesStickyStrip(
+                        ctx,
+                        overlapsContent: overlaps,
                       ),
                     ),
                   ),
+                  ..._buildDoctorSlivers(context, snapshot),
                 ],
               ),
             ),
@@ -1617,6 +1636,46 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         );
       },
     );
+  }
+}
+
+/// Pinned specialties strip under the search bar (sticks while doctors scroll).
+class _PatientSpecialtiesPinnedDelegate extends SliverPersistentHeaderDelegate {
+  _PatientSpecialtiesPinnedDelegate({
+    required this.extent,
+    required this.selectedCategory,
+    required this.builder,
+  });
+
+  final double extent;
+  final String selectedCategory;
+  final Widget Function(BuildContext context, bool overlapsContent) builder;
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return SizedBox(
+      height: extent,
+      width: double.infinity,
+      child: ClipRect(
+        child: builder(context, overlapsContent),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PatientSpecialtiesPinnedDelegate oldDelegate) {
+    return oldDelegate.extent != extent ||
+        oldDelegate.selectedCategory != selectedCategory;
   }
 }
 
