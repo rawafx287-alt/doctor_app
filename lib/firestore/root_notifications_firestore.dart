@@ -59,6 +59,24 @@ String? appointmentNotificationDayKey(Map<String, dynamic> data) {
   return null;
 }
 
+/// System + in-app title for slot rejection / cancel pushes.
+const String kPatientPushTitleAppointmentRejectedKu = 'ئاگاداری نۆرە';
+
+/// Body template for FCM + notifications list (`[Date]` = `yyyy/MM/dd`).
+String patientPushBodyAppointmentRejectedKu(String dateLabel) =>
+    'ببوورە، نۆرەکەت لە ڕێکەوتی $dateLabel ڕەتکرایەوە.';
+
+/// Title + message for doctor/secretary cancel and per-slot bulk (non–clinic-closed).
+(String title, String message) patientAppointmentRejectedNotificationCopy(
+  Map<String, dynamic> appointmentData,
+) {
+  final dateLabel = formatAppointmentDateForNotificationKu(appointmentData);
+  return (
+    kPatientPushTitleAppointmentRejectedKu,
+    patientPushBodyAppointmentRejectedKu(dateLabel),
+  );
+}
+
 /// Kurdish body for bulk day closure (matches Cloud Function copy).
 const String kClinicClosurePatientNotificationMessageKu =
     'ئاگاداری: نۆرینگە لە ڕێکەوتی {date} داخراوە، تکایە نۆرەیەکی نوێ وەربگرە.';

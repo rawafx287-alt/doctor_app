@@ -15,6 +15,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
 import 'locale/app_localizations.dart';
+import 'push/fcm_foreground_notifications.dart';
 import 'push/firebase_messaging_background.dart';
 import 'push/patient_push_registration.dart';
 import 'splash_screen.dart';
@@ -37,6 +38,9 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await FcmForegroundNotifications.init();
+    await PatientPushRegistration.promptNotificationPermissionOnFirstLaunch();
+    FirebaseMessaging.onMessage.listen(FcmForegroundNotifications.showFromRemoteMessage);
   }
   final localeController = LocaleController();
   await localeController.load();

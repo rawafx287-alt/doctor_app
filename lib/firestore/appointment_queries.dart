@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-import '../locale/app_locale.dart';
-import '../locale/app_localizations.dart';
 import 'root_notifications_firestore.dart';
 
 /// [appointments] collection — field names must match composite indexes exactly.
@@ -422,8 +420,6 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
   const chunk = 450;
   var total = 0;
   final seenClinicDayKeys = <String>{};
-  final bulkMsg = AppLocalizations.forLang(HrNoraLanguage.ckb)
-      .translate('root_notif_body_slot_cancelled');
 
   for (var i = 0; i < active.length; i += chunk) {
     final batch = FirebaseFirestore.instance.batch();
@@ -456,14 +452,17 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
         await createPatientRootNotification(
           appointmentData: data,
           appointmentDocId: doc.id,
+          title: kPatientPushTitleAppointmentRejectedKu,
           message: body,
           type: 'clinic_closed',
         );
       } else {
+        final copy = patientAppointmentRejectedNotificationCopy(data);
         await createPatientRootNotification(
           appointmentData: data,
           appointmentDocId: doc.id,
-          message: bulkMsg,
+          title: copy.$1,
+          message: copy.$2,
         );
       }
     }

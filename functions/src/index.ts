@@ -62,6 +62,15 @@ async function sendMulticast(
       tokens: part,
       notification: { title, body },
       data,
+      android: { priority: "high" },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
     });
     logger.info("FCM multicast", {
       success: res.successCount,

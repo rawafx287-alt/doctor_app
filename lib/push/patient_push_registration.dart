@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/firestore_user_doc_id.dart';
 
@@ -13,8 +14,35 @@ import '../auth/firestore_user_doc_id.dart';
 class PatientPushRegistration {
   PatientPushRegistration._();
 
+  static const String _prefFcmPermissionPrompted =
+      'hr_nora_fcm_permission_prompted_v1';
+
   static StreamSubscription<String>? _tokenRefreshSub;
 
+  /// One-time OS permission dialog (first cold start after install / pref clear).
+  static Future<void> promptNotificationPermissionOnFirstLaunch() async {
+    if (kIsWeb) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_prefFcmPermissionPrompted) == true) return;
+      await prefs.setBool(_prefFcmPermissionPrompted, true);
+
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+      );
+    } catch (e, st) {
+      debugPrint('[FCM] promptNotificationPermissionOnFirstLaunch: $e\n$st');
+    }
+  }
+
+  /// Call after patient (or any user) signs in — persists token to Firestore.
   static Future<void> registerForCurrentUser() async {
     if (kIsWeb) return;
     final user = FirebaseAuth.instance.currentUser;
@@ -24,15 +52,20 @@ class PatientPushRegistration {
       final messaging = FirebaseMessaging.instance;
 
       if (!kIsWeb) {
-        final settings = await messaging.requestPermission(
+        final current = await messaging.getNotificationSettings();
+        if (current.authorizationStatus == AuthorizationStatus.notDetermined) {
+          await messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+        }
+        await messaging.setForegroundNotificationPresentationOptions(
           alert: true,
           badge: true,
           sound: true,
-          provisional: false,
         );
-        if (settings.authorizationStatus == AuthorizationStatus.denied) {
-          return;
-        }
       }
 
       await messaging.setAutoInitEnabled(true);
@@ -78,6 +111,8 @@ class PatientPushRegistration {
         ref,
         {
           'fcmTokens': {token: entry},
+          'fcmToken': token,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );

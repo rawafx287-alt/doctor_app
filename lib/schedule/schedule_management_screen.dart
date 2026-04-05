@@ -1342,10 +1342,12 @@ class _ScheduleTimeSettingsFooterState extends State<_ScheduleTimeSettingsFooter
             kAppointmentCancellationReasonSecretary,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });
+      final copy = patientAppointmentRejectedNotificationCopy(priorData);
       await createPatientRootNotification(
         appointmentData: priorData,
         appointmentDocId: appointmentDocId,
-        message: loc.translate('root_notif_body_slot_cancelled'),
+        title: copy.$1,
+        message: copy.$2,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
