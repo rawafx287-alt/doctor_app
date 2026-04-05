@@ -47,7 +47,7 @@ const List<BoxShadow> _kDoctorCardLayeredShadows = [
 ];
 
 /// Compact doctor row: vertical image on the end side, text + book CTA, overflow menu.
-class PatientDoctorCard extends StatefulWidget {
+class PatientDoctorCard extends StatelessWidget {
   const PatientDoctorCard({
     super.key,
     required this.name,
@@ -67,12 +67,6 @@ class PatientDoctorCard extends StatefulWidget {
   /// Localized hospital/clinic line; hidden when null/empty.
   final String? hospitalName;
 
-  @override
-  State<PatientDoctorCard> createState() => _PatientDoctorCardState();
-}
-
-class _PatientDoctorCardState extends State<PatientDoctorCard>
-    with TickerProviderStateMixin {
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
@@ -88,47 +82,19 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
   static const double _kCardContentHeight = 112;
   static const double _kImageStripWidth = 96;
 
-  late AnimationController _pulseController;
-  late Animation<double> _pulseGlow;
-
-  String get _avatarUrl {
-    final u = widget.profileImageUrl?.trim() ?? '';
-    return u.isNotEmpty ? u : _placeholderImageUrl;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _pulseGlow = Tween<double>(begin: 0.28, end: 0.95).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    final colAlign =
-        rtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final textAlign = rtl ? TextAlign.end : TextAlign.start;
     final hasArabicScript = RegExp(
       r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
-    ).hasMatch(widget.name);
-    final nameAlign = hasArabicScript ? TextAlign.right : TextAlign.left;
+    ).hasMatch(name);
     final nameDirection =
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
     final rAfterSilver = _radius - _kSilverBorderWidth;
     final innerR = rAfterSilver - _kLightLeakBorder;
-    final hospitalLine = widget.hospitalName?.trim() ?? '';
+    final hospitalLine = hospitalName?.trim() ?? '';
+    final rawProfile = profileImageUrl?.trim() ?? '';
+    final avatarUrl =
+        rawProfile.isNotEmpty ? rawProfile : _placeholderImageUrl;
 
     return RepaintBoundary(
       child: Container(
@@ -191,7 +157,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                           borderRadius: BorderRadius.circular(innerR),
                           child: CustomPaint(
                             painter: PatientSubtleGrainPainter(
-                              seed: widget.name.hashCode,
+                              seed: name.hashCode,
                             ),
                           ),
                         ),
@@ -200,7 +166,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                     SizedBox(
                       height: _kCardContentHeight,
                       child: Stack(
-                        clipBehavior: Clip.hardEdge,
+                        clipBehavior: Clip.none,
                         children: [
                           Row(
                             textDirection: TextDirection.ltr,
@@ -210,112 +176,149 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                 child: Padding(
                                   padding: const EdgeInsets.fromLTRB(
                                     40,
+                                    6,
                                     4,
-                                    8,
-                                    8,
+                                    6,
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: colAlign,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment: colAlign,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Directionality(
-                                            textDirection: nameDirection,
-                                            child: Text(
-                                              widget.name.trim(),
-                                              textAlign: nameAlign,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontFamily: kPatientPrimaryFont,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                height: 1.12,
-                                                color: Color(0xFF1B365D),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            S.of(context)
-                                                .translate('field_specialty'),
-                                            textAlign: textAlign,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              height: 1,
-                                              fontWeight: FontWeight.bold,
-                                              fontFamily: kPatientPrimaryFont,
-                                              color: _navyText.withValues(
-                                                alpha: 0.55,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            widget.specialty,
-                                            textAlign: textAlign,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontFamily: kPatientPrimaryFont,
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              height: 1.2,
-                                              color: _navyText.withValues(
-                                                alpha: 0.88,
-                                              ),
-                                            ),
-                                          ),
-                                          if (hospitalLine.isNotEmpty) ...[
-                                            const SizedBox(height: 5),
-                                            Row(
-                                              textDirection:
-                                                  Directionality.of(context),
-                                              children: [
-                                                Icon(
-                                                  Icons.local_hospital_rounded,
-                                                  size: 13,
-                                                  color: _kLuxGold.withValues(
-                                                    alpha: 0.92,
-                                                  ),
+                                      Expanded(
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Center(
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 10,
                                                 ),
-                                                const SizedBox(width: 5),
-                                                Expanded(
-                                                  child: Text(
-                                                    hospitalLine,
-                                                    textAlign: textAlign,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontFamily:
-                                                          kPatientPrimaryFont,
-                                                      fontWeight: FontWeight.w600,
-                                                      fontSize: 11,
-                                                      color: _navyText
-                                                          .withValues(
-                                                        alpha: 0.72,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    Directionality(
+                                                      textDirection:
+                                                          nameDirection,
+                                                      child: Text(
+                                                        name.trim(),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              kPatientPrimaryFont,
+                                                          fontSize: 17.5,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          height: 1.18,
+                                                          color: Color(
+                                                            0xFF1B365D,
+                                                          ),
+                                                        ),
                                                       ),
+                                                    ),
+                                                    if (hospitalLine
+                                                        .isNotEmpty) ...[
+                                                      const SizedBox(height: 5),
+                                                      Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .local_hospital_rounded,
+                                                            size: 11,
+                                                            color: _kLuxGold
+                                                                .withValues(
+                                                              alpha: 0.88,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 4,
+                                                          ),
+                                                          ConstrainedBox(
+                                                            constraints:
+                                                                const BoxConstraints(
+                                                              maxWidth: 140,
+                                                            ),
+                                                            child: Text(
+                                                              hospitalLine,
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: TextStyle(
+                                                                fontFamily:
+                                                                    kPatientPrimaryFont,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 10,
+                                                                color: _navyText
+                                                                    .withValues(
+                                                                  alpha: 0.65,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 0,
+                                              right: 0,
+                                              child: ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                  maxWidth: 168,
+                                                ),
+                                                child: Text(
+                                                  '${S.of(context).translate('field_specialty')}: $specialty',
+                                                  textAlign: TextAlign.right,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.2,
+                                                    letterSpacing: 0.1,
+                                                    color: _navyText.withValues(
+                                                      alpha: 0.75,
                                                     ),
                                                   ),
                                                 ),
-                                              ],
+                                              ),
                                             ),
                                           ],
-                                        ],
+                                        ),
                                       ),
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: SizedBox(
-                                          height: 34,
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Center(
                                           child: _DoctorCardPressableButton(
-                                            onTap: widget.onBook,
+                                            onTap: onBook,
                                             child: _BookNowPrimaryButton(
-                                              pulseGlow: _pulseGlow,
                                               bookCtaText: S.of(context)
                                                   .translate(
                                                 'patient_doctor_card_book_cta',
@@ -337,7 +340,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                   width: _kImageStripWidth,
                                   height: _kCardContentHeight,
                                   child: CachedNetworkImage(
-                                    imageUrl: _avatarUrl,
+                                    imageUrl: avatarUrl,
                                     fit: BoxFit.cover,
                                     alignment: Alignment.center,
                                     memCacheWidth: 256,
@@ -377,7 +380,7 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                           ),
                           Positioned(
                             left: 2,
-                            top: 2,
+                            top: -6,
                             child: Material(
                               color: Colors.transparent,
                               child: PopupMenuButton<String>(
@@ -387,12 +390,12 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
                                 ),
                                 icon: Icon(
                                   Icons.more_vert_rounded,
-                                  size: 22,
+                                  size: 21,
                                   color: _navyText.withValues(alpha: 0.72),
                                 ),
                                 onSelected: (v) {
                                   if (v == 'details') {
-                                    widget.onOpenDetails();
+                                    onOpenDetails();
                                   }
                                 },
                                 itemBuilder: (ctx) => [
@@ -499,28 +502,30 @@ class _DoctorCardPressableButtonState extends State<_DoctorCardPressableButton>
   }
 }
 
-/// Primary «نۆرە بگرە» — gold glass CTA (compact for slim cards).
+/// Primary «نۆرە بگرە» — gold glass CTA (text-only, compact).
 class _BookNowPrimaryButton extends StatelessWidget {
   const _BookNowPrimaryButton({
-    required this.pulseGlow,
     required this.bookCtaText,
   });
 
-  final Animation<double> pulseGlow;
   final String bookCtaText;
 
-  static const double _r = 12;
-  static const double _buttonHeight = 34;
+  static const double _r = 10;
+  static const double _buttonHeight = 28;
+  static const double _maxButtonWidth = 152;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: _buttonHeight,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: _maxButtonWidth,
+        minHeight: _buttonHeight,
+        maxHeight: _buttonHeight,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_r),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_r),
@@ -535,69 +540,42 @@ class _BookNowPrimaryButton extends StatelessWidget {
               ),
               border: Border.all(
                 color: _kLuxGold.withValues(alpha: 0.95),
-                width: 1.1,
+                width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.45),
-                  blurRadius: 5,
+                  color: Colors.white.withValues(alpha: 0.4),
+                  blurRadius: 4,
                   spreadRadius: -2,
                   offset: const Offset(-0.5, -2),
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
+                horizontal: 12,
+                vertical: 2,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                textDirection: TextDirection.ltr,
-                children: [
-                  AnimatedBuilder(
-                    animation: pulseGlow,
-                    builder: (context, child) {
-                      final pulse = pulseGlow.value;
-                      return Icon(
-                        Icons.calendar_month_rounded,
-                        size: 17,
-                        color: Colors.black.withValues(
-                          alpha: 0.84 + 0.08 * pulse,
-                        ),
-                      );
-                    },
+              child: Center(
+                child: Text(
+                  bookCtaText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    height: 1.1,
+                    letterSpacing: 0.04,
+                    color: Colors.black.withValues(alpha: 0.9),
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      bookCtaText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        height: 1.1,
-                        letterSpacing: 0.06,
-                        color: Colors.black.withValues(alpha: 0.92),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
