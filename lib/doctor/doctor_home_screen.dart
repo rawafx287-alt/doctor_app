@@ -14,7 +14,6 @@ import 'doctor_patient_archive_screen.dart';
 import 'doctor_profile_screen.dart';
 import '../schedule/schedule_management_screen.dart';
 import 'doctor_premium_shell.dart';
-import '../widgets/pressable_scale.dart';
 
 /// Doctor shell: profile / history / schedule / appointments (gold FAB + label).
 class DoctorHomeScreen extends StatefulWidget {
@@ -131,7 +130,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       );
 
       return Expanded(
-        child: PressableScale(
+        child: _DoctorNavTabScale(
+          selected: selected,
           onTap: () => _onBottomNavTap(index),
           child: Material(
             color: Colors.transparent,
@@ -177,8 +177,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       final selected = _bottomNavIndex == index;
       final gold = kStaffLuxGold;
       return Expanded(
-        child: PressableScale(
-          scale: 0.94,
+        child: _DoctorNavTabScale(
+          selected: selected,
           onTap: () => _onBottomNavTap(index),
           child: Material(
             color: Colors.transparent,
@@ -190,32 +190,33 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: kStaffGoldActionGradient,
                       border: Border.all(
                         color: selected ? kStaffLuxGoldLight : kStaffSilverBorder,
-                        width: selected ? 2.4 : 1.1,
+                        width: selected ? 2.0 : 1.0,
                       ),
                       boxShadow: selected
                           ? [
                               BoxShadow(
-                                color: kStaffLuxGold.withValues(alpha: 0.28),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                                color: kStaffLuxGold.withValues(alpha: 0.22),
+                                blurRadius: 9,
+                                offset: const Offset(0, 3),
                               ),
                             ]
                           : null,
                     ),
                     child: const Icon(
-                      Icons.event_note_rounded,
+                      Icons.calendar_view_month_rounded,
                       color: kStaffOnGoldText,
-                      size: 26,
+                      size: 21,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Container(
                     width: 5,
                     height: 5,
@@ -285,7 +286,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       final appointmentsFab = appointmentsPrimaryFab();
                       final schedule = navItem(
                         index: 1,
-                        icon: Icons.calendar_view_month_rounded,
+                        icon: Icons.event_note_rounded,
                         label: s.translate('doctor_nav_schedule'),
                       );
                       final history = navItem(
@@ -372,6 +373,40 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           ],
         ),
         bottomNavigationBar: _buildGlassBottomNav(context),
+      ),
+    );
+  }
+}
+
+/// Selected tab is larger; inactive tabs stay at 1.0. Snappy linear transition on change.
+class _DoctorNavTabScale extends StatelessWidget {
+  const _DoctorNavTabScale({
+    required this.selected,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  static const Duration _animDuration = Duration(milliseconds: 100);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: AnimatedScale(
+          scale: selected ? 1.28 : 1.0,
+          duration: _animDuration,
+          curve: Curves.linear,
+          alignment: Alignment.center,
+          filterQuality: FilterQuality.medium,
+          child: child,
+        ),
       ),
     );
   }

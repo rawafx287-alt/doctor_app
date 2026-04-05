@@ -14,7 +14,6 @@ import '../auth/firestore_user_doc_id.dart';
 import '../auth/doctor_session_cache.dart';
 import '../specialty_categories.dart';
 import '../theme/staff_premium_theme.dart';
-import 'doctor_patient_archive_screen.dart';
 import 'doctor_premium_shell.dart';
 import 'profile_settings_screen.dart';
 
@@ -121,78 +120,96 @@ class DoctorProfileScreen extends StatelessWidget {
                   .toString()
                   .trim();
 
-              return ListView(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  12,
-                  16,
-                  28 + MediaQuery.paddingOf(context).bottom,
-                ),
-                children: [
-                  _DoctorProfileHeaderCard(
-                    name: name,
-                    email: email,
-                    hospital: hospital,
-                    specialtyLabel: s.translate('field_specialty'),
-                    specialtyValue: specialtyDisplay,
-                    clinicLabel: s.translate('doctor_profile_location'),
-                    clinicValue: city.isEmpty ? '—' : city,
-                    photoUrl: photoUrl,
-                  ),
-                  const SizedBox(height: 12),
-                  _DoctorProfileGlassMenuTile(
-                    icon: Icons.edit_outlined,
-                    title: s.translate('doctor_profile_tile_edit'),
-                    subtitle: s.translate('doctor_profile_tile_edit_sub'),
-                    onTap: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ProfileSettingsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _DoctorProfileGlassMenuTile(
-                    icon: Icons.folder_copy_outlined,
-                    title: s.translate('doctor_archive_title'),
-                    subtitle: s.translate('doctor_archive_subtitle'),
-                    onTap: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => DoctorPatientArchiveScreen(
-                            doctorUserId: uid,
+              return SizedBox.expand(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.center,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: constraints.maxWidth,
+                                  maxHeight: constraints.maxHeight,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _DoctorProfileHeaderCard(
+                                      name: name,
+                                      email: email,
+                                      hospital: hospital,
+                                      specialtyLabel:
+                                          s.translate('field_specialty'),
+                                      specialtyValue: specialtyDisplay,
+                                      clinicLabel: s.translate(
+                                        'doctor_profile_location',
+                                      ),
+                                      clinicValue:
+                                          city.isEmpty ? '—' : city,
+                                      photoUrl: photoUrl,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _DoctorProfileGlassMenuTile(
+                                      icon: Icons.edit_outlined,
+                                      title: s.translate(
+                                        'doctor_profile_tile_edit',
+                                      ),
+                                      subtitle: s.translate(
+                                        'doctor_profile_tile_edit_sub',
+                                      ),
+                                      onTap: () {
+                                        Navigator.push<void>(
+                                          context,
+                                          MaterialPageRoute<void>(
+                                            builder: (_) =>
+                                                const ProfileSettingsScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _DoctorProfileGlassMenuTile(
+                                      icon: Icons.language_rounded,
+                                      title: s.translate('language'),
+                                      subtitle:
+                                          AppLocaleScope.of(context)
+                                              .selectedLanguage
+                                              ?.nativeTitle ??
+                                          '—',
+                                      onTap: () =>
+                                          _showLanguageSheet(context),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _DoctorProfileGlassMenuTile(
+                                      icon: Icons.info_outline_rounded,
+                                      title: s.translate('about_app'),
+                                      subtitle:
+                                          s.translate('about_app_subtitle'),
+                                      onTap: () => _showAbout(context),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _DoctorLogoutButton(
+                                      label: s.translate('logout'),
+                                      onPressed: () => _logout(context),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  _DoctorProfileGlassMenuTile(
-                    icon: Icons.language_rounded,
-                    title: s.translate('language'),
-                    subtitle:
-                        AppLocaleScope.of(
-                          context,
-                        ).selectedLanguage?.nativeTitle ??
-                        '—',
-                    onTap: () => _showLanguageSheet(context),
-                  ),
-                  const SizedBox(height: 10),
-                  _DoctorProfileGlassMenuTile(
-                    icon: Icons.info_outline_rounded,
-                    title: s.translate('about_app'),
-                    subtitle: s.translate('about_app_subtitle'),
-                    onTap: () => _showAbout(context),
-                  ),
-                  const SizedBox(height: 22),
-                  _DoctorLogoutButton(
-                    label: s.translate('logout'),
-                    onPressed: () => _logout(context),
-                  ),
-                ],
+                ),
               );
             },
           );

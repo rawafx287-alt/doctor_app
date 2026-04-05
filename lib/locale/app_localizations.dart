@@ -1037,9 +1037,9 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': 'Full name',
   },
   'doctor_nav_appointments': {
-    'ckb': 'نۆرەکان',
-    'ar': 'المواعيد',
-    'en': 'Appointments',
+    'ckb': 'نۆرەکانی ئەمڕۆ',
+    'ar': 'مواعيد اليوم',
+    'en': "Today's appointments",
   },
   'doctor_nav_schedule': {
     'ckb': 'خشتەی کات',
@@ -1288,9 +1288,9 @@ const Map<String, Map<String, String>> kAppStrings = {
   },
   /// Label between active and finished (completed/rejected) groups on the doctor dashboard.
   'doctor_today_completed_section_label': {
-    'ckb': 'تەواوبووەکان',
+    'ckb': 'نۆرە تەواوبووەکان',
     'ar': 'مكتملة / منتهية',
-    'en': 'Completed',
+    'en': 'Completed appointments',
   },
   'doctor_appointments_update_error': {
     'ckb': 'هەڵە لە نوێکردنەوە',
