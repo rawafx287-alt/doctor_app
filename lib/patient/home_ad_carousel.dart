@@ -13,10 +13,10 @@ const double kHomeAdBannerGap = 8;
 /// Height reserved for specialty title + chip row (includes small safety margin).
 const double kHomeSpecialtiesBlockExtent = 140;
 
-/// Responsive ad strip height — taller for a more prominent hero banner.
+/// Hero ad height — targets ~200–220px for a professional banner.
 double homeAdBannerHeight(BuildContext context) {
   final h = MediaQuery.sizeOf(context).height;
-  return (h * 0.172).clamp(112.0, 158.0);
+  return (h * 0.265).clamp(200.0, 220.0);
 }
 
 /// Total pinned header: ad + gap + specialties (search bar is separate).
@@ -105,35 +105,33 @@ class _HomeAdCarouselBodyState extends State<_HomeAdCarouselBody> {
     final multi = n > 1;
 
     return RepaintBoundary(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
-                spreadRadius: -2,
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.45),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              height: h,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  CarouselSlider(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
+              spreadRadius: -2,
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.45),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: h,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.hardEdge,
+              children: [
+                CarouselSlider(
                     carouselController: _carouselController,
                     items: slides
                         .map(
@@ -143,9 +141,10 @@ class _HomeAdCarouselBodyState extends State<_HomeAdCarouselBody> {
                             child: CachedNetworkImage(
                               imageUrl: url,
                               fit: BoxFit.cover,
+                              alignment: Alignment.center,
                               width: double.infinity,
                               height: h,
-                              memCacheWidth: 1080,
+                              memCacheWidth: 1200,
                               fadeInDuration:
                                   const Duration(milliseconds: 380),
                               placeholder: (c, _) => Container(
@@ -218,55 +217,50 @@ class _HomeAdCarouselBodyState extends State<_HomeAdCarouselBody> {
                       ),
                     ),
                   ),
-                  // Pagination dots (bottom center)
+                  // Subtle page indicators (bottom center)
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 10,
+                    bottom: 8,
                     child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List<Widget>.generate(
-                          n,
-                          (i) => GestureDetector(
-                            onTap: multi
-                                ? () {
-                                    _carouselController.animateToPage(i);
-                                  }
-                                : null,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOutCubic,
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 3.5),
-                              width: i == _currentPage ? 18 : 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(999),
-                                color: i == _currentPage
-                                    ? Colors.white.withValues(alpha: 0.95)
-                                    : Colors.white.withValues(alpha: 0.38),
-                                boxShadow: i == _currentPage
-                                    ? [
-                                        BoxShadow(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.35),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ]
-                                    : null,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List<Widget>.generate(
+                        n,
+                        (i) => GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: multi
+                              ? () {
+                                  _carouselController.animateToPage(i);
+                                }
+                              : null,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutCubic,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: i == _currentPage ? 14 : 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: Colors.white.withValues(
+                                  alpha: i == _currentPage ? 0.35 : 0.2,
+                                ),
+                                width: 0.6,
                               ),
+                              color: i == _currentPage
+                                  ? Colors.white.withValues(alpha: 0.58)
+                                  : Colors.white.withValues(alpha: 0.22),
                             ),
                           ),
                         ),
                       ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
-      ),
     );
   }
 }

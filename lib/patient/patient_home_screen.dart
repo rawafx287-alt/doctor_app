@@ -539,7 +539,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
             child: HomeAdCarousel(height: homeAdBannerHeight(context)),
           ),
           SizedBox(height: kHomeAdBannerGap),
