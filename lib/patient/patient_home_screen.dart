@@ -334,152 +334,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     return q;
   }
 
-  String _citySelectorButtonLabel(BuildContext context) {
-    if (_selectedCity == kPatientCityFilterAll) {
-      return S.of(context).translate('patient_home_city_all');
-    }
-    return _selectedCity;
-  }
-
-  Future<void> _showCityPickerBottomSheet(BuildContext context) async {
-    final s = S.of(context);
-    final dir = AppLocaleScope.of(context).textDirection;
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Directionality(
-          textDirection: dir,
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(ctx).height * 0.55,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(22),
-                ),
-                border: Border.all(
-                  color: _kBrandLuxGold.withValues(alpha: 0.45),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kBrandLuxGold.withValues(alpha: 0.18),
-                    blurRadius: 24,
-                    offset: const Offset(0, -6),
-                  ),
-                ],
-              ),
-              child: ListView(
-                shrinkWrap: true,
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 12),
-                children: [
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 6),
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: _kMutedGrey.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                    child: Text(
-                      s.translate('patient_home_pick_city_sheet_title'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        color: _kDarkBlue,
-                      ),
-                    ),
-                  ),
-                  ...() {
-                    final entries = <(String, String)>[
-                      (
-                        kPatientCityFilterAll,
-                        s.translate('patient_home_city_all'),
-                      ),
-                      for (final c in kPatientHomeModalCityIds) (c, c),
-                    ];
-                    final out = <Widget>[];
-                    for (var i = 0; i < entries.length; i++) {
-                      if (i > 0) {
-                        out.add(
-                          Divider(
-                            height: 1,
-                            thickness: 0.9,
-                            indent: 52,
-                            endIndent: 16,
-                            color: _kMutedGrey.withValues(alpha: 0.28),
-                          ),
-                        );
-                      }
-                      final cityId = entries[i].$1;
-                      final label = entries[i].$2;
-                      final selected = _selectedCity == cityId;
-                      out.add(
-                        Material(
-                          color: selected
-                              ? _kBrandLuxGoldLight.withValues(alpha: 0.22)
-                              : Colors.transparent,
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            leading: Icon(
-                              Icons.location_on_rounded,
-                              color: selected ? _kBrandLuxGold : _kDarkBlue,
-                              size: 26,
-                            ),
-                            title: Text(
-                              label,
-                              style: const TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: _kDoctorNameNavy,
-                              ),
-                            ),
-                            trailing: selected
-                                ? const Icon(
-                                    Icons.check_circle_rounded,
-                                    color: _kBrandLuxGold,
-                                    size: 22,
-                                  )
-                                : null,
-                            onTap: () {
-                              Navigator.of(ctx).pop();
-                              setState(() => _selectedCity = cityId);
-                            },
-                          ),
-                        ),
-                      );
-                    }
-                    return out;
-                  }(),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   /// Client-side only: search text on name/specialty (Firestore already narrowed city + specialty).
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyLocalFilters(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
@@ -654,76 +508,106 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Slim city row (opens bottom sheet). Placed in a non-pinned [SliverToBoxAdapter] so it scrolls away.
+  /// Horizontal filter chips (YouTube/Airbnb-style). Non-pinned [SliverToBoxAdapter] — scrolls away.
   Widget _buildCitySelectorStrip(BuildContext context) {
+    final s = S.of(context);
+    final entries = <(String, String)>[
+      (kPatientCityFilterAll, s.translate('patient_home_city_all')),
+      for (final c in kPatientHomeModalCityIds) (c, c),
+    ];
     return Material(
       color: kPatientSkyTop,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        padding: const EdgeInsets.only(top: 2, bottom: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              S.of(context).translate('patient_home_cities_title'),
-              style: TextStyle(
-                color: _kDarkBlue.withValues(alpha: 0.92),
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 11.5,
-                height: 1.1,
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, end: 16, bottom: 3),
+              child: Text(
+                s.translate('patient_home_cities_title'),
+                style: TextStyle(
+                  color: _kDarkBlue.withValues(alpha: 0.88),
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  height: 1.0,
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showCityPickerBottomSheet(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _kDarkBlue.withValues(alpha: 0.16),
-                        width: 0.85,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_rounded,
-                          color: _kDarkBlue.withValues(alpha: 0.88),
-                          size: 16,
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                clipBehavior: Clip.none,
+                itemCount: entries.length,
+                separatorBuilder: (context, _) => const SizedBox(width: 7),
+                itemBuilder: (context, index) {
+                  final cityId = entries[index].$1;
+                  final label = entries[index].$2;
+                  final selected = _selectedCity == cityId;
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedCity = cityId);
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 5,
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            _citySelectorButtonLabel(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: kPatientPrimaryFont,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              height: 1.15,
-                              color: _kDoctorNameNavy,
-                            ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? _kDarkBlue
+                              : const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: selected
+                                ? _kDarkBlue
+                                : const Color(0xFFE0E4EB),
+                            width: 0.9,
                           ),
                         ),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: _kDarkBlue.withValues(alpha: 0.55),
-                          size: 18,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (selected) ...[
+                              const Icon(
+                                Icons.location_on_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                                height: 1.05,
+                                letterSpacing: 0.1,
+                                color: selected
+                                    ? Colors.white
+                                    : _kDoctorNameNavy,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],

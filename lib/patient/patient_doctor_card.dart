@@ -1,48 +1,49 @@
-import 'dart:ui' as ui;
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
-import 'patient_grain_painter.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
 const Color _kLuxGold = Color(0xFFD4AF37);
 const Color _kLuxGoldLight = Color(0xFFF6E7A6);
+const Color _kLuxGoldMid = Color(0xFFE8D18A);
 
-/// Thin metallic rim around the home doctor card (top-left → bottom-right).
-const LinearGradient _kDoctorCardSilverBorderGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFFF0F0F0),
-    Color(0xFFD1D1D1),
-    Color(0xFFE0E0E0),
-  ],
-  stops: [0.0, 0.48, 1.0],
-);
-
-/// Layered elevation: soft ambient + deep lift + top highlight.
-const List<BoxShadow> _kDoctorCardLayeredShadows = [
+/// Floating white card — soft multi-layer shadow (includes requested spread + blur).
+const List<BoxShadow> _kFloatingCardShadows = [
   BoxShadow(
-    color: Color(0x12000000),
-    blurRadius: 22,
+    color: Color(0x18000000),
+    blurRadius: 10,
+    spreadRadius: 1,
+    offset: Offset(0, 3),
+  ),
+  BoxShadow(
+    color: Color(0x0C000000),
+    blurRadius: 20,
     spreadRadius: -2,
-    offset: Offset(0, 6),
+    offset: Offset(0, 8),
   ),
   BoxShadow(
-    color: Color(0x0A000000),
-    blurRadius: 40,
-    spreadRadius: -8,
-    offset: Offset(0, 16),
+    color: Color(0x06000000),
+    blurRadius: 6,
+    spreadRadius: 0,
+    offset: Offset(0, 2),
   ),
+];
+
+/// Subtle lift for the doctor photo strip.
+const List<BoxShadow> _kDoctorImageShadows = [
   BoxShadow(
-    color: Color(0x18FFFFFF),
+    color: Color(0x22000000),
     blurRadius: 12,
-    spreadRadius: -8,
-    offset: Offset(0, -3),
+    spreadRadius: 0,
+    offset: Offset(-1, 4),
+  ),
+  BoxShadow(
+    color: Color(0x10000000),
+    blurRadius: 5,
+    offset: Offset(0, 2),
   ),
 ];
 
@@ -79,12 +80,11 @@ class PatientDoctorCard extends StatelessWidget {
   static const Color _kSpecialtyBadgeFill = Color(0xFF1565C0);
 
   static const double _radius = 20;
-  static const double _kSilverBorderWidth = 0.9;
-  static const double _kLightLeakBorder = 1.35;
 
   /// Slim card content; image matches this height.
   static const double _kCardContentHeight = 112;
   static const double _kImageStripWidth = 96;
+  static const double _kImageCornerRadius = 16;
 
   @override
   Widget build(BuildContext context) {
@@ -93,8 +93,6 @@ class PatientDoctorCard extends StatelessWidget {
     ).hasMatch(name);
     final nameDirection =
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
-    final rAfterSilver = _radius - _kSilverBorderWidth;
-    final innerR = rAfterSilver - _kLightLeakBorder;
     final rawProfile = profileImageUrl?.trim() ?? '';
     final avatarUrl =
         rawProfile.isNotEmpty ? rawProfile : _placeholderImageUrl;
@@ -102,88 +100,29 @@ class PatientDoctorCard extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(_radius),
-          gradient: _kDoctorCardSilverBorderGradient,
-          boxShadow: _kDoctorCardLayeredShadows,
+          boxShadow: _kFloatingCardShadows,
         ),
-        padding: const EdgeInsets.all(_kSilverBorderWidth),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(rAfterSilver),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(rAfterSilver),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.0),
-                  Colors.white.withValues(alpha: 0.58),
-                  Colors.white.withValues(alpha: 0.22),
-                  Colors.white.withValues(alpha: 0.52),
-                  Colors.white.withValues(alpha: 0.0),
-                ],
-                stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
-              ),
-            ),
-            padding: const EdgeInsets.all(_kLightLeakBorder),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(innerR),
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white,
-                      Color(0xFFB3E5FC),
-                    ],
-                    stops: [0.35, 1.0],
-                  ),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(innerR),
-                        child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                          child: Container(
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: SizedBox(
+          height: _kCardContentHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Row(
+                textDirection: TextDirection.ltr,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        40,
+                        8,
+                        6,
+                        8,
                       ),
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(innerR),
-                          child: CustomPaint(
-                            painter: PatientSubtleGrainPainter(
-                              seed: name.hashCode,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: _kCardContentHeight,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Row(
-                            textDirection: TextDirection.ltr,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    40,
-                                    6,
-                                    4,
-                                    6,
-                                  ),
-                                  child: LayoutBuilder(
+                      child: LayoutBuilder(
                                     builder: (context, constraints) {
                                       final innerW = constraints.maxWidth;
                                       final specialtyLabel =
@@ -191,9 +130,11 @@ class PatientDoctorCard extends StatelessWidget {
                                         'field_specialty',
                                       );
                                       return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
+                                        padding: const EdgeInsets.fromLTRB(
+                                          8,
+                                          1,
+                                          8,
+                                          4,
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
@@ -209,7 +150,7 @@ class PatientDoctorCard extends StatelessWidget {
                                                 maxWidth: innerW,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 10),
                                             Expanded(
                                               child: Center(
                                                 child: Column(
@@ -252,7 +193,7 @@ class PatientDoctorCard extends StatelessWidget {
                                                                     18.25,
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .w800,
+                                                                        .w600,
                                                                 height: 1.15,
                                                                 letterSpacing:
                                                                     -0.12,
@@ -265,7 +206,7 @@ class PatientDoctorCard extends StatelessWidget {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 12),
+                                                    const SizedBox(height: 18),
                                                     Center(
                                                       child:
                                                           _DoctorCardPressableButton(
@@ -291,14 +232,24 @@ class PatientDoctorCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              ClipRRect(
-                                borderRadius:
-                                    BorderRadiusDirectional.horizontal(
-                                  end: Radius.circular(innerR),
+                              Container(
+                                width: _kImageStripWidth,
+                                height: _kCardContentHeight,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    _kImageCornerRadius,
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E1D9),
+                                    width: 1,
+                                  ),
+                                  boxShadow: _kDoctorImageShadows,
                                 ),
-                                child: SizedBox(
-                                  width: _kImageStripWidth,
-                                  height: _kCardContentHeight,
+                                clipBehavior: Clip.antiAlias,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    _kImageCornerRadius - 0.5,
+                                  ),
                                   child: CachedNetworkImage(
                                     imageUrl: avatarUrl,
                                     fit: BoxFit.cover,
@@ -309,7 +260,7 @@ class PatientDoctorCard extends StatelessWidget {
                                     fadeOutDuration: Duration.zero,
                                     placeholder: (context, url) => Container(
                                       color: Colors.white.withValues(
-                                        alpha: 0.85,
+                                        alpha: 0.9,
                                       ),
                                       alignment: Alignment.center,
                                       child: const SizedBox(
@@ -324,7 +275,7 @@ class PatientDoctorCard extends StatelessWidget {
                                     errorWidget: (context, url, error) =>
                                         Container(
                                       color: Colors.white.withValues(
-                                        alpha: 0.85,
+                                        alpha: 0.9,
                                       ),
                                       alignment: Alignment.center,
                                       child: const Icon(
@@ -363,13 +314,7 @@ class PatientDoctorCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            ],
           ),
         ),
       ),
@@ -392,38 +337,59 @@ class _PatientDoctorSpecialtyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final line = '$label | $specialty';
+    final softFill = Color.lerp(
+      const Color(0xFFEEF3F8),
+      PatientDoctorCard._kSpecialtyBadgeFill.withValues(alpha: 0.12),
+      0.35,
+    )!;
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: maxWidth.clamp(48, 176),
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: PatientDoctorCard._kSpecialtyBadgeFill.withValues(alpha: 0.1),
+          color: softFill,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: PatientDoctorCard._kSpecialtySubtitle.withValues(
-              alpha: 0.2,
+              alpha: 0.14,
             ),
             width: 0.5,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          child: Text(
-            line,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontSize: 8.75,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.06,
-              color: PatientDoctorCard._kSpecialtySubtitle.withValues(
-                alpha: 0.95,
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: TextDirection.rtl,
+            children: [
+              Flexible(
+                child: Text(
+                  line,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: 8.25,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.04,
+                    color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+                      alpha: 0.92,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 5),
+              Icon(
+                Icons.medical_information_outlined,
+                size: 10.5,
+                color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+                  alpha: 0.75,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -525,39 +491,41 @@ class _BookNowPrimaryButton extends StatelessWidget {
         minHeight: _buttonHeight,
         maxHeight: _buttonHeight,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(_r),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: _kLuxGold.withValues(alpha: 0.22),
+              blurRadius: 8,
+              spreadRadius: -1,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_r),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(_r),
               gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
-                  _kLuxGold.withValues(alpha: 0.95),
-                  _kLuxGoldLight.withValues(alpha: 0.98),
-                  _kLuxGold.withValues(alpha: 0.95),
+                  _kLuxGold,
+                  _kLuxGoldMid,
+                  _kLuxGoldLight.withValues(alpha: 0.92),
                 ],
+                stops: const [0.0, 0.48, 1.0],
               ),
               border: Border.all(
-                color: _kLuxGold.withValues(alpha: 0.95),
-                width: 1,
+                color: _kLuxGold.withValues(alpha: 0.55),
+                width: 0.5,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  blurRadius: 4,
-                  spreadRadius: -2,
-                  offset: const Offset(-0.5, -2),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
