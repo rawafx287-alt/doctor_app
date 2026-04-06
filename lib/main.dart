@@ -3,18 +3,16 @@ import 'dart:ui' show ImageFilter;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'bootstrap/ensure_shared_preferences_registered.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
-import 'package:flutter_application_1/nawarok/notifications.dart';
 import 'package:flutter_application_1/nawarok/profile.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'locale/app_locale.dart';
-import 'locale/app_localizations.dart';
+import 'patient/my_appointments_screen.dart';
 import 'push/fcm_foreground_notifications.dart';
 import 'push/firebase_messaging_background.dart';
 import 'push/patient_push_registration.dart';
@@ -250,145 +248,153 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   static const Color _mainBgTop = Colors.white;
   static const Color _mainBgBottom = Color(0xFFE3F2FD);
-  static const Color _mainNavInactive = Color(0xFF9AA5B1);
 
-  final List<Widget> _screens = [
-    const ListiDoctorakanScreen(),
-    const NotificationsScreen(),
-    const ProfileScreen(),
+  // Bottom nav order: Home, Search, (Center) Appointments, Chat, Profile.
+  final List<Widget> _screens = const [
+    ListiDoctorakanScreen(),
+    _MainSearchPlaceholderScreen(),
+    _MainAppointmentsHostScreen(),
+    _MainChatPlaceholderScreen(),
+    ProfileScreen(),
   ];
 
   Widget _buildFloatingMainBottomNav(BuildContext context) {
-    final s = S.of(context);
-    const barRadius = 32.0;
-    const barHeight = 64.0;
+    const Color barColor = Color(0xFF111827);
+    const Color tealColor = Color(0xFF1FD1B6);
 
-    Widget tab({
-      required int index,
-      required FaIconData icon,
-      required FaIconData iconActive,
-      required String label,
-    }) {
-      final selected = _currentIndex == index;
-      final gold = kStaffLuxGold;
-      final inactive = _mainNavInactive;
+    double getIndicatorX(int index) {
+      final isRtl = Directionality.of(context) == TextDirection.rtl;
+      // Precise alignment for the teal circle behind icons
+      final positions = {0: -0.84, 1: -0.42, 3: 0.42, 4: 0.84};
+      double x = positions[index] ?? 0.0;
+      return isRtl ? -x : x;
+    }
 
-      final iconWidget = FaIcon(
-        selected ? iconActive : icon,
-        size: 22,
-        color: selected ? gold : inactive,
-      );
-
+    Widget navItem(int index, IconData icon, String label) {
+      bool isSelected = _currentIndex == index;
       return Expanded(
-        child: Material(
-          color: Colors.transparent,
-          elevation: 0,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _currentIndex = index);
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(height: 24, child: Center(child: iconWidget)),
-                  const SizedBox(height: 3),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected ? gold : Colors.transparent,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                      height: 1.05,
-                      color: selected ? gold : inactive,
-                    ),
-                  ),
-                ],
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => _currentIndex = index);
+          },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white30,
+                  size: isSelected ? 28 : 24,
+                ),
               ),
-            ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white30,
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(barRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 26,
-                offset: const Offset(0, 12),
+    return Container(
+      height: 90,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      decoration: BoxDecoration(
+        color: barColor,
+        borderRadius: BorderRadius.circular(35),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 25,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Moving Indicator
+          if (_currentIndex != 2)
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.bounceOut,
+              alignment: Alignment(getIndicatorX(_currentIndex), 0),
+              child: Container(
+                width: 50,
+                height: 50,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: tealColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
               ),
-              BoxShadow(
-                color: kStaffLuxGold.withValues(alpha: 0.1),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
+            ),
+          Row(
+            children: [
+              navItem(0, Icons.home_rounded, 'سەرەکی'),
+              navItem(1, Icons.search_rounded, 'گەڕان'),
+              const SizedBox(width: 80), // Space for FAB
+              navItem(3, Icons.chat_bubble_outline_rounded, 'چات'),
+              navItem(4, Icons.person_outline_rounded, 'پڕۆفایل'),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(barRadius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                height: barHeight,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  border: Border(
-                    top: BorderSide(
-                      color: kStaffLuxGold.withValues(alpha: 0.78),
-                      width: 1,
-                    ),
-                  ),
-                  borderRadius: BorderRadius.circular(barRadius),
-                ),
-                child: Row(
+          // Professional Elevated FAB
+          Positioned(
+            top: -25,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  setState(() => _currentIndex = 2);
+                },
+                child: Column(
                   children: [
-                    tab(
-                      index: 0,
-                      icon: FontAwesomeIcons.house,
-                      iconActive: FontAwesomeIcons.house,
-                      label: s.translate('home'),
+                    Container(
+                      width: 65,
+                      height: 65,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [tealColor, Color(0xFF0AAE95)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: tealColor.withOpacity(0.4),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          )
+                        ],
+                        border: Border.all(color: barColor, width: 4),
+                      ),
+                      child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 30),
                     ),
-                    tab(
-                      index: 1,
-                      icon: FontAwesomeIcons.bell,
-                      iconActive: FontAwesomeIcons.solidBell,
-                      label: s.translate('notifications'),
-                    ),
-                    tab(
-                      index: 2,
-                      icon: FontAwesomeIcons.user,
-                      iconActive: FontAwesomeIcons.solidUser,
-                      label: s.translate('profile'),
+                    const SizedBox(height: 5),
+                    Text(
+                      'چاوپێکەوتن',
+                      style: TextStyle(
+                        color: _currentIndex == 2 ? tealColor : Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -408,6 +414,44 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         extendBody: true,
         body: IndexedStack(index: _currentIndex, children: _screens),
         bottomNavigationBar: _buildFloatingMainBottomNav(context),
+      ),
+    );
+  }
+}
+
+class _MainAppointmentsHostScreen extends StatelessWidget {
+  const _MainAppointmentsHostScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    // Uses the patient appointments UI (embedded keeps it shell-friendly).
+    return const PatientAppointmentsScreen(embedded: true);
+  }
+}
+
+class _MainSearchPlaceholderScreen extends StatelessWidget {
+  const _MainSearchPlaceholderScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'گەڕان',
+        style: TextStyle(fontFamily: kPatientPrimaryFont),
+      ),
+    );
+  }
+}
+
+class _MainChatPlaceholderScreen extends StatelessWidget {
+  const _MainChatPlaceholderScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'چات',
+        style: TextStyle(fontFamily: kPatientPrimaryFont),
       ),
     );
   }
