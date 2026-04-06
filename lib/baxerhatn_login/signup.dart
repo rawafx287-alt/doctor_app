@@ -9,7 +9,9 @@ import '../auth/phone_auth_config.dart';
 import '../auth/phone_normalization.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/doctor_profile_fields.dart';
 import '../specialty_categories.dart';
+import '../widgets/doctor_city_dropdown.dart';
 import 'registration_success_page.dart';
 
 enum UserRole { patient, doctor }
@@ -50,6 +52,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _doctorSpecialty;
+  String? _selectedDoctorCity;
 
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _roleBlue = Color(0xFF42A5F5);
@@ -167,6 +170,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       setState(() {
         _selectedRole = UserRole.patient;
         _doctorSpecialty = null;
+        _selectedDoctorCity = null;
       });
       return;
     }
@@ -182,6 +186,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() {
       _selectedRole = UserRole.patient;
       _doctorSpecialty = null;
+      _selectedDoctorCity = null;
     });
     if (result == false) {
       _showSnackBar(S.of(context).translate('signup_doctor_security_wrong'));
@@ -419,6 +424,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'phone': phone,
         'password': password,
         'address': _addressController.text.trim(),
+        kDoctorCityField: (_selectedDoctorCity ?? '').trim(),
         'role': 'Doctor',
         'specialty': (_doctorSpecialty ?? '').trim(),
         'status': 'pending',
@@ -700,6 +706,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ? S
                                     .of(context)
                                     .translate('validation_specialty_required')
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        DoctorCityDropdown(
+                          value: _selectedDoctorCity,
+                          accentColor: _teal,
+                          onChanged: (v) =>
+                              setState(() => _selectedDoctorCity = v),
+                          validator: (v) => v == null || v.isEmpty
+                              ? S
+                                    .of(context)
+                                    .translate('validation_city_required')
                               : null,
                         ),
                         const SizedBox(height: 14),

@@ -8,7 +8,9 @@ import '../auth/doctor_session_cache.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../models/doctor_profile_fields.dart';
 import '../specialty_categories.dart';
+import '../widgets/doctor_city_dropdown.dart';
 import '../theme/staff_premium_theme.dart';
 import 'doctor_premium_shell.dart';
 
@@ -48,6 +50,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   String? _selectedSpecialty;
+  String? _selectedCity;
 
   String _profileImageUrl = '';
 
@@ -168,6 +171,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _fullNameKuController.text = _firstOf(data, ['fullName_ku', 'fullName']);
       final spec = (data['specialty'] ?? '').toString().trim();
       _selectedSpecialty = kDoctorSpecialtyOptions.contains(spec) ? spec : null;
+      final cityRaw = doctorCityFromUserData(data);
+      _selectedCity = cityRaw.isEmpty ? null : cityRaw;
       _profileImageUrl = (data['profileImageUrl'] ?? '').toString().trim();
       _consultationFeeController.text = (data['consultationFee'] ?? '')
           .toString();
@@ -244,6 +249,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'experience_ku': _experienceKuController.text.trim(),
         'biography': bioKu,
         'clinicAddress': addressKu,
+        kDoctorCityField: (_selectedCity ?? '').trim(),
       };
 
       final yParsed = int.tryParse(_yearsExperienceController.text.trim());
@@ -538,6 +544,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                 setState(() => _selectedSpecialty = v),
                             validator: (v) => v == null || v.isEmpty
                                 ? s.translate('validation_specialty_required')
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          DoctorCityDropdown(
+                            dense: true,
+                            accentColor: _kDoctorProfileGold,
+                            value: _selectedCity,
+                            onChanged: (v) =>
+                                setState(() => _selectedCity = v),
+                            validator: (v) => v == null || v.isEmpty
+                                ? s.translate('validation_city_required')
                                 : null,
                           ),
                           const SizedBox(height: 8),
