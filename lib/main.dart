@@ -40,7 +40,9 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await FcmForegroundNotifications.init();
     await PatientPushRegistration.promptNotificationPermissionOnFirstLaunch();
-    FirebaseMessaging.onMessage.listen(FcmForegroundNotifications.showFromRemoteMessage);
+    FirebaseMessaging.onMessage.listen(
+      FcmForegroundNotifications.showFromRemoteMessage,
+    );
   }
   final localeController = LocaleController();
   await localeController.load();
