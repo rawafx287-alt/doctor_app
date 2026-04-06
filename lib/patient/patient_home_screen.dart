@@ -12,6 +12,7 @@ import '../push/patient_push_registration.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../models/doctor_profile_fields.dart';
 import '../specialty_categories.dart';
 import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
@@ -27,7 +28,7 @@ import 'patient_recipient_keys.dart';
 import '../firestore/root_notifications_firestore.dart';
 import 'home_ad_carousel.dart';
 
-/// Search bar height (fixed above home [CustomScrollView]).
+/// Search bar height (fixed below city selector).
 const double _kHomeSearchHeaderExtent = 44;
 
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
@@ -301,13 +302,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
   String _selectedCategory = kPatientSpecialtyAllKey;
 
-  /// Single subscription: all approved doctors (filter locally for category + search).
-  late final Stream<QuerySnapshot<Map<String, dynamic>>>
-  _approvedDoctorsStream = FirebaseFirestore.instance
-      .collection('users')
-      .where('role', isEqualTo: 'Doctor')
-      .where('isApproved', isEqualTo: true)
-      .snapshots();
+  /// Firestore `city` filter; [kPatientCityFilterAll] shows every city.
+  String _selectedCity = kPatientCityFilterAll;
 
   late final Future<Set<String>> _patientRecipientKeysFuture =
       resolvePatientRecipientKeys();
@@ -320,19 +316,29 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     return _selectedCategory;
   }
 
-  /// Local filter: specialty chip, then name/specialty search.
+  /// Firestore: approved doctors, optionally filtered by [city] and/or [specialty] (both from UI chips).
+  Query<Map<String, dynamic>> _approvedDoctorsQuery() {
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'Doctor')
+        .where('isApproved', isEqualTo: true);
+    if (_selectedCity != kPatientCityFilterAll) {
+      q = q.where(kDoctorCityField, isEqualTo: _selectedCity);
+    }
+    if (_selectedCategory != kPatientSpecialtyAllKey) {
+      q = q.where(
+        'specialty',
+        isEqualTo: _firestoreValueForSelectedCategory(),
+      );
+    }
+    return q;
+  }
+
+  /// Client-side only: search text on name/specialty (Firestore already narrowed city + specialty).
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyLocalFilters(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     var list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
-
-    if (_selectedCategory != kPatientSpecialtyAllKey) {
-      final firestoreValue = _firestoreValueForSelectedCategory();
-      list = list.where((d) {
-        final spec = (d.data()['specialty'] ?? '').toString().trim();
-        return spec == firestoreValue;
-      }).toList();
-    }
 
     final q = _searchController.text.trim();
     if (q.isEmpty) return list;
@@ -502,6 +508,114 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
+  /// Horizontal filter chips (YouTube/Airbnb-style). Non-pinned [SliverToBoxAdapter] — scrolls away.
+  Widget _buildCitySelectorStrip(BuildContext context) {
+    final s = S.of(context);
+    final entries = <(String, String)>[
+      (kPatientCityFilterAll, s.translate('patient_home_city_all')),
+      for (final c in kPatientHomeModalCityIds) (c, c),
+    ];
+    return Material(
+      color: kPatientSkyTop,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, end: 16, bottom: 3),
+              child: Text(
+                s.translate('patient_home_cities_title'),
+                style: TextStyle(
+                  color: _kDarkBlue.withValues(alpha: 0.88),
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  height: 1.0,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                clipBehavior: Clip.none,
+                itemCount: entries.length,
+                separatorBuilder: (context, _) => const SizedBox(width: 7),
+                itemBuilder: (context, index) {
+                  final cityId = entries[index].$1;
+                  final label = entries[index].$2;
+                  final selected = _selectedCity == cityId;
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedCity = cityId);
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? _kDarkBlue
+                              : const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: selected
+                                ? _kDarkBlue
+                                : const Color(0xFFE0E4EB),
+                            width: 0.9,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (selected) ...[
+                              const Icon(
+                                Icons.location_on_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                                height: 1.05,
+                                letterSpacing: 0.1,
+                                color: selected
+                                    ? Colors.white
+                                    : _kDoctorNameNavy,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Ad carousel + gap — scrolls away inside [CustomScrollView].
   Widget _buildHomeAdBannerBlock(BuildContext context) {
     return Column(
@@ -525,9 +639,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     final scrollableCategoryKeys = patientSpecialtyFilterCategoryKeys
         .where((k) => k != kPatientSpecialtyAllKey)
         .toList();
-    final allSelected = _selectedCategory == kPatientSpecialtyAllKey;
-    final allSoft = _categorySoftTint(kPatientSpecialtyAllKey);
-    final allAcc = _categoryAccentIcon(kPatientSpecialtyAllKey);
 
     Widget specialtyTile({
       required String catKey,
@@ -616,161 +727,45 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: SizedBox(
                 height: 104,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InkWell(
-                          onTap: () => setState(
-                            () => _selectedCategory = kPatientSpecialtyAllKey,
-                          ),
-                          borderRadius: BorderRadius.circular(22),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 74,
-                                height: 96,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 58,
-                                          height:
-                                              _CategoryGlassOrb._cardH + 8,
-                                          child: Center(
-                                            child: AnimatedScale(
-                                              scale: allSelected ? 1.15 : 1.0,
-                                              duration: const Duration(
-                                                milliseconds: 200,
-                                              ),
-                                              curve: Curves.easeOut,
-                                              alignment: Alignment.center,
-                                              child: _CategoryGlassOrb(
-                                                categoryKey:
-                                                    kPatientSpecialtyAllKey,
-                                                selected: allSelected,
-                                                softTint: allSoft,
-                                                accent: allAcc,
-                                                floating: true,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Container(
-                                          width: 1.25,
-                                          height: _CategoryGlassOrb._cardH,
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: [
-                                                _kBrandLuxGoldLight.withValues(
-                                                  alpha: 0.22,
-                                                ),
-                                                _kBrandLuxGold
-                                                    .withValues(alpha: 0.96),
-                                                _kBrandLuxGoldLight.withValues(
-                                                  alpha: 0.22,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    SizedBox(
-                                      width: 54,
-                                      height: 28,
-                                      child: Text(
-                                        S.of(context)
-                                            .translate(kPatientSpecialtyAllKey),
-                                        maxLines: 2,
-                                        softWrap: true,
-                                        overflow: TextOverflow.fade,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontFamily: kPatientPrimaryFont,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 9.5,
-                                          height: 1.1,
-                                          color: allSelected
-                                              ? _categoryLabelDark(
-                                                  kPatientSpecialtyAllKey,
-                                                )
-                                              : _categoryLabelDark(
-                                                  kPatientSpecialtyAllKey,
-                                                ).withValues(alpha: 0.82),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        clipBehavior: Clip.antiAlias,
-                        child: ColoredBox(
-                          color: kPatientSkyTop.withValues(alpha: 0.82),
-                          child: ListView.separated(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              8,
-                              5,
-                              14,
-                              4,
-                            ),
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(
-                              parent: AlwaysScrollableScrollPhysics(),
-                            ),
-                            clipBehavior: Clip.none,
-                            itemCount: scrollableCategoryKeys.length,
-                            separatorBuilder: (context, _) =>
-                                const SizedBox(width: 6),
-                            itemBuilder: (context, index) {
-                              final catKey = scrollableCategoryKeys[index];
-                              final selected = _selectedCategory == catKey;
-                              final soft = _categorySoftTint(catKey);
-                              final acc = _categoryAccentIcon(catKey);
-                              return InkWell(
-                                onTap: () =>
-                                    setState(() => _selectedCategory = catKey),
-                                borderRadius: BorderRadius.circular(22),
-                                child: specialtyTile(
-                                  catKey: catKey,
-                                  selected: selected,
-                                  soft: soft,
-                                  acc: acc,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: ColoredBox(
+                    color: kPatientSkyTop.withValues(alpha: 0.82),
+                    child: ListView.separated(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        8,
+                        5,
+                        14,
+                        4,
                       ),
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      clipBehavior: Clip.none,
+                      itemCount: scrollableCategoryKeys.length,
+                      separatorBuilder: (context, _) =>
+                          const SizedBox(width: 6),
+                      itemBuilder: (context, index) {
+                        final catKey = scrollableCategoryKeys[index];
+                        final selected = _selectedCategory == catKey;
+                        final soft = _categorySoftTint(catKey);
+                        final acc = _categoryAccentIcon(catKey);
+                        return InkWell(
+                          onTap: () =>
+                              setState(() => _selectedCategory = catKey),
+                          borderRadius: BorderRadius.circular(22),
+                          child: specialtyTile(
+                            catKey: catKey,
+                            selected: selected,
+                            soft: soft,
+                            acc: acc,
+                          ),
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1695,10 +1690,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Home: static search bar; [CustomScrollView] with scrolling ad, pinned specialties, doctors.
+  /// Home: fixed search bar; [CustomScrollView] with city (scrolls), ad, pinned specialties, doctors.
   Widget _buildHomeContent() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _approvedDoctorsStream,
+      key: ValueKey<String>('doctors_${_selectedCity}_$_selectedCategory'),
+      stream: _approvedDoctorsQuery().snapshots(),
       builder: (context, snapshot) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1719,6 +1715,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 physics: patientHomePrimaryScrollPhysics,
                 slivers: [
                   SliverToBoxAdapter(
+                    child: _buildCitySelectorStrip(context),
+                  ),
+                  SliverToBoxAdapter(
                     child: _buildHomeAdBannerBlock(context),
                   ),
                   SliverPersistentHeader(
@@ -1726,6 +1725,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     delegate: _PatientSpecialtiesPinnedDelegate(
                       extent: kHomeSpecialtiesBlockExtent,
                       selectedCategory: _selectedCategory,
+                      selectedCity: _selectedCity,
                       builder: (ctx, overlaps) =>
                           _buildSpecialtiesStickyStrip(
                         ctx,
@@ -1744,16 +1744,18 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   }
 }
 
-/// Pinned specialties strip under the search bar (sticks while doctors scroll).
+/// Pinned specialties strip below the scrolling city row (sticks while doctors scroll).
 class _PatientSpecialtiesPinnedDelegate extends SliverPersistentHeaderDelegate {
   _PatientSpecialtiesPinnedDelegate({
     required this.extent,
     required this.selectedCategory,
+    required this.selectedCity,
     required this.builder,
   });
 
   final double extent;
   final String selectedCategory;
+  final String selectedCity;
   final Widget Function(BuildContext context, bool overlapsContent) builder;
 
   @override
@@ -1780,7 +1782,8 @@ class _PatientSpecialtiesPinnedDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _PatientSpecialtiesPinnedDelegate oldDelegate) {
     return oldDelegate.extent != extent ||
-        oldDelegate.selectedCategory != selectedCategory;
+        oldDelegate.selectedCategory != selectedCategory ||
+        oldDelegate.selectedCity != selectedCity;
   }
 }
 

@@ -436,6 +436,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اختر التخصص من القائمة',
     'en': 'Select a specialty from the list',
   },
+  'validation_city_required': {
+    'ckb': 'شار هەڵبژێرە لە لیستەکە',
+    'ar': 'اختر المدينة من القائمة',
+    'en': 'Select a city from the list',
+  },
   'book_now': {
     'ckb': 'کرتە بکە بۆ نۆرە ووردەکاری',
     'ar': 'اضغط للحجز أو التفاصيل',
@@ -759,6 +764,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'بدون (غير مرتبط)',
     'en': 'None (not linked)',
   },
+  'patient_home_cities_title': {
+    'ckb': 'شارەکان',
+    'ar': 'المدن',
+    'en': 'Cities',
+  },
+  'patient_home_city_all': {
+    'ckb': 'هەموو',
+    'ar': 'الكل',
+    'en': 'All',
+  },
+  'patient_home_pick_city_sheet_title': {
+    'ckb': 'شار هەڵبژێرە',
+    'ar': 'اختر المدينة',
+    'en': 'Choose a city',
+  },
   'specialties': {
     'ckb': 'پسپۆڕییەکان',
     'ar': 'التخصصات',
@@ -828,6 +848,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'پسپۆڕی هەڵبژێرە',
     'ar': 'اختر التخصص',
     'en': 'Choose specialty',
+  },
+  'dropdown_city_label': {
+    'ckb': 'شار',
+    'ar': 'المدينة',
+    'en': 'City',
+  },
+  'dropdown_city_hint': {
+    'ckb': 'شار هەڵبژێرە',
+    'ar': 'اختر المدينة',
+    'en': 'Choose city',
   },
   'recommended_doctors': {
     'ckb': 'پزیشکە پەسەندکراوەکان',
