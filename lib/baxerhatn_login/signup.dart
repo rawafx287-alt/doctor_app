@@ -28,7 +28,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final GlobalKey<FormFieldState<String>> _addressFieldKey =
       GlobalKey<FormFieldState<String>>();
+  final FocusNode _firstNameFocusNode = FocusNode();
+  final FocusNode _lastNameFocusNode = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
+  final FocusNode _addressFocusNode = FocusNode();
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -36,7 +42,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
   bool _obscurePassword = true;
@@ -53,17 +60,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   void initState() {
     super.initState();
-    _emailFocusNode.addListener(_onEmailFocusChanged);
-  }
-
-  void _onEmailFocusChanged() {
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _emailFocusNode.removeListener(_onEmailFocusChanged);
+    _firstNameFocusNode.dispose();
+    _lastNameFocusNode.dispose();
+    _phoneFocusNode.dispose();
     _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
+    _addressFocusNode.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -126,7 +133,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return null;
   }
 
-  static const String _kPhoneMustBe11Digits = 'پێویستە ژمارەی مۆبایل ١١ ژمارە بێت';
+  static const String _kPhoneMustBe11Digits =
+      'پێویستە ژمارەی مۆبایل ١١ ژمارە بێت';
   static const String _kDuplicateAccountMessage =
       'ئەم ژمارەیە یان ئیمەیڵە پێشتر بەکارهاتووە';
 
@@ -194,9 +202,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       barrierDismissible: false,
       barrierColor: Colors.transparent,
       builder: (_) => _DoctorSecurityDialogShell(
-        child: _DoctorSecurityCodeDialog(
-          requiredCode: _doctorActivationCode,
-        ),
+        child: _DoctorSecurityCodeDialog(requiredCode: _doctorActivationCode),
       ),
     );
     if (!mounted) return null;
@@ -301,9 +307,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           password: password,
         );
       } on FirebaseAuthException catch (e) {
-        debugPrint(
-          '[SignUp] createUser: code=${e.code} message=${e.message}',
-        );
+        debugPrint('[SignUp] createUser: code=${e.code} message=${e.message}');
         if (e.code == 'email-already-in-use') {
           try {
             userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -317,8 +321,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             );
             if (!mounted) return;
             final s = S.of(context);
-            final wrongPw = e2.code == 'wrong-password' ||
-                e2.code == 'invalid-credential';
+            final wrongPw =
+                e2.code == 'wrong-password' || e2.code == 'invalid-credential';
             _showSnackBar(
               wrongPw
                   ? s.translate('auth_err_wrong_credential')
@@ -483,11 +487,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     // 3) Email only when user entered one.
     if (emailRaw.isNotEmpty) {
-      final byEmailExact =
-          await users.where('email', isEqualTo: emailRaw).limit(1).get();
+      final byEmailExact = await users
+          .where('email', isEqualTo: emailRaw)
+          .limit(1)
+          .get();
       if (byEmailExact.docs.isNotEmpty) return true;
-      final byEmailLower =
-          await users.where('email', isEqualTo: emailLower).limit(1).get();
+      final byEmailLower = await users
+          .where('email', isEqualTo: emailLower)
+          .limit(1)
+          .get();
       if (byEmailLower.docs.isNotEmpty) return true;
     }
 
@@ -555,213 +563,188 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent.withValues(alpha: 0.2),
-        elevation: 0,
-        foregroundColor: _text,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_forward_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Directionality(
-        textDirection: AppLocaleScope.of(context).textDirection,
-        child: Stack(
-          children: [
-            _buildBackground(),
-            SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                ShaderMask(
-                  blendMode: BlendMode.srcIn,
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white,
-                        Color(0xFFE2E8F0),
-                      ],
-                    ).createShader(
-                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                    );
-                  },
-                  child: Text(
-                    S.of(context).translate('sign_up_title'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'NRT',
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.85,
-                      height: 1.25,
-                      shadows: [
-                        Shadow(
-                          color: Colors.cyan.withValues(alpha: 0.5),
-                          blurRadius: 15,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  S.of(context).translate('sign_up_subtitle'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'NRT',
-                    color: Colors.white.withValues(alpha: 0.58),
-                    fontSize: 13,
-                    height: 1.45,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildRoleTile(
-                        title: S.of(context).translate('role_patient'),
-                        subtitle: S.of(context).translate('role_patient_short'),
-                        role: UserRole.patient,
-                        icon: Icons.person_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildRoleTile(
-                        title: S.of(context).translate('role_doctor'),
-                        subtitle: S.of(context).translate('role_doctor_short'),
-                        role: UserRole.doctor,
-                        icon: Icons.medical_services_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                _buildTextField(
-                  controller: _firstNameController,
-                  label: S.of(context).translate('signup_first_name'),
-                  icon: Icons.badge_outlined,
-                  validator: _validateName,
-                  textCapitalization: TextCapitalization.words,
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _lastNameController,
-                  label: S.of(context).translate('signup_last_name'),
-                  icon: Icons.person_outline_rounded,
-                  validator: _validateName,
-                  textCapitalization: TextCapitalization.words,
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _phoneController,
-                  label: S.of(context).translate('signup_mobile'),
-                  icon: Icons.phone_android_rounded,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  maxLength: 11,
-                  validator: _validatePhone,
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _emailController,
-                  focusNode: _emailFocusNode,
-                  label: S.of(context).translate('email'),
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
-                ),
-                const SizedBox(height: 14),
-                if (_isDoctor) ...[
-                  KurdishDoctorSpecialtyDropdown(
-                    value: _doctorSpecialty,
-                    accentColor: _teal,
-                    onChanged: (v) => setState(() => _doctorSpecialty = v),
-                    validator: (v) => v == null || v.isEmpty
-                        ? S.of(context).translate('validation_specialty_required')
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                _buildTextField(
-                  controller: _passwordController,
-                  label: S.of(context).translate('password_hint_signup'),
-                  icon: Icons.lock_outline_rounded,
-                  isPassword: true,
-                  isConfirmPassword: false,
-                  englishPasswordOnly: true,
-                  validator: _validatePassword,
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  controller: _confirmPasswordController,
-                  label: S.of(context).translate('password_confirm'),
-                  icon: Icons.lock_person_outlined,
-                  isPassword: true,
-                  isConfirmPassword: true,
-                  englishPasswordOnly: true,
-                  validator: _validateConfirmPassword,
-                ),
-                const SizedBox(height: 14),
-                _buildTextField(
-                  key: _addressFieldKey,
-                  controller: _addressController,
-                  label: S.of(context).translate('signup_address'),
-                  icon: Icons.location_on_outlined,
-                  maxLines: 2,
-                  keyboardType: TextInputType.streetAddress,
-                  validator: _validateAddress,
-                  onChanged: (_) =>
-                      _addressFieldKey.currentState?.validate(),
-                ),
-                const SizedBox(height: 28),
-                _buildRegisterButton(),
-              ],
-            ),
-          ),
-        ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0A1330), Color(0xFF05070E), Color(0xFF020306)],
-        ),
-      ),
+    return Directionality(
+      textDirection: AppLocaleScope.of(context).textDirection,
       child: Stack(
-        children: const [
-          _SignBgBlob(
-            alignment: Alignment(-1.0, -0.75),
-            size: 240,
-            color: Color(0xFF29B6F6),
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: RepaintBoundary(child: _SignUpBackground()),
           ),
-          _SignBgBlob(
-            alignment: Alignment(1.0, -0.35),
-            size: 200,
-            color: Color(0xFF7C4DFF),
-          ),
-          _SignBgBlob(
-            alignment: Alignment(0.15, 0.95),
-            size: 240,
-            color: Color(0xFF66BB6A),
+          Scaffold(
+            resizeToAvoidBottomInset: true,
+            backgroundColor: Colors.transparent,
+            appBar: _SignUpAppBar(onBack: () => Navigator.pop(context)),
+            body: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+              child: RepaintBoundary(
+                child: Form(
+                  key: _formKey,
+                  // Validate on submit / focus loss — avoids work every keystroke.
+                  autovalidateMode: AutovalidateMode.onUnfocus,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // No ShaderMask — gradient shaders repaint heavily during keyboard animation.
+                      Text(
+                        S.of(context).translate('sign_up_title'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'NRT',
+                          color: Color(0xFFF1F5F9),
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.85,
+                          height: 1.25,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x4000BCD4),
+                              blurRadius: 12,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        S.of(context).translate('sign_up_subtitle'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'NRT',
+                          color: Colors.white.withValues(alpha: 0.58),
+                          fontSize: 13,
+                          height: 1.45,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildRoleTile(
+                              title: S.of(context).translate('role_patient'),
+                              subtitle: S
+                                  .of(context)
+                                  .translate('role_patient_short'),
+                              role: UserRole.patient,
+                              icon: Icons.person_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildRoleTile(
+                              title: S.of(context).translate('role_doctor'),
+                              subtitle: S
+                                  .of(context)
+                                  .translate('role_doctor_short'),
+                              role: UserRole.doctor,
+                              icon: Icons.medical_services_rounded,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      _buildTextField(
+                        controller: _firstNameController,
+                        focusNode: _firstNameFocusNode,
+                        nextFocusNode: _lastNameFocusNode,
+                        label: S.of(context).translate('signup_first_name'),
+                        icon: Icons.badge_outlined,
+                        validator: _validateName,
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _lastNameController,
+                        focusNode: _lastNameFocusNode,
+                        nextFocusNode: _phoneFocusNode,
+                        label: S.of(context).translate('signup_last_name'),
+                        icon: Icons.person_outline_rounded,
+                        validator: _validateName,
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _phoneController,
+                        focusNode: _phoneFocusNode,
+                        nextFocusNode: _emailFocusNode,
+                        label: S.of(context).translate('signup_mobile'),
+                        icon: Icons.phone_android_rounded,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        maxLength: 11,
+                        validator: _validatePhone,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _emailController,
+                        focusNode: _emailFocusNode,
+                        nextFocusNode: _isDoctor ? null : _passwordFocusNode,
+                        label: S.of(context).translate('email'),
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 14),
+                      if (_isDoctor) ...[
+                        KurdishDoctorSpecialtyDropdown(
+                          value: _doctorSpecialty,
+                          accentColor: _teal,
+                          onChanged: (v) =>
+                              setState(() => _doctorSpecialty = v),
+                          validator: (v) => v == null || v.isEmpty
+                              ? S
+                                    .of(context)
+                                    .translate('validation_specialty_required')
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      _buildTextField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        nextFocusNode: _confirmPasswordFocusNode,
+                        label: S.of(context).translate('password_hint_signup'),
+                        icon: Icons.lock_outline_rounded,
+                        isPassword: true,
+                        isConfirmPassword: false,
+                        englishPasswordOnly: true,
+                        validator: _validatePassword,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _confirmPasswordController,
+                        focusNode: _confirmPasswordFocusNode,
+                        nextFocusNode: _addressFocusNode,
+                        label: S.of(context).translate('password_confirm'),
+                        icon: Icons.lock_person_outlined,
+                        isPassword: true,
+                        isConfirmPassword: true,
+                        englishPasswordOnly: true,
+                        validator: _validateConfirmPassword,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        key: _addressFieldKey,
+                        controller: _addressController,
+                        focusNode: _addressFocusNode,
+                        label: S.of(context).translate('signup_address'),
+                        icon: Icons.location_on_outlined,
+                        maxLines: 2,
+                        keyboardType: TextInputType.streetAddress,
+                        validator: _validateAddress,
+                      ),
+                      const SizedBox(height: 28),
+                      _buildRegisterButton(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -884,8 +867,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       child: InkWell(
         onTap: _isLoading ? null : () => _onRoleSelected(role),
         borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.10),
@@ -898,11 +880,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                icon,
-                color: isSelected ? selectedColor : _muted,
-                size: 28,
-              ),
+              Icon(icon, color: isSelected ? selectedColor : _muted, size: 28),
               const SizedBox(height: 8),
               Text(
                 title,
@@ -936,6 +914,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     Key? key,
     required TextEditingController controller,
     FocusNode? focusNode,
+    FocusNode? nextFocusNode,
     required String label,
     required IconData icon,
     bool isPassword = false,
@@ -953,9 +932,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final formatters = <TextInputFormatter>[
       if (englishPasswordOnly)
-        FilteringTextInputFormatter.allow(
-          RegExp(r'[a-zA-Z0-9!@#$%^&*()_+-=]'),
-        ),
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9!@#$%^&*()_+-=]')),
       ...?inputFormatters,
     ];
 
@@ -967,7 +944,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       suffixIcon: isPassword
           ? IconButton(
               icon: Icon(
-                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: _muted,
               ),
               onPressed: () => setState(() {
@@ -980,13 +959,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
             )
           : null,
     );
-    final decoration = (maxLength != null
-            ? baseDecoration.copyWith(counterText: '')
-            : baseDecoration)
-        .copyWith(
-      // Glass blur sits behind the field; keep field fill transparent so labels aren't clipped.
-      fillColor: Colors.transparent,
-    );
+    final decoration =
+        (maxLength != null
+                ? baseDecoration.copyWith(counterText: '')
+                : baseDecoration)
+            .copyWith(
+              // Glass blur sits behind the field; keep field fill transparent so labels aren't clipped.
+              fillColor: Colors.transparent,
+            );
 
     return Stack(
       clipBehavior: Clip.none,
@@ -994,13 +974,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Positioned.fill(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+            // Avoid per-field BackdropFilter (expensive during keyboard animations).
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),
@@ -1016,18 +994,90 @@ class _SignUpScreenState extends State<SignUpScreen> {
           inputFormatters: formatters.isEmpty ? null : formatters,
           textCapitalization: textCapitalization,
           onChanged: onChanged,
+          textInputAction: nextFocusNode != null
+              ? TextInputAction.next
+              : (isPassword ? TextInputAction.done : TextInputAction.done),
+          onFieldSubmitted: (_) {
+            if (nextFocusNode != null) {
+              FocusScope.of(context).requestFocus(nextFocusNode);
+            } else {
+              FocusScope.of(context).unfocus();
+            }
+          },
           style: const TextStyle(
             color: _text,
             fontFamily: 'NRT',
             fontWeight: FontWeight.w600,
           ),
           decoration: decoration,
-          validator: validator ??
+          validator:
+              validator ??
               (value) => value == null || value.trim().isEmpty
                   ? S.of(context).translate('validation_field_required')
                   : null,
         ),
       ],
+    );
+  }
+}
+
+/// Stable app bar: avoids rebuilding heavy [Scaffold] chrome logic inline with the form.
+class _SignUpAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _SignUpAppBar({required this.onBack});
+
+  final VoidCallback onBack;
+
+  static const Color _fg = Color(0xFFD9E2EC);
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.transparent.withValues(alpha: 0.2),
+      elevation: 0,
+      foregroundColor: _fg,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_forward_ios_rounded),
+        onPressed: onBack,
+      ),
+    );
+  }
+}
+
+class _SignUpBackground extends StatelessWidget {
+  const _SignUpBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A1330), Color(0xFF05070E), Color(0xFF020306)],
+        ),
+      ),
+      child: const Stack(
+        children: [
+          _SignBgBlob(
+            alignment: Alignment(-1.0, -0.75),
+            size: 240,
+            color: Color(0xFF29B6F6),
+          ),
+          _SignBgBlob(
+            alignment: Alignment(1.0, -0.35),
+            size: 200,
+            color: Color(0xFF7C4DFF),
+          ),
+          _SignBgBlob(
+            alignment: Alignment(0.15, 0.95),
+            size: 240,
+            color: Color(0xFF66BB6A),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1045,17 +1095,21 @@ class _SignBgBlob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No ImageFilter blur — large blurs are expensive during keyboard/view inset changes.
     return Align(
       alignment: alignment,
       child: IgnorePointer(
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 58, sigmaY: 58),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.30),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                color.withValues(alpha: 0.28),
+                color.withValues(alpha: 0.0),
+              ],
+              stops: const [0.35, 1.0],
             ),
           ),
         ),
@@ -1082,10 +1136,7 @@ class _DoctorSecurityDialogShell extends StatelessWidget {
             Positioned.fill(
               child: ClipRect(
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 5 * t,
-                    sigmaY: 5 * t,
-                  ),
+                  filter: ImageFilter.blur(sigmaX: 5 * t, sigmaY: 5 * t),
                   child: ColoredBox(
                     color: Colors.black.withValues(alpha: 0.5 * t),
                   ),
@@ -1359,10 +1410,7 @@ class _DoctorCodeInput extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: focusColor,
-              width: 0.5,
-            ),
+            borderSide: BorderSide(color: focusColor, width: 0.5),
           ),
         ),
         textCapitalization: TextCapitalization.characters,
@@ -1395,7 +1443,10 @@ class _DoctorDialogActions extends StatelessWidget {
           child: OutlinedButton(
             onPressed: onCancel,
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 0.5),
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.22),
+                width: 0.5,
+              ),
               foregroundColor: mutedColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
