@@ -654,89 +654,74 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Cities section: one control opens a bottom sheet (no horizontal city icons).
+  /// Slim city row (opens bottom sheet). Placed in a non-pinned [SliverToBoxAdapter] so it scrolls away.
   Widget _buildCitySelectorStrip(BuildContext context) {
     return Material(
       color: kPatientSkyTop,
-      surfaceTintColor: Colors.transparent,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                S.of(context).translate('patient_home_cities_title'),
-                style: const TextStyle(
-                  color: _kDarkBlue,
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12.5,
-                ),
+            Text(
+              S.of(context).translate('patient_home_cities_title'),
+              style: TextStyle(
+                color: _kDarkBlue.withValues(alpha: 0.92),
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 8),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showCityPickerBottomSheet(context),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      begin: AlignmentDirectional.centerStart,
-                      end: AlignmentDirectional.centerEnd,
-                      colors: [
-                        _kPremiumDeepBlue.withValues(alpha: 0.08),
-                        Colors.white.withValues(alpha: 0.94),
-                      ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showCityPickerBottomSheet(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
-                    border: Border.all(
-                      color: _kBrandLuxGold.withValues(alpha: 0.42),
-                      width: 1.15,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _kDarkBlue.withValues(alpha: 0.16),
+                        width: 0.85,
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kBrandLuxGold.withValues(alpha: 0.12),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        color: _kDarkBlue,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _citySelectorButtonLabel(context),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15.5,
-                            color: _kDoctorNameNavy,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          color: _kDarkBlue.withValues(alpha: 0.88),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _citySelectorButtonLabel(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              height: 1.15,
+                              color: _kDoctorNameNavy,
+                            ),
                           ),
                         ),
-                      ),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: _kDarkBlue.withValues(alpha: 0.85),
-                        size: 26,
-                      ),
-                    ],
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: _kDarkBlue.withValues(alpha: 0.55),
+                          size: 18,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1821,7 +1806,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Home: static search bar; [CustomScrollView] with scrolling ad, pinned specialties, doctors.
+  /// Home: fixed search bar; [CustomScrollView] with city (scrolls), ad, pinned specialties, doctors.
   Widget _buildHomeContent() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       key: ValueKey<String>('doctors_${_selectedCity}_$_selectedCategory'),
@@ -1835,16 +1820,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               surfaceTintColor: Colors.transparent,
               elevation: 2,
               shadowColor: Colors.black26,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCitySelectorStrip(context),
-                  SizedBox(
-                    height: _kHomeSearchHeaderExtent,
-                    child: _buildThinSearchBar(context),
-                  ),
-                ],
+              child: SizedBox(
+                height: _kHomeSearchHeaderExtent,
+                child: _buildThinSearchBar(context),
               ),
             ),
             Expanded(
@@ -1852,6 +1830,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 key: const ValueKey<String>('home_doctors_scroll'),
                 physics: patientHomePrimaryScrollPhysics,
                 slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildCitySelectorStrip(context),
+                  ),
                   SliverToBoxAdapter(
                     child: _buildHomeAdBannerBlock(context),
                   ),
@@ -1879,7 +1860,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   }
 }
 
-/// Pinned specialties strip under the search bar (sticks while doctors scroll).
+/// Pinned specialties strip below the scrolling city row (sticks while doctors scroll).
 class _PatientSpecialtiesPinnedDelegate extends SliverPersistentHeaderDelegate {
   _PatientSpecialtiesPinnedDelegate({
     required this.extent,
