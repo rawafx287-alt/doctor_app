@@ -1688,7 +1688,7 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': '+{count} more',
   },
   'schedule_save_ok': {
-    'ckb': 'پاشکەوتکردن بە سەرکەوتوویی تەواوبوو',
+    'ckb': 'پاشەکەوتکردن بە سەرکەوتوویی تەواو بوو',
     'ar': 'تم الحفظ بنجاح',
     'en': 'Schedule saved',
   },
@@ -2413,6 +2413,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'نەتوانرا نۆرەکە هەڵبوەشێنرێتەوە.',
     'ar': 'تعذر إلغاء الموعد.',
     'en': 'Could not cancel this booking.',
+  },
+  'schedule_appointment_detail_time': {
+    'ckb': 'کات',
+    'ar': 'الوقت',
+    'en': 'Time',
+  },
+  'schedule_appointment_detail_date': {
+    'ckb': 'بەروار',
+    'ar': 'التاريخ',
+    'en': 'Date',
+  },
+  'schedule_appointment_detail_no_notes': {
+    'ckb': 'تێبینی نییە',
+    'ar': 'لا توجد ملاحظات',
+    'en': 'No notes',
+  },
+  'schedule_slot_available_sheet_hint': {
+    'ckb': 'ئەم کاتە بەردەستە بۆ نۆرەی نوێ.',
+    'ar': 'هذا الوقت متاح لموعد جديد.',
+    'en': 'This slot is open for booking.',
   },
   'schedule_dashboard_save_hint': {
     'ckb': 'پاشکەوتکردن لە تابی ڕێکخستن',

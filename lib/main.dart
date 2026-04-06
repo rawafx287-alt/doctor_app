@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -226,9 +228,8 @@ class HrNoraAppRoot extends StatelessWidget {
 }
 
 // ئەم کڵاسە بەرپرسە لە بەڕێوەبردنی شریتی خوارەوە (Bottom Navigation)
-/// Patient shell: three equal tabs (home / notifications / profile), no center FAB.
-/// Doctor shell with the gold schedule button between Profile and Appointments is
-/// [DoctorHomeScreen] (`lib/doctor/doctor_home_screen.dart`).
+/// Patient shell: floating blurred bar, sliding gold pill indicator, center FAB.
+/// Doctor shell with schedule FAB is [DoctorHomeScreen].
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -237,6 +238,13 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  static const Color _tealAccent = Color(0xFF1FD1B6);
+  static const Color _tealDeep = Color(0xFF0AAE95);
+  static const double _fabColumnW = 88;
+  static const double _barBodyH = 76;
+  static const double _topRadius = 22;
+  static const Duration _pillDuration = Duration(milliseconds: 420);
+
   @override
   void initState() {
     super.initState();
@@ -249,7 +257,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   static const Color _mainBgTop = Colors.white;
   static const Color _mainBgBottom = Color(0xFFE3F2FD);
 
-  // Bottom nav order: Home, Search, (Center) Appointments, Chat, Profile.
+  /// Order: Home, Search, (center FAB) Appointments, Chat, Profile.
   final List<Widget> _screens = const [
     ListiDoctorakanScreen(),
     _MainSearchPlaceholderScreen(),
@@ -258,147 +266,295 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ProfileScreen(),
   ];
 
-  Widget _buildFloatingMainBottomNav(BuildContext context) {
-    const Color barColor = Color(0xFF111827);
-    const Color tealColor = Color(0xFF1FD1B6);
-
-    double getIndicatorX(int index) {
-      final isRtl = Directionality.of(context) == TextDirection.rtl;
-      // Precise alignment for the teal circle behind icons
-      final positions = {0: -0.84, 1: -0.42, 3: 0.42, 4: 0.84};
-      double x = positions[index] ?? 0.0;
-      return isRtl ? -x : x;
+  /// Horizontal offset of the sliding pill’s left edge (LTR segment layout).
+  double _pillLeft(double barW, int index, double pillW) {
+    final s = (barW - _fabColumnW) / 4;
+    switch (index) {
+      case 0:
+        return (s - pillW) / 2;
+      case 1:
+        return s + (s - pillW) / 2;
+      case 2:
+        return 2 * s + (_fabColumnW - pillW) / 2;
+      case 3:
+        return 2 * s + _fabColumnW + (s - pillW) / 2;
+      case 4:
+        return 3 * s + _fabColumnW + (s - pillW) / 2;
+      default:
+        return 0;
     }
+  }
 
-    Widget navItem(int index, IconData icon, String label) {
-      bool isSelected = _currentIndex == index;
-      return Expanded(
+  double _pillWidthFor(int index, double s) {
+    if (index == 2) {
+      return (_fabColumnW * 0.88).clamp(64.0, 78.0);
+    }
+    return (s * 0.78).clamp(46.0, 56.0);
+  }
+
+  List<Shadow> _goldIconShadows(bool active) {
+    if (!active) return const [];
+    return [
+      Shadow(
+        color: kStaffLuxGold.withValues(alpha: 0.95),
+        blurRadius: 10,
+      ),
+      Shadow(
+        color: kStaffLuxGoldLight.withValues(alpha: 0.55),
+        blurRadius: 18,
+      ),
+    ];
+  }
+
+  List<Shadow> _goldTextShadows(bool active) {
+    if (!active) return const [];
+    return [
+      Shadow(
+        color: kStaffLuxGold.withValues(alpha: 0.65),
+        blurRadius: 8,
+      ),
+    ];
+  }
+
+  Widget _centerFab() {
+    final selected = _currentIndex == 2;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          setState(() => _currentIndex = 2);
+        },
+        child: Container(
+          width: 68,
+          height: 68,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: selected
+                  ? const [_tealDeep, _tealAccent]
+                  : const [_tealAccent, Color(0xFF17C4A8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (selected ? kStaffLuxGold : _tealAccent)
+                    .withValues(alpha: selected ? 0.42 : 0.35),
+                blurRadius: selected ? 20 : 16,
+                spreadRadius: selected ? 1 : 0,
+                offset: const Offset(0, 8),
+              ),
+              if (selected)
+                BoxShadow(
+                  color: kStaffLuxGoldLight.withValues(alpha: 0.35),
+                  blurRadius: 22,
+                  offset: const Offset(0, 4),
+                ),
+            ],
+            border: Border.all(
+              color: selected
+                  ? kStaffLuxGold.withValues(alpha: 0.85)
+                  : Colors.white.withValues(alpha: 0.15),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Icon(
+            Icons.calendar_month_rounded,
+            color: Colors.white,
+            size: 30,
+            shadows: _goldIconShadows(selected),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navSlot({
+    required int index,
+    required String label,
+    required IconData iconSelected,
+    required IconData iconNormal,
+  }) {
+    final selected = _currentIndex == index;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             setState(() => _currentIndex = index);
           },
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(8),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : Colors.white30,
-                  size: isSelected ? 28 : 24,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Transform.scale(
+                  scale: selected ? 1.2 : 1.0,
+                  child: Icon(
+                    selected ? iconSelected : iconNormal,
+                    size: 22,
+                    color: selected
+                        ? kStaffLuxGoldLight
+                        : Colors.white54,
+                    shadows: _goldIconShadows(selected),
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white30,
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: 10,
+                    height: 1.1,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected
+                        ? kStaffLuxGoldLight
+                        : Colors.white54,
+                    shadows: _goldTextShadows(selected),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      );
-    }
-
-    return Container(
-      height: 90,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      decoration: BoxDecoration(
-        color: barColor,
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 25,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Moving Indicator
-          if (_currentIndex != 2)
-            AnimatedAlign(
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.bounceOut,
-              alignment: Alignment(getIndicatorX(_currentIndex), 0),
-              child: Container(
-                width: 50,
-                height: 50,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: tealColor.withOpacity(0.2),
-                  shape: BoxShape.circle,
+    );
+  }
+
+  Widget _buildPremiumBottomBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
+      child: SizedBox(
+        height: _barBodyH + 36,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(_topRadius),
                 ),
-              ),
-            ),
-          Row(
-            children: [
-              navItem(0, Icons.home_rounded, 'سەرەکی'),
-              navItem(1, Icons.search_rounded, 'گەڕان'),
-              const SizedBox(width: 80), // Space for FAB
-              navItem(3, Icons.chat_bubble_outline_rounded, 'چات'),
-              navItem(4, Icons.person_outline_rounded, 'پڕۆفایل'),
-            ],
-          ),
-          // Professional Elevated FAB
-          Positioned(
-            top: -25,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  setState(() => _currentIndex = 2);
-                },
-                child: Column(
-                  children: [
-                    Container(
-                      width: 65,
-                      height: 65,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [tealColor, Color(0xFF0AAE95)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                  child: Container(
+                    height: _barBodyH,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.8),
+                      border: Border(
+                        top: BorderSide(
+                          color: kStaffLuxGold.withValues(alpha: 0.14),
                         ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: tealColor.withOpacity(0.4),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                        border: Border.all(color: barColor, width: 4),
                       ),
-                      child: const Icon(
-                        Icons.calendar_month_rounded,
-                        color: Colors.white,
-                        size: 30,
-                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          blurRadius: 28,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'چاوپێکەوتن',
-                      style: TextStyle(
-                        color: _currentIndex == 2 ? tealColor : Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, c) {
+                        final w = c.maxWidth;
+                        final s = (w - _fabColumnW) / 4;
+                        final pillW = _pillWidthFor(_currentIndex, s);
+                        return Stack(
+                          clipBehavior: Clip.hardEdge,
+                          children: [
+                            AnimatedPositioned(
+                              duration: _pillDuration,
+                              curve: Curves.easeOutCubic,
+                              left: _pillLeft(w, _currentIndex, pillW),
+                              top: 9,
+                              width: pillW,
+                              height: 50,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  color: kStaffLuxGold.withValues(alpha: 0.1),
+                                  border: Border.all(
+                                    color: kStaffLuxGold.withValues(alpha: 0.38),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kStaffLuxGold.withValues(
+                                        alpha: 0.28,
+                                      ),
+                                      blurRadius: 14,
+                                      spreadRadius: 0,
+                                    ),
+                                    BoxShadow(
+                                      color: kStaffLuxGoldLight.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      blurRadius: 20,
+                                      spreadRadius: -2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Row(
+                                children: [
+                                  _navSlot(
+                                    index: 0,
+                                    label: 'سەرەکی',
+                                    iconSelected: Icons.home_rounded,
+                                    iconNormal: Icons.home_outlined,
+                                  ),
+                                  _navSlot(
+                                    index: 1,
+                                    label: 'گەڕان',
+                                    iconSelected: Icons.search_rounded,
+                                    iconNormal: Icons.search_outlined,
+                                  ),
+                                  const SizedBox(width: _fabColumnW),
+                                  _navSlot(
+                                    index: 3,
+                                    label: 'چات',
+                                    iconSelected: Icons.chat_bubble_rounded,
+                                    iconNormal:
+                                        Icons.chat_bubble_outline_rounded,
+                                  ),
+                                  _navSlot(
+                                    index: 4,
+                                    label: 'پڕۆفایل',
+                                    iconSelected: Icons.person_rounded,
+                                    iconNormal: Icons.person_outline_rounded,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: _barBodyH - 34,
+              child: Center(child: _centerFab()),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -416,8 +572,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBody: true,
-        body: IndexedStack(index: _currentIndex, children: _screens),
-        bottomNavigationBar: _buildFloatingMainBottomNav(context),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 340),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey<int>(_currentIndex),
+            child: _screens[_currentIndex],
+          ),
+        ),
+        bottomNavigationBar: _buildPremiumBottomBar(),
       ),
     );
   }

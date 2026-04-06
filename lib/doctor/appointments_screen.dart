@@ -1128,21 +1128,52 @@ Stream<DateTime> _doctorDashboardTodayClock() async* {
   }
 }
 
+/// Parses [hhmm] keys from [normalizeAppointmentTimeToHhMm] / [formatTimeHhMm] on [dayOnly].
+DateTime? _slotDateTimeOnDayFromHhMmKey(DateTime dayOnly, String hhmm) {
+  final parts = hhmm.trim().split(':');
+  if (parts.length != 2) return null;
+  final h = int.tryParse(parts[0].trim());
+  final m = int.tryParse(parts[1].trim());
+  if (h == null || m == null) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return DateTime(dayOnly.year, dayOnly.month, dayOnly.day, h, m);
+}
+
 /// Booked slots only (includes rejected when present in [byKeyAll]), filtered by patient name.
+///
+/// Includes **every** appointment for the day in [byKeyAll], not only times that appear on the
+/// generated clinic grid. Past times stay visible so the secretary sees the full day.
 /// Order is undefined; use [_sortedBookedSlotsUnified] for stable queue + time order.
 List<DateTime> _visibleBookedSlotsForSearch(
-  List<DateTime> slots,
+  DateTime todayOnly,
+  List<DateTime> gridSlots,
   Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
   String searchQuery,
 ) {
   final q = searchQuery.trim().toLowerCase();
+  final slotByHhMm = <String, DateTime>{};
+
+  for (final slot in gridSlots) {
+    final k = formatTimeHhMm(slot);
+    if (byKeyAll[k] != null) {
+      slotByHhMm[k] = slot;
+    }
+  }
+
+  for (final e in byKeyAll.entries) {
+    final k = e.key;
+    if (slotByHhMm.containsKey(k)) continue;
+    final dt = _slotDateTimeOnDayFromHhMmKey(todayOnly, k);
+    if (dt != null) {
+      slotByHhMm[k] = dt;
+    }
+  }
+
   final out = <DateTime>[];
-  for (final slot in slots) {
+  for (final slot in slotByHhMm.values) {
     final k = formatTimeHhMm(slot);
     final doc = byKeyAll[k];
-    if (doc == null) {
-      continue;
-    }
+    if (doc == null) continue;
     final name =
         (doc.data()[AppointmentFields.patientName] ?? '').toString();
     if (q.isEmpty || name.toLowerCase().contains(q)) {
@@ -1247,6 +1278,117 @@ Future<void> _openStaffWalkInBooking(
   }
 }
 
+/// Aggregates for today's appointment stats row (same [status] rules as the list cards).
+(int, int, int) _todayAppointmentStats(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) {
+  var waiting = 0;
+  var completed = 0;
+  for (final d in docs) {
+    final st = AppointmentsScreen._statusKey(
+      d.data()[AppointmentFields.status],
+    );
+    if (st == 'completed' || st == 'complete' || st == 'done') {
+      completed++;
+    } else if (st == 'pending' || st == 'waiting') {
+      waiting++;
+    }
+  }
+  return (docs.length, waiting, completed);
+}
+
+/// Compact stats under the dashboard search field; counts match [watchDoctorAppointmentsForLocalDay].
+class _DoctorTodayStatsRow extends StatelessWidget {
+  const _DoctorTodayStatsRow({
+    required this.total,
+    required this.waiting,
+    required this.completed,
+    required this.loading,
+  });
+
+  final int total;
+  final int waiting;
+  final int completed;
+  final bool loading;
+
+  static final NumberFormat _nf = NumberFormat.decimalPattern('en_US');
+
+  @override
+  Widget build(BuildContext context) {
+    final t = loading ? '—' : _nf.format(total);
+    final w = loading ? '—' : _nf.format(waiting);
+    final c = loading ? '—' : _nf.format(completed);
+
+    Widget badge({
+      required String prefix,
+      required String value,
+      required Color accent,
+    }) {
+      return Expanded(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.42),
+              width: 1,
+            ),
+            color: accent.withValues(alpha: 0.07),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.18),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$prefix: $value',
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10.5,
+                  height: 1.15,
+                  color: Colors.white.withValues(alpha: 0.92),
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        badge(
+          prefix: 'هەموو',
+          value: t,
+          accent: kStaffLuxGold,
+        ),
+        const SizedBox(width: 8),
+        badge(
+          prefix: 'ماوە',
+          value: w,
+          accent: const Color(0xFF42A5F5),
+        ),
+        const SizedBox(width: 8),
+        badge(
+          prefix: 'تەواوبوو',
+          value: c,
+          accent: const Color(0xFF43A047),
+        ),
+      ],
+    );
+  }
+}
+
 /// Full-height “نۆرەکان بەپێی کات” list driven by day settings + appointments streams.
 class _DoctorTodayScheduleSection extends StatelessWidget {
   const _DoctorTodayScheduleSection({
@@ -1266,43 +1408,10 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final nfCount = NumberFormat.decimalPattern('en_US');
     final dayDocId = availableDayDocumentId(
       doctorUserId: doctorUserId,
       dateLocal: todayOnly,
     );
-
-    Widget slotsHeading({required int bookedCount}) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Align(
-          alignment: Alignment.center,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: kStaffLuxGold.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: 0.4),
-                width: 0.85,
-              ),
-            ),
-            child: Text(
-              s.translate(
-                'doctor_today_booked_count_badge',
-                params: {'count': nfCount.format(bookedCount)},
-              ),
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 11.5,
-                color: kStaffLuxGold.withValues(alpha: 0.96),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -1320,7 +1429,6 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  slotsHeading(bookedCount: 0),
                   Expanded(
                     child: Center(
                       child: Padding(
@@ -1345,7 +1453,6 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  slotsHeading(bookedCount: 0),
                   const Expanded(
                     child: Center(
                       child: SizedBox(
@@ -1384,16 +1491,15 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
               );
             }
 
+            final apptDocs = apptSnap.data ?? const [];
             final byKeyAll =
-                _appointmentsBySlotHhMmIncludingCancelled(apptSnap.data ?? const []);
-            final queueById =
-                dailyQueueNumberByDocId(apptSnap.data ?? const []);
+                _appointmentsBySlotHhMmIncludingCancelled(apptDocs);
+            final queueById = dailyQueueNumberByDocId(apptDocs);
             final emptyGrid = noHours || slots.isEmpty;
-            if (emptyGrid) {
+            if (emptyGrid && apptDocs.isEmpty) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  slotsHeading(bookedCount: 0),
                   Expanded(
                     child: Center(
                       child: Padding(
@@ -1417,6 +1523,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
             }
 
             final visibleSlots = _visibleBookedSlotsForSearch(
+              todayOnly,
               slots,
               byKeyAll,
               searchQuery,
@@ -1442,7 +1549,6 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                slotsHeading(bookedCount: visibleSlots.length),
                 Expanded(
                   child: visibleSlots.isEmpty
                       ? Center(
@@ -2259,6 +2365,29 @@ class _DoctorTodayDashboardState extends State<_DoctorTodayDashboard> {
                 controller: _searchController,
                 hint: s.translate('doctor_patients_search_hint'),
                 onChanged: (_) => setState(() {}),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+              child: StreamBuilder<
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+                stream: watchDoctorAppointmentsForLocalDay(
+                  doctorUserId: widget.doctorUserId,
+                  dayLocal: todayOnly,
+                ),
+                builder: (context, apptSnap) {
+                  final loading = apptSnap.connectionState ==
+                          ConnectionState.waiting &&
+                      !apptSnap.hasData;
+                  final docs = apptSnap.data ?? const [];
+                  final stats = _todayAppointmentStats(docs);
+                  return _DoctorTodayStatsRow(
+                    total: stats.$1,
+                    waiting: stats.$2,
+                    completed: stats.$3,
+                    loading: loading,
+                  );
+                },
               ),
             ),
             Expanded(
