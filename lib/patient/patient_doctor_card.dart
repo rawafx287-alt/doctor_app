@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../locale/app_localizations.dart';
+import '../specialty_categories.dart';
 import '../theme/patient_premium_theme.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
@@ -73,10 +75,7 @@ class PatientDoctorCard extends StatelessWidget {
 
   static const Color _deepBlue = Color(0xFF1565C0);
 
-  /// Muted tone for specialty badge text (does not compete with the name).
-  static const Color _kSpecialtySubtitle = Color(0xFF6B7F96);
-
-  /// Very light fill for specialty capsule (premium chip).
+  /// Primary blue used for specialty chip tint (matches app accent).
   static const Color _kSpecialtyBadgeFill = Color(0xFF1565C0);
 
   static const double _radius = 20;
@@ -322,7 +321,7 @@ class PatientDoctorCard extends StatelessWidget {
   }
 }
 
-/// Rounded capsule for specialty — top-right of the card text area.
+/// Modern pill chip for specialty — top-right of the card text area.
 class _PatientDoctorSpecialtyBadge extends StatelessWidget {
   const _PatientDoctorSpecialtyBadge({
     required this.label,
@@ -330,69 +329,106 @@ class _PatientDoctorSpecialtyBadge extends StatelessWidget {
     required this.maxWidth,
   });
 
+  static const Color _kPrimary = PatientDoctorCard._kSpecialtyBadgeFill;
+
   final String label;
   final String specialty;
   final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    final line = '$label | $specialty';
-    final softFill = Color.lerp(
-      const Color(0xFFEEF3F8),
-      PatientDoctorCard._kSpecialtyBadgeFill.withValues(alpha: 0.12),
-      0.35,
-    )!;
+    final prefix = '$label | ';
+    final iconColor = _kPrimary.withValues(alpha: 0.88);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: maxWidth.clamp(48, 176),
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: softFill,
+          color: _kPrimary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: PatientDoctorCard._kSpecialtySubtitle.withValues(
-              alpha: 0.14,
-            ),
-            width: 0.5,
+            color: _kPrimary.withValues(alpha: 0.38),
+            width: 0.75,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             textDirection: TextDirection.rtl,
             children: [
               Flexible(
-                child: Text(
-                  line,
+                child: Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontSize: 8.35,
+                      height: 1.22,
+                      letterSpacing: 0.03,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: prefix,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _kPrimary.withValues(alpha: 0.58),
+                        ),
+                      ),
+                      TextSpan(
+                        text: specialty,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _kPrimary.withValues(alpha: 0.92),
+                        ),
+                      ),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontSize: 8.25,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.04,
-                    color: PatientDoctorCard._kSpecialtySubtitle.withValues(
-                      alpha: 0.92,
-                    ),
-                  ),
                 ),
               ),
-              const SizedBox(width: 5),
-              Icon(
-                Icons.medical_information_outlined,
-                size: 10.5,
-                color: PatientDoctorCard._kSpecialtySubtitle.withValues(
-                  alpha: 0.75,
-                ),
+              const SizedBox(width: 6),
+              _SpecialtyChipIcon(
+                specialty: specialty,
+                color: iconColor,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tiny icon matched to Firestore specialty (tooth for dental, etc.).
+class _SpecialtyChipIcon extends StatelessWidget {
+  const _SpecialtyChipIcon({
+    required this.specialty,
+    required this.color,
+  });
+
+  final String specialty;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final key = specialtyFirestoreToKey(specialty.trim());
+    if (key == 'dentist_specialty') {
+      return FaIcon(
+        FontAwesomeIcons.tooth,
+        size: 9.5,
+        color: color,
+      );
+    }
+    final IconData data = key == null
+        ? Icons.medical_information_outlined
+        : iconForSpecialtyCategoryKey(key);
+    return Icon(
+      data,
+      size: 10,
+      color: color,
     );
   }
 }
