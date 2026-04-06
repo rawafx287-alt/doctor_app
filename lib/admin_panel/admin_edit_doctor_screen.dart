@@ -113,7 +113,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
         const SnackBar(
           content: Text(
             'پاشەکەوت کرا بە سەرکەوتوویی',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            style: TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -124,7 +124,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
         SnackBar(
           content: Text(
             'هەڵە: $e',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -149,7 +149,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ),
@@ -166,7 +166,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Color(0xFFEF4444),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                     ),
@@ -239,7 +239,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                                       color: Colors.white,
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      fontFamily: 'KurdishFont',
+                                      fontFamily: 'NRT',
                                     ),
                                   ),
                           ),

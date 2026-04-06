@@ -23,7 +23,7 @@ class DoctorManagementScreen extends StatelessWidget {
             'سڕینەوەی پزیشک',
             style: TextStyle(
               color: Color(0xFFD9E2EC),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -31,7 +31,7 @@ class DoctorManagementScreen extends StatelessWidget {
             'دڵنیایت لە سڕینەوەی "$name"؟',
             style: const TextStyle(
               color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           ),
           actions: [
@@ -41,7 +41,7 @@ class DoctorManagementScreen extends StatelessWidget {
                 'پاشگەزبوونەوە',
                 style: TextStyle(
                   color: Color(0xFF829AB1),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                 ),
               ),
             ),
@@ -51,7 +51,7 @@ class DoctorManagementScreen extends StatelessWidget {
                 'سڕینەوە',
                 style: TextStyle(
                   color: Color(0xFFEF4444),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -69,7 +69,7 @@ class DoctorManagementScreen extends StatelessWidget {
         SnackBar(
           content: Text(
             'سڕایەوە: $name',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -79,7 +79,7 @@ class DoctorManagementScreen extends StatelessWidget {
         const SnackBar(
           content: Text(
             'هەڵەیەک ڕوویدا لە سڕینەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            style: TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -102,7 +102,7 @@ class DoctorManagementScreen extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ),
@@ -121,7 +121,7 @@ class DoctorManagementScreen extends StatelessWidget {
                   'هەڵەیەک لە هێنانی لیستەکە ڕوویدا',
                   style: TextStyle(
                     color: Color(0xFFEF4444),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                   ),
                 ),
               );
@@ -144,7 +144,7 @@ class DoctorManagementScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Color(0xFF829AB1),
                       fontSize: 16,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ),
@@ -184,7 +184,7 @@ class DoctorManagementScreen extends StatelessWidget {
                                 color: Color(0xFFD9E2EC),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -193,7 +193,7 @@ class DoctorManagementScreen extends StatelessWidget {
                               style: const TextStyle(
                                 color: Color(0xFF829AB1),
                                 fontSize: 13,
-                                fontFamily: 'KurdishFont',
+                                fontFamily: 'NRT',
                               ),
                             ),
                             if (phone.isNotEmpty) ...[
@@ -203,7 +203,7 @@ class DoctorManagementScreen extends StatelessWidget {
                                 style: const TextStyle(
                                   color: Color(0xFF627D98),
                                   fontSize: 12,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             ],

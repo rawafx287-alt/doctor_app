@@ -5,11 +5,19 @@ import 'package:flutter/services.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
+import '../theme/hr_nora_colors.dart';
 import 'login.dart';
 
 /// Shown after email/password sign-up and Firestore user document write.
 class RegistrationSuccessPage extends StatelessWidget {
-  const RegistrationSuccessPage({super.key});
+  const RegistrationSuccessPage({
+    super.key,
+    this.customMessage,
+    this.customInstruction,
+  });
+
+  final String? customMessage;
+  final String? customInstruction;
 
   void _goToLogin(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
@@ -76,45 +84,48 @@ class RegistrationSuccessPage extends StatelessWidget {
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF2E7D32)
+                                  color: HrNoraColors.openDayFill
                                       .withValues(alpha: 0.22),
                                   border: Border.all(
-                                    color: const Color(0xFF66BB6A)
-                                        .withValues(alpha: 0.6),
+                                    color: HrNoraColors.openDayGradientLight
+                                        .withValues(alpha: 0.55),
                                     width: 1.6,
                                   ),
                                 ),
                                 child: const Icon(
                                   Icons.check_rounded,
-                                  color: Color(0xFF81C784),
+                                  color: HrNoraColors.openDayGradientLight,
                                   size: 56,
                                 ),
                               ),
                               const SizedBox(height: 28),
                               Text(
-                                S.of(context)
-                                    .translate('registration_success_message'),
+                                customMessage ??
+                                    S.of(context).translate(
+                                      'registration_success_message',
+                                    ),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Color(0xFFE7EEF7),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                   height: 1.45,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                S.of(context).translate(
-                                  'registration_success_instruction',
-                                ),
+                                customInstruction ??
+                                    S.of(context).translate(
+                                      'registration_success_instruction',
+                                    ),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.72),
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   height: 1.55,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             ],
@@ -143,7 +154,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                       ),

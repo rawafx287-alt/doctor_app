@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../locale/app_locale.dart';
+import '../theme/staff_premium_theme.dart';
 
 /// Pending doctor registrations: [role] Doctor, [isApproved] false.
 class ApprovalListScreen extends StatefulWidget {
@@ -12,19 +13,19 @@ class ApprovalListScreen extends StatefulWidget {
 }
 
 class _ApprovalListScreenState extends State<ApprovalListScreen> {
-  static const Color _approveGreen = Color(0xFF22C55E);
   static const Color _rejectRed = Color(0xFFEF4444);
 
   Future<void> _approve(String uid, String name) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'isApproved': true,
+      'status': 'approved',
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           'قبوڵکرا: $name',
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+          style: const TextStyle(fontFamily: 'NRT'),
         ),
       ),
     );
@@ -37,7 +38,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
       SnackBar(
         content: Text(
           'ڕەتکرایەوە: $name',
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+          style: const TextStyle(fontFamily: 'NRT'),
         ),
       ),
     );
@@ -59,7 +60,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ),
@@ -78,7 +79,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                   'هەڵەیەک لە هێنانی داواکارییەکان ڕوویدا',
                   style: TextStyle(
                     color: _rejectRed,
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                   ),
                 ),
               );
@@ -101,7 +102,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                     style: TextStyle(
                       color: Color(0xFF829AB1),
                       fontSize: 16,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                 ),
@@ -133,7 +134,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                           color: Color(0xFFD9E2EC),
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -141,7 +142,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                         'پسپۆڕی: $specialty',
                         style: const TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -150,7 +151,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _approveGreen,
+                                backgroundColor: kStaffAccentSlateBlue,
                                 foregroundColor: Colors.white,
                                 minimumSize: const Size(double.infinity, 46),
                                 shape: RoundedRectangleBorder(
@@ -162,7 +163,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                                 'قبوڵکردن',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             ),
@@ -186,7 +187,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> {
                                 'ڕەتکردنەوە',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                 ),
                               ),
                             ),

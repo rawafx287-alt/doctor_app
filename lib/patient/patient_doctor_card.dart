@@ -2,18 +2,53 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
+import 'patient_grain_painter.dart';
 
 /// Lux sky + gold palette for premium doctor cards.
-const Color _kLuxSkyTop = Color(0xFFE3F2FD);
 const Color _kLuxGold = Color(0xFFD4AF37);
 const Color _kLuxGoldLight = Color(0xFFF6E7A6);
-const Color _kLuxBottomBlue = Color(0xFFB7D8F7);
 
-/// Doctor row used on patient home and hospital doctor list.
-class PatientDoctorCard extends StatefulWidget {
+/// Thin metallic rim around the home doctor card (top-left → bottom-right).
+const LinearGradient _kDoctorCardSilverBorderGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFFF0F0F0),
+    Color(0xFFD1D1D1),
+    Color(0xFFE0E0E0),
+  ],
+  stops: [0.0, 0.48, 1.0],
+);
+
+/// Layered elevation: soft ambient + deep lift + top highlight.
+const List<BoxShadow> _kDoctorCardLayeredShadows = [
+  BoxShadow(
+    color: Color(0x12000000),
+    blurRadius: 22,
+    spreadRadius: -2,
+    offset: Offset(0, 6),
+  ),
+  BoxShadow(
+    color: Color(0x0A000000),
+    blurRadius: 40,
+    spreadRadius: -8,
+    offset: Offset(0, 16),
+  ),
+  BoxShadow(
+    color: Color(0x18FFFFFF),
+    blurRadius: 12,
+    spreadRadius: -8,
+    offset: Offset(0, -3),
+  ),
+];
+
+/// Compact doctor row: vertical image on the end side, specialty + centered name
+/// and book CTA; ⋮ opens details (no dropdown).
+class PatientDoctorCard extends StatelessWidget {
   const PatientDoctorCard({
     super.key,
     required this.name,
@@ -30,12 +65,6 @@ class PatientDoctorCard extends StatefulWidget {
   /// Firestore `profileImageUrl`; placeholder if null/empty.
   final String? profileImageUrl;
 
-  @override
-  State<PatientDoctorCard> createState() => _PatientDoctorCardState();
-}
-
-class _PatientDoctorCardState extends State<PatientDoctorCard>
-    with TickerProviderStateMixin {
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
@@ -43,406 +72,304 @@ class _PatientDoctorCardState extends State<PatientDoctorCard>
 
   static const Color _deepBlue = Color(0xFF1565C0);
 
+  /// Muted tone for specialty badge text (does not compete with the name).
+  static const Color _kSpecialtySubtitle = Color(0xFF6B7F96);
+
+  /// Very light fill for specialty capsule (premium chip).
+  static const Color _kSpecialtyBadgeFill = Color(0xFF1565C0);
+
   static const double _radius = 20;
-  static const double _outerBorderWidth = 0.5;
-  static const double _innerRadius = 19.5;
+  static const double _kSilverBorderWidth = 0.9;
+  static const double _kLightLeakBorder = 1.35;
 
-  late AnimationController _pulseController;
-  late Animation<double> _pulseGlow;
-
-  String get _avatarUrl {
-    final u = widget.profileImageUrl?.trim() ?? '';
-    return u.isNotEmpty ? u : _placeholderImageUrl;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _pulseGlow = Tween<double>(begin: 0.28, end: 0.95).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
+  /// Slim card content; image matches this height.
+  static const double _kCardContentHeight = 112;
+  static const double _kImageStripWidth = 96;
 
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    const colAlign = CrossAxisAlignment.end;
-    const textAlign = TextAlign.end;
-    const badgeAlign = AlignmentDirectional.centerEnd;
+    final hasArabicScript = RegExp(
+      r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
+    ).hasMatch(name);
+    final nameDirection =
+        hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
+    final rAfterSilver = _radius - _kSilverBorderWidth;
+    final innerR = rAfterSilver - _kLightLeakBorder;
+    final rawProfile = profileImageUrl?.trim() ?? '';
+    final avatarUrl =
+        rawProfile.isNotEmpty ? rawProfile : _placeholderImageUrl;
 
     return RepaintBoundary(
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_radius),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.92),
-              width: _outerBorderWidth,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 22,
-                spreadRadius: 1,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(_innerRadius),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    _kLuxBottomBlue,
-                    _kLuxSkyTop,
-                    Colors.white,
-                  ],
-                  stops: [0.0, 0.58, 1.0],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    blurRadius: 16,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 2),
-                  ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_radius),
+          gradient: _kDoctorCardSilverBorderGradient,
+          boxShadow: _kDoctorCardLayeredShadows,
+        ),
+        padding: const EdgeInsets.all(_kSilverBorderWidth),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(rAfterSilver),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(rAfterSilver),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.0),
+                  Colors.white.withValues(alpha: 0.58),
+                  Colors.white.withValues(alpha: 0.22),
+                  Colors.white.withValues(alpha: 0.52),
+                  Colors.white.withValues(alpha: 0.0),
                 ],
+                stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
               ),
-              child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          textDirection: Directionality.of(context),
-                          children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: _kLuxGold.withValues(alpha: 0.95),
-                                      width: 1.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.white.withValues(alpha: 0.42),
-                                        blurRadius: 8,
-                                        spreadRadius: -1,
-                                        offset: const Offset(0, -1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: CachedNetworkImage(
-                                      imageUrl: _avatarUrl,
-                                      fit: BoxFit.cover,
-                                      memCacheWidth: 128,
-                                      memCacheHeight: 128,
-                                      fadeInDuration: Duration.zero,
-                                      fadeOutDuration: Duration.zero,
-                                      placeholder: (context, url) => Container(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.85,
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: _deepBlue,
-                                          ),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) =>
-                                          Container(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.85,
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: const Icon(
-                                          Icons.medical_services_rounded,
-                                          color: _deepBlue,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+            ),
+            padding: const EdgeInsets.all(_kLightLeakBorder),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(innerR),
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white,
+                      Color(0xFFB3E5FC),
+                    ],
+                    stops: [0.35, 1.0],
+                  ),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(innerR),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                          child: Container(
+                            color: Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(innerR),
+                          child: CustomPaint(
+                            painter: PatientSubtleGrainPainter(
+                              seed: name.hashCode,
                             ),
-                            const SizedBox(width: 18),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: colAlign,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        widget.name,
-                                        textAlign: textAlign,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: _navyText,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          fontFamily: 'KurdishFont',
-                                          height: 1.2,
-                                          letterSpacing: 0.25,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: _kCardContentHeight,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Row(
+                            textDirection: TextDirection.ltr,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    40,
+                                    6,
+                                    4,
+                                    6,
+                                  ),
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final innerW = constraints.maxWidth;
+                                      final specialtyLabel =
+                                          S.of(context).translate(
+                                        'field_specialty',
+                                      );
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        height: 2.5,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          color: _kLuxGold.withValues(alpha: 0.95),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: _kLuxGold.withValues(alpha: 0.32),
-                                              blurRadius: 6,
-                                              spreadRadius: 0,
-                                              offset: Offset.zero,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Align(
+                                              alignment:
+                                                  Alignment.centerRight,
+                                              child:
+                                                  _PatientDoctorSpecialtyBadge(
+                                                label: specialtyLabel,
+                                                specialty: specialty,
+                                                maxWidth: innerW,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Expanded(
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                      child: SizedBox(
+                                                        width: innerW,
+                                                        child: FittedBox(
+                                                          fit: BoxFit
+                                                              .scaleDown,
+                                                          alignment:
+                                                              Alignment
+                                                                  .center,
+                                                          child:
+                                                              Directionality(
+                                                            textDirection:
+                                                                nameDirection,
+                                                            child: Text(
+                                                              name.trim(),
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              maxLines: 1,
+                                                              softWrap: false,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontFamily:
+                                                                    kPatientPrimaryFont,
+                                                                fontSize:
+                                                                    18.25,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w800,
+                                                                height: 1.15,
+                                                                letterSpacing:
+                                                                    -0.12,
+                                                                color: Color(
+                                                                  0xFF0A1628,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Center(
+                                                      child:
+                                                          _DoctorCardPressableButton(
+                                                        onTap: onBook,
+                                                        child:
+                                                            _BookNowPrimaryButton(
+                                                          bookCtaText: S
+                                                              .of(context)
+                                                              .translate(
+                                                            'patient_doctor_card_book_cta',
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    S.of(context).translate('field_specialty'),
-                                    textAlign: textAlign,
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      height: 1.1,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'KurdishFont',
-                                      color: _navyText.withValues(alpha: 0.58),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: badgeAlign,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(999),
-                                      child: BackdropFilter(
-                                        filter: ui.ImageFilter.blur(
-                                          sigmaX: 12,
-                                          sigmaY: 12,
-                                        ),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 13,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                              colors: [
-                                                const Color(
-                                                  0xFFF3D6C4,
-                                                ).withValues(alpha: 0.4),
-                                                Colors.white.withValues(
-                                                  alpha: 0.24,
-                                                ),
-                                                const Color(
-                                                  0xFFE9D5C7,
-                                                ).withValues(alpha: 0.34),
-                                              ],
-                                            ),
-                                            border: Border.all(
-                                              color: _kLuxGold.withValues(
-                                                alpha: 0.98,
-                                              ),
-                                              width: 1.1,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: _kLuxGold.withValues(
-                                                  alpha: 0.26,
-                                                ),
-                                                blurRadius: 8,
-                                                spreadRadius: -2,
-                                                offset: const Offset(0, 1),
-                                              ),
-                                              BoxShadow(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.5,
-                                                ),
-                                                blurRadius: 10,
-                                                spreadRadius: -4,
-                                                offset: const Offset(0, -2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            widget.specialty,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 13,
-                                              fontFamily: 'KurdishFont',
-                                              height: 1.2,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          textDirection: TextDirection.ltr,
-                          children: [
-                            Expanded(
-                              flex: 60,
-                              child: SizedBox(
-                                height: 42,
-                                child: GestureDetector(
-                                  onTap: widget.onBook,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: _BookNowPrimaryButton(
-                                    pulseGlow: _pulseGlow,
-                                    bookCtaText: S
-                                        .of(context)
-                                        .translate(
-                                          'patient_doctor_card_book_cta',
+                              ClipRRect(
+                                borderRadius:
+                                    BorderRadiusDirectional.horizontal(
+                                  end: Radius.circular(innerR),
+                                ),
+                                child: SizedBox(
+                                  width: _kImageStripWidth,
+                                  height: _kCardContentHeight,
+                                  child: CachedNetworkImage(
+                                    imageUrl: avatarUrl,
+                                    fit: BoxFit.cover,
+                                    alignment: Alignment.center,
+                                    memCacheWidth: 256,
+                                    memCacheHeight: 384,
+                                    fadeInDuration: Duration.zero,
+                                    fadeOutDuration: Duration.zero,
+                                    placeholder: (context, url) => Container(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: _deepBlue,
                                         ),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.medical_services_rounded,
+                                        color: _deepBlue,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Positioned(
+                            left: 0,
+                            top: -4,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  onOpenDetails();
+                                },
+                                splashColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                                hoverColor: Colors.transparent,
+                                borderRadius: BorderRadius.circular(22),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.more_vert_rounded,
+                                    size: 21,
+                                    color: _navyText.withValues(alpha: 0.72),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 35,
-                              child: SizedBox(
-                                height: 42,
-                                child: GestureDetector(
-                                  onTap: widget.onOpenDetails,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: _DoctorCardDetailsButton(
-                                    rtl: rtl,
-                                    label: S
-                                        .of(context)
-                                        .translate(
-                                          'patient_doctor_card_details_short',
-                                        ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-            ),
-          ),
-        ),
-        ),
-    );
-  }
-}
-
-/// Glass «وردەکاری» chip — flex layout, fixed height with book CTA.
-class _DoctorCardDetailsButton extends StatelessWidget {
-  const _DoctorCardDetailsButton({
-    required this.rtl,
-    required this.label,
-  });
-
-  final bool rtl;
-  final String label;
-
-  static const double _r = 14;
-  static const Color _kDetailsTextColor = Colors.black;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_r),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          width: double.infinity,
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_r),
-            color: Colors.white.withValues(alpha: 0.18),
-            border: Border.all(
-              color: _kLuxGold.withValues(alpha: 0.9),
-              width: 1.2,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            textDirection: TextDirection.ltr,
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _kDetailsTextColor.withValues(alpha: 0.92),
-                    fontFamily: 'KurdishFont',
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Icon(
-                rtl
-                    ? Icons.arrow_back_ios_new_rounded
-                    : Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: Colors.black.withValues(alpha: 0.9),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -450,28 +377,158 @@ class _DoctorCardDetailsButton extends StatelessWidget {
   }
 }
 
-/// Primary «نۆرە بگرە» — left, royal crimson glass, rounded rect.
-class _BookNowPrimaryButton extends StatelessWidget {
-  const _BookNowPrimaryButton({
-    required this.pulseGlow,
-    required this.bookCtaText,
+/// Rounded capsule for specialty — top-right of the card text area.
+class _PatientDoctorSpecialtyBadge extends StatelessWidget {
+  const _PatientDoctorSpecialtyBadge({
+    required this.label,
+    required this.specialty,
+    required this.maxWidth,
   });
 
-  final Animation<double> pulseGlow;
-  final String bookCtaText;
-
-  static const double _r = 14;
-  static const double _buttonHeight = 42;
+  final String label;
+  final String specialty;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: _buttonHeight,
+    final line = '$label | $specialty';
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: maxWidth.clamp(48, 176),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: PatientDoctorCard._kSpecialtyBadgeFill.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+              alpha: 0.2,
+            ),
+            width: 0.5,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            line,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontSize: 8.75,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.06,
+              color: PatientDoctorCard._kSpecialtySubtitle.withValues(
+                alpha: 0.95,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Book CTA: quick scale-down on press, snap back on release + light haptic.
+class _DoctorCardPressableButton extends StatefulWidget {
+  const _DoctorCardPressableButton({
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_DoctorCardPressableButton> createState() =>
+      _DoctorCardPressableButtonState();
+}
+
+class _DoctorCardPressableButtonState extends State<_DoctorCardPressableButton>
+    with SingleTickerProviderStateMixin {
+  static const double _kPressedScale = 0.96;
+
+  late final AnimationController _scaleController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 115),
+    reverseDuration: const Duration(milliseconds: 135),
+  );
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: _kPressedScale,
+  ).animate(
+    CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutBack,
+    ),
+  );
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _pressDown() {
+    HapticFeedback.lightImpact();
+    _scaleController.forward();
+  }
+
+  void _pressEnd() {
+    _scaleController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _pressDown(),
+      onTapUp: (_) => _pressEnd(),
+      onTapCancel: _pressEnd,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            alignment: Alignment.center,
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Primary «نۆرە بگرە» — gold glass CTA (text-only, compact).
+class _BookNowPrimaryButton extends StatelessWidget {
+  const _BookNowPrimaryButton({
+    required this.bookCtaText,
+  });
+
+  final String bookCtaText;
+
+  static const double _r = 10;
+  static const double _buttonHeight = 28;
+  static const double _maxButtonWidth = 152;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: _maxButtonWidth,
+        minHeight: _buttonHeight,
+        maxHeight: _buttonHeight,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_r),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_r),
@@ -486,57 +543,42 @@ class _BookNowPrimaryButton extends StatelessWidget {
               ),
               border: Border.all(
                 color: _kLuxGold.withValues(alpha: 0.95),
-                width: 1.2,
+                width: 1,
               ),
               boxShadow: [
                 BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  blurRadius: 4,
+                  spreadRadius: -2,
+                  offset: const Offset(-0.5, -2),
+                ),
+                BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical: 5,
+                vertical: 2,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                textDirection: TextDirection.ltr,
-                children: [
-                  AnimatedBuilder(
-                    animation: pulseGlow,
-                    builder: (context, child) {
-                      final pulse = pulseGlow.value;
-                      return Icon(
-                        Icons.calendar_month_rounded,
-                        size: 18,
-                        color: Colors.black.withValues(
-                          alpha: 0.84 + 0.08 * pulse,
-                        ),
-                      );
-                    },
+              child: Center(
+                child: Text(
+                  bookCtaText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    height: 1.1,
+                    letterSpacing: 0.04,
+                    color: Colors.black.withValues(alpha: 0.9),
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      bookCtaText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'KurdishFont',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.5,
-                        height: 1.2,
-                        letterSpacing: 0.1,
-                        color: Colors.black.withValues(alpha: 0.92),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

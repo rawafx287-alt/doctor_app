@@ -361,11 +361,16 @@ Future<void> deleteAvailableDay({
 /// supports document reads, so appointment rows are loaded with `.get()` before
 /// each attempt; loop retries on contention.
 Future<String?> bookAvailableDayTransaction({
+  required DocumentReference<Map<String, dynamic>> appointmentRef,
   required String availableDayDocId,
   required String patientId,
   required String patientName,
   required String doctorId,
   required String doctorDisplayName,
+  String? paymentMethod,
+  String? paymentStatus,
+  String? receiptImageUrl,
+  Map<String, dynamic>? extraAppointmentData,
 }) async {
   final pid = patientId.trim();
   final did = doctorId.trim();
@@ -427,7 +432,7 @@ Future<String?> bookAvailableDayTransaction({
     if (freeStart == null) return 'available_day_full';
 
     final timeStr = formatTimeHhMm(freeStart);
-    final queueNumber = bookedKeys.length + 1;
+    final queueNumber = countNonCancelledAppointments(apptSnap.docs) + 1;
 
     try {
       final err = await FirebaseFirestore.instance.runTransaction<String?>((
@@ -445,10 +450,7 @@ Future<String?> bookAvailableDayTransaction({
           AvailableDayFields.currentBookings: FieldValue.increment(1),
         });
 
-        final apptRef = FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .doc();
-        transaction.set(apptRef, {
+        final apptPayload = <String, dynamic>{
           AppointmentFields.patientId: pid,
           AppointmentFields.userId: pid,
           AppointmentFields.doctorId: did,
@@ -458,11 +460,31 @@ Future<String?> bookAvailableDayTransaction({
               patientName.trim().isEmpty ? '—' : patientName.trim(),
           AppointmentFields.date: Timestamp.fromDate(dayStart),
           AppointmentFields.time: timeStr,
+          'dateTime': Timestamp.fromDate(freeStart),
           AppointmentFields.status: 'pending',
           AppointmentFields.queueNumber: queueNumber,
           AppointmentFields.createdAt: FieldValue.serverTimestamp(),
           AppointmentFields.availableDayDocId: availableDayDocId,
-        });
+          if (paymentMethod != null && paymentMethod.trim().isNotEmpty)
+            AppointmentFields.paymentMethod: paymentMethod.trim(),
+          if (paymentStatus != null && paymentStatus.trim().isNotEmpty)
+            AppointmentFields.paymentStatus: paymentStatus.trim(),
+        };
+        final receipt = receiptImageUrl?.trim();
+        if (receipt != null && receipt.isNotEmpty) {
+          apptPayload[AppointmentFields.receiptImageUrl] = receipt;
+          apptPayload[AppointmentFields.receiptUrl] = receipt;
+        }
+        final extra = extraAppointmentData;
+        if (extra != null) {
+          for (final e in extra.entries) {
+            final v = e.value;
+            if (v == null) continue;
+            if (v is String && v.trim().isEmpty) continue;
+            apptPayload[e.key] = v;
+          }
+        }
+        transaction.set(appointmentRef, apptPayload);
 
         return null;
       });

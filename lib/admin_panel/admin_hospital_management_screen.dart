@@ -52,7 +52,7 @@ class _AdminHospitalManagementScreenState
         const SnackBar(
           content: Text(
             'نەخۆشخانەکە پاشەکەوت کرا',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            style: TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -66,7 +66,7 @@ class _AdminHospitalManagementScreenState
         SnackBar(
           content: Text(
             'هەڵە: $e',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -90,7 +90,7 @@ class _AdminHospitalManagementScreenState
             'سڕینەوەی نەخۆشخانە',
             style: TextStyle(
               color: Color(0xFFD9E2EC),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -98,7 +98,7 @@ class _AdminHospitalManagementScreenState
             'دڵنیایت لە سڕینەوەی "$displayName"؟',
             style: const TextStyle(
               color: Color(0xFF829AB1),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
             ),
           ),
           actions: [
@@ -106,7 +106,7 @@ class _AdminHospitalManagementScreenState
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text(
                 'پاشگەزبوونەوە',
-                style: TextStyle(color: Color(0xFF829AB1), fontFamily: 'KurdishFont'),
+                style: TextStyle(color: Color(0xFF829AB1), fontFamily: 'NRT'),
               ),
             ),
             TextButton(
@@ -115,7 +115,7 @@ class _AdminHospitalManagementScreenState
                 'سڕینەوە',
                 style: TextStyle(
                   color: Color(0xFFEF4444),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -135,7 +135,7 @@ class _AdminHospitalManagementScreenState
         SnackBar(
           content: Text(
             'سڕایەوە: $displayName',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -145,7 +145,7 @@ class _AdminHospitalManagementScreenState
         const SnackBar(
           content: Text(
             'هەڵەیەک ڕوویدا لە سڕینەوە',
-            style: TextStyle(fontFamily: 'KurdishFont'),
+            style: TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -168,7 +168,7 @@ class _AdminHospitalManagementScreenState
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ),
@@ -197,7 +197,7 @@ class _AdminHospitalManagementScreenState
                             color: Colors.white,
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            fontFamily: 'KurdishFont',
+                            fontFamily: 'NRT',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -247,7 +247,7 @@ class _AdminHospitalManagementScreenState
                                     color: Colors.white,
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
-                                    fontFamily: 'KurdishFont',
+                                    fontFamily: 'NRT',
                                   ),
                                 ),
                         ),
@@ -261,7 +261,7 @@ class _AdminHospitalManagementScreenState
                       color: Colors.white,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -286,7 +286,7 @@ class _AdminHospitalManagementScreenState
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF829AB1),
-                          fontFamily: 'KurdishFont',
+                          fontFamily: 'NRT',
                         ),
                       ),
                     )
@@ -322,7 +322,7 @@ class _AdminHospitalManagementScreenState
                                       style: const TextStyle(
                                         color: Color(0xFFD9E2EC),
                                         fontWeight: FontWeight.w700,
-                                        fontFamily: 'KurdishFont',
+                                        fontFamily: 'NRT',
                                         fontSize: 15,
                                       ),
                                     ),
@@ -333,7 +333,7 @@ class _AdminHospitalManagementScreenState
                                         style: const TextStyle(
                                           color: Color(0xFF829AB1),
                                           fontSize: 12,
-                                          fontFamily: 'KurdishFont',
+                                          fontFamily: 'NRT',
                                         ),
                                       ),
                                     ],

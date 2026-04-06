@@ -17,7 +17,7 @@ class NorekaniMinScreen extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
         centerTitle: true,

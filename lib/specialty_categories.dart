@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'locale/app_localizations.dart';
+import 'theme/patient_premium_theme.dart';
 
 /// One doctor specialty: [translationKey] for [S.of(context).translate];
 /// [firestoreValue] must match `users.specialty` in Firestore (Sorani label).
@@ -127,11 +128,14 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    // Taller line metrics so Kurdish dots (e.g. under پ) are not clipped.
+    final double lineHeight = dense ? 1.42 : 1.32;
     final textStyle = TextStyle(
       color: const Color(0xFFD9E2EC),
-      fontFamily: useKurdishFont ? 'KurdishFont' : null,
-      fontSize: dense ? 15 : 16,
-      fontWeight: FontWeight.w600,
+      fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
+      fontSize: dense ? 14.5 : 16,
+      height: lineHeight,
+      fontWeight: FontWeight.bold,
     );
     return DropdownButtonFormField<String>(
       initialValue: value != null && kDoctorSpecialtyOptions.contains(value) ? value : null,
@@ -146,21 +150,23 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
         labelText: s.translate('dropdown_specialty_label'),
         labelStyle: TextStyle(
           color: const Color(0xFF829AB1),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
           fontSize: dense ? 13 : 14,
-          height: 1.25,
+          height: dense ? 1.38 : 1.28,
         ),
         floatingLabelStyle: TextStyle(
           color: const Color(0xFF829AB1),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
           fontSize: dense ? 11.5 : 12,
-          height: 1.15,
-          fontWeight: FontWeight.w600,
+          height: dense ? 1.35 : 1.22,
+          fontWeight: FontWeight.bold,
         ),
         hintText: s.translate('dropdown_specialty_hint'),
         hintStyle: TextStyle(
           color: const Color(0xFF829AB1).withValues(alpha: 0.85),
-          fontFamily: useKurdishFont ? 'KurdishFont' : null,
+          fontFamily: useKurdishFont ? kPatientPrimaryFont : null,
+          fontSize: dense ? 14 : 15,
+          height: dense ? 1.42 : 1.32,
         ),
         prefixIcon: Icon(Icons.local_hospital_rounded, color: accentColor),
         filled: true,
@@ -179,9 +185,9 @@ class KurdishDoctorSpecialtyDropdown extends StatelessWidget {
         ),
         contentPadding: EdgeInsets.fromLTRB(
           14,
-          dense ? 18 : 20,
+          dense ? 20 : 20,
           14,
-          dense ? 14 : 16,
+          dense ? 18 : 16,
         ),
       ),
       items: kDoctorSpecialtyDefinitions

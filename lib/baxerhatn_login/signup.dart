@@ -5,8 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../auth/phone_auth_config.dart';
 import '../auth/phone_normalization.dart';
 import '../locale/app_locale.dart';
@@ -137,6 +135,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   static const String _kPhoneMustBe11Digits = 'پێویستە ژمارەی مۆبایل ١١ ژمارە بێت';
+  static const String _kDuplicateAccountMessage =
+      'ئەم ژمارەیە یان ئیمەیڵە پێشتر بەکارهاتووە';
 
   String? _validatePhone(String? value) {
     final s = S.of(context);
@@ -259,6 +259,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  void _goDoctorPendingSuccess() {
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const RegistrationSuccessPage(
+              customMessage:
+                  'تکایە چاوەڕێ بکە تا لەلایەن بەڕێوبەرەوە قبوڵ دەکرێیت',
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          );
+          return FadeTransition(opacity: curved, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+      (route) => false,
+    );
+  }
+
   Future<void> _registerWithFirebase() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -266,6 +287,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp();
+      }
+      final duplicate = await _hasDuplicatePhoneOrEmail();
+      if (duplicate) {
+        if (mounted) _showSnackBar(_kDuplicateAccountMessage);
+        return;
       }
       if (!_isDoctor) {
         await _registerPatientPhoneKeyed();
@@ -277,6 +303,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       // 1. دروستکردنی ئەکاونت لە Authentication
@@ -294,6 +321,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 =======
   /// Phone = Firestore doc id; Firebase Auth uses [phoneAuthEmail].
   /// If Auth already has this phone email, signs in and [SetOptions.merge] writes Firestore.
+=======
+  /// Patient registration uses Firebase Auth synthetic phone-email login.
+  /// Firestore document is saved under **uid** (not phone number).
+>>>>>>> main
   Future<void> _registerPatientPhoneKeyed() async {
     UserCredential? userCred;
     var profileSavedToFirestore = false;
@@ -368,9 +399,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return;
       }
 
+      final uid = userCred.user?.uid ?? '';
+      if (uid.isEmpty) {
+        if (!mounted) return;
+        _showSnackBar(S.of(context).translate('signup_err_generic'));
+        return;
+      }
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(phone)
+          .doc(uid)
           .set(profilePayload, SetOptions(merge: true));
       profileSavedToFirestore = true;
 
@@ -451,9 +488,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'fullName': fullName.isEmpty ? first : fullName,
         'email': email,
         'phone': phone,
+        'password': password,
         'address': _addressController.text.trim(),
         'role': 'Doctor',
         'specialty': (_doctorSpecialty ?? '').trim(),
+        'status': 'pending',
         'isApproved': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -462,7 +501,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      _goRegistrationSuccess();
+      _goDoctorPendingSuccess();
     } on FirebaseAuthException catch (e) {
       debugPrint(
         '[SignUp] FirebaseAuthException: code=${e.code} message=${e.message}',
@@ -530,9 +569,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<bool> _hasDuplicatePhoneOrEmail() async {
+    final users = FirebaseFirestore.instance.collection('users');
+    final phone = normalizePhoneDigits(_phoneController.text);
+    final emailRaw = _emailController.text.trim();
+    final emailLower = emailRaw.toLowerCase();
+
+    // 1) Phone in field (string / int legacy).
+    var byPhone = await users.where('phone', isEqualTo: phone).limit(1).get();
+    if (byPhone.docs.isNotEmpty) return true;
+    final phoneInt = int.tryParse(phone);
+    if (phoneInt != null) {
+      byPhone = await users.where('phone', isEqualTo: phoneInt).limit(1).get();
+      if (byPhone.docs.isNotEmpty) return true;
+    }
+
+    // 3) Email only when user entered one.
+    if (emailRaw.isNotEmpty) {
+      final byEmailExact =
+          await users.where('email', isEqualTo: emailRaw).limit(1).get();
+      if (byEmailExact.docs.isNotEmpty) return true;
+      final byEmailLower =
+          await users.where('email', isEqualTo: emailLower).limit(1).get();
+      if (byEmailLower.docs.isNotEmpty) return true;
+    }
+
+    return false;
+  }
+
   void _showSnackBar(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+<<<<<<< HEAD
 <<<<<<< HEAD
         content: Text(
           message,
@@ -574,6 +645,57 @@ class _SignUpScreenState extends State<SignUpScreen> {
 =======
         content: Text(message, style: const TextStyle(fontFamily: 'KurdishFont')),
 >>>>>>> 4d879aa05e50f5d2db3a2e7c6a92215aa64c62e6
+=======
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        content: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFFFEBEE).withValues(alpha: 0.32),
+                    const Color(0xFFC62828).withValues(alpha: 0.22),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFFFF8A80).withValues(alpha: 0.55),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Color(0xFFFFCDD2),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        fontFamily: 'NRT',
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFFEBEE),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+>>>>>>> main
       ),
     );
   }
@@ -651,10 +773,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: Text(
                     S.of(context).translate('sign_up_title'),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.vazirmatn(
+                    style: TextStyle(
+                      fontFamily: 'NRT',
                       color: Colors.white,
                       fontSize: 26,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.85,
                       height: 1.25,
                       shadows: [
@@ -672,11 +795,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 Text(
                   S.of(context).translate('sign_up_subtitle'),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.vazirmatn(
+                  style: TextStyle(
+                    fontFamily: 'NRT',
                     color: Colors.white.withValues(alpha: 0.58),
                     fontSize: 13,
                     height: 1.45,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -960,7 +1084,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                         color: Colors.white,
                       ),
                     ),
@@ -987,20 +1111,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
       hintText: hintText,
       labelStyle: const TextStyle(
         color: _muted,
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
         fontSize: 14,
         height: 1.25,
       ),
       floatingLabelStyle: const TextStyle(
         color: _muted,
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
         fontSize: 12,
         height: 1.15,
         fontWeight: FontWeight.w600,
       ),
       hintStyle: TextStyle(
         color: _muted.withValues(alpha: 0.65),
-        fontFamily: 'KurdishFont',
+        fontFamily: 'NRT',
       ),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
@@ -1097,7 +1221,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isSelected ? _text : _muted.withValues(alpha: 0.95),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 14,
                   height: 1.25,
@@ -1275,7 +1399,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           onChanged: onChanged,
           style: const TextStyle(
             color: _text,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontWeight: FontWeight.w600,
           ),
           decoration: decoration,
@@ -1437,7 +1561,7 @@ class _DoctorSecurityCodeDialogState extends State<_DoctorSecurityCodeDialog> {
                   Text(
                     s.translate('signup_doctor_security_title'),
                     style: const TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       color: _text,
                       fontWeight: FontWeight.w700,
                       fontSize: 20,
@@ -1514,7 +1638,7 @@ class _DoctorWarningText extends StatelessWidget {
                   textAlign: TextAlign.right,
                   text: TextSpan(
                     style: TextStyle(
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       color: warningColor.withValues(alpha: 0.95),
                       fontSize: 13,
                       height: 1.6,
@@ -1577,7 +1701,7 @@ class _DoctorCodeInput extends StatelessWidget {
         controller: controller,
         style: TextStyle(
           color: textColor,
-          fontFamily: 'KurdishFont',
+          fontFamily: 'NRT',
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
@@ -1586,13 +1710,13 @@ class _DoctorCodeInput extends StatelessWidget {
           labelText: hintText,
           labelStyle: TextStyle(
             color: mutedColor,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 14,
             height: 1.25,
           ),
           floatingLabelStyle: TextStyle(
             color: mutedColor,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 12,
             height: 1.15,
             fontWeight: FontWeight.w600,
@@ -1661,7 +1785,7 @@ class _DoctorDialogActions extends StatelessWidget {
             child: Text(
               cancelText,
               style: const TextStyle(
-                fontFamily: 'KurdishFont',
+                fontFamily: 'NRT',
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1690,7 +1814,7 @@ class _DoctorDialogActions extends StatelessWidget {
               child: Text(
                 confirmText,
                 style: const TextStyle(
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w700,
                 ),
               ),

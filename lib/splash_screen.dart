@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'auth/auth_gate.dart';
+import 'auth/auth_service.dart';
 import 'locale/app_locale.dart';
 import 'locale/language_selection_screen.dart';
 import 'theme/hr_nora_colors.dart';
@@ -41,10 +42,31 @@ class _SplashScreenState extends State<SplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: 260));
     if (!mounted) return;
     final locale = AppLocaleScope.of(context);
-    final next = locale.hasCompletedLanguageSelection
-        ? const AuthGate()
-        : const LanguageSelectionScreen();
-    Navigator.of(context, rootNavigator: true).pushReplacement(_smoothRoute(next));
+    if (!locale.hasCompletedLanguageSelection) {
+      Navigator.of(context, rootNavigator: true).pushReplacement(
+        _smoothRoute(const LanguageSelectionScreen()),
+      );
+      return;
+    }
+
+    final auth = AuthService.instance;
+    if (await auth.shouldOpenPersistedStaffHome()) {
+      final role = await auth.lastRole();
+      if (role != null) {
+        final home = auth.homeWidgetForPersistedRole(role);
+        if (home != null && mounted) {
+          Navigator.of(context, rootNavigator: true).pushReplacement(
+            _smoothRoute(home),
+          );
+          return;
+        }
+      }
+    }
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pushReplacement(
+      _smoothRoute(const AuthGate()),
+    );
   }
 
   PageRouteBuilder<void> _smoothRoute(Widget nextScreen) {

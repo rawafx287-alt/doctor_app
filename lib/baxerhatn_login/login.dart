@@ -1,14 +1,19 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../auth/auth_navigation.dart';
-import '../auth/phone_auth_config.dart';
+import '../admin_panel/admin_dashboard.dart';
+import '../doctor/doctor_home_screen.dart';
+import '../auth/auth_service.dart';
 import '../auth/phone_normalization.dart';
+import '../auth/phone_auth_config.dart';
+import '../auth/doctor_session_cache.dart';
+import '../auth/patient_session_cache.dart';
 import '../locale/app_localizations.dart';
 import '../patient/patient_home_screen.dart';
+import '../secretary/secretary_home_screen.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
 
@@ -28,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen>
   final TextEditingController _passwordController = TextEditingController();
   bool _isObscured = true;
   bool _isLoading = false;
+  bool _loadingControllerDisposed = false;
   late final AnimationController _loadingPulseController;
   static const Color _text = Color(0xFFE7EEF7);
   static const Color _muted = Color(0xFFAEC0D8);
@@ -36,6 +42,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   static const String _kLoginCredentialError =
       'ژمارەی مۆبایل یان وشەی نهێنی هەڵەیە';
+  static const String _kPendingApprovalError =
+      'هێشتا لەلایەن بەڕێوەبەرەوە قبوڵ نەکراوی، تکایە چاوەڕێ بکە';
 
   @override
   void initState() {
@@ -48,34 +56,24 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    _loadingControllerDisposed = true;
     _loadingPulseController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  void _stopLoadingAnimationSafe() {
+    if (!mounted || _loadingControllerDisposed) return;
+    if (_loadingPulseController.isAnimating) {
+      _loadingPulseController.stop();
+    }
+    _loadingPulseController.reset();
+  }
+
   String? _validatePassword(String? value) {
     if (value == null || value.trim().isEmpty) {
       return S.of(context).translate('validation_password_required');
-    }
-    return null;
-  }
-
-  /// Firestore may store `phone` as [String] or [int] depending on legacy data.
-  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _lookupUserByPhone(
-    String phoneDigits,
-  ) async {
-    final col = FirebaseFirestore.instance.collection('users');
-    var snap = await col
-        .where('phone', isEqualTo: phoneDigits)
-        .limit(1)
-        .get();
-    if (snap.docs.isNotEmpty) return snap.docs.first;
-
-    final asInt = int.tryParse(phoneDigits);
-    if (asInt != null) {
-      snap = await col.where('phone', isEqualTo: asInt).limit(1).get();
-      if (snap.docs.isNotEmpty) return snap.docs.first;
     }
     return null;
   }
@@ -94,175 +92,222 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showLoginCredentialError() {
+    _showPremiumErrorSnackBar(_kLoginCredentialError);
+  }
+
+  void _showPendingApprovalError() =>
+      _showPremiumErrorSnackBar(_kPendingApprovalError);
+
+  void _showPremiumErrorSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          _kLoginCredentialError,
-          style: const TextStyle(fontFamily: 'KurdishFont'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        content: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFFFEBEE).withValues(alpha: 0.32),
+                    const Color(0xFFC62828).withValues(alpha: 0.22),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFFFF8A80).withValues(alpha: 0.55),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Color(0xFFFFCDD2),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        fontFamily: 'NRT',
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFFEBEE),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  static String _passwordStringFromFirestore(dynamic raw) {
-    if (raw == null) return '';
-    return raw.toString().trim();
-  }
-
-  /// Replaces the stack so home appears immediately (AuthGate stream can lag one frame).
-  Future<void> _navigateToHomeAfterSignIn(User user) async {
-    if (!mounted) return;
-    final email = user.email ?? '';
-    final Widget home;
-    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
-      home = const PatientHomeScreen();
-    } else {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get(const GetOptions(source: Source.server));
-      final roleHome = homeWidgetForUserData(snap.data() ?? {});
-      if (roleHome == null) {
-        await FirebaseAuth.instance.signOut();
-        if (mounted) _showLoginCredentialError();
-        return;
-      }
-      home = roleHome;
-    }
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => home),
-      (route) => false,
-    );
-  }
-
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     setState(() => _isLoading = true);
     _loadingPulseController.repeat(reverse: true);
     try {
-      final phone = normalizePhoneDigits(_phoneController.text);
-      final password = _passwordController.text.trim();
+      final phoneText = normalizePhoneDigits(_phoneController.text.trim()).trim();
+      final passwordText = _passwordController.text.trim();
 
-      Map<String, dynamic>? phoneDocData;
-      var firestoreUsersReadable = false;
-      try {
-        final snap = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(phone)
-            .get(const GetOptions(source: Source.server));
-        firestoreUsersReadable = true;
-        if (snap.exists) {
-          phoneDocData = snap.data();
-        }
-      } on FirebaseException catch (e) {
-        debugPrint('[Login] users/$phone read: code=${e.code}');
-        if (e.code == 'permission-denied') {
-          firestoreUsersReadable = false;
-          phoneDocData = null;
-        } else {
-          rethrow;
-        }
-      }
+      // Direct Firestore verification: phone + password.
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phone', isEqualTo: phoneText)
+          .where('password', isEqualTo: passwordText)
+          .get(const GetOptions(source: Source.server));
 
-      if (firestoreUsersReadable) {
-        if (phoneDocData == null) {
-          debugPrint('[Login] No Firestore doc users/$phone');
-          _showLoginCredentialError();
-          return;
-        }
-        final storedPw = _passwordStringFromFirestore(phoneDocData['password']);
-        if (storedPw != password) {
-          _showLoginCredentialError();
-          return;
-        }
-      }
-
-      try {
-        final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: phoneAuthEmail(phone),
-          password: password,
-        );
-        final signedUser = cred.user;
-        if (signedUser != null) {
-          await _navigateToHomeAfterSignIn(signedUser);
-        }
+      if (snap.docs.isEmpty) {
+        _showLoginCredentialError();
         return;
-      } on FirebaseAuthException catch (e) {
-        // ignore: avoid_print
-        print(
-          '[Login] FirebaseAuthException: code=${e.code} message=${e.message}',
-        );
-        debugPrint(
-          '[Login] FirebaseAuthException: code=${e.code} message=${e.message}',
-        );
+      }
 
-        if (firestoreUsersReadable) {
-          _showLoginCredentialError();
-          return;
-        }
+      final matchedDocs = snap.docs;
+      final doctorMatches = matchedDocs.where((d) {
+        final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
+        return role == 'doctor';
+      }).toList();
+      final secretaryMatches = matchedDocs.where((d) {
+        final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
+        return role == 'secretary';
+      }).toList();
+      final adminMatches = matchedDocs.where((d) {
+        final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
+        return role == 'admin';
+      }).toList();
+      final userMatches = matchedDocs.where((d) {
+        final role = (d.data()['role'] ?? '').toString().trim().toLowerCase();
+        return role.isEmpty || role == 'user' || role == 'patient';
+      }).toList();
 
-        final legacy = await _lookupUserByPhone(phone);
-        if (legacy == null) {
-          debugPrint(
-            '[Login] No Firestore profile for phone=$phone (doc or query)',
-          );
-          _showLoginCredentialError();
-          return;
-        }
-        final legacyData = legacy.data();
-        final email = (legacyData['email'] ?? '').toString().trim();
-        if (email.isEmpty) {
-          _showLoginCredentialError();
-          return;
-        }
-        try {
-          final credential =
-              await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-          final user = credential.user;
-          if (user != null && user.uid != legacy.id) {
-            debugPrint(
-              '[Login] UID mismatch: Auth uid=${user.uid} vs profile id=${legacy.id}',
-            );
-            await FirebaseAuth.instance.signOut();
-            _showLoginCredentialError();
-          } else if (user != null) {
-            await _navigateToHomeAfterSignIn(user);
+      if (!mounted) return;
+      _stopLoadingAnimationSafe();
+
+      // Role separation: apply approval check ONLY for doctors.
+      if (doctorMatches.isNotEmpty) {
+        QueryDocumentSnapshot<Map<String, dynamic>>? approvedDoctorDoc;
+        for (final doctorDoc in doctorMatches) {
+          final m = doctorDoc.data();
+          final status = (m['status'] ?? '').toString().toLowerCase().trim();
+          final legacyApproved = m['isApproved'] == true;
+          if (status == 'approved' || legacyApproved) {
+            approvedDoctorDoc = doctorDoc;
+            break;
           }
-        } on FirebaseAuthException catch (e2) {
-          // ignore: avoid_print
-          print(
-            '[Login] FirebaseAuthException (legacy): code=${e2.code} message=${e2.message}',
-          );
-          debugPrint(
-            '[Login] FirebaseAuthException (legacy): code=${e2.code} message=${e2.message}',
-          );
-          _showLoginCredentialError();
         }
+        if (approvedDoctorDoc == null) {
+          _showPendingApprovalError();
+          return;
+        }
+        // Auto-sync legacy records: if isApproved=true but status not synced, repair it.
+        final approvedDoctorData = approvedDoctorDoc.data();
+        final currentStatus =
+            (approvedDoctorData['status'] ?? '').toString().toLowerCase().trim();
+        if (currentStatus != 'approved') {
+          await approvedDoctorDoc.reference.update({
+            'status': 'approved',
+          });
+        }
+        await DoctorSessionCache.saveDoctorRefId(approvedDoctorDoc.id);
+        await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'doctor');
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const DoctorHomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
+      if (secretaryMatches.isNotEmpty) {
+        await DoctorSessionCache.clearDoctorRefId();
+        await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'secretary');
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const SecretaryHomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
+      if (adminMatches.isNotEmpty) {
+        await DoctorSessionCache.clearDoctorRefId();
+        await PatientSessionCache.clearPatientRefId();
+        await AuthService.instance.persistSession(role: 'admin');
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const AdminDashboard()),
+          (route) => false,
+        );
+        return;
+      }
+
+      if (userMatches.isNotEmpty || matchedDocs.isNotEmpty) {
+        final patientDoc =
+            userMatches.isNotEmpty ? userMatches.first : matchedDocs.first;
+        final patientData = patientDoc.data();
+        final phoneForAuth = normalizePhoneDigits(
+          (patientData['phone'] ?? phoneText).toString(),
+        );
+        try {
+          if (phoneForAuth.isNotEmpty) {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: phoneAuthEmail(phoneForAuth),
+              password: passwordText,
+            );
+          }
+        } on FirebaseAuthException {
+          final emailFromDoc = (patientData['email'] ?? '').toString().trim();
+          if (emailFromDoc.isNotEmpty) {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: emailFromDoc,
+              password: passwordText,
+            );
+          }
+        }
+        final signedUid = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
+        await PatientSessionCache.savePatientRefId(
+          signedUid.isNotEmpty ? signedUid : patientDoc.id,
+        );
+        await DoctorSessionCache.clearDoctorRefId();
+        await AuthService.instance.persistSession(role: 'patient');
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const PatientHomeScreen()),
+          (route) => false,
+        );
+        return;
       }
     } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[Login] FirebaseException: code=${e.code} message=${e.message}',
-      );
       debugPrint('[Login] FirebaseException: code=${e.code} message=${e.message}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             '${S.of(context).translate('error_generic')} [${e.code}]',
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
     } catch (e, stackTrace) {
-      // ignore: avoid_print
-      print('[Login] Error: $e');
       debugPrint('[Login] Error: $e');
       debugPrint('[Login] Stack: $stackTrace');
       if (!mounted) return;
@@ -270,14 +315,15 @@ class _LoginScreenState extends State<LoginScreen>
         SnackBar(
           content: Text(
             S.of(context).translate('error_generic'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
     } finally {
-      _loadingPulseController.stop();
-      _loadingPulseController.reset();
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && !_loadingControllerDisposed) {
+        _stopLoadingAnimationSafe();
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -363,7 +409,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             S.of(context).translate('forgot_password'),
                                             style: TextStyle(
                                               color: _muted.withValues(alpha: 0.95),
-                                              fontFamily: 'KurdishFont',
+                                              fontFamily: 'NRT',
                                             ),
                                           ),
                                         ),
@@ -396,7 +442,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               style: const TextStyle(
                                                 color: Color(0xFFCFD9EA),
                                                 fontWeight: FontWeight.w700,
-                                                fontFamily: 'KurdishFont',
+                                                fontFamily: 'NRT',
                                               ),
                                             ),
                                           ),
@@ -511,7 +557,7 @@ class _LoginScreenState extends State<LoginScreen>
             color: _text,
             fontSize: 30,
             fontWeight: FontWeight.w800,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
         const SizedBox(height: 6),
@@ -521,7 +567,7 @@ class _LoginScreenState extends State<LoginScreen>
           style: TextStyle(
             color: _muted.withValues(alpha: 0.9),
             fontSize: 14,
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
           ),
         ),
       ],
@@ -563,7 +609,7 @@ class _LoginScreenState extends State<LoginScreen>
       obscureText: isPassword ? _isObscured : false,
       maxLength: maxLength,
       inputFormatters: inputFormatters,
-      style: const TextStyle(color: _text, fontFamily: 'KurdishFont'),
+      style: const TextStyle(color: _text, fontFamily: 'NRT'),
       decoration: InputDecoration(
         counterText: maxLength != null ? '' : null,
         labelText: label,
@@ -629,7 +675,7 @@ class _LoginScreenState extends State<LoginScreen>
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   color: Colors.white.withValues(alpha: _isLoading ? 0.65 : 1),
                 ),
               ),

@@ -7,6 +7,7 @@ import '../locale/app_localizations.dart';
 import '../baxerhatn_login/login.dart';
 import 'auth_navigation.dart';
 import 'firestore_user_doc_id.dart';
+import 'phone_auth_config.dart';
 
 /// Root widget: listens to auth + Firestore role and shows login or the correct home.
 class AuthGate extends StatelessWidget {
@@ -52,6 +53,59 @@ class _AuthenticatedShell extends StatelessWidget {
 
   final User user;
 
+  Future<Map<String, dynamic>?> _lookupFallbackProfile(User user) async {
+    final users = FirebaseFirestore.instance.collection('users');
+    final email = (user.email ?? '').trim();
+
+    // Phone-auth style account: try phone-keyed doc and phone field queries.
+    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
+      final phone = email.split('@').first.trim();
+      final byPhoneDoc = await users
+          .doc(phone)
+          .get(const GetOptions(source: Source.server));
+      if (byPhoneDoc.exists && byPhoneDoc.data() != null) {
+        return byPhoneDoc.data();
+      }
+      final byPhoneStr = await users
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+      if (byPhoneStr.docs.isNotEmpty) return byPhoneStr.docs.first.data();
+      final phoneInt = int.tryParse(phone);
+      if (phoneInt != null) {
+        final byPhoneInt = await users
+            .where('phone', isEqualTo: phoneInt)
+            .limit(1)
+            .get(const GetOptions(source: Source.server));
+        if (byPhoneInt.docs.isNotEmpty) return byPhoneInt.docs.first.data();
+      }
+    }
+
+    // Email-keyed fallback for legacy doc IDs.
+    if (email.isNotEmpty) {
+      final byEmail = await users
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+      if (byEmail.docs.isNotEmpty) return byEmail.docs.first.data();
+    }
+
+    return null;
+  }
+
+  Widget _buildHomeFromData(Map<String, dynamic> data) {
+    final role = (data['role'] ?? '').toString().trim().toLowerCase();
+    final status = (data['status'] ?? '').toString().trim().toLowerCase();
+    final isApproved = status == 'approved' || data['isApproved'] == true;
+
+    if (role == 'doctor' && !isApproved) {
+      return const DoctorPendingApprovalScreen();
+    }
+
+    final home = homeWidgetForUserData(data);
+    return home ?? const UnknownRoleScreen();
+  }
+
   @override
   Widget build(BuildContext context) {
     final docId = firestoreUserDocId(user);
@@ -67,24 +121,25 @@ class _AuthenticatedShell extends StatelessWidget {
         }
 
         final doc = docSnapshot.data;
-        if (doc == null || !doc.exists) {
-          return _FirestoreMissingProfileHandler(uid: user.uid);
+        if (doc != null && doc.exists) {
+          final data = doc.data() ?? {};
+          return _buildHomeFromData(data);
         }
 
-        final data = doc.data() ?? {};
-        final role = (data['role'] ?? '').toString();
-        final isApproved = data['isApproved'] == true;
-
-        if (role == 'Doctor' && !isApproved) {
-          return const DoctorPendingApprovalScreen();
-        }
-
-        final home = homeWidgetForUserData(data);
-        if (home != null) {
-          return home;
-        }
-
-        return const UnknownRoleScreen();
+        // Don't sign out automatically on doc-id mismatch; resolve legacy profile.
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _lookupFallbackProfile(user),
+          builder: (context, fallbackSnap) {
+            if (fallbackSnap.connectionState == ConnectionState.waiting) {
+              return const _AuthLoadingScaffold();
+            }
+            final data = fallbackSnap.data;
+            if (data == null) {
+              return const UnknownRoleScreen();
+            }
+            return _buildHomeFromData(data);
+          },
+        );
       },
     );
   }
@@ -158,7 +213,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
@@ -170,7 +225,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: const Color(0xFF829AB1).withValues(alpha: 0.95),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 14,
                   ),
                 ),
@@ -185,7 +240,7 @@ class DoctorPendingApprovalScreen extends StatelessWidget {
                   onPressed: () => FirebaseAuth.instance.signOut(),
                   child: Text(
                     s.translate('auth_back_to_login'),
-                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontFamily: 'NRT', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -220,7 +275,7 @@ class UnknownRoleScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFD9E2EC),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
@@ -236,7 +291,7 @@ class UnknownRoleScreen extends StatelessWidget {
                   onPressed: () => FirebaseAuth.instance.signOut(),
                   child: Text(
                     s.translate('auth_back'),
-                    style: const TextStyle(fontFamily: 'KurdishFont', fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontFamily: 'NRT', fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

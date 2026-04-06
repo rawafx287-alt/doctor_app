@@ -78,7 +78,7 @@ class _PatientHospitalsBrowseTabState extends State<PatientHospitalsBrowseTab> {
           textAlign: TextAlign.start,
           style: const TextStyle(
             color: Color(0xFFD9E2EC),
-            fontFamily: 'KurdishFont',
+            fontFamily: 'NRT',
             fontSize: 14,
             height: 1.2,
           ),
@@ -88,7 +88,7 @@ class _PatientHospitalsBrowseTabState extends State<PatientHospitalsBrowseTab> {
             hintText: S.of(context).translate('search_hospitals_hint'),
             hintStyle: TextStyle(
               color: const Color(0xFF829AB1).withValues(alpha: 0.9),
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontSize: 13,
             ),
             prefixIcon: const Icon(
@@ -154,7 +154,7 @@ class _PatientHospitalsBrowseTabState extends State<PatientHospitalsBrowseTab> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.redAccent,
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontSize: 13,
                     ),
                   ),
@@ -182,7 +182,7 @@ class _PatientHospitalsBrowseTabState extends State<PatientHospitalsBrowseTab> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFF829AB1),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       fontSize: 16,
                     ),
                   ),
@@ -304,7 +304,7 @@ class _HospitalGridCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFFD9E2EC),
-                  fontFamily: 'KurdishFont',
+                  fontFamily: 'NRT',
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                   height: 1.2,
@@ -319,7 +319,7 @@ class _HospitalGridCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     fontSize: 11,
                   ),
                 ),

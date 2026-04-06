@@ -35,7 +35,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         SnackBar(
           content: Text(
             s.translate('support_empty'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -48,7 +48,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         SnackBar(
           content: Text(
             s.translate('support_need_login'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -84,7 +84,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('support_thanks_received'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -95,7 +95,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         SnackBar(
           content: Text(
             S.of(context).translate('support_error_retry'),
-            style: const TextStyle(fontFamily: 'KurdishFont'),
+            style: const TextStyle(fontFamily: 'NRT'),
           ),
         ),
       );
@@ -123,7 +123,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
           title: Text(
             s.translate('support_title'),
             style: const TextStyle(
-              fontFamily: 'KurdishFont',
+              fontFamily: 'NRT',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -139,7 +139,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                   textAlign: TextAlign.start,
                   style: const TextStyle(
                     color: Color(0xFF829AB1),
-                    fontFamily: 'KurdishFont',
+                    fontFamily: 'NRT',
                     height: 1.5,
                     fontSize: 14,
                   ),
@@ -155,7 +155,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                     textAlignVertical: TextAlignVertical.top,
                     style: const TextStyle(
                       color: Color(0xFFD9E2EC),
-                      fontFamily: 'KurdishFont',
+                      fontFamily: 'NRT',
                       height: 1.45,
                       fontSize: 16,
                     ),
@@ -164,7 +164,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                       hintText: s.translate('support_hint'),
                       hintStyle: const TextStyle(
                         color: Color(0xFF627D98),
-                        fontFamily: 'KurdishFont',
+                        fontFamily: 'NRT',
                       ),
                       filled: true,
                       fillColor: _fieldFill,
@@ -218,7 +218,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                               Text(
                                 s.translate('support_send'),
                                 style: const TextStyle(
-                                  fontFamily: 'KurdishFont',
+                                  fontFamily: 'NRT',
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,
                                 ),
