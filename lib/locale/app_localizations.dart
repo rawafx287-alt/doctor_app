@@ -884,6 +884,51 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'يرجى تسجيل الدخول',
     'en': 'Please sign in',
   },
+  'patient_notifications_empty_modern': {
+    'ckb': 'هێشتا هیچ هەواڵێکی نوێ نییە',
+    'ar': 'لا يوجد جديد بعد',
+    'en': 'No news yet',
+  },
+  'patient_notif_headline_doctor_rejected': {
+    'ckb': 'دکتۆر {name} نۆرەکەی ڕەتکردیتەوە',
+    'ar': 'رفض الدكتور {name} موعدك',
+    'en': 'Dr. {name} rejected your appointment',
+  },
+  'patient_notif_badge_rejected': {
+    'ckb': 'ڕەتکرایەوە',
+    'ar': 'مرفوض',
+    'en': 'Rejected',
+  },
+  'patient_notif_badge_clinic': {
+    'ckb': 'داخراوە',
+    'ar': 'مغلق',
+    'en': 'Closed',
+  },
+  'patient_notif_badge_update': {
+    'ckb': 'ئاگاداری',
+    'ar': 'تنبيه',
+    'en': 'Notice',
+  },
+  'patient_notif_time_today': {
+    'ckb': 'ئەمڕۆ',
+    'ar': 'اليوم',
+    'en': 'Today',
+  },
+  'patient_notif_time_yesterday': {
+    'ckb': 'دوێنێ',
+    'ar': 'أمس',
+    'en': 'Yesterday',
+  },
+  'patient_notif_delete': {
+    'ckb': 'سڕینەوە',
+    'ar': 'حذف',
+    'en': 'Delete',
+  },
+  'patient_notif_delete_confirm': {
+    'ckb': 'ئەم ئاگادارکردنەوەیە بسڕدرێتەوە؟',
+    'ar': 'حذف هذا الإشعار؟',
+    'en': 'Delete this notification?',
+  },
   /// Stored on Firestore [notifications].message when staff cancels a slot.
   'root_notif_body_slot_cancelled': {
     'ckb': 'نۆرەکەت ڕەتکرایەوە',

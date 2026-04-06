@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firestore/appointment_queries.dart';
 import '../firestore/root_notifications_firestore.dart';
+import '../push/doctor_fcm_rejection_push.dart';
 import '../firestore/available_days_queries.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -753,12 +754,31 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       await apptRef.update(patch);
       if (st == 'cancelled' || st == 'canceled') {
         final copy = patientAppointmentRejectedNotificationCopy(priorData);
+        final doctorUid = (priorData[AppointmentFields.doctorId] ?? '')
+            .toString()
+            .trim();
+        final resolvedDoctorId = doctorUid.isNotEmpty
+            ? doctorUid
+            : (widget.doctorUserId ?? '').trim();
+        final doctorSnap =
+            await loadDoctorNotificationSnapshot(resolvedDoctorId);
         await createPatientRootNotification(
           appointmentData: priorData,
           appointmentDocId: docId,
           title: copy.$1,
           message: copy.$2,
+          doctor: doctorSnap,
         );
+        try {
+          await DoctorFcmRejectionPush.sendForDoctorReject(
+            appointmentData: priorData,
+            appointmentDocId: docId,
+            title: copy.$1,
+            body: copy.$2,
+          );
+        } catch (_) {
+          // Firestore notification + in-app list still succeeded; FCM is best-effort.
+        }
       }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
