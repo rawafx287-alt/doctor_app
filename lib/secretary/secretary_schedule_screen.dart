@@ -115,6 +115,7 @@ class _SecretaryScheduleScreenState extends State<SecretaryScheduleScreen> {
                   : ScheduleManagementScreen(
                       managedDoctorUserId: _pickedDoctorId!.trim(),
                       embedded: true,
+                      embeddedBodyExtendsBehindBottomBar: true,
                     ),
             ),
           ],

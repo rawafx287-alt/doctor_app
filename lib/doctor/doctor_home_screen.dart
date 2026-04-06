@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../theme/staff_premium_theme.dart';
-import '../auth/app_logout.dart';
 import '../auth/doctor_session_cache.dart';
 import '../auth/firestore_user_doc_id.dart';
 import 'appointments_screen.dart';
@@ -48,10 +47,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     setState(() => _doctorUserId = id);
   }
 
-  Future<void> _logout() async {
-    await performAppLogout(context);
-  }
-
   void _onBottomNavTap(int index) {
     if (index == _bottomNavIndex) return;
     setState(() => _bottomNavIndex = index);
@@ -74,7 +69,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final s = S.of(context);
     return doctorPremiumAppBar(
       automaticallyImplyLeading: false,
       title: Text(
@@ -86,13 +80,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           fontSize: 17,
         ),
       ),
-      actions: [
-        IconButton(
-          tooltip: s.translate('tooltip_logout'),
-          onPressed: _logout,
-          icon: const Icon(Icons.logout_rounded),
-        ),
-      ],
     );
   }
 

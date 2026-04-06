@@ -420,6 +420,17 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
   const chunk = 450;
   var total = 0;
   final seenClinicDayKeys = <String>{};
+  final doctorSnapCache = <String, DoctorNotificationSnapshot>{};
+
+  Future<DoctorNotificationSnapshot> cachedDoctorSnapshot(String did) async {
+    final k = did.trim();
+    if (k.isEmpty) return const DoctorNotificationSnapshot();
+    final hit = doctorSnapCache[k];
+    if (hit != null) return hit;
+    final snap = await loadDoctorNotificationSnapshot(k);
+    doctorSnapCache[k] = snap;
+    return snap;
+  }
 
   for (var i = 0; i < active.length; i += chunk) {
     final batch = FirebaseFirestore.instance.batch();
@@ -449,20 +460,28 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
           '{date}',
           dateLabel,
         );
+        final doctorSnap = await cachedDoctorSnapshot(
+          (data[AppointmentFields.doctorId] ?? '').toString(),
+        );
         await createPatientRootNotification(
           appointmentData: data,
           appointmentDocId: doc.id,
           title: kPatientPushTitleAppointmentRejectedKu,
           message: body,
           type: 'clinic_closed',
+          doctor: doctorSnap,
         );
       } else {
         final copy = patientAppointmentRejectedNotificationCopy(data);
+        final doctorSnap = await cachedDoctorSnapshot(
+          (data[AppointmentFields.doctorId] ?? '').toString(),
+        );
         await createPatientRootNotification(
           appointmentData: data,
           appointmentDocId: doc.id,
           title: copy.$1,
           message: copy.$2,
+          doctor: doctorSnap,
         );
       }
     }

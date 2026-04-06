@@ -63,6 +63,10 @@ dependencies:
   path: ^1.9.1
   carousel_slider: ^5.1.2
   flutter_local_notifications: ^21.0.0
+  googleapis: ^16.0.0
+  googleapis_auth: ^2.0.0
+  http: ^1.6.0
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_test:
@@ -101,6 +105,8 @@ flutter:
   uses-material-design: true
 
   assets:
+    # Firebase service account (FCM v1 from doctor app). Do not commit real keys to public repos.
+    - assets/service-account.json
     - assets/images/kurdish_flag.png
     - assets/images/iraq_flag.png
     - assets/images/british_flag.png

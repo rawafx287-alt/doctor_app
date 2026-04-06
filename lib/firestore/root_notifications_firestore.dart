@@ -29,6 +29,45 @@ abstract final class RootNotificationFields {
 
   static const String appointmentId = 'appointmentId';
   static const String type = 'type';
+
+  /// Display name from `users/{doctorId}` when staff rejects a slot.
+  static const String doctorName = 'doctorName';
+
+  /// Profile image URL (`profileImageUrl` on doctor user doc).
+  static const String doctorImage = 'doctorImage';
+}
+
+/// Doctor profile snippet stored on each [notifications] row for patient UI.
+class DoctorNotificationSnapshot {
+  const DoctorNotificationSnapshot({this.name = '', this.imageUrl = ''});
+
+  final String name;
+  final String imageUrl;
+
+  bool get hasName => name.trim().isNotEmpty;
+}
+
+/// Loads [fullName_ku] / [fullName] / [name] and [profileImageUrl] for FCM + notifications.
+Future<DoctorNotificationSnapshot> loadDoctorNotificationSnapshot(
+  String doctorUserId,
+) async {
+  final id = doctorUserId.trim();
+  if (id.isEmpty) return const DoctorNotificationSnapshot();
+  try {
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(id).get();
+    final data = doc.data() ?? {};
+    final name = (data['fullName_ku'] ??
+            data['fullName'] ??
+            data['name'] ??
+            '')
+        .toString()
+        .trim();
+    final imageUrl = (data['profileImageUrl'] ?? '').toString().trim();
+    return DoctorNotificationSnapshot(name: name, imageUrl: imageUrl);
+  } catch (_) {
+    return const DoctorNotificationSnapshot();
+  }
 }
 
 Set<String> recipientKeysFromAppointmentData(Map<String, dynamic> data) {
@@ -120,9 +159,12 @@ Future<void> createPatientRootNotification({
   required String message,
   String title = 'نۆرینگە',
   String type = 'appointment_cancelled',
+  DoctorNotificationSnapshot doctor = const DoctorNotificationSnapshot(),
 }) async {
   final keys = recipientKeysFromAppointmentData(appointmentData);
   if (keys.isEmpty) return;
+  final dn = doctor.name.trim();
+  final di = doctor.imageUrl.trim();
   final batch = FirebaseFirestore.instance.batch();
   for (final key in keys) {
     final ref =
@@ -137,6 +179,8 @@ Future<void> createPatientRootNotification({
       RootNotificationFields.status: 'unread',
       RootNotificationFields.appointmentId: appointmentDocId,
       RootNotificationFields.type: type,
+      RootNotificationFields.doctorName: dn,
+      RootNotificationFields.doctorImage: di,
     });
   }
   await batch.commit();
