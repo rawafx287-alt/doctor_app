@@ -14,7 +14,6 @@ import '../auth/phone_normalization.dart';
 
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
-import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
 
 /// Rose-gold / peach accents for bookings UI (section bars, cards, ticket highlights).
@@ -28,17 +27,45 @@ const LinearGradient _kBookingsRoseBarGradient = LinearGradient(
   colors: [_kBookingsRoseTop, _kBookingsRoseBottom],
 );
 
-/// Past bookings: classic gold / bronze (vertical).
+/// Past bookings: classic gold / bronze (vertical) — legacy; list cards use
+/// [_kPastPremiumBookingGreyGradient] / ticket dialog keeps richer styling.
 const LinearGradient _kPastBookingCardGradient = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
-  colors: [
-    Color(0xFFF5E6CA),
-    Color(0xFFD4A373),
-    Color(0xFFA98467),
-  ],
+  colors: [Color(0xFFF5E6CA), Color(0xFFD4A373), Color(0xFFA98467)],
   stops: [0.0, 0.5, 1.0],
 );
+
+/// Premium list card: active — white → pale gold.
+const LinearGradient _kActivePremiumBookingGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFFFFFFFF), Color(0xFFFFFBF7), Color(0xFFF2E8D8)],
+  stops: [0.0, 0.42, 1.0],
+);
+
+/// Premium list card: past / archived — light desaturated grey.
+const LinearGradient _kPastPremiumBookingGreyGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFFF5F6F8), Color(0xFFE8EAEE)],
+);
+
+const double _kPremiumBookingCardRadius = 14.0;
+
+/// Soft elevation — no heavy border on cards.
+const List<BoxShadow> _kPremiumBookingCardShadow = [
+  BoxShadow(
+    color: Color(0x18000000),
+    blurRadius: 14,
+    spreadRadius: 0,
+    offset: Offset(0, 4),
+  ),
+  BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 1)),
+];
+
+/// Queue # — bold accent (rose-gold family).
+const Color _kPremiumQueueAccent = Color(0xFFC45C6A);
 
 /// Past / archived rows and dialogs: faded so active bookings read first.
 const double _kArchivedBookingOpacity = 0.68;
@@ -52,19 +79,18 @@ Color _desaturatedArchivedGold(Color color) {
 }
 
 LinearGradient _archivedPastBookingCardGradient() => LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        _desaturatedArchivedGold(const Color(0xFFF5E6CA)),
-        _desaturatedArchivedGold(const Color(0xFFD4A373)),
-        _desaturatedArchivedGold(const Color(0xFFA98467)),
-      ],
-      stops: const [0.0, 0.5, 1.0],
-    );
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    _desaturatedArchivedGold(const Color(0xFFF5E6CA)),
+    _desaturatedArchivedGold(const Color(0xFFD4A373)),
+    _desaturatedArchivedGold(const Color(0xFFA98467)),
+  ],
+  stops: const [0.0, 0.5, 1.0],
+);
 
 const Color _kPastBookingTextBrown = Color(0xFF432818);
-/// Chip icons only on archived cards (labels stay brown for contrast).
-const Color _kPastBookingChipIconGrey = Color(0xFF6D6D6D);
+
 const Color _kPastBookingNumberInk = Color(0xFF1A120E);
 
 /// Past booking detail dialog: perforation + depth (matte gold card).
@@ -92,11 +118,7 @@ const List<BoxShadow> _kPastTicketDialogOuterShadows = [
 ];
 
 const List<Shadow> _kPastTicketPreviewTitleShadows = [
-  Shadow(
-    color: Color(0x22000000),
-    blurRadius: 4,
-    offset: Offset(0, 1),
-  ),
+  Shadow(color: Color(0x22000000), blurRadius: 4, offset: Offset(0, 1)),
 ];
 
 /// Parses [date] from Firestore: [Timestamp], [DateTime], or strings like `2026/03/30`.
@@ -170,8 +192,9 @@ void _sortPatientAppointmentsAll(
       final c = tb.compareTo(ta);
       if (c != 0) return c;
     }
-    return _appointmentTimeSortMinutes(b.data()[AppointmentFields.time])
-        .compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
+    return _appointmentTimeSortMinutes(
+      b.data()[AppointmentFields.time],
+    ).compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
   });
 }
 
@@ -212,8 +235,9 @@ void _sortActiveAppointmentsForDisplay(
       final c = tb.compareTo(ta);
       if (c != 0) return c;
     }
-    return _appointmentTimeSortMinutes(b.data()[AppointmentFields.time])
-        .compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
+    return _appointmentTimeSortMinutes(
+      b.data()[AppointmentFields.time],
+    ).compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
   });
 }
 
@@ -268,10 +292,7 @@ class _DaysRemainingStyle {
 
 /// Horizontal dashed line with side "punch" holes (ticket perforation).
 class _TicketTearRow extends StatelessWidget {
-  const _TicketTearRow({
-    required this.holeColor,
-    required this.dashColor,
-  });
+  const _TicketTearRow({required this.holeColor, required this.dashColor});
 
   static const double _holeDiameter = 14;
 
@@ -407,22 +428,6 @@ class _DashedLinePainter extends CustomPainter {
   return (c.$1, c.$2, tr.translate('status_pending'));
 }
 
-Color _statusPillBorder(String status, {required bool isPast}) {
-  if (isPast) return const Color(0xFF432818).withValues(alpha: 0.38);
-  final s = status.toLowerCase().trim();
-  if (s == 'completed') {
-    return HrNoraColors.openDayFill.withValues(alpha: 0.65);
-  }
-  if (s == 'pending') return const Color(0xFFBF360C).withValues(alpha: 0.58);
-  if (s == 'expired') return const Color(0xFF546E7A).withValues(alpha: 0.55);
-  if (s == 'cancelled' || s == 'canceled') {
-    return const Color(0xFF8B0000).withValues(alpha: 0.55);
-  }
-  if (s == 'confirmed') return const Color(0xFF1A237E).withValues(alpha: 0.55);
-  if (s == 'arrived') return const Color(0xFF3E2723).withValues(alpha: 0.5);
-  return const Color(0xFF432818).withValues(alpha: 0.38);
-}
-
 class _PremiumBookingCard extends StatelessWidget {
   const _PremiumBookingCard({
     required this.queueLabel,
@@ -480,8 +485,8 @@ class _PremiumBookingCard extends StatelessWidget {
     if (s == 'expired') {
       return (
         tr.translate('status_expired'),
-        const Color(0xFFF1F5F9),
-        const Color(0xFF455A64),
+        const Color(0xFFECEFF1),
+        const Color(0xFF546E7A),
       );
     }
     if (s == 'confirmed') {
@@ -505,33 +510,31 @@ class _PremiumBookingCard extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) {
+  Widget _infoChip(IconData icon, String text, {required bool muted}) {
+    final iconColor = muted
+        ? const Color(0xFF78909C)
+        : const Color(0xFF6D4C41).withValues(alpha: 0.82);
+    final textColor = muted ? const Color(0xFF546E7A) : _kPastBookingTextBrown;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: _kPastBookingTextBrown.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _kPastBookingTextBrown.withValues(alpha: 0.22),
-          width: 0.7,
-        ),
+        color: muted
+            ? const Color(0xFF546E7A).withValues(alpha: 0.09)
+            : _kPastBookingTextBrown.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: isPast ? _kPastBookingChipIconGrey : _kPastBookingTextBrown,
-          ),
-          const SizedBox(width: 6),
+          Icon(icon, size: 12.5, color: iconColor),
+          const SizedBox(width: 5),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w700,
-              fontSize: 11.5,
-              color: _kPastBookingTextBrown,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              color: textColor,
             ),
           ),
         ],
@@ -543,172 +546,184 @@ class _PremiumBookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(context);
     final stNorm = _normAppointmentStatus(status);
-    final lineThroughDoctor =
-        stNorm == 'cancelled' || stNorm == 'canceled';
+    final lineThroughDoctor = stNorm == 'cancelled' || stNorm == 'canceled';
     final isExpired = stNorm == 'expired';
 
-    final shadows = isPast
-        ? const <BoxShadow>[
-            BoxShadow(
-              color: Color(0x33A98467),
-              blurRadius: 16,
-              spreadRadius: 0,
-              offset: Offset(0, 6),
-            ),
-          ]
-        : const <BoxShadow>[];
+    final muted = isPast;
+    final titleColor = muted
+        ? const Color(0xFF455A64)
+        : const Color(0xFF2C1810);
+    final subColor = muted
+        ? const Color(0xFF607D8B)
+        : _kPastBookingTextBrown.withValues(alpha: 0.88);
 
     final statusPill = Container(
-      padding: const EdgeInsets.all(1.2),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
+        color: statusStyle.$2,
         borderRadius: BorderRadius.circular(999),
-        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 5,
-            offset: const Offset(0, 1.5),
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: statusStyle.$2,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: _statusPillBorder(status, isPast: isPast),
-            width: 0.85,
-          ),
-        ),
-        child: Text(
-          statusStyle.$1,
-          style: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.bold,
-            fontSize: 11.5,
-            color: statusStyle.$3,
-          ),
+      child: Text(
+        statusStyle.$1,
+        style: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w600,
+          fontSize: 10.5,
+          height: 1.2,
+          color: statusStyle.$3,
         ),
       ),
     );
 
-    final inner = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 60,
-          child: Text(
-            queueLabel,
-            style: const TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.bold,
-              fontSize: 26,
-              height: 1,
-              color: _kPastBookingNumberInk,
-              letterSpacing: 0.2,
+    final inner = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 66,
+            child: Text(
+              queueLabel,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 29,
+                height: 1,
+                color: muted
+                    ? _kPremiumQueueAccent.withValues(alpha: 0.52)
+                    : _kPremiumQueueAccent,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                doctorName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: _kPastBookingTextBrown,
-                  decoration:
-                      lineThroughDoctor ? TextDecoration.lineThrough : null,
-                  decorationColor:
-                      _kPastBookingTextBrown.withValues(alpha: 0.55),
-                  decorationThickness: 1.15,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(
+                        Icons.medical_information_outlined,
+                        size: 15,
+                        color: subColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        doctorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: titleColor,
+                          decoration: lineThroughDoctor
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: titleColor.withValues(alpha: 0.5),
+                          decorationThickness: 1.1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                specialty,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  color: _kPastBookingTextBrown.withValues(alpha: 0.88),
-                ),
-              ),
-              const SizedBox(height: 8),
-              statusPill,
-              const SizedBox(height: 10),
-              Container(
-                height: 1,
-                width: double.infinity,
-                color: _kPastBookingTextBrown.withValues(alpha: 0.28),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  _infoChip(Icons.calendar_today_rounded, dateStr),
-                  _infoChip(Icons.schedule_rounded, timeStr),
-                  _infoChip(Icons.person_rounded, patientName),
-                ],
-              ),
-              if (isExpired) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
                 Text(
-                  S.of(context).translate('patient_appt_expired_label'),
+                  specialty,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     fontSize: 12,
-                    color: const Color(0xFF455A64).withValues(alpha: 0.92),
-                    height: 1.25,
+                    color: subColor,
                   ),
                 ),
+                const SizedBox(height: 8),
+                statusPill,
+                const SizedBox(height: 12),
+                Container(
+                  height: 1,
+                  width: double.infinity,
+                  color: muted
+                      ? const Color(0xFF90A4AE).withValues(alpha: 0.28)
+                      : _kPastBookingTextBrown.withValues(alpha: 0.18),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _infoChip(Icons.schedule_rounded, timeStr, muted: muted),
+                    _infoChip(
+                      Icons.calendar_today_rounded,
+                      dateStr,
+                      muted: muted,
+                    ),
+                    _infoChip(
+                      Icons.person_outline_rounded,
+                      patientName,
+                      muted: muted,
+                    ),
+                  ],
+                ),
+                if (isExpired) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    S.of(context).translate('patient_appt_expired_label'),
+                    style: const TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: Color(0xFF78909C),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
 
     final card = Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: shadows,
+        borderRadius: BorderRadius.circular(_kPremiumBookingCardRadius),
+        boxShadow: _kPremiumBookingCardShadow,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
+        borderRadius: BorderRadius.circular(_kPremiumBookingCardRadius),
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: isPast
-                ? _archivedPastBookingCardGradient()
-                : _kPastBookingCardGradient,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.42),
-              width: 0.5,
-            ),
+                ? _kPastPremiumBookingGreyGradient
+                : _kActivePremiumBookingGradient,
           ),
           child: inner,
         ),
       ),
     );
 
+    if (isExpired) {
+      return Opacity(opacity: 0.6, child: card);
+    }
     if (isPast) {
-      return Opacity(
-        opacity: _kArchivedBookingOpacity,
-        child: card,
-      );
+      return Opacity(opacity: _kArchivedBookingOpacity, child: card);
     }
     return card;
   }
@@ -778,6 +793,7 @@ class _TicketVisual extends StatelessWidget {
   final _DaysRemainingStyle? daysStyle;
   final Color holeColor;
   final bool isPreview;
+
   /// Muted ticket in detail dialog (past / archived bookings).
   final bool archivedAppearance;
 
@@ -795,8 +811,9 @@ class _TicketVisual extends StatelessWidget {
     final badge = _appointmentStatusBadge(
       context,
       status,
-      cancellationReason:
-          cancellationReason.trim().isEmpty ? null : cancellationReason.trim(),
+      cancellationReason: cancellationReason.trim().isEmpty
+          ? null
+          : cancellationReason.trim(),
     );
     final isRtl = Directionality.of(context) == ui.TextDirection.rtl;
     final textEnd = isRtl ? TextAlign.right : TextAlign.left;
@@ -821,8 +838,7 @@ class _TicketVisual extends StatelessWidget {
     final double queueVPad = isPreview ? 7 : 6;
     final double daysChipFont = isPreview ? 12 : 10;
 
-    final effectiveHole =
-        isPreview ? _kPastTicketDialogHoleBlend : holeColor;
+    final effectiveHole = isPreview ? _kPastTicketDialogHoleBlend : holeColor;
     final effectiveDash = isPreview
         ? _kPastBookingTextBrown.withValues(alpha: 0.32)
         : _dashSubtle;
@@ -893,73 +909,73 @@ class _TicketVisual extends StatelessWidget {
                           ),
                         ],
                       )
-                        : Row(
-                            textDirection: rowDir,
-                            children: [
-                              Text(
-                                'HR Nora',
-                                style: TextStyle(
-                                  color: _labelDim,
-                                  fontSize: labelSize,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                              Text(
-                                ' · ',
-                                style: TextStyle(
-                                  color: _labelDim.withValues(alpha: 0.45),
-                                  fontSize: labelSize,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  doctorName,
-                                  textAlign: textEnd,
-                                  maxLines: doctorMaxLines,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: _doctorAccent,
-                                    fontFamily: ticketFont,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: doctorSize,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ],
+                    : Row(
+                        textDirection: rowDir,
+                        children: [
+                          Text(
+                            'HR Nora',
+                            style: TextStyle(
+                              color: _labelDim,
+                              fontSize: labelSize,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                  ),
-                  SizedBox(width: isPreview ? 7 : 6),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isPreview ? 6 : 6,
-                      vertical: isPreview ? 3 : 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badge.$1,
-                      borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
-                      border: Border.all(
-                        color: isPreview
-                            ? _kPastBookingTextBrown.withValues(alpha: 0.35)
-                            : badge.$2.withValues(alpha: 0.35),
-                        width: isPreview ? 0.85 : 0.7,
+                          Text(
+                            ' · ',
+                            style: TextStyle(
+                              color: _labelDim.withValues(alpha: 0.45),
+                              fontSize: labelSize,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              doctorName,
+                              textAlign: textEnd,
+                              maxLines: doctorMaxLines,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _doctorAccent,
+                                fontFamily: ticketFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: doctorSize,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Text(
-                      badge.$3,
-                      style: TextStyle(
-                        color: badge.$2,
-                        fontFamily: ticketFont,
-                        fontSize: badgeFont,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                ],
               ),
-            ),
+              SizedBox(width: isPreview ? 7 : 6),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isPreview ? 6 : 6,
+                  vertical: isPreview ? 3 : 2,
+                ),
+                decoration: BoxDecoration(
+                  color: badge.$1,
+                  borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
+                  border: Border.all(
+                    color: isPreview
+                        ? _kPastBookingTextBrown.withValues(alpha: 0.35)
+                        : badge.$2.withValues(alpha: 0.35),
+                    width: isPreview ? 0.85 : 0.7,
+                  ),
+                ),
+                child: Text(
+                  badge.$3,
+                  style: TextStyle(
+                    color: badge.$2,
+                    fontFamily: ticketFont,
+                    fontSize: badgeFont,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: isPreview ? 10 : 10),
           child: _TicketTearRow(
@@ -1009,8 +1025,7 @@ class _TicketVisual extends StatelessWidget {
                     ),
                     children: [
                       TextSpan(
-                        text:
-                            '${S.of(context).translate('ticket_date')}: ',
+                        text: '${S.of(context).translate('ticket_date')}: ',
                       ),
                       TextSpan(
                         text: dateStr,
@@ -1035,8 +1050,7 @@ class _TicketVisual extends StatelessWidget {
                     ),
                     children: [
                       TextSpan(
-                        text:
-                            '${S.of(context).translate('ticket_time')}: ',
+                        text: '${S.of(context).translate('ticket_time')}: ',
                       ),
                       TextSpan(
                         text: timeStr,
@@ -1061,8 +1075,7 @@ class _TicketVisual extends StatelessWidget {
                     ),
                     children: [
                       TextSpan(
-                        text:
-                            '${S.of(context).translate('ticket_patient')}: ',
+                        text: '${S.of(context).translate('ticket_patient')}: ',
                       ),
                       TextSpan(
                         text: patientName,
@@ -1161,10 +1174,7 @@ class _TicketVisual extends StatelessWidget {
         decoration: BoxDecoration(
           color: _ticketBg,
           borderRadius: r,
-          border: Border.all(
-            color: _ticketBorder,
-            width: 1,
-          ),
+          border: Border.all(color: _ticketBorder, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.45),
@@ -1179,10 +1189,7 @@ class _TicketVisual extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: innerR,
-          child: ticketColumn,
-        ),
+        child: ClipRRect(borderRadius: innerR, child: ticketColumn),
       );
     }
 
@@ -1213,10 +1220,7 @@ class _TicketVisual extends StatelessWidget {
     );
 
     if (archivedAppearance) {
-      return Opacity(
-        opacity: _kArchivedBookingOpacity,
-        child: previewTicket,
-      );
+      return Opacity(opacity: _kArchivedBookingOpacity, child: previewTicket);
     }
     return previewTicket;
   }
@@ -1258,56 +1262,47 @@ class _AppointmentDetailCard extends StatelessWidget {
     final maxPanelH = size.height * 0.70;
 
     return Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 20,
-        ),
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: maxPanelW,
-            maxHeight: maxPanelH,
-          ),
-          child: SingleChildScrollView(
-            clipBehavior: Clip.hardEdge,
-            physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.only(
-              top: 8,
-              bottom: 12 + padBottom,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxPanelW),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Hero(
-                    tag: heroTag,
-                    child: Material(
-                      type: MaterialType.transparency,
-                      color: Colors.transparent,
-                      clipBehavior: Clip.none,
-                      child: _TicketVisual(
-                        doctorName: doctorName,
-                        patientName: patientName,
-                        dateStr: dateStr,
-                        timeStr: timeStr,
-                        status: status,
-                        cancellationReason: cancellationReason,
-                        queueLabel: queueLabel,
-                        daysStyle: daysStyle,
-                        holeColor: holeColor,
-                        isPreview: true,
-                        archivedAppearance: isPastBooking,
-                      ),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      child: Container(
+        constraints: BoxConstraints(maxWidth: maxPanelW, maxHeight: maxPanelH),
+        child: SingleChildScrollView(
+          clipBehavior: Clip.hardEdge,
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.only(top: 8, bottom: 12 + padBottom),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxPanelW),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Hero(
+                  tag: heroTag,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    color: Colors.transparent,
+                    clipBehavior: Clip.none,
+                    child: _TicketVisual(
+                      doctorName: doctorName,
+                      patientName: patientName,
+                      dateStr: dateStr,
+                      timeStr: timeStr,
+                      status: status,
+                      cancellationReason: cancellationReason,
+                      queueLabel: queueLabel,
+                      daysStyle: daysStyle,
+                      holeColor: holeColor,
+                      isPreview: true,
+                      archivedAppearance: isPastBooking,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
+      ),
     );
   }
 }
@@ -1318,16 +1313,11 @@ Widget _appointmentDetailTransition(
   Animation<double> secondaryAnimation,
   Widget child,
 ) {
-  final fade = CurvedAnimation(
-    parent: animation,
-    curve: Curves.easeOut,
-  );
-  final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
-    CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutBack,
-    ),
-  );
+  final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+  final scale = Tween<double>(
+    begin: 0.9,
+    end: 1.0,
+  ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack));
 
   return Directionality(
     textDirection: AppLocaleScope.of(context).textDirection,
@@ -1348,7 +1338,6 @@ Widget _appointmentDetailTransition(
               ),
             ),
           ),
-
         ),
         SafeArea(
           maintainBottomViewPadding: true,
@@ -1382,8 +1371,9 @@ void _openTicketPreview(
   required Color holeColor,
   required bool isPastBooking,
 }) {
-  final barrierLabel =
-      MaterialLocalizations.of(context).modalBarrierDismissLabel;
+  final barrierLabel = MaterialLocalizations.of(
+    context,
+  ).modalBarrierDismissLabel;
   showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
@@ -1449,7 +1439,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   @override
   void initState() {
     super.initState();
-    _highlightActive = (widget.highlightAvailableDayDocId ?? '').trim().isNotEmpty;
+    _highlightActive = (widget.highlightAvailableDayDocId ?? '')
+        .trim()
+        .isNotEmpty;
     if (_highlightActive) {
       _highlightTimer = Timer(const Duration(seconds: 5), () {
         if (mounted) setState(() => _highlightActive = false);
@@ -1474,16 +1466,17 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       final id = d.id;
       final data = d.data();
       final status = _normAppointmentStatus(data[AppointmentFields.status]);
-      final cancelReason =
-          (data[AppointmentFields.cancellationReason] ?? '').toString().trim();
+      final cancelReason = (data[AppointmentFields.cancellationReason] ?? '')
+          .toString()
+          .trim();
 
       final last = _lastStatusByApptId[id];
       _lastStatusByApptId[id] = status;
 
       final becameCancelledByDoctor =
           (status == 'cancelled' || status == 'canceled') &&
-              last != status &&
-              cancelReason == kAppointmentCancellationReasonDoctorDayClosed;
+          last != status &&
+          cancelReason == kAppointmentCancellationReasonDoctorDayClosed;
 
       if (!becameCancelledByDoctor) continue;
       if (_doctorClosedAlertedApptIds.contains(id)) continue;
@@ -1580,7 +1573,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-      _watchAppointmentsForPatientIds(Set<String> ids) {
+  _watchAppointmentsForPatientIds(Set<String> ids) {
     final streams = <Stream<QuerySnapshot<Map<String, dynamic>>>>[];
     for (final id in ids) {
       streams.add(
@@ -1615,13 +1608,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
       for (var i = 0; i < streams.length; i++) {
         subs.add(
-          streams[i].listen(
-            (event) {
-              latest[i] = event;
-              emitMerged();
-            },
-            onError: controller.addError,
-          ),
+          streams[i].listen((event) {
+            latest[i] = event;
+            emitMerged();
+          }, onError: controller.addError),
         );
       }
       controller.onCancel = () async {
@@ -1632,7 +1622,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final listBody = FutureBuilder<Set<String>>(
@@ -1640,9 +1629,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       builder: (context, idsSnap) {
         if (idsSnap.connectionState == ConnectionState.waiting &&
             !idsSnap.hasData) {
-          return Center(
-            child: CircularProgressIndicator(color: _uiAccent),
-          );
+          return Center(child: CircularProgressIndicator(color: _uiAccent));
         }
         final patientIds = idsSnap.data ?? const <String>{};
         if (patientIds.isEmpty) {
@@ -1654,271 +1641,275 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           );
         }
         return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-            stream: _watchAppointmentsForPatientIds(patientIds),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(color: _uiAccent),
-                );
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      S.of(context).translate(
-                        'error_with_details',
-                        params: {'detail': '${snapshot.error}'},
-                      ),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontFamily: kPatientPrimaryFont,
-                      ),
-                    ),
-                  ),
-                );
-              }
-              var docs =
-                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-                snapshot.data ?? [],
-              );
-              final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-              final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-              for (final d in docs) {
-                final st = _normAppointmentStatus(d.data()[AppointmentFields.status]);
-                if (_isPastAppointmentStatus(st)) {
-                  pastDocs.add(d);
-                } else {
-                  activeDocs.add(d);
-                }
-              }
-              _sortActiveAppointmentsForDisplay(activeDocs);
-              _sortPatientAppointmentsAll(pastDocs);
-              _maybeShowDoctorClosedAlert(docs);
-              // Keep list fresh: expire "waiting" appointments that are before today.
-              // Fire-and-forget: StreamBuilder will rebuild as soon as writes land.
-              unawaited(_maybeExpireOutdatedAppointments(docs));
-
-              if (docs.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF1E1E1E),
-                            border: Border.all(
-                              color: _kBookingsRoseSolid,
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _kBookingsRoseTop.withValues(alpha: 0.22),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.event_note_rounded,
-                            size: 52,
-                            color: _kBookingsRoseTop,
-                          ),
+          stream: _watchAppointmentsForPatientIds(patientIds),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator(color: _uiAccent));
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    S
+                        .of(context)
+                        .translate(
+                          'error_with_details',
+                          params: {'detail': '${snapshot.error}'},
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'هیچ نۆرەیەکت تۆمار نەکردووە',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: kPatientNavyText.withValues(alpha: 0.92),
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontFamily: kPatientPrimaryFont,
                     ),
-                  ),
-                );
-              }
-
-              final padBottom =
-                  24 + MediaQuery.paddingOf(context).bottom + (widget.embedded ? 8 : 0);
-
-              Widget buildCardForDoc(
-                QueryDocumentSnapshot<Map<String, dynamic>> docSnap, {
-                required int orderIndex,
-                required bool isPastSection,
-              }) {
-                final data = docSnap.data();
-                final doctorName = (data[AppointmentFields.doctorName] ??
-                        data[AppointmentFields.doctorId] ??
-                        '—')
-                    .toString();
-                final patientName =
-                    (data[AppointmentFields.patientName] ?? '—').toString();
-                final specialty = (data['doctorSpecialty'] ?? '—').toString();
-                final status =
-                    (data[AppointmentFields.status] ?? 'pending').toString();
-                final stNorm = _normAppointmentStatus(status);
-                final timeStr =
-                    (data[AppointmentFields.time] ?? '—').toString();
-                final rawDate = data[AppointmentFields.date];
-                final parsedDay = _parseAppointmentDate(rawDate);
-                String dateStr = '—';
-                if (parsedDay != null) {
-                  dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
-                } else if (rawDate != null) {
-                  dateStr = rawDate.toString();
-                }
-                final daysStyle = parsedDay != null
-                    ? _DaysRemainingStyle.fromAppointmentDay(
-                        context,
-                        parsedDay,
-                      )
-                    : null;
-                final queueLabel = _appointmentQueueLabel(data, orderIndex);
-                final cancelReason =
-                    (data[AppointmentFields.cancellationReason] ?? '')
-                        .toString()
-                        .trim();
-                final docId = docSnap.id;
-                final heroTag = 'appointment_ticket_$docId';
-                final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
-                final isHighlighted = _highlightActive &&
-                    hlId.isNotEmpty &&
-                    ((data[AppointmentFields.availableDayDocId] ?? '')
-                            .toString()
-                            .trim() ==
-                        hlId);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: GestureDetector(
-                    onTap: () => _openTicketPreview(
-                      context,
-                      heroTag: heroTag,
-                      doctorName: doctorName,
-                      patientName: patientName,
-                      dateStr: dateStr,
-                      timeStr: timeStr,
-                      status: status,
-                      cancellationReason: cancelReason,
-                      queueLabel: queueLabel,
-                      daysStyle: daysStyle,
-                      holeColor: _holeColor,
-                      isPastBooking: isPastSection ||
-                          _isPastAppointmentStatus(stNorm),
-                    ),
-                    behavior: HitTestBehavior.opaque,
-                    child: Hero(
-                      tag: heroTag,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 320),
-                        curve: Curves.easeOutCubic,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: isHighlighted
-                              ? Border.all(
-                                  color: const Color(0xFFD4A373),
-                                  width: 1.4,
-                                )
-                              : null,
-                          boxShadow: isHighlighted
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFFA98467)
-                                        .withValues(alpha: 0.38),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: _PremiumBookingCard(
-                            queueLabel: queueLabel,
-                            doctorName: doctorName,
-                            specialty: specialty,
-                            patientName: patientName,
-                            dateStr: dateStr,
-                            timeStr: timeStr,
-                            status: status,
-                            cancellationReason: cancelReason,
-                            isPast: isPastSection,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              final children = <Widget>[
-                _myBookingsSectionHeader('نۆرەی چالاک'),
-                if (activeDocs.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      'هیچ نۆرەی چالاکت نییە',
-                      style: TextStyle(
-                        color: kPatientNavyText.withValues(alpha: 0.78),
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                  )
-                else
-                  for (var i = 0; i < activeDocs.length; i++)
-                    buildCardForDoc(
-                      activeDocs[i],
-                      orderIndex: i,
-                      isPastSection: false,
-                    ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(
-                    height: 1,
-                    thickness: 0.6,
-                    color: kPatientNavyText.withValues(alpha: 0.14),
                   ),
                 ),
-                _myBookingsSectionHeader('نۆرەکانی پێشوو'),
-                if (pastDocs.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'هیچ نۆرەی پێشووت نییە',
-                      style: TextStyle(
-                        color: kPatientNavyText.withValues(alpha: 0.72),
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+              );
+            }
+            var docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+              snapshot.data ?? [],
+            );
+            final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+            final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+            for (final d in docs) {
+              final st = _normAppointmentStatus(
+                d.data()[AppointmentFields.status],
+              );
+              if (_isPastAppointmentStatus(st)) {
+                pastDocs.add(d);
+              } else {
+                activeDocs.add(d);
+              }
+            }
+            _sortActiveAppointmentsForDisplay(activeDocs);
+            _sortPatientAppointmentsAll(pastDocs);
+            _maybeShowDoctorClosedAlert(docs);
+            // Keep list fresh: expire "waiting" appointments that are before today.
+            // Fire-and-forget: StreamBuilder will rebuild as soon as writes land.
+            unawaited(_maybeExpireOutdatedAppointments(docs));
+
+            if (docs.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 110,
+                        height: 110,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1E1E1E),
+                          border: Border.all(
+                            color: _kBookingsRoseSolid,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _kBookingsRoseTop.withValues(alpha: 0.22),
+                              blurRadius: 14,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.event_note_rounded,
+                          size: 52,
+                          color: _kBookingsRoseTop,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'هیچ نۆرەیەکت تۆمار نەکردووە',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kPatientNavyText.withValues(alpha: 0.92),
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final padBottom =
+                24 +
+                MediaQuery.paddingOf(context).bottom +
+                (widget.embedded ? 8 : 0);
+
+            Widget buildCardForDoc(
+              QueryDocumentSnapshot<Map<String, dynamic>> docSnap, {
+              required int orderIndex,
+              required bool isPastSection,
+            }) {
+              final data = docSnap.data();
+              final doctorName =
+                  (data[AppointmentFields.doctorName] ??
+                          data[AppointmentFields.doctorId] ??
+                          '—')
+                      .toString();
+              final patientName = (data[AppointmentFields.patientName] ?? '—')
+                  .toString();
+              final specialty = (data['doctorSpecialty'] ?? '—').toString();
+              final status = (data[AppointmentFields.status] ?? 'pending')
+                  .toString();
+              final stNorm = _normAppointmentStatus(status);
+              final timeStr = (data[AppointmentFields.time] ?? '—').toString();
+              final rawDate = data[AppointmentFields.date];
+              final parsedDay = _parseAppointmentDate(rawDate);
+              String dateStr = '—';
+              if (parsedDay != null) {
+                dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
+              } else if (rawDate != null) {
+                dateStr = rawDate.toString();
+              }
+              final daysStyle = parsedDay != null
+                  ? _DaysRemainingStyle.fromAppointmentDay(context, parsedDay)
+                  : null;
+              final queueLabel = _appointmentQueueLabel(data, orderIndex);
+              final cancelReason =
+                  (data[AppointmentFields.cancellationReason] ?? '')
+                      .toString()
+                      .trim();
+              final docId = docSnap.id;
+              final heroTag = 'appointment_ticket_$docId';
+              final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
+              final isHighlighted =
+                  _highlightActive &&
+                  hlId.isNotEmpty &&
+                  ((data[AppointmentFields.availableDayDocId] ?? '')
+                          .toString()
+                          .trim() ==
+                      hlId);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: GestureDetector(
+                  onTap: () => _openTicketPreview(
+                    context,
+                    heroTag: heroTag,
+                    doctorName: doctorName,
+                    patientName: patientName,
+                    dateStr: dateStr,
+                    timeStr: timeStr,
+                    status: status,
+                    cancellationReason: cancelReason,
+                    queueLabel: queueLabel,
+                    daysStyle: daysStyle,
+                    holeColor: _holeColor,
+                    isPastBooking:
+                        isPastSection || _isPastAppointmentStatus(stNorm),
+                  ),
+                  behavior: HitTestBehavior.opaque,
+                  child: Hero(
+                    tag: heroTag,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(
+                          _kPremiumBookingCardRadius,
+                        ),
+                        border: isHighlighted
+                            ? Border.all(
+                                color: const Color(0xFFD4A373),
+                                width: 1.4,
+                              )
+                            : null,
+                        boxShadow: isHighlighted
+                            ? [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFA98467,
+                                  ).withValues(alpha: 0.38),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: _PremiumBookingCard(
+                          queueLabel: queueLabel,
+                          doctorName: doctorName,
+                          specialty: specialty,
+                          patientName: patientName,
+                          dateStr: dateStr,
+                          timeStr: timeStr,
+                          status: status,
+                          cancellationReason: cancelReason,
+                          isPast: isPastSection,
+                        ),
                       ),
                     ),
-                  )
-                else
-                  for (var j = 0; j < pastDocs.length; j++)
-                    buildCardForDoc(
-                      pastDocs[j],
-                      orderIndex: j,
-                      isPastSection: true,
-                    ),
-              ];
-
-              return ListView(
-                padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
-                children: children,
+                  ),
+                ),
               );
-            },
-          );
+            }
+
+            final children = <Widget>[
+              _myBookingsSectionHeader('نۆرەی چالاک'),
+              if (activeDocs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    'هیچ نۆرەی چالاکت نییە',
+                    style: TextStyle(
+                      color: kPatientNavyText.withValues(alpha: 0.78),
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                )
+              else
+                for (var i = 0; i < activeDocs.length; i++)
+                  buildCardForDoc(
+                    activeDocs[i],
+                    orderIndex: i,
+                    isPastSection: false,
+                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Divider(
+                  height: 1,
+                  thickness: 0.6,
+                  color: kPatientNavyText.withValues(alpha: 0.14),
+                ),
+              ),
+              _myBookingsSectionHeader('نۆرەکانی پێشوو'),
+              if (pastDocs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'هیچ نۆرەی پێشووت نییە',
+                    style: TextStyle(
+                      color: kPatientNavyText.withValues(alpha: 0.72),
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              else
+                for (var j = 0; j < pastDocs.length; j++)
+                  buildCardForDoc(
+                    pastDocs[j],
+                    orderIndex: j,
+                    isPastSection: true,
+                  ),
+            ];
+
+            return ListView(
+              padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
+              children: children,
+            );
+          },
+        );
       },
     );
 
@@ -1928,10 +1919,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     final pageRtl = pageDir == ui.TextDirection.rtl;
 
     if (widget.embedded) {
-      return Directionality(
-        textDirection: pageDir,
-        child: body,
-      );
+      return Directionality(textDirection: pageDir, child: body);
     }
 
     return Directionality(
@@ -1973,16 +1961,13 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
 /// Full-screen route after booking (back button). Same UI as [PatientAppointmentsScreen] standalone.
 class MyAppointmentsScreen extends StatelessWidget {
-  const MyAppointmentsScreen({
-    super.key,
-    this.highlightAvailableDayDocId,
-  });
+  const MyAppointmentsScreen({super.key, this.highlightAvailableDayDocId});
 
   final String? highlightAvailableDayDocId;
 
   @override
   Widget build(BuildContext context) => PatientAppointmentsScreen(
-        embedded: false,
-        highlightAvailableDayDocId: highlightAvailableDayDocId,
-      );
+    embedded: false,
+    highlightAvailableDayDocId: highlightAvailableDayDocId,
+  );
 }
