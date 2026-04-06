@@ -87,7 +87,8 @@ class PatientNotificationTile extends StatelessWidget {
     final type =
         (row[RootNotificationFields.type] ?? '').toString().toLowerCase();
     final isClinicClosed = type == 'clinic_closed';
-    final isRejected = type.contains('cancel') || isClinicClosed;
+    final isDoctorDayClosed = type == 'doctor_day_closed';
+    final isRejected = type.contains('cancel') || isClinicClosed || isDoctorDayClosed;
     final created = notificationDisplayTime(row);
     final timeLabel = formatPatientNotificationTimestamp(
       context,
@@ -103,20 +104,26 @@ class PatientNotificationTile extends StatelessWidget {
 
     final badgeLabel = isClinicClosed
         ? s.translate('patient_notif_badge_clinic')
-        : isRejected
-            ? s.translate('patient_notif_badge_rejected')
-            : s.translate('patient_notif_badge_update');
+        : isDoctorDayClosed
+            ? s.translate('patient_notif_badge_doctor_closed')
+            : isRejected
+                ? s.translate('patient_notif_badge_rejected')
+                : s.translate('patient_notif_badge_update');
 
     final badgeColor = isClinicClosed
         ? const Color(0xFFEF6C00)
-        : isRejected
+        : isDoctorDayClosed
             ? _rejectRed
-            : const Color(0xFF1565C0);
+            : isRejected
+                ? _rejectRed
+                : const Color(0xFF1565C0);
     final badgeBg = isClinicClosed
         ? const Color(0xFFFFF3E0)
-        : isRejected
+        : isDoctorDayClosed
             ? _rejectTint
-            : const Color(0xFFE3F2FD);
+            : isRejected
+                ? _rejectTint
+                : const Color(0xFFE3F2FD);
 
     final card = ClipRRect(
       borderRadius: BorderRadius.circular(20),

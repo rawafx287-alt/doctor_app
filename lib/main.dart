@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -38,7 +36,9 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await FcmForegroundNotifications.init();
     await PatientPushRegistration.promptNotificationPermissionOnFirstLaunch();
-    FirebaseMessaging.onMessage.listen(FcmForegroundNotifications.showFromRemoteMessage);
+    FirebaseMessaging.onMessage.listen(
+      FcmForegroundNotifications.showFromRemoteMessage,
+    );
   }
   final localeController = LocaleController();
   await localeController.load();
@@ -315,7 +315,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             color: Colors.black.withOpacity(0.4),
             blurRadius: 25,
             offset: const Offset(0, 10),
-          )
+          ),
         ],
       ),
       child: Stack(
@@ -374,11 +374,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                             color: tealColor.withOpacity(0.4),
                             blurRadius: 15,
                             offset: const Offset(0, 8),
-                          )
+                          ),
                         ],
                         border: Border.all(color: barColor, width: 4),
                       ),
-                      child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 30),
+                      child: const Icon(
+                        Icons.calendar_month_rounded,
+                        color: Colors.white,
+                        size: 30,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     Text(
@@ -435,10 +439,7 @@ class _MainSearchPlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text(
-        'گەڕان',
-        style: TextStyle(fontFamily: kPatientPrimaryFont),
-      ),
+      child: Text('گەڕان', style: TextStyle(fontFamily: kPatientPrimaryFont)),
     );
   }
 }
@@ -449,10 +450,7 @@ class _MainChatPlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text(
-        'چات',
-        style: TextStyle(fontFamily: kPatientPrimaryFont),
-      ),
+      child: Text('چات', style: TextStyle(fontFamily: kPatientPrimaryFont)),
     );
   }
 }

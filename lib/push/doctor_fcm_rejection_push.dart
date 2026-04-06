@@ -40,7 +40,8 @@ class DoctorFcmRejectionPush {
     }
     if (jsonStr == null || jsonStr.isEmpty) {
       debugPrint(
-        '[DoctorFcm] Add service-account.json to pubspec assets (project root or assets/).',
+        '[DoctorFcm] No service-account.json in bundle (optional). '
+        'Add assets/service-account.json and list it in pubspec.yaml to enable client FCM v1.',
       );
       return;
     }

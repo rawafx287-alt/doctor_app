@@ -179,7 +179,10 @@ String _normAppointmentStatus(dynamic raw) =>
     (raw ?? 'pending').toString().trim().toLowerCase();
 
 bool _isPastAppointmentStatus(String st) =>
-    st == 'completed' || st == 'cancelled' || st == 'canceled';
+    st == 'completed' ||
+    st == 'cancelled' ||
+    st == 'canceled' ||
+    st == 'expired';
 
 /// Active section: [pending] rows first, then others; within each bucket, newest date/time first.
 void _sortActiveAppointmentsForDisplay(
@@ -372,10 +375,24 @@ class _DashedLinePainter extends CustomPainter {
         tr.translate('patient_appt_status_cancelled_clinic_closed'),
       );
     }
+    if (cancellationReason == kAppointmentCancellationReasonDoctorDayClosed) {
+      return (
+        const Color(0xFFC62828),
+        kAppointmentStatusPendingFg,
+        tr.translate('patient_appt_status_cancelled_by_doctor'),
+      );
+    }
     return (
       const Color(0xFFC62828),
       kAppointmentStatusPendingFg,
       tr.translate('status_cancelled'),
+    );
+  }
+  if (s == 'expired') {
+    return (
+      const Color(0xFF546E7A),
+      Colors.white,
+      tr.translate('status_expired'),
     );
   }
   if (s == 'confirmed') {
@@ -397,6 +414,7 @@ Color _statusPillBorder(String status, {required bool isPast}) {
     return HrNoraColors.openDayFill.withValues(alpha: 0.65);
   }
   if (s == 'pending') return const Color(0xFFBF360C).withValues(alpha: 0.58);
+  if (s == 'expired') return const Color(0xFF546E7A).withValues(alpha: 0.55);
   if (s == 'cancelled' || s == 'canceled') {
     return const Color(0xFF8B0000).withValues(alpha: 0.55);
   }
@@ -446,10 +464,24 @@ class _PremiumBookingCard extends StatelessWidget {
           const Color(0xFFB71C1C),
         );
       }
+      if (cancellationReason == kAppointmentCancellationReasonDoctorDayClosed) {
+        return (
+          tr.translate('patient_appt_status_cancelled_by_doctor'),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFB71C1C),
+        );
+      }
       return (
         tr.translate('status_cancelled'),
         const Color(0xFFFFEBEE),
         const Color(0xFFB71C1C),
+      );
+    }
+    if (s == 'expired') {
+      return (
+        tr.translate('status_expired'),
+        const Color(0xFFF1F5F9),
+        const Color(0xFF455A64),
       );
     }
     if (s == 'confirmed') {
@@ -513,6 +545,7 @@ class _PremiumBookingCard extends StatelessWidget {
     final stNorm = _normAppointmentStatus(status);
     final lineThroughDoctor =
         stNorm == 'cancelled' || stNorm == 'canceled';
+    final isExpired = stNorm == 'expired';
 
     final shadows = isPast
         ? const <BoxShadow>[
@@ -628,6 +661,19 @@ class _PremiumBookingCard extends StatelessWidget {
                   _infoChip(Icons.person_rounded, patientName),
                 ],
               ),
+              if (isExpired) ...[
+                const SizedBox(height: 10),
+                Text(
+                  S.of(context).translate('patient_appt_expired_label'),
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: const Color(0xFF455A64).withValues(alpha: 0.92),
+                    height: 1.25,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1392,6 +1438,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   Timer? _highlightTimer;
   bool _highlightActive = false;
 
+  /// Prevents showing the "doctor closed day" alert repeatedly for the same appointment.
+  final Set<String> _doctorClosedAlertedApptIds = <String>{};
+  final Map<String, String> _lastStatusByApptId = <String, String>{};
+
+  /// Prevents repeated writes for the same outdated appointment.
+  final Set<String> _expiredWriteAttemptedApptIds = <String>{};
+  bool _expireWriteInFlight = false;
+
   @override
   void initState() {
     super.initState();
@@ -1407,6 +1461,92 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   void dispose() {
     _highlightTimer?.cancel();
     super.dispose();
+  }
+
+  void _maybeShowDoctorClosedAlert(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    for (final d in docs) {
+      final id = d.id;
+      final data = d.data();
+      final status = _normAppointmentStatus(data[AppointmentFields.status]);
+      final cancelReason =
+          (data[AppointmentFields.cancellationReason] ?? '').toString().trim();
+
+      final last = _lastStatusByApptId[id];
+      _lastStatusByApptId[id] = status;
+
+      final becameCancelledByDoctor =
+          (status == 'cancelled' || status == 'canceled') &&
+              last != status &&
+              cancelReason == kAppointmentCancellationReasonDoctorDayClosed;
+
+      if (!becameCancelledByDoctor) continue;
+      if (_doctorClosedAlertedApptIds.contains(id)) continue;
+      _doctorClosedAlertedApptIds.add(id);
+
+      messenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            S.of(context).translate('patient_appt_cancelled_by_doctor_alert'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+      break;
+    }
+  }
+
+  Future<void> _maybeExpireOutdatedAppointments(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) async {
+    if (!mounted) return;
+    if (_expireWriteInFlight) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final toExpire = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    for (final d in docs) {
+      if (_expiredWriteAttemptedApptIds.contains(d.id)) continue;
+      final data = d.data();
+      final st = _normAppointmentStatus(data[AppointmentFields.status]);
+      if (st != 'pending' && st != 'waiting') continue;
+      final day = _parseAppointmentDate(data[AppointmentFields.date]);
+      if (day == null) continue;
+      if (!day.isBefore(today)) continue;
+      toExpire.add(d);
+    }
+
+    if (toExpire.isEmpty) return;
+    _expireWriteInFlight = true;
+
+    try {
+      // Batch in chunks to stay within Firestore limits.
+      const chunkSize = 400;
+      for (var i = 0; i < toExpire.length; i += chunkSize) {
+        final slice = toExpire.skip(i).take(chunkSize).toList();
+        final batch = FirebaseFirestore.instance.batch();
+        for (final d in slice) {
+          _expiredWriteAttemptedApptIds.add(d.id);
+          batch.update(d.reference, {
+            AppointmentFields.status: 'expired',
+            AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    } catch (_) {
+      // Best-effort: if rules block client writes, UI will still show day_expired badge,
+      // but the DB won't be updated.
+    } finally {
+      _expireWriteInFlight = false;
+    }
   }
 
   Set<String> _patientIdsForQueries(User user) {
@@ -1555,6 +1695,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               }
               _sortActiveAppointmentsForDisplay(activeDocs);
               _sortPatientAppointmentsAll(pastDocs);
+              _maybeShowDoctorClosedAlert(docs);
+              // Keep list fresh: expire "waiting" appointments that are before today.
+              // Fire-and-forget: StreamBuilder will rebuild as soon as writes land.
+              unawaited(_maybeExpireOutdatedAppointments(docs));
 
               if (docs.isEmpty) {
                 return Center(

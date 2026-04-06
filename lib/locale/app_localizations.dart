@@ -904,6 +904,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'مغلق',
     'en': 'Closed',
   },
+  'patient_notif_badge_doctor_closed': {
+    'ckb': 'هەڵوەشاوە',
+    'ar': 'ملغى',
+    'en': 'Cancelled',
+  },
   'patient_notif_badge_update': {
     'ckb': 'ئاگاداری',
     'ar': 'تنبيه',
@@ -1465,6 +1470,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'هەڵوەشاوە — کلینیک داخراوە',
     'ar': 'ملغى — العيادة مغلقة',
     'en': 'Cancelled — clinic closed',
+  },
+  'patient_appt_status_cancelled_by_doctor': {
+    'ckb': 'هەڵوەشاوە — لەلایەن پزیشک',
+    'ar': 'ملغى — من قبل الطبيب',
+    'en': 'Cancelled — by doctor',
+  },
+  'patient_appt_cancelled_by_doctor_alert': {
+    'ckb': 'ببورە، ئەم بەروارە لەلایەن پزیشکەوە داخراوە و نۆرەکەت هەڵوەشایەوە.',
+    'ar': 'عذراً، تم إغلاق هذا التاريخ من قبل الطبيب وتم إلغاء موعدك.',
+    'en': 'Sorry, this date was closed by the doctor and your appointment was cancelled.',
+  },
+  'status_expired': {
+    'ckb': 'بەسەرچوو',
+    'ar': 'منتهي',
+    'en': 'Expired',
+  },
+  'patient_appt_expired_label': {
+    'ckb': 'ئەم نۆرەیە کاتەکەی بەسەرچووە',
+    'ar': 'انتهى وقت هذا الموعد',
+    'en': 'This appointment has expired.',
   },
   'doctor_appt_label_age': {
     'ckb': 'تەمەن',

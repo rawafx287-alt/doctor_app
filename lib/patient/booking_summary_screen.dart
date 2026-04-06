@@ -1579,48 +1579,49 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                   _scheduleScrollToAssignedSlot(firstFree, slots);
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(18),
                           child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
+                                borderRadius: BorderRadius.circular(18),
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    Colors.white.withValues(alpha: 0.93),
-                                    Colors.white.withValues(alpha: 0.78),
+                                    Colors.white.withValues(alpha: 0.94),
+                                    Colors.white.withValues(alpha: 0.82),
                                   ],
                                 ),
                                 border: Border.all(
-                                  color: _kGoldMid.withValues(alpha: 0.78),
-                                  width: 1.15,
+                                  color: _kGoldMid.withValues(alpha: 0.65),
+                                  width: 1,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.06),
-                                    blurRadius: 26,
-                                    offset: const Offset(0, 12),
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 6),
+                                    spreadRadius: 0,
                                   ),
                                   BoxShadow(
-                                    color: _kGoldMid.withValues(alpha: 0.16),
-                                    blurRadius: 22,
-                                    offset: const Offset(0, 5),
+                                    color: _kGoldMid.withValues(alpha: 0.07),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
-                                  18,
-                                  20,
-                                  18,
-                                  20,
+                                  14,
+                                  14,
+                                  14,
+                                  14,
                                 ),
                                 child: Column(
                                   crossAxisAlignment:
@@ -1633,28 +1634,29 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontFamily: kPatientPrimaryFont,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.15,
                                         color: _kBodyMuted.withValues(
-                                          alpha: 0.92,
+                                          alpha: 0.88,
                                         ),
-                                        height: 1.25,
+                                        height: 1.2,
                                       ),
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 6),
                                     Text(
                                       assignedTimeDisplay,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontFamily: kPatientPrimaryFont,
-                                        fontSize: 34,
+                                        fontSize: 30,
                                         fontWeight: FontWeight.w800,
                                         color: _kNavy,
-                                        height: 1.1,
-                                        letterSpacing: 0.2,
+                                        height: 1.08,
+                                        letterSpacing: 0.15,
                                       ),
                                     ),
-                                    const SizedBox(height: 20),
+                                    const SizedBox(height: 12),
                                     _BookingSummaryInfoRow(
                                       icon: Icons.person_rounded,
                                       label: s.translate(
@@ -1662,7 +1664,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       ),
                                       value: doctorName,
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: 8),
                                     _BookingSummaryInfoRow(
                                       icon: Icons.calendar_today_rounded,
                                       label: s.translate(
@@ -1672,8 +1674,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.only(
-                                        top: 18,
-                                        bottom: 6,
+                                        top: 12,
+                                        bottom: 2,
                                       ),
                                       child: _BookingCapacityStats(
                                         bookedText: _localizedDigitString(
@@ -1697,7 +1699,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                     ),
                                     if (!open)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 8),
+                                        padding: const EdgeInsets.only(top: 6),
                                         child: Text(
                                           s.translate(
                                             'available_day_closed_banner',
@@ -1717,7 +1719,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         Text(
                           s.translate('patient_booking_slots_privacy_title'),
                           style: TextStyle(
@@ -2106,19 +2108,19 @@ class _BookingSummaryInfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 42,
-          height: 42,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _iconCircleGreen.withValues(alpha: 0.12),
+            color: _iconCircleGreen.withValues(alpha: 0.1),
             border: Border.all(
-              color: _kGoldMid.withValues(alpha: 0.48),
+              color: _kGoldMid.withValues(alpha: 0.4),
               width: 0.75,
             ),
           ),
-          child: Icon(icon, color: _kGoldMid, size: 22),
+          child: Icon(icon, color: _kGoldMid, size: 17),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2127,22 +2129,23 @@ class _BookingSummaryInfoRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _kBodyMuted.withValues(alpha: 0.88),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                  color: _kBodyMuted.withValues(alpha: 0.82),
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 3),
               Text(
                 value,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                   color: _kNavy,
-                  height: 1.25,
+                  height: 1.22,
                 ),
               ),
             ],
@@ -2184,19 +2187,20 @@ class _BookingCapacityStats extends StatelessWidget {
                 bookedText,
                 style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
                   color: _bookedRed,
                   height: 1,
+                  letterSpacing: -0.3,
                 ),
               ),
               Text(
                 ' / ',
                 style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: _kBodyMuted.withValues(alpha: 0.75),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                  color: _kBodyMuted.withValues(alpha: 0.65),
                   height: 1,
                 ),
               ),
@@ -2204,27 +2208,30 @@ class _BookingCapacityStats extends StatelessWidget {
                 totalText,
                 style: const TextStyle(
                   fontFamily: kPatientPrimaryFont,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                   color: _capGreen,
                   height: 1,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Text(
             sublabel,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontFamily: kPatientPrimaryFont,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: _kBodyMuted.withValues(alpha: 0.82),
-              height: 1.4,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: _kBodyMuted.withValues(alpha: 0.78),
+              height: 1.35,
             ),
           ),
         ),

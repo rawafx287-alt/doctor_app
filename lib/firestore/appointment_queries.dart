@@ -336,6 +336,9 @@ const String kAppointmentCancellationReasonDoctor = 'doctor';
 /// Bulk cancellation when the clinic closes the day in schedule management.
 const String kAppointmentCancellationReasonClinicClosed = 'clinic_closed';
 
+/// Bulk cancellation when the doctor closes / marks the day full.
+const String kAppointmentCancellationReasonDoctorDayClosed = 'doctor_day_closed';
+
 /// Secretary cancelled the slot from schedule management (same patient push as doctor cancel).
 const String kAppointmentCancellationReasonSecretary = 'secretary';
 
