@@ -1,16 +1,9 @@
 import 'dart:ui' show ImageFilter;
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart' show HapticFeedback, PlatformException;
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
@@ -45,48 +38,10 @@ const LinearGradient _kConfirmBookingGoldGradient = LinearGradient(
   colors: [_kConfirmGoldBright, _kConfirmGoldDarkRod],
 );
 
-/// Returned from the payment bottom sheet when a digital booking finished inside [_commitBooking] (parent must not commit again).
-final Object _kPaymentSheetDigitalCompletedMarker = Object();
-
-/// Firestore [AppointmentFields.paymentMethod] for FIB / FastPay digital checkout.
-String _patientDigitalPaymentMethodForFirestore(
-  String fibNumber,
-  String fastPayNumber,
-) {
-  final f = fibNumber.trim().isNotEmpty;
-  final p = fastPayNumber.trim().isNotEmpty;
-  if (f && p) return 'FIB_FastPay';
-  if (f) return 'FIB';
-  return 'FastPay';
-}
-
-/// Gallery / photos access for receipt [ImagePicker] (iOS + Android).
-Future<bool> _ensureBookingReceiptGalleryPermission() async {
-  if (!Platform.isIOS && !Platform.isAndroid) return true;
-  var status = await Permission.photos.status;
-  if (status.isGranted || status.isLimited) return true;
-  status = await Permission.photos.request();
-  if (status.isGranted || status.isLimited) return true;
-  if (Platform.isAndroid) {
-    final storage = await Permission.storage.status;
-    if (storage.isGranted) return true;
-    final s2 = await Permission.storage.request();
-    if (s2.isGranted) return true;
-  }
-  return false;
-}
-
-Future<bool> _ensureBookingReceiptCameraPermission() async {
-  if (!Platform.isIOS && !Platform.isAndroid) return true;
-  var status = await Permission.camera.status;
-  if (status.isGranted) return true;
-  status = await Permission.camera.request();
-  return status.isGranted;
-}
-
 void _showBookingReceiptSnack(BuildContext context, String message) {
   if (!context.mounted) return;
-  final messenger = ScaffoldMessenger.maybeOf(context) ??
+  final messenger =
+      ScaffoldMessenger.maybeOf(context) ??
       ScaffoldMessenger.maybeOf(
         Navigator.of(context, rootNavigator: true).context,
       );
@@ -100,34 +55,6 @@ void _showBookingReceiptSnack(BuildContext context, String message) {
       ),
     ),
   );
-}
-
-/// JPEG compress before Storage upload (falls back to original on failure).
-Future<File> _prepareReceiptImageForUpload(String sourcePath) async {
-  final original = File(sourcePath);
-  if (!await original.exists()) return original;
-  try {
-    final dir = await getTemporaryDirectory();
-    final outPath = p.join(
-      dir.path,
-      'receipt_cmp_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
-    final result = await FlutterImageCompress.compressAndGetFile(
-      sourcePath,
-      outPath,
-      quality: 78,
-      minWidth: 960,
-      minHeight: 960,
-      format: CompressFormat.jpeg,
-    );
-    if (result != null) {
-      final f = File(result.path);
-      if (await f.exists() && await f.length() > 0) return f;
-    }
-  } catch (e, st) {
-    debugPrint('Receipt compress: $e\n$st');
-  }
-  return original;
 }
 
 /// Final step before committing an [available_days] booking (patient).
@@ -175,12 +102,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   String get _resolvedDoctorUid {
     final direct = widget.doctorId.trim();
     if (direct.isNotEmpty) return direct;
-    final fromMap = (widget.mergedDoctorData['uid'] ??
-            widget.mergedDoctorData['doctorId'] ??
-            widget.mergedDoctorData['id'] ??
-            '')
-        .toString()
-        .trim();
+    final fromMap =
+        (widget.mergedDoctorData['uid'] ??
+                widget.mergedDoctorData['doctorId'] ??
+                widget.mergedDoctorData['id'] ??
+                '')
+            .toString()
+            .trim();
     return fromMap;
   }
 
@@ -228,10 +156,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     if (uid.isEmpty) return false;
     const activeStatuses = {'pending', 'confirmed', 'arrived'};
 
-    final col = FirebaseFirestore.instance.collection(AppointmentFields.collection);
+    final col = FirebaseFirestore.instance.collection(
+      AppointmentFields.collection,
+    );
 
-    final byUserId =
-        await col.where(AppointmentFields.userId, isEqualTo: uid).limit(60).get();
+    final byUserId = await col
+        .where(AppointmentFields.userId, isEqualTo: uid)
+        .limit(60)
+        .get();
     for (final d in byUserId.docs) {
       final st = (d.data()[AppointmentFields.status] ?? 'pending')
           .toString()
@@ -240,8 +172,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       if (activeStatuses.contains(st)) return true;
     }
 
-    final byPatientId =
-        await col.where(AppointmentFields.patientId, isEqualTo: uid).limit(60).get();
+    final byPatientId = await col
+        .where(AppointmentFields.patientId, isEqualTo: uid)
+        .limit(60)
+        .get();
     for (final d in byPatientId.docs) {
       final st = (d.data()[AppointmentFields.status] ?? 'pending')
           .toString()
@@ -524,565 +458,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     return approved ?? false;
   }
 
-  Future<Object?> _showPaymentSelectionSheet(
-    BuildContext context,
-    PatientBookingFormResult form,
-  ) async {
-    final s = S.of(context);
-    final picker = ImagePicker();
-    final docId = _resolvedDoctorUid;
-    String fibNumber = '';
-    String fastPayNumber = '';
-    if (docId.isNotEmpty) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(docId).get();
-      final data = doc.data() ?? const <String, dynamic>{};
-      fibNumber = (data['payment_fib_number'] ?? '').toString().trim();
-      fastPayNumber = (data['payment_fastpay_number'] ?? '').toString().trim();
-    }
-    if (!context.mounted) return null;
-    final hasDigital = fibNumber.isNotEmpty || fastPayNumber.isNotEmpty;
-    _PaymentMethod method = _PaymentMethod.cash;
-    XFile? receipt;
-    var pickingReceipt = false;
-    var sheetCommitting = false;
-
-    return showModalBottomSheet<Object?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final dir = AppLocaleScope.of(ctx).textDirection;
-
-        Future<void> runDigitalSubmit(StateSetter setModalState) async {
-          final f = receipt;
-          if (f == null) {
-            _showBookingReceiptSnack(
-              context,
-              s.translate('booking_receipt_required_confirm'),
-            );
-            return;
-          }
-          setModalState(() => sheetCommitting = true);
-          try {
-            await _commitBooking(
-              context,
-              _PaymentSelectionResult(
-                method: _PaymentMethod.digital,
-                receipt: f,
-                firestorePaymentMethod:
-                    _patientDigitalPaymentMethodForFirestore(
-                  fibNumber,
-                  fastPayNumber,
-                ),
-              ),
-              form,
-              paymentSheetContext: ctx,
-            );
-          } catch (e, st) {
-            assert(() {
-              debugPrint('runDigitalSubmit error: $e\n$st');
-              return true;
-            }());
-            if (context.mounted) {
-              _showBookingReceiptSnack(
-                context,
-                s.translate('error_with_details', params: {'detail': '$e'}),
-              );
-            }
-          } finally {
-            if (ctx.mounted) {
-              setModalState(() => sheetCommitting = false);
-            }
-          }
-        }
-
-        Future<void> pickReceipt(ImageSource src, StateSetter setModalState) async {
-          if (pickingReceipt) return;
-          setModalState(() => pickingReceipt = true);
-          try {
-            if (src == ImageSource.gallery) {
-              final ok = await _ensureBookingReceiptGalleryPermission();
-              if (!ok) {
-                if (ctx.mounted) {
-                  _showBookingReceiptSnack(
-                    ctx,
-                    s.translate('booking_receipt_gallery_permission_denied'),
-                  );
-                }
-                return;
-              }
-            } else {
-              final ok = await _ensureBookingReceiptCameraPermission();
-              if (!ok) {
-                if (ctx.mounted) {
-                  _showBookingReceiptSnack(
-                    ctx,
-                    s.translate('booking_receipt_camera_permission_denied'),
-                  );
-                }
-                return;
-              }
-            }
-
-            XFile? file;
-            try {
-              file = await picker.pickImage(
-                source: src,
-                imageQuality: 85,
-                maxWidth: 1800,
-              );
-            } on PlatformException catch (e) {
-              if (ctx.mounted) {
-                _showBookingReceiptSnack(
-                  ctx,
-                  s.translate(
-                    'booking_receipt_pick_failed',
-                    params: {'detail': e.message ?? e.code},
-                  ),
-                );
-              }
-              return;
-            } catch (e) {
-              if (ctx.mounted) {
-                _showBookingReceiptSnack(
-                  ctx,
-                  s.translate(
-                    'booking_receipt_pick_failed',
-                    params: {'detail': '$e'},
-                  ),
-                );
-              }
-              return;
-            }
-
-            if (!ctx.mounted) return;
-            if (file != null) {
-              setModalState(() => receipt = file);
-            }
-          } finally {
-            if (ctx.mounted) {
-              setModalState(() => pickingReceipt = false);
-            }
-          }
-        }
-
-        return Directionality(
-          textDirection: dir,
-          child: StatefulBuilder(
-            builder: (context, setModalState) {
-              final isCash = method == _PaymentMethod.cash || !hasDigital;
-              return SafeArea(
-                top: false,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 14,
-                    right: 14,
-                    top: 12,
-                    bottom: 14 + MediaQuery.of(ctx).viewInsets.bottom,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.98),
-                              const Color(0xFFE3F2FD).withValues(alpha: 0.84),
-                            ],
-                          ),
-                          border: Border.all(
-                            color: _kGoldMid.withValues(alpha: 0.5),
-                            width: 0.9,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 18,
-                              offset: const Offset(0, 7),
-                            ),
-                          ],
-                        ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(ctx).height * 0.92,
-                          ),
-                          child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Flexible(
-                                    child: SingleChildScrollView(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Text(
-                                            'شێوازی پارەدان هەڵبژێرە',
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontFamily: kPatientPrimaryFont,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                              color: _kNavy,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 14),
-                                          _paymentOptionTile(
-                                            selected: isCash,
-                                            title: 'کاش (Cash)',
-                                            subtitle:
-                                                'تکایە لە کاتی سەردانیکردن پارەکە بدە',
-                                            icon: Icons.payments_rounded,
-                                            onTap: () => setModalState(() {
-                                              method = _PaymentMethod.cash;
-                                            }),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          _paymentOptionTile(
-                                            selected: !isCash,
-                                            title: 'فاستپەی / FIB',
-                                            subtitle: hasDigital
-                                                ? 'پارەدان بە ڕێگای وەرگرتنی ژمارەی ئەکاونت'
-                                                : 'Not Available',
-                                            icon: Icons
-                                                .account_balance_wallet_rounded,
-                                            onTap: hasDigital
-                                                ? () => setModalState(() {
-                                                      method =
-                                                          _PaymentMethod.digital;
-                                                    })
-                                                : () {},
-                                          ),
-                                          if (!isCash && hasDigital) ...[
-                                            const SizedBox(height: 12),
-                                            Container(
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(14),
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.9),
-                                                border: Border.all(
-                                                  color: _kSlotBorderBlue
-                                                      .withValues(alpha: 0.3),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  if (fibNumber.isNotEmpty)
-                                                    Text(
-                                                      'FIB: $fibNumber',
-                                                      style: const TextStyle(
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontSize: 13.5,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: _kNavy,
-                                                      ),
-                                                    ),
-                                                  if (fibNumber.isNotEmpty &&
-                                                      fastPayNumber.isNotEmpty)
-                                                    const SizedBox(height: 4),
-                                                  if (fastPayNumber.isNotEmpty)
-                                                    Text(
-                                                      'FastPay: $fastPayNumber',
-                                                      style: const TextStyle(
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontSize: 13.5,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: _kNavy,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: OutlinedButton.icon(
-                                                    onPressed: (pickingReceipt ||
-                                                            sheetCommitting)
-                                                        ? null
-                                                        : () => pickReceipt(
-                                                              ImageSource
-                                                                  .gallery,
-                                                              setModalState,
-                                                            ),
-                                                    icon: const Icon(
-                                                      Icons.image_rounded,
-                                                      size: 18,
-                                                    ),
-                                                    label: const Text(
-                                                      'بارکردنی وێنەی پسوڵە',
-                                                    ),
-                                                    style: OutlinedButton
-                                                        .styleFrom(
-                                                      foregroundColor: _kNavy,
-                                                      side: BorderSide(
-                                                        color: _kGoldMid
-                                                            .withValues(
-                                                                alpha: 0.72),
-                                                      ),
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                IconButton.filledTonal(
-                                                  onPressed: (pickingReceipt ||
-                                                          sheetCommitting)
-                                                      ? null
-                                                      : () => pickReceipt(
-                                                            ImageSource.camera,
-                                                            setModalState,
-                                                          ),
-                                                  icon: const Icon(
-                                                    Icons.photo_camera_rounded,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (pickingReceipt) ...[
-                                              const SizedBox(height: 10),
-                                              const LinearProgressIndicator(
-                                                borderRadius: BorderRadius.all(
-                                                  Radius.circular(4),
-                                                ),
-                                              ),
-                                            ],
-                                            if (receipt != null) ...[
-                                              const SizedBox(height: 10),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.check_circle_rounded,
-                                                    color: Colors.green.shade700,
-                                                    size: 22,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      s.translate(
-                                                        'booking_receipt_attached',
-                                                      ),
-                                                      style: TextStyle(
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        fontSize: 13,
-                                                        color: Colors
-                                                            .green.shade800,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: Image.file(
-                                                  File(receipt!.path),
-                                                  height: 110,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
-                                            ],
-                                            if (receipt == null) ...[
-                                              const SizedBox(height: 12),
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 4,
-                                                ),
-                                                child: Text(
-                                                  s.translate(
-                                                    'booking_receipt_need_before_confirm',
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    fontFamily:
-                                                        kPatientPrimaryFont,
-                                                    fontSize: 12.5,
-                                                    fontWeight: FontWeight.w600,
-                                                    height: 1.35,
-                                                    color: _kBodyMuted
-                                                        .withValues(alpha: 0.9),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (isCash || !hasDigital)
-                                    DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: kPatientDeepBlue,
-                                        borderRadius: BorderRadius.circular(14),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: kPatientDeepBlue
-                                                .withValues(alpha: 0.32),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 5),
-                                          ),
-                                        ],
-                                      ),
-                                      child: TextButton(
-                                        onPressed: sheetCommitting
-                                            ? null
-                                            : () => Navigator.pop(
-                                                  ctx,
-                                                  _PaymentSelectionResult(
-                                                    method: _PaymentMethod.cash,
-                                                    receipt: null,
-                                                    firestorePaymentMethod:
-                                                        'Cash',
-                                                  ),
-                                                ),
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(14),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          s.translate('confirm_booking'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontFamily: kPatientPrimaryFont,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    _PremiumGoldBookingButton(
-                                      enabled: receipt != null &&
-                                          !pickingReceipt &&
-                                          !sheetCommitting,
-                                      submitting: sheetCommitting,
-                                      label: s.translate('confirm_booking'),
-                                      onPressed: () {
-                                        runDigitalSubmit(setModalState);
-                                      },
-                                    ),
-                                ],
-                              ),
-                            ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _paymentOptionTile({
-    required bool selected,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: selected
-              ? const Color(0xFF0D47A1).withValues(alpha: 0.08)
-              : Colors.white.withValues(alpha: 0.82),
-          border: Border.all(
-            color: selected
-                ? _kGoldMid.withValues(alpha: 0.9)
-                : const Color(0xFF90CAF9).withValues(alpha: 0.35),
-            width: selected ? 1.15 : 0.85,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _kGoldMid.withValues(alpha: 0.15),
-              ),
-              child: Icon(icon, color: _kGoldDark, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14.5,
-                      color: _kNavy,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11.5,
-                      color: _kBodyMuted.withValues(alpha: 0.92),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: HrNoraColors.openDayFill,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _confirmWithPreview(
     BuildContext context, {
     required String slotTimeLabelEn,
@@ -1098,9 +473,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     );
     if (form == null || !context.mounted) return;
 
-    final uid = (FirebaseAuth.instance.currentUser?.uid ??
-            await PatientSessionCache.readPatientRefId())
-        ?.trim();
+    final uid =
+        (FirebaseAuth.instance.currentUser?.uid ??
+                await PatientSessionCache.readPatientRefId())
+            ?.trim();
     if (uid == null || uid.isEmpty) return;
     final hasActive = await _hasActiveAppointmentForPatient(uid);
     if (!context.mounted) return;
@@ -1110,35 +486,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     }
     final legalApproved = await _showLegalWarningDialog(context);
     if (!context.mounted || !legalApproved) return;
-    final sheetResult = await _showPaymentSelectionSheet(context, form);
-    if (!context.mounted) return;
-    if (identical(sheetResult, _kPaymentSheetDigitalCompletedMarker)) return;
-    if (sheetResult is! _PaymentSelectionResult) return;
-    await _commitBooking(context, sheetResult, form);
+    await _commitBooking(context, form);
   }
 
-  /// Returns after Firestore success + sheet closed (digital) and success UI flow.
-  /// Shows errors on [paymentSheetContext] when provided, else [context].
+  /// Commits booking with Cash; shows success dialog then optional navigation to My Appointments.
   Future<void> _commitBooking(
     BuildContext context,
-    _PaymentSelectionResult payment,
-    PatientBookingFormResult form, {
-    BuildContext? paymentSheetContext,
-  }) async {
+    PatientBookingFormResult form,
+  ) async {
     final s = S.of(context);
     void snack(String message) {
-      final BuildContext c;
-      if (paymentSheetContext != null && paymentSheetContext.mounted) {
-        c = paymentSheetContext;
-      } else {
-        c = context;
-      }
-      if (c.mounted) _showBookingReceiptSnack(c, message);
+      if (context.mounted) _showBookingReceiptSnack(context, message);
     }
 
-    final uid = (FirebaseAuth.instance.currentUser?.uid ??
-            await PatientSessionCache.readPatientRefId())
-        ?.trim();
+    final uid =
+        (FirebaseAuth.instance.currentUser?.uid ??
+                await PatientSessionCache.readPatientRefId())
+            ?.trim();
     if (uid == null || uid.isEmpty) {
       snack(s.translate('login_required'));
       return;
@@ -1165,63 +529,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           .collection(AppointmentFields.collection)
           .doc();
 
-      Reference? uploadedReceiptRef;
-      String? receiptImageUrl;
-      if (payment.method == _PaymentMethod.digital && payment.receipt != null) {
-        try {
-          final source = File(payment.receipt!.path);
-          if (!await source.exists()) {
-            if (!mounted) return;
-            snack(s.translate('booking_receipt_upload_issue'));
-            return;
-          }
-
-          final fileToUpload = await _prepareReceiptImageForUpload(source.path);
-
-          // Storage: receipts/{timestamp}.jpg — wait for TaskState.success, then URL.
-          final ts = DateTime.now().millisecondsSinceEpoch;
-          final objectName = '$ts.jpg';
-          uploadedReceiptRef = FirebaseStorage.instance
-              .ref()
-              .child('receipts')
-              .child(objectName);
-
-          final uploadTask = uploadedReceiptRef.putFile(
-            fileToUpload,
-            SettableMetadata(contentType: 'image/jpeg'),
-          );
-          final snapshot = await uploadTask;
-          if (snapshot.state != TaskState.success) {
-            if (!mounted) return;
-            snack(s.translate('booking_receipt_upload_issue'));
-            return;
-          }
-
-          receiptImageUrl = await uploadedReceiptRef.getDownloadURL();
-          if (receiptImageUrl.trim().isEmpty) {
-            if (!mounted) return;
-            snack(s.translate('booking_receipt_upload_issue'));
-            return;
-          }
-        } on FirebaseException catch (e) {
-          if (!mounted) return;
-          debugPrint('Receipt upload FirebaseException: ${e.code} ${e.message}');
-          snack(s.translate('booking_receipt_upload_issue'));
-          return;
-        } catch (e) {
-          if (!mounted) return;
-          debugPrint('Receipt upload: $e');
-          snack(s.translate('booking_receipt_upload_issue'));
-          return;
-        }
-      }
-
-      // Appointment [status] stays `pending` for queues/indexes; online payments use
-      // [paymentStatus] `pending_verification` (= pending payment verification).
-      final payStatus = payment.method == _PaymentMethod.cash
-          ? 'pending_cash'
-          : 'pending_verification';
-
       final displayName = form.fullName.trim().isEmpty
           ? widget.patientName.trim()
           : form.fullName.trim();
@@ -1235,27 +542,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           patientName: displayName.isEmpty ? widget.patientName : displayName,
           doctorId: doctorUid,
           doctorDisplayName: doctorName,
-          paymentMethod: payment.firestorePaymentMethod,
-          paymentStatus: payStatus,
-          receiptImageUrl: receiptImageUrl,
+          paymentMethod: 'Cash',
+          paymentStatus: 'pending_cash',
+          receiptImageUrl: null,
           extraAppointmentData: form.toAppointmentExtras(),
         );
       } catch (e) {
         if (!mounted) return;
-        snack(
-          s.translate('error_with_details', params: {'detail': '$e'}),
-        );
+        snack(s.translate('error_with_details', params: {'detail': '$e'}));
         return;
-      }
-
-      if (err != null && uploadedReceiptRef != null) {
-        try {
-          await uploadedReceiptRef.delete();
-        } on FirebaseException catch (e) {
-          if (e.code != 'object-not-found') {
-            debugPrint('Receipt cleanup delete: ${e.code} ${e.message}');
-          }
-        } catch (_) {}
       }
 
       if (!mounted || !context.mounted) return;
@@ -1271,16 +566,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         };
         snack(s.translate(key));
         return;
-      }
-
-      if (!mounted || !context.mounted) return;
-
-      // Close payment sheet only after Storage + Firestore succeeded.
-      if (paymentSheetContext != null && paymentSheetContext.mounted) {
-        Navigator.pop(
-          paymentSheetContext,
-          _kPaymentSheetDigitalCompletedMarker,
-        );
       }
 
       if (!mounted || !context.mounted) return;
@@ -1372,31 +657,33 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: kPatientDeepBlue,
-                            foregroundColor: Colors.white,
-                            elevation: 2,
-                            shadowColor: kPatientDeepBlue.withValues(alpha: 0.34),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: kPatientDeepBlue,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              shadowColor: kPatientDeepBlue.withValues(
+                                alpha: 0.34,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            loc.translate('ok'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontFamily: kPatientPrimaryFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
+                            child: Text(
+                              loc.translate('ok'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       ],
                     ),
                   ),
@@ -1476,517 +763,578 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             child: SafeArea(
               top: false,
               child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection(AvailableDayFields.collection)
-                .doc(widget.availableDayDocId)
-                .snapshots(),
-            builder: (context, daySnap) {
-              if (daySnap.connectionState == ConnectionState.waiting &&
-                  !daySnap.hasData) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
-                  ),
-                );
-              }
-              final dayData = daySnap.data?.data();
-              final open = availableDayIsOpen(dayData);
-              if (dayData == null) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      s.translate('available_day_missing'),
-                      style: const TextStyle(
-                        color: _kBodyMuted,
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
+                stream: FirebaseFirestore.instance
+                    .collection(AvailableDayFields.collection)
+                    .doc(widget.availableDayDocId)
+                    .snapshots(),
+                builder: (context, daySnap) {
+                  if (daySnap.connectionState == ConnectionState.waiting &&
+                      !daySnap.hasData) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF42A5F5),
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              }
-
-              final startHhMm = normalizeAvailableDayStartTimeHhMm(
-                dayData[AvailableDayFields.startTime],
-              );
-              final closingHhMm = normalizeAvailableDayClosingTimeHhMm(
-                dayData[AvailableDayFields.closingTime],
-              );
-              final durMin = normalizeAppointmentDurationMinutes(
-                dayData[AvailableDayFields.appointmentDuration],
-              );
-
-              final slots = generatedSlotStartsForDay(
-                dateOnly: dayOnly,
-                startTimeHhMm: startHhMm,
-                closingTimeHhMm: closingHhMm,
-                durationMinutes: durMin,
-              );
-
-              return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-                stream: watchDoctorAppointmentsForLocalDay(
-                  doctorUserId: _doctorUid,
-                  dayLocal: dayOnly,
-                ),
-                builder: (context, apptSnap) {
-                  if (apptSnap.hasError) {
+                    );
+                  }
+                  final dayData = daySnap.data?.data();
+                  final open = availableDayIsOpen(dayData);
+                  if (dayData == null) {
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(24),
                         child: Text(
-                          s.translate(
-                            'doctors_load_error_detail',
-                            params: {'error': '${apptSnap.error}'},
-                          ),
+                          s.translate('available_day_missing'),
                           style: const TextStyle(
-                            color: Colors.redAccent,
+                            color: _kBodyMuted,
                             fontFamily: kPatientPrimaryFont,
                             fontWeight: FontWeight.w600,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     );
                   }
 
-                  final docs = apptSnap.data ??
-                      const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                  final bookedKeys = bookedTimeKeysHhMmForAvailableDay(
-                    sameDayDocs: docs,
-                    availableDayDocId: widget.availableDayDocId,
+                  final startHhMm = normalizeAvailableDayStartTimeHhMm(
+                    dayData[AvailableDayFields.startTime],
                   );
-                  final firstFree = firstAvailableSlotStart(
-                    slots: slots,
-                    bookedKeys: bookedKeys,
+                  final closingHhMm = normalizeAvailableDayClosingTimeHhMm(
+                    dayData[AvailableDayFields.closingTime],
                   );
-                  final assignedTimeDisplay = firstFree != null
-                      ? DateFormat.jm(localeTag).format(firstFree)
-                      : '—';
+                  final durMin = normalizeAppointmentDurationMinutes(
+                    dayData[AvailableDayFields.appointmentDuration],
+                  );
 
-                  final doctorName = widget.doctorDisplayName.trim().isEmpty
-                      ? s.translate('doctor_default')
-                      : widget.doctorDisplayName;
-                  final dateLabelValue =
-                      DateFormat.yMMMEd(localeTag).format(widget.dateLocal);
+                  final slots = generatedSlotStartsForDay(
+                    dateOnly: dayOnly,
+                    startTimeHhMm: startHhMm,
+                    closingTimeHhMm: closingHhMm,
+                    durationMinutes: durMin,
+                  );
 
-                  final bookedCount = bookedKeys.length;
-                  final totalCapacity = slots.length;
-                  final spotsLeft =
-                      (totalCapacity - bookedCount).clamp(0, totalCapacity);
-
-                  _scheduleScrollToAssignedSlot(firstFree, slots);
-
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.white.withValues(alpha: 0.94),
-                                    Colors.white.withValues(alpha: 0.82),
-                                  ],
-                                ),
-                                border: Border.all(
-                                  color: _kGoldMid.withValues(alpha: 0.65),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 6),
-                                    spreadRadius: 0,
-                                  ),
-                                  BoxShadow(
-                                    color: _kGoldMid.withValues(alpha: 0.07),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                  return StreamBuilder<
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
+                  >(
+                    stream: watchDoctorAppointmentsForLocalDay(
+                      doctorUserId: _doctorUid,
+                      dayLocal: dayOnly,
+                    ),
+                    builder: (context, apptSnap) {
+                      if (apptSnap.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              s.translate(
+                                'doctors_load_error_detail',
+                                params: {'error': '${apptSnap.error}'},
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  14,
-                                  14,
-                                  14,
-                                  14,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final docs =
+                          apptSnap.data ??
+                          const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                      final bookedKeys = bookedTimeKeysHhMmForAvailableDay(
+                        sameDayDocs: docs,
+                        availableDayDocId: widget.availableDayDocId,
+                      );
+                      final firstFree = firstAvailableSlotStart(
+                        slots: slots,
+                        bookedKeys: bookedKeys,
+                      );
+                      final assignedTimeDisplay = firstFree != null
+                          ? DateFormat.jm(localeTag).format(firstFree)
+                          : '—';
+
+                      final doctorName = widget.doctorDisplayName.trim().isEmpty
+                          ? s.translate('doctor_default')
+                          : widget.doctorDisplayName;
+                      final dateLabelValue = DateFormat.yMMMEd(
+                        localeTag,
+                      ).format(widget.dateLocal);
+
+                      final bookedCount = bookedKeys.length;
+                      final totalCapacity = slots.length;
+                      final spotsLeft = (totalCapacity - bookedCount).clamp(
+                        0,
+                        totalCapacity,
+                      );
+
+                      _scheduleScrollToAssignedSlot(firstFree, slots);
+
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 12,
+                                  sigmaY: 12,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
-                                      s.translate(
-                                        'booking_summary_assigned_time',
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.15,
-                                        color: _kBodyMuted.withValues(
-                                          alpha: 0.88,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.94),
+                                        Colors.white.withValues(alpha: 0.82),
+                                      ],
+                                    ),
+                                    border: Border.all(
+                                      color: _kGoldMid.withValues(alpha: 0.65),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
                                         ),
-                                        height: 1.2,
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 6),
+                                        spreadRadius: 0,
                                       ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      assignedTimeDisplay,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.w800,
-                                        color: _kNavy,
-                                        height: 1.08,
-                                        letterSpacing: 0.15,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _BookingSummaryInfoRow(
-                                      icon: Icons.person_rounded,
-                                      label: s.translate(
-                                        'booking_summary_doctor',
-                                      ),
-                                      value: doctorName,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _BookingSummaryInfoRow(
-                                      icon: Icons.calendar_today_rounded,
-                                      label: s.translate(
-                                        'booking_summary_date_label',
-                                      ),
-                                      value: dateLabelValue,
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        top: 12,
-                                        bottom: 2,
-                                      ),
-                                      child: _BookingCapacityStats(
-                                        bookedText: _localizedDigitString(
-                                          context,
-                                          bookedCount,
+                                      BoxShadow(
+                                        color: _kGoldMid.withValues(
+                                          alpha: 0.07,
                                         ),
-                                        totalText: _localizedDigitString(
-                                          context,
-                                          totalCapacity,
-                                        ),
-                                        sublabel: s.translate(
-                                          'booking_summary_only_spots_left',
-                                          params: {
-                                            'x': _localizedDigitString(
-                                              context,
-                                              spotsLeft,
-                                            ),
-                                          },
-                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
                                       ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      14,
+                                      14,
+                                      14,
+                                      14,
                                     ),
-                                    if (!open)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Text(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
                                           s.translate(
-                                            'available_day_closed_banner',
-                                          ),
-                                          style: const TextStyle(
-                                            fontFamily: kPatientPrimaryFont,
-                                            color: HrNoraColors.closedDayFill,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
+                                            'booking_summary_assigned_time',
                                           ),
                                           textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontFamily: kPatientPrimaryFont,
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.15,
+                                            color: _kBodyMuted.withValues(
+                                              alpha: 0.88,
+                                            ),
+                                            height: 1.2,
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          assignedTimeDisplay,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontFamily: kPatientPrimaryFont,
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.w800,
+                                            color: _kNavy,
+                                            height: 1.08,
+                                            letterSpacing: 0.15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _BookingSummaryInfoRow(
+                                          icon: Icons.person_rounded,
+                                          label: s.translate(
+                                            'booking_summary_doctor',
+                                          ),
+                                          value: doctorName,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _BookingSummaryInfoRow(
+                                          icon: Icons.calendar_today_rounded,
+                                          label: s.translate(
+                                            'booking_summary_date_label',
+                                          ),
+                                          value: dateLabelValue,
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 12,
+                                            bottom: 2,
+                                          ),
+                                          child: _BookingCapacityStats(
+                                            bookedText: _localizedDigitString(
+                                              context,
+                                              bookedCount,
+                                            ),
+                                            totalText: _localizedDigitString(
+                                              context,
+                                              totalCapacity,
+                                            ),
+                                            sublabel: s.translate(
+                                              'booking_summary_only_spots_left',
+                                              params: {
+                                                'x': _localizedDigitString(
+                                                  context,
+                                                  spotsLeft,
+                                                ),
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        if (!open)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 6,
+                                            ),
+                                            child: Text(
+                                              s.translate(
+                                                'available_day_closed_banner',
+                                              ),
+                                              style: const TextStyle(
+                                                fontFamily: kPatientPrimaryFont,
+                                                color:
+                                                    HrNoraColors.closedDayFill,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          s.translate('patient_booking_slots_privacy_title'),
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _kBodyMuted.withValues(alpha: 0.85),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (firstFree != null && slots.isNotEmpty) ...[
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.72),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _kGoldMid.withValues(alpha: 0.35),
+                            const SizedBox(height: 12),
+                            Text(
+                              s.translate(
+                                'patient_booking_slots_privacy_title',
+                              ),
+                              style: TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _kBodyMuted.withValues(alpha: 0.85),
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline_rounded,
-                                    size: 18,
-                                    color: _kGoldDark.withValues(alpha: 0.9),
+                            const SizedBox(height: 8),
+                            if (firstFree != null && slots.isNotEmpty) ...[
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _kGoldMid.withValues(alpha: 0.35),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      s.translate(
-                                        'booking_summary_selected_slot_hint',
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline_rounded,
+                                        size: 18,
+                                        color: _kGoldDark.withValues(
+                                          alpha: 0.9,
+                                        ),
                                       ),
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.35,
-                                        color: _kNavy.withValues(alpha: 0.88),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          s.translate(
+                                            'booking_summary_selected_slot_hint',
+                                          ),
+                                          style: TextStyle(
+                                            fontFamily: kPatientPrimaryFont,
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.35,
+                                            color: _kNavy.withValues(
+                                              alpha: 0.88,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                        Expanded(
-                          child: slots.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    s.translate('day_mgmt_no_slots'),
-                                    style: TextStyle(
-                                      color: _kBodyMuted.withValues(alpha: 0.9),
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  itemCount: slots.length,
-                                  itemBuilder: (context, i) {
-                                    final slot = slots[i];
-                                    final key = formatTimeHhMm(slot);
-                                    final isBooked = bookedKeys.contains(key);
-                                    final assigned = firstFree;
-                                    final isYourSlot = assigned != null &&
-                                        !isBooked &&
-                                        key == formatTimeHhMm(assigned);
-                                    final dimOthers = firstFree != null &&
-                                        slots.isNotEmpty &&
-                                        !isYourSlot;
-                                    final timePretty =
-                                        DateFormat.jm(localeTag).format(slot);
+                              const SizedBox(height: 10),
+                            ],
+                            Expanded(
+                              child: slots.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        s.translate('day_mgmt_no_slots'),
+                                        style: TextStyle(
+                                          color: _kBodyMuted.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
+                                      ),
+                                      itemCount: slots.length,
+                                      itemBuilder: (context, i) {
+                                        final slot = slots[i];
+                                        final key = formatTimeHhMm(slot);
+                                        final isBooked = bookedKeys.contains(
+                                          key,
+                                        );
+                                        final assigned = firstFree;
+                                        final isYourSlot =
+                                            assigned != null &&
+                                            !isBooked &&
+                                            key == formatTimeHhMm(assigned);
+                                        final dimOthers =
+                                            firstFree != null &&
+                                            slots.isNotEmpty &&
+                                            !isYourSlot;
+                                        final timePretty = DateFormat.jm(
+                                          localeTag,
+                                        ).format(slot);
 
-                                    final statusText = isBooked
-                                        ? s.translate(
-                                            'patient_slot_label_booked',
-                                          )
-                                        : (isYourSlot
-                                              ? s.translate(
-                                                  'patient_slot_label_yours',
-                                                )
-                                              : s.translate(
-                                                  'patient_slot_label_available',
-                                                ));
-
-                                    final statusStyle = TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontSize: isYourSlot ? 15 : 14,
-                                      fontWeight: isYourSlot
-                                          ? FontWeight.w900
-                                          : FontWeight.w800,
-                                      color: isBooked
-                                          ? _kBookedRed
-                                          : (isYourSlot
-                                                ? _kNavy
-                                                : _kEmeraldAvailable),
-                                    );
-
-                                    Widget card = DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: isYourSlot
-                                            ? LinearGradient(
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                                colors: [
-                                                  const Color(0xFFFFF8E1)
-                                                      .withValues(alpha: 0.98),
-                                                  const Color(0xFFFFECB3)
-                                                      .withValues(alpha: 0.92),
-                                                  Color(0xFFE8EAF6)
-                                                      .withValues(alpha: 0.55),
-                                                ],
+                                        final statusText = isBooked
+                                            ? s.translate(
+                                                'patient_slot_label_booked',
                                               )
-                                            : null,
-                                        color: isYourSlot
-                                            ? null
-                                            : Colors.white.withValues(
-                                                alpha: 0.94,
-                                              ),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: isYourSlot
-                                              ? _kGoldMid.withValues(
-                                                  alpha: 0.98,
-                                                )
-                                              : _kSlotBorderBlue.withValues(
-                                                  alpha: 0.28,
-                                                ),
-                                          width: isYourSlot ? 2.85 : 0.75,
-                                        ),
-                                        boxShadow: isYourSlot
-                                            ? [
-                                                BoxShadow(
-                                                  color: _kGoldMid.withValues(
-                                                    alpha: 0.38,
-                                                  ),
-                                                  blurRadius: 20,
-                                                  offset: const Offset(0, 5),
-                                                  spreadRadius: 0.5,
-                                                ),
-                                                BoxShadow(
-                                                  color: _kGoldShine
-                                                      .withValues(alpha: 0.35),
-                                                  blurRadius: 16,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ]
-                                            : [
-                                                BoxShadow(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.04),
-                                                  blurRadius: 10,
-                                                  offset: const Offset(0, 3),
-                                                ),
-                                              ],
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 12,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.schedule_rounded,
-                                              color: isYourSlot
-                                                  ? _kGoldDark.withValues(
-                                                      alpha: 0.95,
+                                            : (isYourSlot
+                                                  ? s.translate(
+                                                      'patient_slot_label_yours',
                                                     )
-                                                  : _kGoldMid.withValues(
-                                                      alpha: 0.95,
+                                                  : s.translate(
+                                                      'patient_slot_label_available',
+                                                    ));
+
+                                        final statusStyle = TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontSize: isYourSlot ? 15 : 14,
+                                          fontWeight: isYourSlot
+                                              ? FontWeight.w900
+                                              : FontWeight.w800,
+                                          color: isBooked
+                                              ? _kBookedRed
+                                              : (isYourSlot
+                                                    ? _kNavy
+                                                    : _kEmeraldAvailable),
+                                        );
+
+                                        Widget card = DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            gradient: isYourSlot
+                                                ? LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [
+                                                      const Color(
+                                                        0xFFFFF8E1,
+                                                      ).withValues(alpha: 0.98),
+                                                      const Color(
+                                                        0xFFFFECB3,
+                                                      ).withValues(alpha: 0.92),
+                                                      Color(
+                                                        0xFFE8EAF6,
+                                                      ).withValues(alpha: 0.55),
+                                                    ],
+                                                  )
+                                                : null,
+                                            color: isYourSlot
+                                                ? null
+                                                : Colors.white.withValues(
+                                                    alpha: 0.94,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            border: Border.all(
+                                              color: isYourSlot
+                                                  ? _kGoldMid.withValues(
+                                                      alpha: 0.98,
+                                                    )
+                                                  : _kSlotBorderBlue.withValues(
+                                                      alpha: 0.28,
                                                     ),
-                                              size: 20,
+                                              width: isYourSlot ? 2.85 : 0.75,
                                             ),
-                                            const SizedBox(width: 10),
-                                            SizedBox(
-                                              width: 86,
-                                              child: Text(
-                                                timePretty,
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      kPatientPrimaryFont,
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 13,
-                                                  color: _kNavy,
+                                            boxShadow: isYourSlot
+                                                ? [
+                                                    BoxShadow(
+                                                      color: _kGoldMid
+                                                          .withValues(
+                                                            alpha: 0.38,
+                                                          ),
+                                                      blurRadius: 20,
+                                                      offset: const Offset(
+                                                        0,
+                                                        5,
+                                                      ),
+                                                      spreadRadius: 0.5,
+                                                    ),
+                                                    BoxShadow(
+                                                      color: _kGoldShine
+                                                          .withValues(
+                                                            alpha: 0.35,
+                                                          ),
+                                                      blurRadius: 16,
+                                                      offset: const Offset(
+                                                        0,
+                                                        2,
+                                                      ),
+                                                    ),
+                                                  ]
+                                                : [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.04,
+                                                          ),
+                                                      blurRadius: 10,
+                                                      offset: const Offset(
+                                                        0,
+                                                        3,
+                                                      ),
+                                                    ),
+                                                  ],
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 12,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.schedule_rounded,
+                                                  color: isYourSlot
+                                                      ? _kGoldDark.withValues(
+                                                          alpha: 0.95,
+                                                        )
+                                                      : _kGoldMid.withValues(
+                                                          alpha: 0.95,
+                                                        ),
+                                                  size: 20,
                                                 ),
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                statusText,
-                                                textAlign: TextAlign.end,
-                                                style: statusStyle,
-                                              ),
-                                            ),
-                                            if (isYourSlot) ...[
-                                              const SizedBox(width: 6),
-                                              Icon(
-                                                Icons.check_circle_rounded,
-                                                color: _kEmeraldAvailable,
-                                                size: 22,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                Icons.star_rounded,
-                                                color: _kGoldMid,
-                                                size: 26,
-                                                shadows: [
-                                                  Shadow(
-                                                    color: _kGoldDark
-                                                        .withValues(alpha: 0.35),
-                                                    blurRadius: 6,
+                                                const SizedBox(width: 10),
+                                                SizedBox(
+                                                  width: 86,
+                                                  child: Text(
+                                                    timePretty,
+                                                    style: const TextStyle(
+                                                      fontFamily:
+                                                          kPatientPrimaryFont,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: 13,
+                                                      color: _kNavy,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: Text(
+                                                    statusText,
+                                                    textAlign: TextAlign.end,
+                                                    style: statusStyle,
+                                                  ),
+                                                ),
+                                                if (isYourSlot) ...[
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    color: _kEmeraldAvailable,
+                                                    size: 22,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.star_rounded,
+                                                    color: _kGoldMid,
+                                                    size: 26,
+                                                    shadows: [
+                                                      Shadow(
+                                                        color: _kGoldDark
+                                                            .withValues(
+                                                              alpha: 0.35,
+                                                            ),
+                                                        blurRadius: 6,
+                                                      ),
+                                                    ],
                                                   ),
                                                 ],
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    );
+                                              ],
+                                            ),
+                                          ),
+                                        );
 
-                                    if (dimOthers) {
-                                      card = Opacity(opacity: 0.5, child: card);
-                                    }
+                                        if (dimOthers) {
+                                          card = Opacity(
+                                            opacity: 0.5,
+                                            child: card,
+                                          );
+                                        }
 
-                                    return Padding(
-                                      key: isYourSlot
-                                          ? _selectedSlotKey
-                                          : ValueKey<String>('slot_$key'),
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: card,
-                                    );
-                                  },
-                                ),
+                                        return Padding(
+                                          key: isYourSlot
+                                              ? _selectedSlotKey
+                                              : ValueKey<String>('slot_$key'),
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: card,
+                                        );
+                                      },
+                                    ),
+                            ),
+                            const SizedBox(height: 12),
+                            _PremiumGoldBookingButton(
+                              enabled:
+                                  !_submitting &&
+                                  open &&
+                                  firstFree != null &&
+                                  slots.isNotEmpty,
+                              submitting: _submitting,
+                              label: s.translate('confirm_booking'),
+                              onPressed: () {
+                                final slotEn = firstFree != null
+                                    ? DateFormat.jm('en_US').format(firstFree)
+                                    : '—';
+                                _confirmWithPreview(
+                                  context,
+                                  slotTimeLabelEn: slotEn,
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        _PremiumGoldBookingButton(
-                          enabled: !_submitting &&
-                              open &&
-                              firstFree != null &&
-                              slots.isNotEmpty,
-                          submitting: _submitting,
-                          label: s.translate('confirm_booking'),
-                          onPressed: () {
-                            final slotEn = firstFree != null
-                                ? DateFormat.jm('en_US').format(firstFree)
-                                : '—';
-                            _confirmWithPreview(
-                              context,
-                              slotTimeLabelEn: slotEn,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
-              );
-            },
               ),
             ),
           ),
@@ -2004,7 +1352,8 @@ class _BookingSuccessCheckAnimation extends StatefulWidget {
       _BookingSuccessCheckAnimationState();
 }
 
-class _BookingSuccessCheckAnimationState extends State<_BookingSuccessCheckAnimation>
+class _BookingSuccessCheckAnimationState
+    extends State<_BookingSuccessCheckAnimation>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -2026,10 +1375,7 @@ class _BookingSuccessCheckAnimationState extends State<_BookingSuccessCheckAnima
   @override
   Widget build(BuildContext context) {
     return ScaleTransition(
-      scale: CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
-      ),
+      scale: CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
       child: FadeTransition(
         opacity: CurvedAnimation(
           parent: _controller,
@@ -2058,22 +1404,6 @@ class _BookingSuccessCheckAnimationState extends State<_BookingSuccessCheckAnima
       ),
     );
   }
-}
-
-enum _PaymentMethod { cash, digital }
-
-class _PaymentSelectionResult {
-  const _PaymentSelectionResult({
-    required this.method,
-    this.receipt,
-    required this.firestorePaymentMethod,
-  });
-
-  final _PaymentMethod method;
-  final XFile? receipt;
-
-  /// Stored as [AppointmentFields.paymentMethod] (`Cash`, `FIB`, `FastPay`, `FIB_FastPay`).
-  final String firestorePaymentMethod;
 }
 
 String _localizedDigitString(BuildContext context, int n) {
