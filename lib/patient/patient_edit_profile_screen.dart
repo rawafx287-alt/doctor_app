@@ -5,24 +5,12 @@ import 'package:flutter/material.dart';
 import '../locale/app_locale.dart';
 import '../theme/patient_premium_theme.dart';
 
-/// Thin metallic rim — same spec as [PatientDoctorCard] (0.8 px stroke).
-const LinearGradient _kPersonalInfoSilverBorderGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFFF0F0F0),
-    Color(0xFFD1D1D1),
-    Color(0xFFE0E0E0),
-  ],
-  stops: [0.0, 0.48, 1.0],
-);
-
 const Color _kPersonalInfoGold = Color(0xFFD4AF37);
-const Color _kPersonalInfoGoldBronze = Color(0xFFB8860B);
-const Color _kPersonalInfoGoldBg = Color(0xFFFFF4D6);
 const Color _kPersonalInfoHeaderInk = Color(0xFF0D2137);
+const Color _kPersonalInfoBorderGrey = Color(0xFFE2E8F0);
+const Color _kPersonalInfoPrimaryBlue = Color(0xFF1976D2);
 
-/// Edit patient [fullName] and [phone] in Firestore [users].
+/// Edit patient personal info in Firestore `users`.
 class PatientEditProfileScreen extends StatefulWidget {
   const PatientEditProfileScreen({super.key});
 
@@ -32,17 +20,20 @@ class PatientEditProfileScreen extends StatefulWidget {
 }
 
 class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
-  final _idController = TextEditingController();
+  final _addressController = TextEditingController();
 
   final _nameFocus = FocusNode();
-  final _phoneFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   final _emailFocus = FocusNode();
-  final _idFocus = FocusNode();
+  final _addressFocus = FocusNode();
 
   bool _loading = true;
+  bool _saving = false;
 
   void _onFocusChanged() {
     if (mounted) setState(() {});
@@ -52,9 +43,9 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   void initState() {
     super.initState();
     _nameFocus.addListener(_onFocusChanged);
-    _phoneFocus.addListener(_onFocusChanged);
+    _passwordFocus.addListener(_onFocusChanged);
     _emailFocus.addListener(_onFocusChanged);
-    _idFocus.addListener(_onFocusChanged);
+    _addressFocus.addListener(_onFocusChanged);
     _load();
   }
 
@@ -71,8 +62,9 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       final data = snap.data() ?? const <String, dynamic>{};
 
       final dbName = (data['fullName'] ?? '').toString().trim();
-      final dbPhone = (data['phone'] ?? '').toString().trim();
       final dbEmail = (data['email'] ?? '').toString().trim();
+      final dbPhone = (data['phone'] ?? '').toString().trim();
+      final dbAddress = (data['address'] ?? '').toString().trim();
 
       final authName = (user?.displayName ?? '').trim();
       final authPhone = (user?.phoneNumber ?? '').trim();
@@ -80,14 +72,17 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
       _nameController.text = dbName.isNotEmpty
           ? dbName
-          : (authName.isNotEmpty ? authName : '—');
-      _phoneController.text = dbPhone.isNotEmpty
-          ? dbPhone
-          : (authPhone.isNotEmpty ? authPhone : '—');
-      _emailController.text = dbEmail.isNotEmpty
+          : authName;
+      // Password is never loaded from Firestore.
+      _passwordController.text = '';
+      // "Email or phone" field: prefer email; fallback to phone; fallback to auth.
+      final contact = dbEmail.isNotEmpty
           ? dbEmail
-          : (authEmail.isNotEmpty ? authEmail : '—');
-      _idController.text = docId.isNotEmpty ? docId : '—';
+          : (dbPhone.isNotEmpty
+              ? dbPhone
+              : (authEmail.isNotEmpty ? authEmail : authPhone));
+      _emailController.text = contact;
+      _addressController.text = dbAddress;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -96,48 +91,23 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   @override
   void dispose() {
     _nameFocus.removeListener(_onFocusChanged);
-    _phoneFocus.removeListener(_onFocusChanged);
+    _passwordFocus.removeListener(_onFocusChanged);
     _emailFocus.removeListener(_onFocusChanged);
-    _idFocus.removeListener(_onFocusChanged);
+    _addressFocus.removeListener(_onFocusChanged);
     _nameFocus.dispose();
-    _phoneFocus.dispose();
+    _passwordFocus.dispose();
     _emailFocus.dispose();
-    _idFocus.dispose();
+    _addressFocus.dispose();
     _nameController.dispose();
-    _phoneController.dispose();
+    _passwordController.dispose();
     _emailController.dispose();
-    _idController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
-  static const BorderRadius _miniCardRadius = BorderRadius.all(
+  static const BorderRadius _fieldRadius = BorderRadius.all(
     Radius.circular(16),
   );
-
-  Widget _goldIconBadge(IconData icon) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 10, end: 6),
-      child: Center(
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: _kPersonalInfoGoldBg.withValues(alpha: 0.88),
-            border: Border.all(
-              color: _kPersonalInfoGold.withValues(alpha: 0.28),
-              width: 0.75,
-            ),
-          ),
-          child: Icon(
-            icon,
-            size: 21,
-            color: _kPersonalInfoGoldBronze,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _miniCardField({
     required TextEditingController controller,
@@ -145,98 +115,136 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    bool obscureText = false,
+    String? Function(String?)? validator,
   }) {
     final focused = focusNode.hasFocus;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.93),
-        borderRadius: _miniCardRadius,
-        border: Border.all(
-          color: focused
-              ? _kPersonalInfoGold.withValues(alpha: 0.82)
-              : const Color(0xFFCFD8DC).withValues(alpha: 0.55),
-          width: focused ? 1.35 : 0.9,
-        ),
-        boxShadow: focused
-            ? [
-                BoxShadow(
-                  color: _kPersonalInfoGoldBronze.withValues(alpha: 0.22),
-                  blurRadius: 14,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 3),
-                ),
-                BoxShadow(
-                  color: _kPersonalInfoGold.withValues(alpha: 0.12),
-                  blurRadius: 20,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: kPatientDeepBlue.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      textAlign: TextAlign.right,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: TextStyle(
+        fontFamily: kPatientPrimaryFont,
+        fontWeight: FontWeight.w700,
+        fontSize: 15,
+        color: kPatientNavyText.withValues(alpha: 0.9),
       ),
-      child: TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        readOnly: true,
-        showCursor: false,
-        enableInteractiveSelection: true,
-        textAlign: TextAlign.right,
-        keyboardType: keyboardType,
-        style: TextStyle(
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
           fontFamily: kPatientPrimaryFont,
           fontWeight: FontWeight.w700,
-          fontSize: 15,
-          color: kPatientNavyText.withValues(alpha: 0.82),
+          fontSize: 13,
+          color: kPatientNavyText.withValues(alpha: 0.58),
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: kPatientNavyText.withValues(alpha: 0.52),
+        floatingLabelStyle: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+          color: _kPersonalInfoPrimaryBlue.withValues(alpha: 0.92),
+        ),
+        // RTL: keep the icon visually on the right.
+        suffixIcon: Icon(
+          icon,
+          size: 20,
+          color: focused
+              ? _kPersonalInfoPrimaryBlue
+              : kPatientNavyText.withValues(alpha: 0.55),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: false,
+        contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        border: OutlineInputBorder(
+          borderRadius: _fieldRadius,
+          borderSide: BorderSide(color: _kPersonalInfoBorderGrey, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: _fieldRadius,
+          borderSide: BorderSide(
+            color: _kPersonalInfoBorderGrey.withValues(alpha: 0.95),
+            width: 1,
           ),
-          floatingLabelStyle: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-            color: _kPersonalInfoGoldBronze.withValues(alpha: 0.92),
-          ),
-          prefixIcon: _goldIconBadge(icon),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 58,
-            minHeight: 48,
-          ),
-          isDense: false,
-          contentPadding: const EdgeInsets.fromLTRB(12, 16, 16, 16),
-          filled: false,
-          border: OutlineInputBorder(
-            borderRadius: _miniCardRadius,
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: _miniCardRadius,
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: _miniCardRadius,
-            borderSide: BorderSide.none,
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: _miniCardRadius,
-            borderSide: BorderSide.none,
-          ),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: _fieldRadius,
+          borderSide: BorderSide(color: _kPersonalInfoPrimaryBlue, width: 1.4),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: _fieldRadius,
+          borderSide: BorderSide(color: Colors.redAccent.withValues(alpha: 0.9)),
+        ),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: _fieldRadius,
+          borderSide: BorderSide(color: Colors.redAccent, width: 1.4),
         ),
       ),
     );
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final docId = user?.uid.trim() ?? '';
+    if (docId.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      final name = _nameController.text.trim();
+      final contact = _emailController.text.trim();
+      final address = _addressController.text.trim();
+      final password = _passwordController.text.trim();
+
+      final contactLooksEmail = contact.contains('@');
+      final update = <String, dynamic>{
+        'fullName': name,
+        if (contactLooksEmail) 'email': contact else 'phone': contact,
+        'address': address,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      await FirebaseFirestore.instance.collection('users').doc(docId).set(
+            update,
+            SetOptions(merge: true),
+          );
+
+      if (password.isNotEmpty && user != null) {
+        try {
+          await user.updatePassword(password);
+        } catch (_) {
+          // If re-auth is required, we still keep Firestore changes.
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'نەتوانرا وشەی نهێنی بگۆڕدرێت (پێویستە دووبارە بچیتە ژوورەوە).',
+                  style: TextStyle(fontFamily: kPatientPrimaryFont),
+                ),
+              ),
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'گۆڕانکارییەکان پاشکەوت کران',
+              style: TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+        Navigator.of(context).maybePop();
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -287,68 +295,126 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        gradient: _kPersonalInfoSilverBorderGradient,
+                        color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: kPatientDeepBlue.withValues(alpha: 0.08),
-                            blurRadius: 20,
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 18,
                             offset: const Offset(0, 8),
+                          ),
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            blurRadius: 10,
+                            offset: const Offset(0, -2),
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.all(0.8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(19.2),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.96),
-                                const Color(0xFFE3F2FD).withValues(alpha: 0.72),
-                                kPatientSkyTop.withValues(alpha: 0.42),
-                              ],
-                              stops: const [0.0, 0.55, 1.0],
+                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _miniCardField(
+                              controller: _nameController,
+                              focusNode: _nameFocus,
+                              label: 'ناوی تەواو',
+                              icon: Icons.person_outline_rounded,
+                              validator: (v) {
+                                if ((v ?? '').trim().isEmpty) {
+                                  return 'تکایە ناوی تەواوت بنووسە';
+                                }
+                                return null;
+                              },
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _miniCardField(
-                                  controller: _nameController,
-                                  focusNode: _nameFocus,
-                                  label: 'ناوی تەواو',
-                                  icon: Icons.person_outline_rounded,
-                                ),
-                                const SizedBox(height: 14),
-                                _miniCardField(
-                                  controller: _phoneController,
-                                  focusNode: _phoneFocus,
-                                  label: 'ژمارەی مۆبایل',
-                                  icon: Icons.lock_rounded,
-                                  keyboardType: TextInputType.phone,
-                                ),
-                                const SizedBox(height: 14),
-                                _miniCardField(
-                                  controller: _emailController,
-                                  focusNode: _emailFocus,
-                                  label: 'Email',
-                                  icon: Icons.alternate_email_rounded,
-                                  keyboardType: TextInputType.emailAddress,
-                                ),
-                                const SizedBox(height: 14),
-                                _miniCardField(
-                                  controller: _idController,
-                                  focusNode: _idFocus,
-                                  label: 'ID',
-                                  icon: Icons.badge_outlined,
-                                ),
-                              ],
+                            const SizedBox(height: 14),
+                            _miniCardField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              label: 'وشەی نهێنی',
+                              icon: Icons.lock_rounded,
+                              obscureText: true,
                             ),
-                          ),
+                            const SizedBox(height: 14),
+                            _miniCardField(
+                              controller: _emailController,
+                              focusNode: _emailFocus,
+                              label: 'ئیمەیڵ یان ژمارەی مۆبایل',
+                              icon: Icons.alternate_email_rounded,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) {
+                                if ((v ?? '').trim().isEmpty) {
+                                  return 'تکایە ئیمەیڵ یان ژمارەی مۆبایل بنووسە';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 14),
+                            _miniCardField(
+                              controller: _addressController,
+                              focusNode: _addressFocus,
+                              label: 'ناونیشان',
+                              icon: Icons.badge_outlined,
+                              keyboardType: TextInputType.streetAddress,
+                            ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _saving ? null : _save,
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor:
+                                      _kPersonalInfoGold.withValues(alpha: 0.28),
+                                  elevation: 0,
+                                ),
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        _kPersonalInfoGoldLight(),
+                                        _kPersonalInfoGold,
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.12),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: _saving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Text(
+                                            'پاشکەوتکردنی گۆڕانکارییەکان',
+                                            style: TextStyle(
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15.5,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -359,3 +425,5 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     );
   }
 }
+
+Color _kPersonalInfoGoldLight() => const Color(0xFFF6E7A6);

@@ -27,8 +27,7 @@ const LinearGradient _kBookingsRoseBarGradient = LinearGradient(
   colors: [_kBookingsRoseTop, _kBookingsRoseBottom],
 );
 
-/// Past bookings: classic gold / bronze (vertical) — legacy; list cards use
-/// [_kPastPremiumBookingGreyGradient] / ticket dialog keeps richer styling.
+/// Past bookings: classic gold / bronze (vertical) — legacy; ticket dialog keeps richer styling.
 const LinearGradient _kPastBookingCardGradient = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
@@ -36,22 +35,16 @@ const LinearGradient _kPastBookingCardGradient = LinearGradient(
   stops: [0.0, 0.5, 1.0],
 );
 
-/// Premium list card: active — white → pale gold.
-const LinearGradient _kActivePremiumBookingGradient = LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  colors: [Color(0xFFFFFFFF), Color(0xFFFFFBF7), Color(0xFFF2E8D8)],
-  stops: [0.0, 0.42, 1.0],
-);
-
-/// Premium list card: past / archived — light desaturated grey.
-const LinearGradient _kPastPremiumBookingGreyGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0xFFF5F6F8), Color(0xFFE8EAEE)],
-);
-
 const double _kPremiumBookingCardRadius = 14.0;
+
+/// Active appointment accent (vertical bar + tints).
+const Color _kBookingCardPrimaryBlue = Color(0xFF1976D2);
+
+/// Very faint blue wash behind active list cards.
+const Color _kBookingCardActiveTint = Color(0xFFF5F9FF);
+
+/// Past / expired card surface (neutral grey).
+const Color _kBookingCardPastSurface = Color(0xFFF3F4F6);
 
 /// Soft elevation — no heavy border on cards.
 const List<BoxShadow> _kPremiumBookingCardShadow = [
@@ -510,36 +503,44 @@ class _PremiumBookingCard extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String text, {required bool muted}) {
-    final iconColor = muted
-        ? const Color(0xFF78909C)
-        : const Color(0xFF6D4C41).withValues(alpha: 0.82);
-    final textColor = muted ? const Color(0xFF546E7A) : _kPastBookingTextBrown;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: muted
-            ? const Color(0xFF546E7A).withValues(alpha: 0.09)
-            : _kPastBookingTextBrown.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12.5, color: iconColor),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
+  IconData _statusIconFor(String stNorm) {
+    switch (stNorm) {
+      case 'pending':
+        return Icons.schedule_rounded;
+      case 'confirmed':
+        return Icons.event_available_outlined;
+      case 'arrived':
+        return Icons.local_hospital_outlined;
+      case 'completed':
+        return Icons.check_circle_outline_rounded;
+      case 'cancelled':
+      case 'canceled':
+        return Icons.cancel_outlined;
+      case 'expired':
+        return Icons.event_busy_outlined;
+      default:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  (Color bg, Color fg) _modernChipSurface(String stNorm) {
+    switch (stNorm) {
+      case 'pending':
+        return (const Color(0xFFFFF3E0), const Color(0xFFE65100));
+      case 'confirmed':
+        return (const Color(0xFFE8EAF6), const Color(0xFF283593));
+      case 'arrived':
+        return (const Color(0xFFFFF3E0), const Color(0xFFBF360C));
+      case 'completed':
+        return (const Color(0xFFE8F5E9), const Color(0xFF2E7D32));
+      case 'cancelled':
+      case 'canceled':
+        return (const Color(0xFFFFEBEE), const Color(0xFFC62828));
+      case 'expired':
+        return (const Color(0xFFECEFF1), const Color(0xFF546E7A));
+      default:
+        return (const Color(0xFFFFF3E0), const Color(0xFFE65100));
+    }
   }
 
   @override
@@ -550,180 +551,334 @@ class _PremiumBookingCard extends StatelessWidget {
     final isExpired = stNorm == 'expired';
 
     final muted = isPast;
-    final titleColor = muted
-        ? const Color(0xFF455A64)
-        : const Color(0xFF2C1810);
     final subColor = muted
-        ? const Color(0xFF607D8B)
-        : _kPastBookingTextBrown.withValues(alpha: 0.88);
+        ? const Color(0xFF78909C)
+        : const Color(0xFF78909C);
+    /// Doctor name in header — primary emphasis (top row with queue badge).
+    final doctorHeaderColor = muted
+        ? const Color(0xFF455A64)
+        : kPatientNavyText;
+    /// Patient name — centered below date/time (separate from doctor header).
+    final patientCenterColor = muted
+        ? const Color(0xFF455A64)
+        : const Color(0xFF0D2137);
+    /// Date/time row — darker & bolder than secondary meta labels.
+    final dateTimeTextColor =
+        muted ? const Color(0xFF455A64) : const Color(0xFF263238);
+    final dateTimeIconColor =
+        muted ? const Color(0xFF607D8B) : const Color(0xFF455A64);
+    final metaGrey = const Color(0xFF90A4AE);
+    final chipSurface = _modernChipSurface(stNorm);
+    final statusIcon = _statusIconFor(stNorm);
 
-    final statusPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    final surfaceColor =
+        muted ? _kBookingCardPastSurface : _kBookingCardActiveTint;
+    final barColor = muted ? const Color(0xFFB0BEC5) : _kBookingCardPrimaryBlue;
+
+    final statusChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: statusStyle.$2,
+        color: chipSurface.$1,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: chipSurface.$2.withValues(alpha: 0.22),
+          width: 0.75,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: ui.TextDirection.rtl,
+        children: [
+          Text(
+            statusStyle.$1,
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w700,
+              fontSize: 10.75,
+              height: 1.2,
+              color: chipSurface.$2,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Icon(statusIcon, size: 13, color: chipSurface.$2),
+        ],
+      ),
+    );
+
+    final queueDigits = queueLabel.startsWith('#')
+        ? queueLabel.substring(1)
+        : queueLabel;
+
+    final queueBadge = Container(
+      width: 58,
+      height: 58,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: muted
+            ? const Color(0xFFECEFF1)
+            : const Color(0xFFE8F4FC),
+        border: Border.all(
+          color: muted
+              ? const Color(0xFFCFD8DC)
+              : _kBookingCardPrimaryBlue.withValues(alpha: 0.22),
+          width: 1.25,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: _kBookingCardPrimaryBlue.withValues(alpha: 0.14),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Text(
-        statusStyle.$1,
+        queueDigits,
         style: TextStyle(
           fontFamily: kPatientPrimaryFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 10.5,
-          height: 1.2,
-          color: statusStyle.$3,
+          fontWeight: FontWeight.w900,
+          fontSize: 24,
+          height: 1,
+          letterSpacing: 0.2,
+          color: muted
+              ? _kPremiumQueueAccent.withValues(alpha: 0.55)
+              : _kBookingCardPrimaryBlue,
         ),
       ),
     );
 
     final inner = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: 66,
-            child: Text(
-              queueLabel,
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 29,
-                height: 1,
-                color: muted
-                    ? _kPremiumQueueAccent.withValues(alpha: 0.52)
-                    : _kPremiumQueueAccent,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            textDirection: ui.TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Icon(
-                        Icons.medical_information_outlined,
-                        size: 15,
-                        color: subColor,
+                    Text(
+                      doctorName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18.5,
+                        height: 1.15,
+                        color: doctorHeaderColor,
+                        decoration: lineThroughDoctor
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor:
+                            doctorHeaderColor.withValues(alpha: 0.5),
+                        decorationThickness: 1.1,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        doctorName,
+                    if (specialty.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        specialty,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
                         style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: titleColor,
-                          decoration: lineThroughDoctor
-                              ? TextDecoration.lineThrough
-                              : null,
-                          decorationColor: titleColor.withValues(alpha: 0.5),
-                          decorationThickness: 1.1,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11.5,
+                          color: subColor,
                         ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              queueBadge,
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: metaGrey.withValues(alpha: muted ? 0.22 : 0.35),
+          ),
+          // Date + calendar on the LEFT; time + clock on the RIGHT (same styles as before).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  textDirection: ui.TextDirection.ltr,
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 20,
+                      color: dateTimeIconColor.withValues(alpha: 0.92),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      dateStr,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        height: 1.2,
+                        color: dateTimeTextColor.withValues(alpha: 0.92),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  specialty,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: subColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                statusPill,
-                const SizedBox(height: 12),
-                Container(
-                  height: 1,
-                  width: double.infinity,
-                  color: muted
-                      ? const Color(0xFF90A4AE).withValues(alpha: 0.28)
-                      : _kPastBookingTextBrown.withValues(alpha: 0.18),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  textDirection: ui.TextDirection.rtl,
                   children: [
-                    _infoChip(Icons.schedule_rounded, timeStr, muted: muted),
-                    _infoChip(
-                      Icons.calendar_today_rounded,
-                      dateStr,
-                      muted: muted,
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 24,
+                      color: dateTimeIconColor,
                     ),
-                    _infoChip(
-                      Icons.person_outline_rounded,
-                      patientName,
-                      muted: muted,
+                    const SizedBox(width: 6),
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 21,
+                        height: 1.15,
+                        color: dateTimeTextColor,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ],
                 ),
-                if (isExpired) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    S.of(context).translate('patient_appt_expired_label'),
-                    style: const TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      color: Color(0xFF78909C),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
+          // Patient — one compact RTL row (name + icon) centered; avoid [Expanded] so
+          // the pair doesn't stretch to opposite edges of the card.
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 6),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: ui.TextDirection.rtl,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: (MediaQuery.sizeOf(context).width * 0.58)
+                          .clamp(120.0, 300.0),
+                    ),
+                    child: Text(
+                      patientName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        height: 1.25,
+                        color: patientCenterColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 20,
+                    color: patientCenterColor.withValues(alpha: 0.88),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: statusChip,
+          ),
+          if (isExpired) ...[
+            const SizedBox(height: 8),
+            Text(
+              S.of(context).translate('patient_appt_expired_label'),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: metaGrey.withValues(alpha: 0.95),
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
 
-    final card = Container(
+    Widget card = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(_kPremiumBookingCardRadius),
         boxShadow: _kPremiumBookingCardShadow,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_kPremiumBookingCardRadius),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: isPast
-                ? _kPastPremiumBookingGreyGradient
-                : _kActivePremiumBookingGradient,
+        // ListView children get unbounded max height; [IntrinsicHeight] gives this
+        // [Row] a finite height so [CrossAxisAlignment.stretch] cannot be infinite.
+        child: IntrinsicHeight(
+          child: Row(
+            textDirection: ui.TextDirection.ltr,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ColoredBox(
+                  color: surfaceColor,
+                  child: inner,
+                ),
+              ),
+              Container(
+                width: 5,
+                color: barColor,
+              ),
+            ],
           ),
-          child: inner,
         ),
       ),
     );
 
+    const greyscale = ColorFilter.matrix(<double>[
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
     if (isExpired) {
-      return Opacity(opacity: 0.6, child: card);
+      return ColorFiltered(
+        colorFilter: greyscale,
+        child: Opacity(
+          opacity: 0.6,
+          child: card,
+        ),
+      );
     }
     if (isPast) {
-      return Opacity(opacity: _kArchivedBookingOpacity, child: card);
+      return ColorFiltered(
+        colorFilter: greyscale,
+        child: Opacity(
+          opacity: _kArchivedBookingOpacity,
+          child: card,
+        ),
+      );
     }
     return card;
   }
