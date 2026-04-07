@@ -1603,15 +1603,11 @@ class ScheduleDayPanelController extends ChangeNotifier {
         return false;
       }
       final priorData = priorSnap.data()!;
-      await ref.update({
-        // Make the slot instantly available again.
-        AppointmentFields.status: 'available',
-        AppointmentFields.patientName: null,
-        AppointmentFields.patientId: null,
-        AppointmentFields.cancellationReason:
-            kAppointmentCancellationReasonSecretary,
-        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
-      });
+      await archiveRejectedAppointmentAndFreeSlot(
+        appointmentRef: ref,
+        priorData: priorData,
+        cancellationReason: kAppointmentCancellationReasonSecretary,
+      );
       final copy = patientAppointmentRejectedNotificationCopy(priorData);
       final doctorUid =
           (priorData[AppointmentFields.doctorId] ?? '').toString().trim();
@@ -2139,101 +2135,116 @@ class ScheduleDayPanelController extends ChangeNotifier {
     const bookedBg = Color(0xFF1E293B); // Deep Navy
     const availableBg = Color(0xFF064E3B); // Dark Green
 
-    // FORCED UI RENDERING TEMPLATE (Card + ListTile)
+    // ULTRA COMPACT: single-line row, fixed short height.
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       color: booked ? bookedBg : availableBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 6,
+      elevation: 4,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: IntrinsicHeight(
+        child: SizedBox(
+          height: 56,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (booked)
                 const SizedBox(
-                  width: 6,
+                  width: 3,
                   child: ColoredBox(color: Colors.amber),
                 ),
               Expanded(
-                child: ListTile(
-                  contentPadding: EdgeInsets.fromLTRB(
-                    booked ? 12 : 16,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    booked ? 10 : 12,
+                    4,
                     10,
-                    12,
-                    10,
+                    4,
                   ),
-                  leading: Directionality(
-                    textDirection: ui.TextDirection.ltr,
-                    child: Text(
-                      timeEn,
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        height: 1.1,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  title: booked
-                      ? Row(
-                          children: [
-                            const Icon(
-                              Icons.person_rounded,
-                              size: 18,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Time
+                      Flexible(
+                        flex: 4,
+                        child: Directionality(
+                          textDirection: ui.TextDirection.ltr,
+                          child: Text(
+                            timeEn,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              height: 1.0,
                               color: Colors.white,
                             ),
-                            const SizedBox(width: 8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Patient name (or available)
+                      Expanded(
+                        flex: 7,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (booked) ...[
+                              const Icon(
+                                Icons.person_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 5),
+                            ],
                             Expanded(
                               child: Text(
-                                displayName,
+                                booked ? displayName : 'کاتی بەردەست',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                  height: 1.15,
-                                  color: Colors.amber,
+                                  fontWeight:
+                                      booked ? FontWeight.w900 : FontWeight.w800,
+                                  fontSize: 14,
+                                  height: 1.0,
+                                  color: booked ? Colors.amber : Colors.white70,
                                 ),
                               ),
                             ),
                           ],
-                        )
-                      : const Text(
-                          'کاتی بەردەست',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Status badge (slim)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: booked
+                              ? const Color(0xFFDC2626) // red
+                              : const Color(0xFF16A34A), // green
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          booked ? 'گیراوە' : 'بەردەستە',
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          overflow: TextOverflow.clip,
+                          style: const TextStyle(
                             fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                            height: 1.15,
-                            color: Colors.white70,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 9.5,
+                            height: 1.0,
+                            color: Colors.white,
                           ),
                         ),
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: booked
-                          ? const Color(0xFFDC2626) // red
-                          : const Color(0xFF16A34A), // green
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      booked ? 'گیراوە' : 'بەردەستە',
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        height: 1.05,
-                        color: Colors.white,
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),

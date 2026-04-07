@@ -28,9 +28,7 @@ Set<String> _bookedTimeKeysFromAppointmentDocs(
   final set = <String>{};
   for (final doc in docs) {
     final data = doc.data();
-    final st =
-        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-    if (st == 'cancelled') continue;
+    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
     final t = (data[AppointmentFields.time] ?? '').toString().trim();
     if (t.isEmpty) continue;
     final parts = t.split(':');
@@ -128,9 +126,7 @@ Future<String?> createPatientAppointment({
 
   for (final doc in sameDay.docs) {
     final data = doc.data();
-    final st =
-        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-    if (st == 'cancelled') continue;
+    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
     final t = (data[AppointmentFields.time] ?? '').toString().trim();
     if (t.isEmpty) continue;
     final parts = t.split(':');
@@ -163,6 +159,7 @@ Future<String?> createPatientAppointment({
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
     AppointmentFields.status: 'pending',
+    AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
     AppointmentFields.createdAt: FieldValue.serverTimestamp(),
   });
@@ -191,9 +188,7 @@ Future<String?> createStaffAppointment({
 
   for (final doc in sameDay.docs) {
     final data = doc.data();
-    final st =
-        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-    if (st == 'cancelled') continue;
+    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
     final t = (data[AppointmentFields.time] ?? '').toString().trim();
     if (t.isEmpty) continue;
     final parts = t.split(':');
@@ -225,6 +220,7 @@ Future<String?> createStaffAppointment({
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
     AppointmentFields.status: 'pending',
+    AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
     AppointmentFields.createdAt: FieldValue.serverTimestamp(),
     AppointmentFields.createdByStaff: createdByUid,

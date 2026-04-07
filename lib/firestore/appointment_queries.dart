@@ -54,6 +54,114 @@ abstract final class AppointmentFields {
   static const String bookingGender = 'bookingGender';
   static const String bookingMedicalNotes = 'bookingMedicalNotes';
   static const String bookingCityArea = 'bookingCityArea';
+
+  /// Optional; set `true` when a patient holds the slot, cleared when the slot is freed.
+  static const String isBooked = 'isBooked';
+}
+
+/// Archive for doctor/secretary rejections — does **not** replace live [appointments] queries.
+abstract final class RejectedAppointmentFields {
+  static const String collection = 'rejected_appointments';
+
+  static const String originalAppointmentId = 'originalAppointmentId';
+  static const String rejectedAt = 'rejectedAt';
+
+  /// Local calendar day key `yyyy/MM/dd` (matches string [AppointmentFields.date] rows).
+  static const String rejectedDayKey = 'rejectedDayKey';
+}
+
+/// `true` when another patient must not book this time (active / waiting appointment).
+bool appointmentDocBlocksSlotForNewPatientBooking(Map<String, dynamic> data) {
+  final s =
+      (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+  if (s == 'available') return false;
+  if (s == 'cancelled' || s == 'canceled') return false;
+  if (s == 'completed' || s == 'complete' || s == 'done') return false;
+  if (s == 'rejected') return false;
+  // pending, confirmed, booked, waiting, etc.
+  return true;
+}
+
+/// Archives the prior appointment payload, then frees the live [appointments] doc for re-booking.
+Future<void> archiveRejectedAppointmentAndFreeSlot({
+  required DocumentReference<Map<String, dynamic>> appointmentRef,
+  required Map<String, dynamic> priorData,
+  required String cancellationReason,
+}) async {
+  final batch = FirebaseFirestore.instance.batch();
+
+  final rejectedRef = FirebaseFirestore.instance
+      .collection(RejectedAppointmentFields.collection)
+      .doc();
+
+  final day = appointmentLocalDateOnlyFromData(priorData);
+  final dayKey =
+      day == null ? '' : DateFormat('yyyy/MM/dd').format(day);
+
+  final archived = Map<String, dynamic>.from(priorData);
+  archived[RejectedAppointmentFields.originalAppointmentId] = appointmentRef.id;
+  archived[RejectedAppointmentFields.rejectedAt] = FieldValue.serverTimestamp();
+  archived[AppointmentFields.status] = 'rejected';
+  archived[AppointmentFields.cancellationReason] = cancellationReason;
+  if (dayKey.isNotEmpty) {
+    archived[RejectedAppointmentFields.rejectedDayKey] = dayKey;
+  }
+
+  batch.set(rejectedRef, archived);
+
+  batch.update(appointmentRef, {
+    AppointmentFields.status: 'available',
+    AppointmentFields.patientName: null,
+    AppointmentFields.patientId: null,
+    AppointmentFields.userId: FieldValue.delete(),
+    AppointmentFields.isBooked: false,
+    AppointmentFields.cancellationReason: cancellationReason,
+    AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+/// Rejected rows for one doctor + local day — listens by [RejectedAppointmentFields.rejectedDayKey].
+///
+/// **Firestore index:** collection `rejected_appointments` —
+/// `doctorId` (Ascending), `rejectedDayKey` (Ascending).
+Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+    watchRejectedAppointmentsForDoctorLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) {
+  final did = doctorUserId.trim();
+  final start = DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final rejectedDayKey = DateFormat('yyyy/MM/dd').format(start);
+
+  return FirebaseFirestore.instance
+      .collection(RejectedAppointmentFields.collection)
+      .where(AppointmentFields.doctorId, isEqualTo: did)
+      .where(RejectedAppointmentFields.rejectedDayKey, isEqualTo: rejectedDayKey)
+      .snapshots()
+      .map((snap) {
+        final list = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+          snap.docs,
+        );
+        int rejectedMs(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+          final raw = d.data()[RejectedAppointmentFields.rejectedAt];
+          if (raw is Timestamp) return raw.millisecondsSinceEpoch;
+          return 0;
+        }
+
+        list.sort((a, b) => rejectedMs(b).compareTo(rejectedMs(a)));
+        return list;
+      });
+}
+
+/// Statuses that represent an **occupied** slot in Today’s list (app uses `pending`, not `booked`).
+bool appointmentStatusIsOccupiedPatientSlot(String raw) {
+  final s = raw.trim().toLowerCase();
+  return s == 'pending' ||
+      s == 'booked' ||
+      s == 'confirmed' ||
+      s == 'waiting';
 }
 
 /// Doctor + local date range on [AppointmentFields.date].
@@ -214,9 +322,7 @@ Map<String, int> countBookingsByAvailableDayDocId(
   final map = <String, int>{};
   for (final d in docs) {
     final data = d.data();
-    final st =
-        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-    if (st == 'cancelled') continue;
+    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
     final id = (data[AppointmentFields.availableDayDocId] ?? '').toString().trim();
     if (id.isEmpty) continue;
     map[id] = (map[id] ?? 0) + 1;
@@ -444,6 +550,8 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
         AppointmentFields.status: 'available',
         AppointmentFields.patientName: null,
         AppointmentFields.patientId: null,
+        AppointmentFields.userId: FieldValue.delete(),
+        AppointmentFields.isBooked: false,
         AppointmentFields.cancellationReason: cancellationReason,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });

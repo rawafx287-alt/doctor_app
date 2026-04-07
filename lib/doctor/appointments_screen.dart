@@ -724,18 +724,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     try {
       final st = status.trim().toLowerCase();
       final patch = <String, dynamic>{
-        // Cancel/reject should instantly free the slot for other patients.
-        AppointmentFields.status:
-            (st == 'cancelled' || st == 'canceled') ? 'available' : status,
+        AppointmentFields.status: status,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       };
-      if (st == 'cancelled' || st == 'canceled') {
-        patch[AppointmentFields.cancellationReason] =
-            kAppointmentCancellationReasonDoctor;
-        patch[AppointmentFields.patientName] = null;
-        patch[AppointmentFields.patientId] = null;
-      } else if (st == 'completed') {
+      if (st == 'completed') {
         patch[AppointmentFields.cancellationReason] = FieldValue.delete();
+        patch[AppointmentFields.isBooked] = false;
       }
       final apptRef = FirebaseFirestore.instance
           .collection(AppointmentFields.collection)
@@ -755,7 +749,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         return;
       }
       final priorData = priorSnap.data()!;
-      await apptRef.update(patch);
+      if (st == 'cancelled' || st == 'canceled') {
+        await archiveRejectedAppointmentAndFreeSlot(
+          appointmentRef: apptRef,
+          priorData: priorData,
+          cancellationReason: kAppointmentCancellationReasonDoctor,
+        );
+      } else {
+        await apptRef.update(patch);
+      }
       if (st == 'cancelled' || st == 'canceled') {
         final copy = patientAppointmentRejectedNotificationCopy(priorData);
         final doctorUid = (priorData[AppointmentFields.doctorId] ?? '')
@@ -871,8 +873,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 );
               }
 
-              final sorted =
-                  List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
+              final sorted = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                docs.where((d) {
+                  final st = AppointmentsScreen._statusKey(
+                    d.data()[AppointmentFields.status],
+                  );
+                  return st != 'available';
+                }),
+              );
               sortStaffAppointmentsInPlace(sorted);
               final queueById = dailyQueueNumberByDocId(sorted);
 
@@ -1024,18 +1032,45 @@ class _EmbeddedAppointmentsLoading extends StatelessWidget {
   }
 }
 
-/// Maps slot time → appointment doc (first per time). Includes **cancelled** so rejected patients stay visible.
+/// Maps slot time → appointment doc. When multiple docs share the same time, prefers the row that
+/// still **blocks** the slot for a new patient (e.g. `pending` with a name) over a freed `available`
+/// placeholder so a replacement booking is not hidden.
 Map<String, QueryDocumentSnapshot<Map<String, dynamic>>>
     _appointmentsBySlotHhMmIncludingCancelled(
   Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
 ) {
-  final m = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+  final byKey = <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
   for (final d in docs) {
     final k = normalizeAppointmentTimeToHhMm(d.data()[AppointmentFields.time]);
     if (k.isEmpty) continue;
-    m.putIfAbsent(k, () => d);
+    (byKey[k] ??= []).add(d);
   }
-  return m;
+  final out = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+  for (final e in byKey.entries) {
+    final list = e.value;
+    if (list.length == 1) {
+      out[e.key] = list.first;
+      continue;
+    }
+    QueryDocumentSnapshot<Map<String, dynamic>>? best;
+    var bestScore = -1;
+    for (final d in list) {
+      final data = d.data();
+      final st = AppointmentsScreen._statusKey(data[AppointmentFields.status]);
+      var score = 0;
+      if (appointmentDocBlocksSlotForNewPatientBooking(data)) score += 20;
+      if (appointmentStatusIsOccupiedPatientSlot(st)) score += 15;
+      final name = (data[AppointmentFields.patientName] ?? '').toString().trim();
+      if (name.isNotEmpty && name != '—') score += 10;
+      if (st == 'pending') score += 5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    }
+    out[e.key] = best ?? list.first;
+  }
+  return out;
 }
 
 int _queueSortValueForSlot(
@@ -1288,17 +1323,20 @@ Future<void> _openStaffWalkInBooking(
 ) {
   var waiting = 0;
   var completed = 0;
+  var counted = 0;
   for (final d in docs) {
     final st = AppointmentsScreen._statusKey(
       d.data()[AppointmentFields.status],
     );
+    if (st == 'available') continue;
+    counted++;
     if (st == 'completed' || st == 'complete' || st == 'done') {
       completed++;
     } else if (st == 'pending' || st == 'waiting') {
       waiting++;
     }
   }
-  return (docs.length, waiting, completed);
+  return (counted, waiting, completed);
 }
 
 /// Compact stats under the dashboard search field; counts match [watchDoctorAppointmentsForLocalDay].
@@ -1815,19 +1853,20 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     final s = S.of(context);
     final timeEn = DateFormat.jm('en_US').format(slotStart);
     final doc = appointmentDoc;
-    final booked = doc != null;
-    final apptData = doc?.data();
+    final data = doc?.data();
+    final status = data == null
+        ? ''
+        : AppointmentsScreen._statusKey(data[AppointmentFields.status]);
+    final isFreedSlot = status == 'available';
+    final booked = data != null && !isFreedSlot;
     final patientName = booked
-        ? (apptData![AppointmentFields.patientName] ?? '—').toString()
-        : '';
-    final status = booked
-        ? AppointmentsScreen._statusKey(apptData![AppointmentFields.status])
+        ? (data[AppointmentFields.patientName] ?? '—').toString()
         : '';
     final showActions = booked && status == 'pending';
     final isTerminal =
         booked && appointmentStatusIsTerminalForStaffSort(status);
     final cancelReason = booked
-        ? (apptData![AppointmentFields.cancellationReason] ?? '')
+        ? (data[AppointmentFields.cancellationReason] ?? '')
             .toString()
             .trim()
         : '';
@@ -1835,7 +1874,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     final clinicClosed =
         cancelReason == kAppointmentCancellationReasonClinicClosed;
     final patientId = booked
-        ? (apptData![AppointmentFields.patientId] ?? '').toString().trim()
+        ? (data[AppointmentFields.patientId] ?? '').toString().trim()
         : '';
     final stripGold = booked && status == 'pending';
 
@@ -2080,11 +2119,11 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                               icon: Icons.check_rounded,
                               tooltip:
                                   s.translate('doctor_appt_action_complete'),
-                              onPressed: () => onSetStatus(
-                                context,
-                                doc.id,
-                                'completed',
-                              ),
+                              onPressed: () {
+                                final d = appointmentDoc;
+                                if (d == null) return;
+                                onSetStatus(context, d.id, 'completed');
+                              },
                             ),
                             const SizedBox(width: 6),
                             circleAction(
@@ -2092,11 +2131,11 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                               icon: Icons.close_rounded,
                               tooltip:
                                   s.translate('doctor_appt_action_decline'),
-                              onPressed: () => onSetStatus(
-                                context,
-                                doc.id,
-                                'cancelled',
-                              ),
+                              onPressed: () {
+                                final d = appointmentDoc;
+                                if (d == null) return;
+                                onSetStatus(context, d.id, 'cancelled');
+                              },
                             ),
                           ],
                         ),
@@ -2157,10 +2196,12 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                         child: InkWell(
                           onTap: booked
                               ? () {
+                                  final d = appointmentDoc;
+                                  if (d == null) return;
                                   AppointmentsScreen
                                       .showDoctorPatientDetailBottomSheet(
                                     context,
-                                    appointmentDoc: doc,
+                                    appointmentDoc: d,
                                     slotStart: slotStart,
                                     queueByDocId: queueByDocId,
                                     onSetStatus: onSetStatus,
@@ -2194,7 +2235,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             onSelected: (v) {
                               if (v == 'cancel') {
-                                onSetStatus(context, doc.id, 'cancelled');
+                                final d = appointmentDoc;
+                                if (d == null) return;
+                                onSetStatus(context, d.id, 'cancelled');
                               }
                             },
                             itemBuilder: (ctx) => [
@@ -2310,6 +2353,145 @@ class _DoctorSlotGlassCard extends StatelessWidget {
   }
 }
 
+/// Faded list of archived rejections for today ([watchRejectedAppointmentsForDoctorLocalDay]).
+class _DoctorRejectedAppointmentsSection extends StatelessWidget {
+  const _DoctorRejectedAppointmentsSection({
+    required this.doctorUserId,
+    required this.todayOnly,
+  });
+
+  final String doctorUserId;
+  final DateTime todayOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    if (doctorUserId.isEmpty) return const SizedBox.shrink();
+
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: watchRejectedAppointmentsForDoctorLocalDay(
+        doctorUserId: doctorUserId,
+        dayLocal: todayOnly,
+      ),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return const SizedBox.shrink();
+        }
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return const SizedBox.shrink();
+        }
+        final items = snap.data ?? const [];
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        final mutedTitle = TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w800,
+          fontSize: 12.5,
+          color: Colors.white.withValues(alpha: 0.45),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: Material(
+              color: Colors.transparent,
+              child: ExpansionTile(
+                initiallyExpanded: false,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+                childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                iconColor: Colors.white.withValues(alpha: 0.4),
+                collapsedIconColor: Colors.white.withValues(alpha: 0.4),
+                title: Text('نۆرە ڕەتکراوەکان', style: mutedTitle),
+                subtitle: Text(
+                  '${items.length}',
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontSize: 10,
+                    color: Colors.white.withValues(alpha: 0.32),
+                  ),
+                ),
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (context, _) => const SizedBox(height: 6),
+                      itemBuilder: (context, i) {
+                        final d = items[i];
+                        final data = d.data();
+                        final name =
+                            (data[AppointmentFields.patientName] ?? '—')
+                                .toString();
+                        final slotStart =
+                            AppointmentsScreen.slotStartFromAppointmentDoc(d);
+                        final timeLabel =
+                            DateFormat.jm('en_US').format(slotStart);
+                        return Opacity(
+                          opacity: 0.55,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: const Color(0xFF7F1D1D)
+                                  .withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.62,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Directionality(
+                                  textDirection: ui.TextDirection.ltr,
+                                  child: Text(
+                                    timeLabel,
+                                    style: TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _DoctorTodayDashboard extends StatefulWidget {
   const _DoctorTodayDashboard({
     required this.doctorUserId,
@@ -2318,7 +2500,7 @@ class _DoctorTodayDashboard extends StatefulWidget {
 
   final String doctorUserId;
   final Future<void> Function(BuildContext context, String docId, String status)
-  onSetStatus;
+      onSetStatus;
 
   @override
   State<_DoctorTodayDashboard> createState() => _DoctorTodayDashboardState();
@@ -2402,6 +2584,10 @@ class _DoctorTodayDashboardState extends State<_DoctorTodayDashboard> {
                 onSetStatus: widget.onSetStatus,
                 searchQuery: _searchController.text,
               ),
+            ),
+            _DoctorRejectedAppointmentsSection(
+              doctorUserId: widget.doctorUserId,
+              todayOnly: todayOnly,
             ),
           ],
         );

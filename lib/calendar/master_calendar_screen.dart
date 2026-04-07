@@ -1639,13 +1639,12 @@ class _DayAgendaPanel extends StatelessWidget {
                               isCompleteAction: false,
                             );
                             if (ok != true || !context.mounted) return;
-                            await aptDoc.reference.update({
-                              AppointmentFields.status: 'available',
-                              AppointmentFields.patientName: null,
-                              AppointmentFields.patientId: null,
-                              AppointmentFields.updatedAt:
-                                  FieldValue.serverTimestamp(),
-                            });
+                            await archiveRejectedAppointmentAndFreeSlot(
+                              appointmentRef: aptDoc.reference,
+                              priorData: aptDoc.data(),
+                              cancellationReason:
+                                  kAppointmentCancellationReasonSecretary,
+                            );
                           } else if (v == 'done') {
                             final ok = await showAppointmentActionConfirmDialog(
                               context,
