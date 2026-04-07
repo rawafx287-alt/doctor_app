@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +16,9 @@ const Color _kPersonalInfoGold = Color(0xFFD4AF37);
 const Color _kPersonalInfoBorderGrey = Color(0xFFE2E8F0);
 const Color _kPersonalInfoPrimaryBlue = Color(0xFF1976D2);
 const Color _kPersonalInfoBg = Color(0xFFF6FAFF);
+const Color _kGenderCardGreyBorder = Color(0xFFD1D9E0);
+const Color _kGenderCardGreyIcon = Color(0xFF94A3B8);
+const Color _kGenderSelectedFill = Color(0xFFE8F4FC);
 
 /// Edit patient personal info in Firestore `users`.
 class PatientEditProfileScreen extends StatefulWidget {
@@ -35,7 +39,10 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  /// Mirrors gender label (نێر / مێ) for the same data as [_genderValue].
+  final _genderController = TextEditingController();
   final _dobController = TextEditingController();
 
   String? _genderValue;
@@ -44,12 +51,14 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   final _nameFocus = FocusNode();
   final _passwordFocus = FocusNode();
   final _emailFocus = FocusNode();
+  final _phoneFocus = FocusNode();
   final _addressFocus = FocusNode();
   final _dobFocus = FocusNode();
 
   bool _loading = true;
   bool _saving = false;
-  bool _genderFocused = false;
+  /// Brief scale pulse on tap: `'male'` | `'female'`.
+  String? _genderTapAnim;
 
   void _onFocusChanged() {
     if (mounted) setState(() {});
@@ -61,6 +70,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _nameFocus.addListener(_onFocusChanged);
     _passwordFocus.addListener(_onFocusChanged);
     _emailFocus.addListener(_onFocusChanged);
+    _phoneFocus.addListener(_onFocusChanged);
     _addressFocus.addListener(_onFocusChanged);
     _dobFocus.addListener(_onFocusChanged);
     _load();
@@ -95,15 +105,13 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
           : authName;
       // Password is never loaded from Firestore.
       _passwordController.text = '';
-      // "Email or phone" field: prefer email; fallback to phone; fallback to auth.
-      final contact = dbEmail.isNotEmpty
-          ? dbEmail
-          : (dbPhone.isNotEmpty
-              ? dbPhone
-              : (authEmail.isNotEmpty ? authEmail : authPhone));
-      _emailController.text = contact;
+      _emailController.text = dbEmail.isNotEmpty ? dbEmail : authEmail;
+      _phoneController.text = _normalizePhoneForField(
+        dbPhone.isNotEmpty ? dbPhone : authPhone,
+      );
       _addressController.text = dbAddress;
       _genderValue = _normalizeGenderValue(dbGender);
+      _syncGenderControllerFromValue();
       _existingAvatarUrl = dbAvatar;
 
       DateTime? parsedDob;
@@ -128,19 +136,50 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _nameFocus.removeListener(_onFocusChanged);
     _passwordFocus.removeListener(_onFocusChanged);
     _emailFocus.removeListener(_onFocusChanged);
+    _phoneFocus.removeListener(_onFocusChanged);
     _addressFocus.removeListener(_onFocusChanged);
     _dobFocus.removeListener(_onFocusChanged);
     _nameFocus.dispose();
     _passwordFocus.dispose();
     _emailFocus.dispose();
+    _phoneFocus.dispose();
     _addressFocus.dispose();
     _dobFocus.dispose();
     _nameController.dispose();
     _passwordController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _addressController.dispose();
+    _genderController.dispose();
     _dobController.dispose();
     super.dispose();
+  }
+
+  static String _digitsOnly(String s) =>
+      s.replaceAll(RegExp(r'\D'), '');
+
+  /// Prefer local 11-digit form (e.g. 0750…) for display when possible.
+  static String _normalizePhoneForField(String raw) {
+    final d = _digitsOnly(raw);
+    if (d.isEmpty) return '';
+    if (d.length == 11) return d;
+    if (d.length == 13 && d.startsWith('964')) {
+      final rest = d.substring(3);
+      if (rest.length == 10 && rest.startsWith('7')) return '0$rest';
+    }
+    if (d.length == 12 && d.startsWith('964')) {
+      final rest = d.substring(3);
+      if (rest.length == 9 && rest.startsWith('7')) return '0$rest';
+    }
+    return d;
+  }
+
+  void _syncGenderControllerFromValue() {
+    _genderController.text = switch (_genderValue) {
+      'male' => 'نێر',
+      'female' => 'مێ',
+      _ => '',
+    };
   }
 
   static String? _normalizeGenderValue(String raw) {
@@ -154,6 +193,186 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     return null;
   }
 
+  static bool _isValidEmail(String email) {
+    final s = email.trim();
+    if (s.isEmpty) return false;
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(s);
+  }
+
+  static String? _validateEmailField(String? v) {
+    final s = (v ?? '').trim();
+    if (s.isEmpty) return 'تکایە ئیمەیڵ بنووسە';
+    if (!_isValidEmail(s)) return 'شێوازی ئیمەیڵ هەڵەیە';
+    return null;
+  }
+
+  static String? _validatePhoneField(String? v) {
+    final digits = _digitsOnly(v ?? '');
+    if (digits.isEmpty) return 'تکایە ژمارەی مۆبایل بنووسە';
+    if (digits.length != 11) {
+      return 'ژمارەی مۆبایل دەبێت تەنها ١١ ژمارە بێت';
+    }
+    return null;
+  }
+
+  Future<void> _onGenderCardTap(String value) async {
+    if (_saving) return;
+    await HapticFeedback.selectionClick();
+    setState(() {
+      _genderValue = value;
+      _genderTapAnim = value;
+      _syncGenderControllerFromValue();
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    if (mounted) {
+      setState(() => _genderTapAnim = null);
+    }
+  }
+
+  Widget _buildGenderSelectableCards() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'ڕەگەز',
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: kPatientNavyText.withValues(alpha: 0.58),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _genderSelectableCard(
+                value: 'male',
+                label: 'نێر',
+                icon: Icons.male_rounded,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _genderSelectableCard(
+                value: 'female',
+                label: 'مێ',
+                icon: Icons.female_rounded,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _genderSelectableCard({
+    required String value,
+    required String label,
+    required IconData icon,
+  }) {
+    final selected = _genderValue == value;
+    final pulsing = _genderTapAnim == value;
+    final scale = pulsing ? 1.06 : (selected ? 1.03 : 1.0);
+
+    return AnimatedScale(
+      scale: scale,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _saving ? null : () => unawaited(_onGenderCardTap(value)),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 118),
+            padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
+            decoration: BoxDecoration(
+              color: selected ? _kGenderSelectedFill : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected
+                    ? _kPersonalInfoPrimaryBlue
+                    : _kGenderCardGreyBorder,
+                width: selected ? 2 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: selected ? 0.07 : 0.05),
+                  blurRadius: selected ? 12 : 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 34,
+                      color: selected
+                          ? _kPersonalInfoPrimaryBlue
+                          : _kGenderCardGreyIcon,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: selected
+                            ? kPatientNavyText.withValues(alpha: 0.92)
+                            : kPatientNavyText.withValues(alpha: 0.62),
+                      ),
+                    ),
+                  ],
+                ),
+                if (selected)
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: _kPersonalInfoPrimaryBlue,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _kPersonalInfoPrimaryBlue.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(3),
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   static const BorderRadius _fieldRadius = BorderRadius.all(
     Radius.circular(16),
   );
@@ -162,7 +381,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     required String label,
     required IconData icon,
     required bool focused,
-    bool isAction = false,
   }) {
     final iconColor = focused
         ? _kPersonalInfoPrimaryBlue
@@ -187,12 +405,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         child: Icon(icon, size: 20, color: iconColor),
       ),
       prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 48),
-      suffixIcon: isAction
-          ? Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: iconColor.withValues(alpha: 0.9),
-            )
-          : null,
       filled: true,
       fillColor: Colors.white,
       isDense: false,
@@ -234,6 +446,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     bool readOnly = false,
     VoidCallback? onTap,
     Widget? suffixIcon,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     final focused = focusNode.hasFocus;
     final base = _fieldDecoration(label: label, icon: icon, focused: focused);
@@ -245,6 +458,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       onTap: onTap,
       textAlign: TextAlign.right,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       style: TextStyle(
         fontFamily: kPatientPrimaryFont,
@@ -328,15 +542,16 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     try {
       final avatarUrl = await _uploadAvatarIfNeeded(docId);
       final name = _nameController.text.trim();
-      final contact = _emailController.text.trim();
+      final email = _emailController.text.trim();
+      final phone = _digitsOnly(_phoneController.text);
       final address = _addressController.text.trim();
       final password = _passwordController.text.trim();
       final gender = (_genderValue ?? '').trim();
 
-      final contactLooksEmail = contact.contains('@');
       final update = <String, dynamic>{
         'fullName': name,
-        if (contactLooksEmail) 'email': contact else 'phone': contact,
+        'email': email,
+        'phone': phone,
         'address': address,
         if (gender.isNotEmpty) 'gender': gender,
         if (_dob != null) 'dateOfBirth': Timestamp.fromDate(_dob!),
@@ -369,14 +584,23 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'گۆڕانکارییەکان پاشکەوت کران',
-              style: TextStyle(fontFamily: kPatientPrimaryFont),
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            content: const Text(
+              'زانیارییەکان بە سەرکەوتوویی نوێکرانەوە',
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         );
-        Navigator.of(context).maybePop();
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        if (mounted) Navigator.of(context).maybePop();
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -608,15 +832,23 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                     _miniCardField(
                                       controller: _emailController,
                                       focusNode: _emailFocus,
-                                      label: 'ئیمەیڵ یان ژمارەی مۆبایل',
+                                      label: 'ئیمەیڵ',
                                       icon: Icons.alternate_email_rounded,
                                       keyboardType: TextInputType.emailAddress,
-                                      validator: (v) {
-                                        if ((v ?? '').trim().isEmpty) {
-                                          return 'تکایە ئیمەیڵ یان ژمارەی مۆبایل بنووسە';
-                                        }
-                                        return null;
-                                      },
+                                      validator: _validateEmailField,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _miniCardField(
+                                      controller: _phoneController,
+                                      focusNode: _phoneFocus,
+                                      label: 'ژمارەی مۆبایل',
+                                      icon: Icons.phone_android_rounded,
+                                      keyboardType: TextInputType.phone,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(11),
+                                      ],
+                                      validator: _validatePhoneField,
                                     ),
                                     const SizedBox(height: 14),
                                     _miniCardField(
@@ -627,56 +859,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                       keyboardType: TextInputType.streetAddress,
                                     ),
                                     const SizedBox(height: 14),
-                                    DropdownButtonFormField<String>(
-                                      key: ValueKey(_genderValue ?? 'unset'),
-                                      initialValue: _genderValue,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'male',
-                                          child: Text(
-                                            'نێر',
-                                            style: TextStyle(
-                                              fontFamily: kPatientPrimaryFont,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'female',
-                                          child: Text(
-                                            'مێ',
-                                            style: TextStyle(
-                                              fontFamily: kPatientPrimaryFont,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (v) {
-                                        setState(() {
-                                          _genderValue = v;
-                                          _genderFocused = false;
-                                        });
-                                      },
-                                      onTap: () => setState(() => _genderFocused = true),
-                                      icon: Icon(
-                                        Icons.expand_more_rounded,
-                                        color: _genderFocused
-                                            ? _kPersonalInfoPrimaryBlue
-                                            : kPatientNavyText.withValues(alpha: 0.55),
-                                      ),
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                        color: kPatientNavyText.withValues(alpha: 0.9),
-                                      ),
-                                      decoration: _fieldDecoration(
-                                        label: 'ڕەگەز',
-                                        icon: Icons.wc_rounded,
-                                        focused: _genderFocused,
-                                      ),
-                                    ),
+                                    _buildGenderSelectableCards(),
                                     const SizedBox(height: 14),
                                     _miniCardField(
                                       controller: _dobController,

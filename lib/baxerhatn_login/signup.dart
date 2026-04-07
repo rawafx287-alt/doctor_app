@@ -54,6 +54,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _doctorSpecialty;
   String? _selectedDoctorCity;
 
+  /// `male` / `female`; empty until the user picks an option (required to register).
+  String _selectedGender = '';
+
   static const Color _teal = Color(0xFF42A5F5);
   static const Color _roleBlue = Color(0xFF42A5F5);
   static const Color _roleGreen = Color(0xFF66BB6A);
@@ -304,6 +307,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'password': password,
         'role': 'patient',
         'fullName': fullName.isEmpty ? first : fullName,
+        'gender': _selectedGender,
       };
 
       try {
@@ -427,6 +431,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         kDoctorCityField: (_selectedDoctorCity ?? '').trim(),
         'role': 'Doctor',
         'specialty': (_doctorSpecialty ?? '').trim(),
+        'gender': _selectedGender,
         'status': 'pending',
         'isApproved': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -696,6 +701,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         validator: _validateEmail,
                       ),
                       const SizedBox(height: 14),
+                      _buildGenderSection(),
+                      const SizedBox(height: 14),
                       if (_isDoctor) ...[
                         KurdishDoctorSpecialtyDropdown(
                           value: _doctorSpecialty,
@@ -765,6 +772,159 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGenderSection() {
+    final accent = _primaryRoleColor;
+    final s = S.of(context);
+    return FormField<String>(
+      initialValue: _selectedGender.isEmpty ? null : _selectedGender,
+      autovalidateMode: AutovalidateMode.onUnfocus,
+      validator: (v) {
+        final g = (v ?? '').trim();
+        if (g.isEmpty) {
+          return s.translate('validation_gender_required');
+        }
+        return null;
+      },
+      builder: (field) {
+        void select(String value) {
+          setState(() => _selectedGender = value);
+          field.didChange(value);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              textDirection: TextDirection.rtl,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    color: accent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        s.translate('signup_gender_title'),
+                        style: const TextStyle(
+                          color: _muted,
+                          fontFamily: 'NRT',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildGenderChip(
+                              label: s.translate('signup_gender_male'),
+                              selected: _selectedGender == 'male',
+                              accent: accent,
+                              onTap: () => select('male'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildGenderChip(
+                              label: s.translate('signup_gender_female'),
+                              selected: _selectedGender == 'female',
+                              accent: accent,
+                              onTap: () => select('female'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (field.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, right: 4),
+                child: Text(
+                  field.errorText ?? '',
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontFamily: 'NRT',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGenderChip({
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? accent : const Color(0x40FFFFFF),
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.42),
+                      blurRadius: 14,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.18),
+                      blurRadius: 22,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: selected ? _text : _muted.withValues(alpha: 0.95),
+                fontFamily: 'NRT',
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                fontSize: 15,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

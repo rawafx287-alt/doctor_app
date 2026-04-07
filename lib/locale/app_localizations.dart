@@ -441,6 +441,26 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اختر المدينة من القائمة',
     'en': 'Select a city from the list',
   },
+  'validation_gender_required': {
+    'ckb': 'تکایە ڕەگەز هەڵبژێرە',
+    'ar': 'يرجى اختيار الجنس',
+    'en': 'Please select your gender',
+  },
+  'signup_gender_title': {
+    'ckb': 'ڕەگەز',
+    'ar': 'الجنس',
+    'en': 'Gender',
+  },
+  'signup_gender_male': {
+    'ckb': 'نێر',
+    'ar': 'ذكر',
+    'en': 'Male',
+  },
+  'signup_gender_female': {
+    'ckb': 'مێ',
+    'ar': 'أنثى',
+    'en': 'Female',
+  },
   'book_now': {
     'ckb': 'کرتە بکە بۆ نۆرە ووردەکاری',
     'ar': 'اضغط للحجز أو التفاصيل',
