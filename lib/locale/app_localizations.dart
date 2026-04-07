@@ -2870,6 +2870,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'وقت موعدك',
     'en': 'Your appointment time',
   },
+  'booking_summary_day_mismatch': {
+    'ckb': 'ئەم ڕۆژە لەگەڵ زانیاری ڕۆژەکە ناکۆکە. تکایە دووبارە هەڵبژاردن بکەرەوە.',
+    'ar': 'لا يتطابق هذا اليوم مع بيانات التقويم. يرجى اختيار التاريخ مرة أخرى.',
+    'en': 'This day does not match the calendar data. Please pick the date again.',
+  },
   'booking_summary_date_label': {
     'ckb': 'بەروار',
     'ar': 'التاريخ',
@@ -2932,6 +2937,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'بەتاڵە',
     'ar': 'متاح',
     'en': 'Available',
+  },
+  'patient_slot_label_past': {
+    'ckb': 'کات تێپەڕیوە',
+    'ar': 'انتهى الوقت',
+    'en': 'Time has passed',
   },
   'patient_slot_label_yours': {
     'ckb': 'نۆرەی تۆیە',

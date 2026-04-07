@@ -1513,12 +1513,11 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final m = <String, (String?, String, String, Map<String, dynamic>)>{};
     for (final d in docs) {
       final data = d.data();
+      if (!appointmentSlotCountsAsBookedOnPatientSchedule(data)) continue;
       final st = (data[AppointmentFields.status] ?? 'pending')
           .toString()
           .trim()
           .toLowerCase();
-      // Treat cancelled/rejected/available as NOT booked (slot should be available).
-      if (st == 'cancelled' || st == 'canceled' || st == 'available') continue;
       final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
       if (k.isEmpty) continue;
       final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
@@ -1657,7 +1656,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
     AppLocalizations loc,
     DateTime slotStart,
   ) {
-    final slotPast = slotStart.isBefore(DateTime.now());
+    final slotPast = !slotStart.isAfter(DateTime.now());
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,

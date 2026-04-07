@@ -129,21 +129,18 @@ class _MasterCalendarScreenState extends State<MasterCalendarScreen> {
     DateTime day,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> apptDocs,
   ) {
-    final y = day.year;
-    final m = day.month;
-    final d = day.day;
+    final dayOnly = DateTime(day.year, day.month, day.day);
     final set = <String>{};
     for (final doc in apptDocs) {
       final data = doc.data();
-      final st = (data[AppointmentFields.status] ?? 'pending')
-          .toString()
-          .trim()
-          .toLowerCase();
-      if (st == 'cancelled') continue;
-      final ts = data[AppointmentFields.date];
-      if (ts is! Timestamp) continue;
-      final dt = ts.toDate();
-      if (dt.year != y || dt.month != m || dt.day != d) continue;
+      final docDay = appointmentLocalDateOnlyFromData(data);
+      if (docDay == null ||
+          docDay.year != dayOnly.year ||
+          docDay.month != dayOnly.month ||
+          docDay.day != dayOnly.day) {
+        continue;
+      }
+      if (!appointmentSlotCountsAsBookedOnPatientSchedule(data)) continue;
       final t = (data[AppointmentFields.time] ?? '').toString().trim();
       if (t.isEmpty) continue;
       final parts = t.split(':');
@@ -1576,13 +1573,8 @@ class _DayAgendaPanel extends StatelessWidget {
             }
 
             final appt = apptsToday[label];
-            final st = appt != null
-                ? (appt.data()[AppointmentFields.status] ?? 'pending')
-                      .toString()
-                      .toLowerCase()
-                : '';
-            final isCancelled = st == 'cancelled';
-            final booked = appt != null && !isCancelled;
+            final booked = appt != null &&
+                appointmentSlotCountsAsBookedOnPatientSchedule(appt.data());
 
             if (blockId != null && blockData != null) {
               return _SlotTile(

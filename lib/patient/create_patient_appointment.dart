@@ -23,13 +23,39 @@ Map<String, dynamic>? _scheduleOverridesFromDoctorData(Map<String, dynamic>? dat
   return normalized;
 }
 
+/// On **today** (local), drops slot starts that are not strictly after [DateTime.now].
+List<int> _futureSlotStartMinutesForPatientDay({
+  required DateTime dayStart,
+  required List<int> windowStarts,
+}) {
+  final nowClock = DateTime.now();
+  final todayStart = DateTime(nowClock.year, nowClock.month, nowClock.day);
+  if (dayStart.year != todayStart.year ||
+      dayStart.month != todayStart.month ||
+      dayStart.day != todayStart.day) {
+    return windowStarts;
+  }
+  return windowStarts
+      .where((m) {
+        final slotDt = DateTime(
+          dayStart.year,
+          dayStart.month,
+          dayStart.day,
+          m ~/ 60,
+          m % 60,
+        );
+        return slotDt.isAfter(nowClock);
+      })
+      .toList();
+}
+
 Set<String> _bookedTimeKeysFromAppointmentDocs(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
 ) {
   final set = <String>{};
   for (final doc in docs) {
     final data = doc.data();
-    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
+    if (!appointmentSlotCountsAsBookedOnPatientSchedule(data)) continue;
     final t = (data[AppointmentFields.time] ?? '').toString().trim();
     if (t.isEmpty) continue;
     final parts = t.split(':');
@@ -110,7 +136,14 @@ Future<String?> createPatientAppointment({
     win.endMinutes,
     step: step,
   );
-  if (!allowedStarts.contains(slotStartMinutes)) {
+  final allowedStartsEffective = _futureSlotStartMinutesForPatientDay(
+    dayStart: dayStart,
+    windowStarts: allowedStarts,
+  );
+  if (allowedStartsEffective.isEmpty) {
+    return 'booking_date_fully_booked';
+  }
+  if (!allowedStartsEffective.contains(slotStartMinutes)) {
     return 'booking_slot_invalid';
   }
 
@@ -121,7 +154,10 @@ Future<String?> createPatientAppointment({
   ).get();
 
   final bookedKeys = _bookedTimeKeysFromAppointmentDocs(sameDay.docs);
-  final nextSequential = earliestSequentialFreeSlotStartMinutes(allowedStarts, bookedKeys);
+  final nextSequential = earliestSequentialFreeSlotStartMinutes(
+    allowedStartsEffective,
+    bookedKeys,
+  );
   if (nextSequential == null) return 'booking_date_fully_booked';
   if (slotStartMinutes != nextSequential) return 'booking_sequential_must_pick_first';
 
@@ -298,6 +334,16 @@ Future<String?> bookPatientAppointmentAtScheduleSlot({
   );
   if (!allowedStarts.contains(slotStartMinutes)) {
     return 'booking_slot_invalid';
+  }
+  final allowedStartsEffective = _futureSlotStartMinutesForPatientDay(
+    dayStart: dayStart,
+    windowStarts: allowedStarts,
+  );
+  if (allowedStartsEffective.isEmpty) {
+    return 'booking_date_fully_booked';
+  }
+  if (!allowedStartsEffective.contains(slotStartMinutes)) {
+    return 'schedule_booking_past_slot';
   }
 
   final merged = await fetchMergedDoctorAppointmentDocsForLocalDay(

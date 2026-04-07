@@ -70,16 +70,33 @@ abstract final class RejectedAppointmentFields {
   static const String rejectedDayKey = 'rejectedDayKey';
 }
 
-/// `true` when another patient must not book this time (active / waiting appointment).
+/// `true` when another patient must not book this time.
+///
+/// **Completed / done visits stay locked for the rest of that calendar day** (secretary “تەواوبوو”),
+/// even if patient fields are cleared later. Only freed placeholders (`available`) and
+/// cancelled/rejected rows allow reuse.
 bool appointmentDocBlocksSlotForNewPatientBooking(Map<String, dynamic> data) {
   final s =
       (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
   if (s == 'available') return false;
   if (s == 'cancelled' || s == 'canceled') return false;
-  if (s == 'completed' || s == 'complete' || s == 'done') return false;
   if (s == 'rejected') return false;
-  // pending, confirmed, booked, waiting, etc.
+  // pending, booked, confirmed, waiting, completed, done, …
   return true;
+}
+
+/// Patient schedule UI (بەتاڵ vs booked): must stay in sync with doctor/staff slot rules.
+///
+/// **Completed / done** always shows as occupied (even if [AppointmentFields.isBooked] is false or
+/// patient ids were cleared). Otherwise: explicit [AppointmentFields.isBooked] `false` → free, or
+/// follow [appointmentDocBlocksSlotForNewPatientBooking].
+bool appointmentSlotCountsAsBookedOnPatientSchedule(Map<String, dynamic> data) {
+  final s =
+      (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
+  if (s == 'completed' || s == 'complete' || s == 'done') return true;
+  final ib = data[AppointmentFields.isBooked];
+  if (ib == false) return false;
+  return appointmentDocBlocksSlotForNewPatientBooking(data);
 }
 
 /// Archives the prior appointment payload, then frees the live [appointments] doc for re-booking.

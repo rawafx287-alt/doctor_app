@@ -797,6 +797,48 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                     );
                   }
 
+                  final expectedDayDocId = availableDayDocumentId(
+                    doctorUserId: _doctorUid,
+                    dateLocal: dayOnly,
+                  );
+                  if (widget.availableDayDocId.trim() != expectedDayDocId) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          s.translate('booking_summary_day_mismatch'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _kBodyMuted,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final dayOnAvailableDayDoc = availableDayDateOnlyFromData(dayData);
+                  if (dayOnAvailableDayDoc != null &&
+                      (dayOnAvailableDayDoc.year != dayOnly.year ||
+                          dayOnAvailableDayDoc.month != dayOnly.month ||
+                          dayOnAvailableDayDoc.day != dayOnly.day)) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          s.translate('booking_summary_day_mismatch'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _kBodyMuted,
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
                   final startHhMm = normalizeAvailableDayStartTimeHhMm(
                     dayData[AvailableDayFields.startTime],
                   );
@@ -841,6 +883,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           ),
                         );
                       }
+                      if (apptSnap.connectionState == ConnectionState.waiting &&
+                          !apptSnap.hasData) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF42A5F5),
+                            ),
+                          ),
+                        );
+                      }
 
                       final docs =
                           apptSnap.data ??
@@ -849,9 +902,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         sameDayDocs: docs,
                         availableDayDocId: widget.availableDayDocId,
                       );
-                      final firstFree = firstAvailableSlotStart(
+                      final now = DateTime.now();
+                      final todayStart =
+                          DateTime(now.year, now.month, now.day);
+                      final bookingDayIsToday = dayOnly.year == todayStart.year &&
+                          dayOnly.month == todayStart.month &&
+                          dayOnly.day == todayStart.day;
+                      final firstFree = firstBookableSlotStartForPatientDay(
                         slots: slots,
                         bookedKeys: bookedKeys,
+                        dayOnlyLocal: dayOnly,
                       );
                       final assignedTimeDisplay = firstFree != null
                           ? DateFormat.jm(localeTag).format(firstFree)
@@ -864,9 +924,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         localeTag,
                       ).format(widget.dateLocal);
 
-                      final bookedCount = bookedKeys.length;
                       final totalCapacity = slots.length;
-                      final spotsLeft = (totalCapacity - bookedCount).clamp(
+                      final bookableSlotsLeft = slots.where((slot) {
+                        final k = formatTimeHhMm(slot);
+                        if (bookedKeys.contains(k)) return false;
+                        if (bookingDayIsToday && !slot.isAfter(now)) {
+                          return false;
+                        }
+                        return true;
+                      }).length;
+                      final takenOrLocked =
+                          (totalCapacity - bookableSlotsLeft).clamp(
                         0,
                         totalCapacity,
                       );
@@ -982,7 +1050,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                           child: _BookingCapacityStats(
                                             bookedText: _localizedDigitString(
                                               context,
-                                              bookedCount,
+                                              takenOrLocked,
                                             ),
                                             totalText: _localizedDigitString(
                                               context,
@@ -993,7 +1061,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                               params: {
                                                 'x': _localizedDigitString(
                                                   context,
-                                                  spotsLeft,
+                                                  bookableSlotsLeft,
                                                 ),
                                               },
                                             ),
@@ -1108,10 +1176,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         final isBooked = bookedKeys.contains(
                                           key,
                                         );
+                                        final isPastSlot = bookingDayIsToday &&
+                                            !slot.isAfter(now);
                                         final assigned = firstFree;
                                         final isYourSlot =
                                             assigned != null &&
                                             !isBooked &&
+                                            !isPastSlot &&
                                             key == formatTimeHhMm(assigned);
                                         final dimOthers =
                                             firstFree != null &&
@@ -1125,13 +1196,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                             ? s.translate(
                                                 'patient_slot_label_booked',
                                               )
-                                            : (isYourSlot
+                                            : (isPastSlot
                                                   ? s.translate(
-                                                      'patient_slot_label_yours',
+                                                      'patient_slot_label_past',
                                                     )
-                                                  : s.translate(
-                                                      'patient_slot_label_available',
-                                                    ));
+                                                  : (isYourSlot
+                                                        ? s.translate(
+                                                            'patient_slot_label_yours',
+                                                          )
+                                                        : s.translate(
+                                                            'patient_slot_label_available',
+                                                          )));
 
                                         final statusStyle = TextStyle(
                                           fontFamily: kPatientPrimaryFont,
@@ -1141,9 +1216,13 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                               : FontWeight.w800,
                                           color: isBooked
                                               ? _kBookedRed
-                                              : (isYourSlot
-                                                    ? _kNavy
-                                                    : _kEmeraldAvailable),
+                                              : (isPastSlot
+                                                    ? _kBodyMuted.withValues(
+                                                        alpha: 0.75,
+                                                      )
+                                                    : (isYourSlot
+                                                          ? _kNavy
+                                                          : _kEmeraldAvailable)),
                                         );
 
                                         Widget card = DecoratedBox(

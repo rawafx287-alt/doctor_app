@@ -152,6 +152,9 @@ String normalizeAppointmentTimeToHhMm(dynamic raw) {
 
 /// Booked slot keys (`HH:mm`) for this [availableDayDocId], including legacy rows
 /// (no [AppointmentFields.availableDayDocId]) on the same calendar day.
+///
+/// Uses [appointmentSlotCountsAsBookedOnPatientSchedule] so freed slots (`status: available`,
+/// `isBooked: false`, etc.) match doctor/staff schedule — not only `cancelled`.
 Set<String> bookedTimeKeysHhMmForAvailableDay({
   required Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> sameDayDocs,
   required String availableDayDocId,
@@ -163,9 +166,7 @@ Set<String> bookedTimeKeysHhMmForAvailableDay({
     final docAid =
         (data[AppointmentFields.availableDayDocId] ?? '').toString().trim();
     if (docAid.isNotEmpty && docAid != aid) continue;
-    final st =
-        (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
-    if (st == 'cancelled') continue;
+    if (!appointmentSlotCountsAsBookedOnPatientSchedule(data)) continue;
     final t = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
     if (t.isEmpty) continue;
     out.add(t);
@@ -181,6 +182,27 @@ DateTime? firstAvailableSlotStart({
   for (final s in slots) {
     final k = formatTimeHhMm(s);
     if (!bookedKeys.contains(k)) return s;
+  }
+  return null;
+}
+
+/// Like [firstAvailableSlotStart], but on **today** (local) skips slot starts that are not
+/// strictly after [DateTime.now] so patients cannot book past times.
+DateTime? firstBookableSlotStartForPatientDay({
+  required List<DateTime> slots,
+  required Set<String> bookedKeys,
+  required DateTime dayOnlyLocal,
+}) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final isToday = dayOnlyLocal.year == today.year &&
+      dayOnlyLocal.month == today.month &&
+      dayOnlyLocal.day == today.day;
+  for (final s in slots) {
+    final k = formatTimeHhMm(s);
+    if (bookedKeys.contains(k)) continue;
+    if (isToday && !s.isAfter(now)) continue;
+    return s;
   }
   return null;
 }
@@ -425,9 +447,10 @@ Future<String?> bookAvailableDayTransaction({
       availableDayDocId: availableDayDocId,
     );
 
-    final freeStart = firstAvailableSlotStart(
+    final freeStart = firstBookableSlotStartForPatientDay(
       slots: slots,
       bookedKeys: bookedKeys,
+      dayOnlyLocal: dayStart,
     );
     if (freeStart == null) return 'available_day_full';
 
