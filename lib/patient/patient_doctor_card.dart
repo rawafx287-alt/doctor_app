@@ -80,8 +80,8 @@ class PatientDoctorCard extends StatelessWidget {
 
   static const double _radius = 20;
 
-  /// Slim card content; image matches this height.
-  static const double _kCardContentHeight = 112;
+  /// Card row height — image strip matches; sized for chip + name + CTA without overflow.
+  static const double _kCardContentHeight = 136;
   static const double _kImageStripWidth = 96;
   static const double _kImageCornerRadius = 16;
 

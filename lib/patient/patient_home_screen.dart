@@ -1647,9 +1647,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       index: _bottomNavIndex,
                       sizing: StackFit.expand,
                       children: [
-                        PatientHomeContent._(this),
-                        const PatientAppointmentsScreen(embedded: true),
-                        const PatientProfileScreen(),
+                        SizedBox.expand(
+                          child: PatientHomeContent._(this),
+                        ),
+                        const SizedBox.expand(
+                          child: PatientAppointmentsScreen(embedded: true),
+                        ),
+                        const SizedBox.expand(
+                          child: PatientProfileScreen(),
+                        ),
                       ],
                     ),
                   ),
