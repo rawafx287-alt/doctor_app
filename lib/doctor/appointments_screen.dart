@@ -20,7 +20,6 @@ import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
-import '../patient/create_patient_appointment.dart';
 import 'doctor_premium_shell.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -146,7 +145,7 @@ class AppointmentsScreen extends StatefulWidget {
               AppointmentsScreen._statusKey(apptData[AppointmentFields.status]);
           final isTerminal =
               appointmentStatusIsTerminalForStaffSort(apptSt);
-          final isPending = apptSt == 'pending';
+          final isPending = appointmentStatusIsDoctorWaitingQueue(apptSt);
           final cancelReason = (apptData[AppointmentFields.cancellationReason] ??
                   '')
               .toString()
@@ -943,7 +942,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       queueEn: formatDailyQueueTicketEnglish(doc, queueById),
                       status: status,
                       cancellationReason: cancelReason,
-                      showActions: status == 'pending',
+                      showActions:
+                          appointmentStatusIsDoctorWaitingQueue(status),
                       canCancel: canCancel,
                       onCardTap: () =>
                           AppointmentsScreen.showDoctorPatientDetailBottomSheet(
@@ -1062,7 +1062,7 @@ Map<String, QueryDocumentSnapshot<Map<String, dynamic>>>
       if (appointmentStatusIsOccupiedPatientSlot(st)) score += 15;
       final name = (data[AppointmentFields.patientName] ?? '').toString().trim();
       if (name.isNotEmpty && name != '—') score += 10;
-      if (st == 'pending') score += 5;
+      if (appointmentStatusIsDoctorWaitingQueue(st)) score += 5;
       if (score > bestScore) {
         bestScore = score;
         best = d;
@@ -1178,7 +1178,7 @@ DateTime? _slotDateTimeOnDayFromHhMmKey(DateTime dayOnly, String hhmm) {
   return DateTime(dayOnly.year, dayOnly.month, dayOnly.day, h, m);
 }
 
-/// Booked slots only (includes rejected when present in [byKeyAll]), filtered by patient name.
+/// Real patient rows only (excludes freed `available` placeholders), filtered by name.
 ///
 /// Includes **every** appointment for the day in [byKeyAll], not only times that appear on the
 /// generated clinic grid. Past times stay visible so the secretary sees the full day.
@@ -1213,6 +1213,10 @@ List<DateTime> _visibleBookedSlotsForSearch(
     final k = formatTimeHhMm(slot);
     final doc = byKeyAll[k];
     if (doc == null) continue;
+    final st = AppointmentsScreen._statusKey(
+      doc.data()[AppointmentFields.status],
+    );
+    if (st == 'available') continue;
     final name =
         (doc.data()[AppointmentFields.patientName] ?? '').toString();
     if (q.isEmpty || name.toLowerCase().contains(q)) {
@@ -1220,101 +1224,6 @@ List<DateTime> _visibleBookedSlotsForSearch(
     }
   }
   return out;
-}
-
-Future<void> _openStaffWalkInBooking(
-  BuildContext context, {
-  required String doctorUserId,
-  required DateTime dayLocal,
-  required DateTime slotStart,
-}) async {
-  final s = S.of(context);
-  final nameController = TextEditingController();
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (dctx) {
-      return AlertDialog(
-        backgroundColor: const Color(0xFF1D1E33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(
-          s.translate('master_calendar_add_walkin'),
-          style: const TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            color: Color(0xFFD9E2EC),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: TextField(
-          controller: nameController,
-          style: const TextStyle(
-            color: Color(0xFFD9E2EC),
-            fontFamily: kPatientPrimaryFont,
-          ),
-          decoration: InputDecoration(
-            labelText: s.translate('doctor_appt_patient_name_label'),
-            labelStyle: const TextStyle(color: Color(0xFF829AB1)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: Text(
-              s.translate('action_cancel'),
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                color: Color(0xFF42A5F5),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: Text(
-              s.translate('confirm_booking'),
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                color: Color(0xFF42A5F5),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-  if (ok != true) {
-    nameController.dispose();
-    return;
-  }
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final slotMinutes = slotStart.hour * 60 + slotStart.minute;
-  final err = await createStaffAppointment(
-    doctorId: doctorUserId,
-    dateLocal: dayLocal,
-    slotStartMinutes: slotMinutes,
-    patientName: nameController.text,
-    createdByUid: uid,
-  );
-  nameController.dispose();
-  if (!context.mounted) return;
-  if (err != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          s.translate(err),
-          style: const TextStyle(fontFamily: kPatientPrimaryFont),
-        ),
-      ),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          s.translate('master_calendar_saved'),
-          style: const TextStyle(fontFamily: kPatientPrimaryFont),
-        ),
-      ),
-    );
-  }
 }
 
 /// Aggregates for today's appointment stats row (same [status] rules as the list cards).
@@ -1332,7 +1241,7 @@ Future<void> _openStaffWalkInBooking(
     counted++;
     if (st == 'completed' || st == 'complete' || st == 'done') {
       completed++;
-    } else if (st == 'pending' || st == 'waiting') {
+    } else if (appointmentStatusIsDoctorWaitingQueue(st)) {
       waiting++;
     }
   }
@@ -1697,8 +1606,6 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                                 slotStart: orderedSlots[i],
                                 appointmentDoc:
                                     byKeyAll[formatTimeHhMm(orderedSlots[i])]!,
-                                doctorUserId: doctorUserId,
-                                dayLocal: todayOnly,
                                 queueByDocId: queueById,
                                 onSetStatus: onSetStatus,
                               ),
@@ -1765,20 +1672,16 @@ class _DoctorCompletedAppointmentsSectionHeader extends StatelessWidget {
 
 /// Clock + time pill for doctor slot cards (secondary to the patient name chip).
 class _DoctorSlotTimePill extends StatelessWidget {
-  const _DoctorSlotTimePill({
-    required this.timeLabel,
-    this.alignment = Alignment.center,
-  });
+  const _DoctorSlotTimePill({required this.timeLabel});
 
   final String timeLabel;
-  final Alignment alignment;
 
   @override
   Widget build(BuildContext context) {
     final textColor =
         Color.lerp(kStaffLuxGold, const Color(0xFFF8FAFC), 0.42)!;
     return Align(
-      alignment: alignment,
+      alignment: Alignment.center,
       child: Directionality(
         textDirection: ui.TextDirection.ltr,
         child: DecoratedBox(
@@ -1834,16 +1737,12 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     super.key,
     required this.slotStart,
     required this.appointmentDoc,
-    required this.doctorUserId,
-    required this.dayLocal,
     required this.queueByDocId,
     required this.onSetStatus,
   });
 
   final DateTime slotStart;
   final QueryDocumentSnapshot<Map<String, dynamic>>? appointmentDoc;
-  final String doctorUserId;
-  final DateTime dayLocal;
   final Map<String, int> queueByDocId;
   final Future<void> Function(BuildContext context, String docId, String status)
   onSetStatus;
@@ -1862,7 +1761,8 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     final patientName = booked
         ? (data[AppointmentFields.patientName] ?? '—').toString()
         : '';
-    final showActions = booked && status == 'pending';
+    final showActions =
+        booked && appointmentStatusIsDoctorWaitingQueue(status);
     final isTerminal =
         booked && appointmentStatusIsTerminalForStaffSort(status);
     final cancelReason = booked
@@ -1876,7 +1776,8 @@ class _DoctorSlotGlassCard extends StatelessWidget {
     final patientId = booked
         ? (data[AppointmentFields.patientId] ?? '').toString().trim()
         : '';
-    final stripGold = booked && status == 'pending';
+    final stripGold =
+        booked && appointmentStatusIsDoctorWaitingQueue(status);
 
     Widget cardBody({
       required Map<String, dynamic>? profile,
@@ -1931,130 +1832,96 @@ class _DoctorSlotGlassCard extends StatelessWidget {
           ? formatDailyQueueTicketEnglish(apptDoc, queueByDocId)
           : '—';
 
-      /// Name (chip) then time for booked; empty slots: copy then time at bottom.
-      /// Ticket stays in the outer card [Row] on the end.
+      /// Name (chip) then time; ticket stays in the outer card [Row] on the end.
       Widget mainTapChild = Padding(
         padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 82),
           child: Column(
-            crossAxisAlignment: booked
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (booked) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.white.withValues(
-                        alpha: stripGold ? 0.11 : 0.07,
-                      ),
-                      border: Border.all(
-                        color: kStaffLuxGold.withValues(
-                          alpha: stripGold ? 0.42 : 0.32,
-                        ),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.16),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              SizedBox(
+                width: double.infinity,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(
+                      alpha: stripGold ? 0.11 : 0.07,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                    border: Border.all(
+                      color: kStaffLuxGold.withValues(
+                        alpha: stripGold ? 0.42 : 0.32,
                       ),
-                      child: Text(
-                        patientName,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          height: 1.18,
-                          letterSpacing: -0.2,
-                          color: const Color(0xFFF8FAFC),
-                          decoration: isCancelled
-                              ? TextDecoration.lineThrough
-                              : null,
-                          decorationColor:
-                              Colors.white.withValues(alpha: 0.55),
-                          decorationThickness: 1.2,
-                        ),
-                      ),
+                      width: 1,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 2),
-                SizedBox(
-                  width: double.infinity,
-                  child: _DoctorSlotTimePill(timeLabel: timeEn),
-                ),
-                if (isTerminal && clinicClosed) ...[
-                  const SizedBox(height: 4),
-                  Container(
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          const Color(0xFFB71C1C).withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: const Color(0xFFE57373)
-                            .withValues(alpha: 0.42),
-                      ),
+                      horizontal: 10,
+                      vertical: 6,
                     ),
                     child: Text(
-                      s.translate('doctor_appt_tag_clinic_closed'),
+                      patientName,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.w800,
-                        fontSize: 8.5,
-                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 16,
+                        height: 1.18,
+                        letterSpacing: -0.2,
+                        color: const Color(0xFFF8FAFC),
+                        decoration: isCancelled
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor:
+                            Colors.white.withValues(alpha: 0.55),
+                        decorationThickness: 1.2,
                       ),
                     ),
                   ),
-                ],
-              ],
-              if (!booked) ...[
-                Text(
-                  s.translate('schedule_slot_available_ku'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    height: 1.1,
-                    color: Colors.white.withValues(alpha: 0.92),
-                  ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  s.translate('master_calendar_add_walkin'),
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 9,
-                    color: Colors.white.withValues(alpha: 0.48),
+              ),
+              const SizedBox(height: 2),
+              SizedBox(
+                width: double.infinity,
+                child: _DoctorSlotTimePill(timeLabel: timeEn),
+              ),
+              if (isTerminal && clinicClosed) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
                   ),
-                ),
-                const SizedBox(height: 5),
-                _DoctorSlotTimePill(
-                  timeLabel: timeEn,
-                  alignment: Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color:
+                        const Color(0xFFB71C1C).withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: const Color(0xFFE57373)
+                          .withValues(alpha: 0.42),
+                    ),
+                  ),
+                  child: Text(
+                    s.translate('doctor_appt_tag_clinic_closed'),
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 8.5,
+                      color: Colors.white.withValues(alpha: 0.88),
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -2068,9 +1935,7 @@ class _DoctorSlotGlassCard extends StatelessWidget {
           filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF0A1628).withValues(
-                alpha: booked ? 0.52 : 0.44,
-              ),
+              color: const Color(0xFF0A1628).withValues(alpha: 0.52),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: cardBorderColor,
@@ -2194,25 +2059,17 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: booked
-                              ? () {
-                                  final d = appointmentDoc;
-                                  if (d == null) return;
-                                  AppointmentsScreen
-                                      .showDoctorPatientDetailBottomSheet(
-                                    context,
-                                    appointmentDoc: d,
-                                    slotStart: slotStart,
-                                    queueByDocId: queueByDocId,
-                                    onSetStatus: onSetStatus,
-                                  );
-                                }
-                              : () => _openStaffWalkInBooking(
-                                    context,
-                                    doctorUserId: doctorUserId,
-                                    dayLocal: dayLocal,
-                                    slotStart: slotStart,
-                                  ),
+                          onTap: () {
+                            final d = appointmentDoc;
+                            if (d == null) return;
+                            AppointmentsScreen.showDoctorPatientDetailBottomSheet(
+                              context,
+                              appointmentDoc: d,
+                              slotStart: slotStart,
+                              queueByDocId: queueByDocId,
+                              onSetStatus: onSetStatus,
+                            );
+                          },
                           child: Directionality(
                             textDirection:
                                 AppLocaleScope.of(context).textDirection,
@@ -2328,9 +2185,6 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       return card;
     }
 
-    if (!booked) {
-      return cardBody(profile: null, patientLoading: false);
-    }
     if (patientId.isEmpty) {
       return cardBody(profile: null, patientLoading: false);
     }
@@ -2692,7 +2546,7 @@ class _AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S.of(context);
     final st = AppointmentsScreen._statusKey(status);
-    final stripGold = st == 'pending';
+    final stripGold = appointmentStatusIsDoctorWaitingQueue(st);
     final isCancelled = appointmentStatusIsCancelled(st);
     final clinicClosed =
         cancellationReason == kAppointmentCancellationReasonClinicClosed;

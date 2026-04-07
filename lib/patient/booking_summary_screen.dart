@@ -154,7 +154,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Future<bool> _hasActiveAppointmentForPatient(String patientUid) async {
     final uid = patientUid.trim();
     if (uid.isEmpty) return false;
-    const activeStatuses = {'pending', 'confirmed', 'arrived'};
+    const activeStatuses = {'pending', 'booked', 'confirmed', 'arrived'};
 
     final col = FirebaseFirestore.instance.collection(
       AppointmentFields.collection,

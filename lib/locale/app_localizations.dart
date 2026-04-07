@@ -2464,6 +2464,16 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'هذا الوقت متاح لموعد جديد.',
     'en': 'This slot is open for booking.',
   },
+  'schedule_booking_staff_only': {
+    'ckb': 'تەنها نەخۆشەکان دەتوانن لەم شوێنەوە نۆرە بگرن؛ کارمەندەکان نەخۆش بە دەست زیاد ناکەن.',
+    'ar': 'يمكن للمرضى فقط حجز الموعد من هنا؛ لا يضيف الموظفون المرضى يدوياً.',
+    'en': 'Only patients can book from here; staff no longer add patients manually.',
+  },
+  'schedule_booking_past_slot': {
+    'ckb': 'ناتوانیت بۆ کاتی ڕابردوو نۆرە بگریت.',
+    'ar': 'لا يمكن حجز موعد في وقت مضى.',
+    'en': 'You cannot book a time that has already passed.',
+  },
   'schedule_dashboard_save_hint': {
     'ckb': 'پاشکەوتکردن لە تابی ڕێکخستن',
     'ar': 'احفظ من تبويب الإعدادات',
