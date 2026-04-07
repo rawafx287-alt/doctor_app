@@ -1096,6 +1096,52 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'العنوان',
     'en': 'Address',
   },
+  'doctor_rating_section_title': {
+    'ckb': 'ئەم پزیشکە بەرز بکەرەوە',
+    'ar': 'قيّم هذا الطبيب',
+    'en': 'Rate this doctor',
+  },
+  'doctor_rating_tap_stars': {
+    'ckb': '١ بۆ ٥ ئەستێرە هەڵبژێرە',
+    'ar': 'اختر من ١ إلى ٥ نجوم',
+    'en': 'Tap 1–5 stars',
+  },
+  'doctor_rating_comment_hint': {
+    'ckb': 'پێداچوونەوە (دڵخواز)',
+    'ar': 'مراجعة نصية (اختياري)',
+    'en': 'Written review (optional)',
+  },
+  'doctor_rating_submit': {
+    'ckb': 'ناردن',
+    'ar': 'إرسال',
+    'en': 'Submit',
+  },
+  'doctor_rating_thanks': {
+    'ckb': 'سوپاس! هەڵسەنگاندنەکەت تۆمار کرا',
+    'ar': 'شكرًا! تم حفظ تقييمك',
+    'en': 'Thanks! Your rating was saved',
+  },
+  'doctor_rating_already': {
+    'ckb': 'تۆ پێشتر ئەم پزیشکەت هەڵسەنگاندووە',
+    'ar': 'لقد قيّمت هذا الطبيب مسبقًا',
+    'en': 'You already rated this doctor',
+  },
+  'doctor_rating_need_visit': {
+    'ckb':
+        'تەنها دوای تەواوبوونی نۆرەیەک لەگەڵ ئەم پزیشکە دەتوانیت نرخاندن بکەیت',
+    'ar': 'يمكنك التقييم بعد إكمال موعد مع هذا الطبيب',
+    'en': 'You can rate after a completed appointment with this doctor',
+  },
+  'doctor_rating_error': {
+    'ckb': 'نەتوانرا نرخاندن بنێردرێت، دووبارە هەوڵ بدەرەوە',
+    'ar': 'تعذر إرسال التقييم',
+    'en': 'Could not submit rating',
+  },
+  'doctor_card_rating_none': {
+    'ckb': 'هێشتا نرخاندن نییە',
+    'ar': 'لا تقييمات بعد',
+    'en': 'No ratings yet',
+  },
   'doctor_experience_years': {
     'ckb': '{years} ساڵ ئەزموون',
     'ar': '{years} سنوات خبرة',

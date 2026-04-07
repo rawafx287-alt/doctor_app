@@ -12,6 +12,7 @@ import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../specialty_categories.dart';
 import '../theme/patient_premium_theme.dart';
+import 'doctor_rate_doctor_panel.dart';
 import 'patient_available_days_list.dart';
 import 'patient_scroll_physics.dart';
 
@@ -712,6 +713,14 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                       profileImageUrl: profileImageUrl,
                                       context: context,
                                     ),
+                                    if (pid.isNotEmpty) ...[
+                                      const SizedBox(height: 18),
+                                      DoctorRateDoctorPanel(
+                                        doctorId: _doctorUid,
+                                        patientDocId: pid,
+                                        authUid: user.uid,
+                                      ),
+                                    ],
                                     if (bio.isNotEmpty) ...[
                                       const SizedBox(height: 18),
                                       _glassInfoCard(

@@ -1,9 +1,11 @@
 import 'dart:async' show unawaited;
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -248,7 +250,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         const SizedBox(height: 10),
         Row(
           textDirection: TextDirection.rtl,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _genderSelectableCard(
@@ -289,8 +291,10 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         child: InkWell(
           onTap: _saving ? null : () => unawaited(_onGenderCardTap(value)),
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 118),
+          child: SizedBox(
+            height: 122,
+            width: double.infinity,
+            child: Container(
             padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
             decoration: BoxDecoration(
               color: selected ? _kGenderSelectedFill : Colors.white,
@@ -366,6 +370,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                     ),
                   ),
               ],
+            ),
             ),
           ),
         ),
@@ -503,30 +508,43 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
   Future<void> _pickDob() async {
     final now = DateTime.now();
-    final initial = _dob ?? DateTime(now.year - 22, now.month, now.day);
-    final picked = await showDatePicker(
+    final firstDate = DateTime(1920, 1, 1);
+    final initial = _clampDobForPicker(_dob, firstDate, now);
+
+    await showModalBottomSheet<void>(
       context: context,
-      initialDate: initial,
-      firstDate: DateTime(1920),
-      lastDate: now,
-      helpText: 'بەرواری لەدایکبوون',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: _kPersonalInfoPrimaryBlue,
-                ),
-          ),
-          child: child!,
+      isScrollControlled: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _PatientDobPickerSheet(
+          initialDate: initial,
+          firstDate: firstDate,
+          lastDate: now,
+          onSelect: (picked) {
+            if (!mounted) return;
+            setState(() {
+              _dob = picked;
+              _dobController.text = DateFormat('yyyy/MM/dd').format(picked);
+            });
+            Navigator.of(ctx).pop();
+          },
         );
       },
     );
-    if (!mounted) return;
-    if (picked == null) return;
-    setState(() {
-      _dob = picked;
-      _dobController.text = DateFormat('yyyy/MM/dd').format(picked);
-    });
+  }
+
+  /// Default to year **2000** when no DOB yet (less scrolling from 2026).
+  static DateTime _clampDobForPicker(
+    DateTime? existing,
+    DateTime first,
+    DateTime last,
+  ) {
+    final base = existing ?? DateTime(2000, 6, 15);
+    var d = DateTime(base.year, base.month, base.day);
+    if (d.isBefore(first)) return first;
+    if (d.isAfter(last)) return last;
+    return d;
   }
 
   Future<void> _save() async {
@@ -955,6 +973,215 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                     ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass-style bottom sheet with [CupertinoDatePicker] wheels (no Material OK/Cancel).
+class _PatientDobPickerSheet extends StatefulWidget {
+  const _PatientDobPickerSheet({
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+    required this.onSelect,
+  });
+
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final ValueChanged<DateTime> onSelect;
+
+  @override
+  State<_PatientDobPickerSheet> createState() => _PatientDobPickerSheetState();
+}
+
+class _PatientDobPickerSheetState extends State<_PatientDobPickerSheet> {
+  late DateTime _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialDate;
+  }
+
+  LinearGradient get _primaryGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          _kPersonalInfoPrimaryBlue,
+          const Color(0xFF42A5F5),
+          _kPersonalInfoGold.withValues(alpha: 0.92),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+    final pickerStyle = TextStyle(
+      fontFamily: kPatientPrimaryFont,
+      fontWeight: FontWeight.w600,
+      fontSize: 17,
+      height: 1.2,
+      color: kPatientNavyText.withValues(alpha: 0.88),
+    );
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomSafe > 0 ? bottomSafe : 8),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.82),
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    width: 1,
+                  ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    blurRadius: 28,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: kPatientNavyText.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'بەرواری لەدایکبوون',
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17.5,
+                        color: kPatientNavyText.withValues(alpha: 0.92),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 216,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Container(
+                              height: 42,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    _kPersonalInfoPrimaryBlue
+                                        .withValues(alpha: 0.2),
+                                    const Color(0xFF42A5F5)
+                                        .withValues(alpha: 0.16),
+                                    _kPersonalInfoGold.withValues(alpha: 0.2),
+                                  ],
+                                ),
+                                border: Border.all(
+                                  color: _kPersonalInfoPrimaryBlue
+                                      .withValues(alpha: 0.35),
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _kPersonalInfoPrimaryBlue
+                                        .withValues(alpha: 0.12),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          CupertinoTheme(
+                            data: CupertinoThemeData(
+                              brightness: Brightness.light,
+                              textTheme: CupertinoTextThemeData(
+                                dateTimePickerTextStyle: pickerStyle,
+                              ),
+                            ),
+                            child: CupertinoDatePicker(
+                              mode: CupertinoDatePickerMode.date,
+                              initialDateTime: _selected,
+                              minimumDate: widget.firstDate,
+                              maximumDate: widget.lastDate,
+                              backgroundColor: Colors.transparent,
+                              onDateTimeChanged: (d) {
+                                setState(() => _selected = d);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          gradient: _primaryGradient,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.14),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => widget.onSelect(_selected),
+                            child: Center(
+                              child: Text(
+                                'هەڵبژاردن',
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withValues(alpha: 0.22),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

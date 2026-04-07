@@ -10,6 +10,7 @@ import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
 import 'doctor_details_screen.dart';
 import 'patient_doctor_booking_screen.dart';
+import 'doctor_rating_service.dart';
 import 'patient_doctor_card.dart';
 import 'patient_scroll_physics.dart';
 
@@ -236,6 +237,8 @@ class HospitalDoctorsScreen extends StatelessWidget {
                             specialty: specialty,
                             profileImageUrl:
                                 (data['profileImageUrl'] ?? '').toString(),
+                            ratingAverage: doctorRatingAverageFromData(data),
+                            ratingCount: doctorRatingCountFromData(data),
                             onBook: () {
                               Navigator.push<void>(
                                 context,

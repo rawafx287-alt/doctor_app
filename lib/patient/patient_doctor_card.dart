@@ -59,6 +59,8 @@ class PatientDoctorCard extends StatelessWidget {
     required this.onBook,
     required this.onOpenDetails,
     this.profileImageUrl,
+    this.ratingAverage = 0,
+    this.ratingCount = 0,
   });
 
   final String name;
@@ -67,6 +69,10 @@ class PatientDoctorCard extends StatelessWidget {
   final VoidCallback onOpenDetails;
   /// Firestore `profileImageUrl`; placeholder if null/empty.
   final String? profileImageUrl;
+
+  /// From `users/{doctor}` aggregate [ratingAverage] / [ratingCount].
+  final double ratingAverage;
+  final int ratingCount;
 
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
@@ -80,8 +86,8 @@ class PatientDoctorCard extends StatelessWidget {
 
   static const double _radius = 20;
 
-  /// Card row height — image strip matches; sized for chip + name + CTA without overflow.
-  static const double _kCardContentHeight = 136;
+  /// Card row height — image strip matches; chip + name + rating + CTA.
+  static const double _kCardContentHeight = 156;
   static const double _kImageStripWidth = 96;
   static const double _kImageCornerRadius = 16;
 
@@ -205,7 +211,12 @@ class PatientDoctorCard extends StatelessWidget {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 18),
+                                                    const SizedBox(height: 6),
+                                                    _PatientDoctorCardRatingLine(
+                                                      average: ratingAverage,
+                                                      count: ratingCount,
+                                                    ),
+                                                    const SizedBox(height: 12),
                                                     Center(
                                                       child:
                                                           _DoctorCardPressableButton(
@@ -316,6 +327,73 @@ class PatientDoctorCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Compact ⭐ average (count) under the doctor name.
+class _PatientDoctorCardRatingLine extends StatelessWidget {
+  const _PatientDoctorCardRatingLine({
+    required this.average,
+    required this.count,
+  });
+
+  final double average;
+  final int count;
+
+  static const Color _goldStar = Color(0xFFD4AF37);
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) {
+      return Center(
+        child: Text(
+          S.of(context).translate('doctor_card_rating_none'),
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: kPatientNavyText.withValues(alpha: 0.48),
+            height: 1.1,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
+        children: [
+          const Icon(
+            Icons.star_rounded,
+            size: 16,
+            color: _goldStar,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            average.clamp(0, 5).toStringAsFixed(1),
+            style: const TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0A1628),
+              height: 1.1,
+            ),
+          ),
+          Text(
+            ' (${count.toString()})',
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: kPatientNavyText.withValues(alpha: 0.58),
+              height: 1.1,
+            ),
+          ),
+        ],
       ),
     );
   }
