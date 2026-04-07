@@ -115,6 +115,7 @@ Future<void> archiveRejectedAppointmentAndFreeSlot({
     AppointmentFields.patientId: null,
     AppointmentFields.userId: FieldValue.delete(),
     AppointmentFields.isBooked: false,
+    AppointmentFields.queueNumber: FieldValue.delete(),
     AppointmentFields.cancellationReason: cancellationReason,
     AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
   });
@@ -155,6 +156,10 @@ Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       });
 }
 
+/// Status written for **new** patient bookings (slot held until doctor completes or rejects).
+/// Legacy rows may still use `pending`; treat both as equivalent in doctor UI.
+const String kAppointmentStatusBooked = 'booked';
+
 /// Statuses that represent an **occupied** slot in Today’s list (app uses `pending`, not `booked`).
 bool appointmentStatusIsOccupiedPatientSlot(String raw) {
   final s = raw.trim().toLowerCase();
@@ -162,6 +167,12 @@ bool appointmentStatusIsOccupiedPatientSlot(String raw) {
       s == 'booked' ||
       s == 'confirmed' ||
       s == 'waiting';
+}
+
+/// Patient is in the live today queue (show complete/reject, gold highlight, etc.).
+bool appointmentStatusIsDoctorWaitingQueue(String raw) {
+  final s = raw.trim().toLowerCase();
+  return s == 'pending' || s == kAppointmentStatusBooked || s == 'waiting';
 }
 
 /// Doctor + local date range on [AppointmentFields.date].
@@ -552,6 +563,7 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
         AppointmentFields.patientId: null,
         AppointmentFields.userId: FieldValue.delete(),
         AppointmentFields.isBooked: false,
+        AppointmentFields.queueNumber: FieldValue.delete(),
         AppointmentFields.cancellationReason: cancellationReason,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });
@@ -766,7 +778,62 @@ int countNonCancelledAppointments(
   return n;
 }
 
-/// Next daily ticket for [doctorUserId] on [dayStartLocal] (non-cancelled count + 1).
+/// Parses a positive stored [AppointmentFields.queueNumber], or `null`.
+int? parseStoredAppointmentQueueNumber(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is int) return raw > 0 ? raw : null;
+  if (raw is num) {
+    final v = raw.round();
+    return v > 0 ? v : null;
+  }
+  return int.tryParse(raw.toString().trim());
+}
+
+/// When `true`, this row still **holds** its پسوولە for the day (gap-fill skips it).
+bool appointmentStatusReservesQueueNumberSlot(String raw) {
+  final s = raw.trim().toLowerCase();
+  if (s == 'available') return false;
+  if (s == 'cancelled' || s == 'canceled') return false;
+  if (s == 'rejected') return false;
+  return true;
+}
+
+/// Smallest positive integer not used as [AppointmentFields.queueNumber] among
+/// rows that still reserve a ticket (freed / cancelled slots do not).
+Future<int> smallestAvailableQueueNumberForDoctor({
+  required String doctorUserId,
+  required DateTime dayStartLocal,
+}) async {
+  final dayStart = DateTime(
+    dayStartLocal.year,
+    dayStartLocal.month,
+    dayStartLocal.day,
+  );
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: doctorUserId.trim(),
+    dayLocal: dayStart,
+  );
+  final used = <int>{};
+  for (final d in docs) {
+    final data = d.data();
+    if (!appointmentStatusReservesQueueNumberSlot(
+      (data[AppointmentFields.status] ?? 'pending').toString(),
+    )) {
+      continue;
+    }
+    final q = parseStoredAppointmentQueueNumber(
+      data[AppointmentFields.queueNumber],
+    );
+    if (q != null) used.add(q);
+  }
+  var n = 1;
+  while (used.contains(n)) {
+    n++;
+  }
+  return n;
+}
+
+/// Next daily ticket: smallest free number (reuses gaps after reject/cancel).
 Future<int> nextDailyQueueNumberForDoctor({
   required String doctorUserId,
   required DateTime dayStartLocal,
@@ -776,13 +843,10 @@ Future<int> nextDailyQueueNumberForDoctor({
     dayStartLocal.month,
     dayStartLocal.day,
   );
-  final dayEnd = dayStart.add(const Duration(days: 1));
-  final snap = await appointmentsForDoctorDateRange(
-    doctorUserId: doctorUserId.trim(),
-    rangeStartInclusiveLocal: dayStart,
-    rangeEndExclusiveLocal: dayEnd,
-  ).get();
-  return countNonCancelledAppointments(snap.docs) + 1;
+  return smallestAvailableQueueNumberForDoctor(
+    doctorUserId: doctorUserId,
+    dayStartLocal: dayStart,
+  );
 }
 
 /// English numerals for ticket display; prefers [queueById] from [dailyQueueNumberByDocId].

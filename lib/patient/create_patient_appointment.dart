@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../calendar/calendar_slot_logic.dart';
 import '../firestore/appointment_queries.dart';
+import '../firestore/available_days_queries.dart';
 import '../firestore/calendar_block_queries.dart';
 import '../models/doctor_localized_content.dart';
 
@@ -158,7 +159,7 @@ Future<String?> createPatientAppointment({
         patientName.trim().isEmpty ? '—' : patientName.trim(),
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
-    AppointmentFields.status: 'pending',
+    AppointmentFields.status: kAppointmentStatusBooked,
     AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
     AppointmentFields.createdAt: FieldValue.serverTimestamp(),
@@ -219,11 +220,197 @@ Future<String?> createStaffAppointment({
         patientName.trim().isEmpty ? '—' : patientName.trim(),
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
-    AppointmentFields.status: 'pending',
+    AppointmentFields.status: kAppointmentStatusBooked,
     AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
     AppointmentFields.createdAt: FieldValue.serverTimestamp(),
     AppointmentFields.createdByStaff: createdByUid,
+  });
+
+  return null;
+}
+
+/// Patient self-books the tapped schedule slot (no sequential “first free” rule).
+/// Claims an `available` row at [slotStartMinutes] or creates a new appointment.
+Future<String?> bookPatientAppointmentAtScheduleSlot({
+  required String doctorId,
+  required DateTime dateLocal,
+  required int slotStartMinutes,
+}) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return 'login_required';
+
+  final did = doctorId.trim();
+  final timeStr = formatSlotMinutesKey(slotStartMinutes);
+  final dayStart = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
+  final dayEnd = dayStart.add(const Duration(days: 1));
+
+  Map<String, dynamic>? dd;
+  var blockMaps = <Map<String, dynamic>>[];
+  var blockDocList = <DocumentSnapshot<Map<String, dynamic>>>[];
+  DocumentSnapshot<Map<String, dynamic>>? serverDaySnap;
+  try {
+    final doctorDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(did)
+        .get(const GetOptions(source: Source.server));
+    dd = doctorDoc.data();
+    final daySnap = await fetchCalendarDayStatusDocumentFromServer(
+      dayStart,
+      doctorUserId: did,
+    );
+    serverDaySnap = daySnap;
+    final blockSnap = await calendarBlocksForDoctorDateRange(
+      doctorUserId: did,
+      rangeStartInclusiveLocal: dayStart,
+      rangeEndExclusiveLocal: dayEnd,
+    ).get(const GetOptions(source: Source.server));
+    blockDocList = List<DocumentSnapshot<Map<String, dynamic>>>.from(blockSnap.docs);
+    if (daySnap.exists &&
+        !blockDocList.any((d) => d.id.trim() == daySnap.id.trim())) {
+      blockDocList = [...blockDocList, daySnap];
+    }
+    blockMaps = blockDocList
+        .where((e) => e.exists)
+        .map((e) => e.data())
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  } catch (_) {}
+
+  final weekly = _weeklyScheduleFromDoctorData(dd);
+  final overrides = _scheduleOverridesFromDoctorData(dd);
+  if (serverDaySnap == null ||
+      patientDayGateFromDayStatusDocument(serverDaySnap, did) !=
+          PatientCalendarDayGate.open) {
+    return 'booking_date_closed';
+  }
+  final dayBlocks = blocksForCalendarDay(dayStart, blockMaps);
+  final win = workingWindowForDateWithOverrides(dayStart, weekly, overrides);
+  if (win == null) return 'booking_date_closed';
+  if (calendarDayHasIsClosedFlag(dayBlocks)) {
+    return 'booking_date_closed';
+  }
+  final step = appointmentSlotMinutesForDateWithAllBlocks(dayStart, blockMaps);
+  final allowedStarts = slotStartMinutesForWindow(
+    win.startMinutes,
+    win.endMinutes,
+    step: step,
+  );
+  if (!allowedStarts.contains(slotStartMinutes)) {
+    return 'booking_slot_invalid';
+  }
+
+  final merged = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: did,
+    dayLocal: dayStart,
+  );
+
+  for (final doc in merged) {
+    final data = doc.data();
+    if (!appointmentDocBlocksSlotForNewPatientBooking(data)) continue;
+    final t = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+    if (t == timeStr) return 'booking_slot_conflict';
+  }
+
+  DocumentSnapshot<Map<String, dynamic>>? claimSnap;
+  for (final doc in merged) {
+    final data = doc.data();
+    final st =
+        (data[AppointmentFields.status] ?? '').toString().trim().toLowerCase();
+    if (st != 'available') continue;
+    final t = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+    if (t == timeStr) {
+      claimSnap = doc;
+      break;
+    }
+  }
+
+  final userSnap =
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+  final ud = userSnap.data() ?? <String, dynamic>{};
+  var patientName = (ud['displayName'] ?? ud['name'] ?? ud['full_name'] ?? '')
+      .toString()
+      .trim();
+  if (patientName.isEmpty) {
+    patientName =
+        (FirebaseAuth.instance.currentUser?.displayName ?? '').trim();
+  }
+  if (patientName.isEmpty) {
+    patientName =
+        (FirebaseAuth.instance.currentUser?.email ?? '—').toString().trim();
+  }
+
+  var doctorNameToSave = '';
+  try {
+    final fromServer =
+        canonicalDoctorNameForStorage(dd ?? <String, dynamic>{});
+    if (fromServer.isNotEmpty) doctorNameToSave = fromServer;
+  } catch (_) {}
+
+  if (claimSnap != null) {
+    final claimRef = claimSnap.reference;
+    for (var attempt = 0; attempt < 4; attempt++) {
+      final queueNumber = await smallestAvailableQueueNumberForDoctor(
+        doctorUserId: did,
+        dayStartLocal: dayStart,
+      );
+      try {
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          final fresh = await tx.get(claimRef);
+          if (!fresh.exists) {
+            throw StateError('claim_missing');
+          }
+          final fd = fresh.data()!;
+          final fst =
+              (fd[AppointmentFields.status] ?? '').toString().trim().toLowerCase();
+          if (fst != 'available') {
+            throw StateError('claim_taken');
+          }
+          if (normalizeAppointmentTimeToHhMm(fd[AppointmentFields.time]) !=
+              timeStr) {
+            throw StateError('claim_time');
+          }
+          tx.update(claimRef, {
+            AppointmentFields.patientId: uid,
+            AppointmentFields.userId: uid,
+            AppointmentFields.patientName:
+                patientName.isEmpty ? '—' : patientName,
+            AppointmentFields.doctorName:
+                doctorNameToSave.isEmpty ? '—' : doctorNameToSave,
+            AppointmentFields.status: kAppointmentStatusBooked,
+            AppointmentFields.isBooked: true,
+            AppointmentFields.queueNumber: queueNumber,
+            AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+        return null;
+      } catch (_) {
+        if (attempt >= 3) return 'booking_slot_just_taken';
+        await Future<void>.delayed(
+          Duration(milliseconds: 60 * (attempt + 1)),
+        );
+      }
+    }
+    return 'booking_slot_conflict';
+  }
+
+  final queueNumber = await smallestAvailableQueueNumberForDoctor(
+    doctorUserId: did,
+    dayStartLocal: dayStart,
+  );
+
+  await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
+    AppointmentFields.patientId: uid,
+    AppointmentFields.userId: uid,
+    AppointmentFields.doctorId: did,
+    AppointmentFields.doctorName: doctorNameToSave.isEmpty ? '—' : doctorNameToSave,
+    AppointmentFields.patientName: patientName.isEmpty ? '—' : patientName,
+    AppointmentFields.date: Timestamp.fromDate(dayStart),
+    AppointmentFields.time: timeStr,
+    AppointmentFields.status: kAppointmentStatusBooked,
+    AppointmentFields.isBooked: true,
+    AppointmentFields.queueNumber: queueNumber,
+    AppointmentFields.createdAt: FieldValue.serverTimestamp(),
   });
 
   return null;

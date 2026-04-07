@@ -1,12 +1,14 @@
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart' show CupertinoColors, CupertinoSwitch;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
+import '../patient/create_patient_appointment.dart';
 import '../firestore/root_notifications_firestore.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
@@ -1655,103 +1657,19 @@ class ScheduleDayPanelController extends ChangeNotifier {
     AppLocalizations loc,
     DateTime slotStart,
   ) {
+    final slotPast = slotStart.isBefore(DateTime.now());
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewPaddingOf(ctx).bottom + 12,
-            left: 16,
-            right: 16,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: 0.42),
-                width: 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 24,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    loc.translate('schedule_slot_available_ku'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      color: _kSchedOpenFill.withValues(alpha: 0.95),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Directionality(
-                    textDirection: ui.TextDirection.ltr,
-                    child: Text(
-                      DateFormat.jm('en_US').format(slotStart),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 26,
-                        height: 1.1,
-                        color: Color(0xFFE8EEF4),
-                        letterSpacing: 0.35,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatScheduleDayEn(_dateLocal),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    loc.translate('schedule_slot_available_sheet_hint'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      height: 1.35,
-                      color: Colors.white.withValues(alpha: 0.58),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return _ScheduleAvailableSlotSheet(
+          loc: loc,
+          doctorUserId: _doctorUserId,
+          dateLocal: _dateLocal,
+          slotStart: slotStart,
+          slotNotBookable: _isPast || slotPast,
+          formatScheduleDayEn: _formatScheduleDayEn,
         );
       },
     );
@@ -2741,6 +2659,291 @@ class ScheduleDayPanelController extends ChangeNotifier {
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         child: card,
+      ),
+    );
+  }
+}
+
+String _normalizedScheduleBookingRole(Map<String, dynamic>? data) {
+  final raw = (data?['role'] ?? '').toString().trim().toLowerCase();
+  if (raw.isEmpty || raw == 'user' || raw == 'patient') return 'patient';
+  return raw;
+}
+
+class _ScheduleAvailableSlotSheet extends StatefulWidget {
+  const _ScheduleAvailableSlotSheet({
+    required this.loc,
+    required this.doctorUserId,
+    required this.dateLocal,
+    required this.slotStart,
+    required this.slotNotBookable,
+    required this.formatScheduleDayEn,
+  });
+
+  final AppLocalizations loc;
+  final String doctorUserId;
+  final DateTime dateLocal;
+  final DateTime slotStart;
+  final bool slotNotBookable;
+  final String Function(DateTime d) formatScheduleDayEn;
+
+  @override
+  State<_ScheduleAvailableSlotSheet> createState() =>
+      _ScheduleAvailableSlotSheetState();
+}
+
+class _ScheduleAvailableSlotSheetState extends State<_ScheduleAvailableSlotSheet> {
+  bool _loadingRole = true;
+  bool _booking = false;
+  /// `patient` | staff role key | `anonymous` when not signed in.
+  String _roleNorm = 'patient';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) {
+      if (mounted) {
+        setState(() {
+          _loadingRole = false;
+          _roleNorm = 'anonymous';
+        });
+      }
+      return;
+    }
+    try {
+      final snap =
+          await FirebaseFirestore.instance.collection('users').doc(u.uid).get();
+      final r = _normalizedScheduleBookingRole(snap.data());
+      if (mounted) {
+        setState(() {
+          _loadingRole = false;
+          _roleNorm = r;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingRole = false;
+          _roleNorm = 'patient';
+        });
+      }
+    }
+  }
+
+  bool get _isPatient => _roleNorm == 'patient';
+
+  Future<void> _confirmBook(BuildContext sheetContext) async {
+    setState(() => _booking = true);
+    final m = widget.slotStart.hour * 60 + widget.slotStart.minute;
+    final err = await bookPatientAppointmentAtScheduleSlot(
+      doctorId: widget.doctorUserId,
+      dateLocal: widget.dateLocal,
+      slotStartMinutes: m,
+    );
+    if (!mounted) return;
+    setState(() => _booking = false);
+    if (!sheetContext.mounted) return;
+    if (err == null) {
+      Navigator.pop(sheetContext);
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.loc.translate('master_calendar_saved'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(sheetContext).showSnackBar(
+      SnackBar(
+        content: Text(
+          widget.loc.translate(err),
+          style: const TextStyle(fontFamily: kPatientPrimaryFont),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = widget.loc;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewPaddingOf(context).bottom + 12,
+        left: 16,
+        right: 16,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: kStaffLuxGold.withValues(alpha: 0.42),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                loc.translate('schedule_slot_available_ku'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: _kSchedOpenFill.withValues(alpha: 0.95),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Directionality(
+                textDirection: ui.TextDirection.ltr,
+                child: Text(
+                  DateFormat.jm('en_US').format(widget.slotStart),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 26,
+                    height: 1.1,
+                    color: Color(0xFFE8EEF4),
+                    letterSpacing: 0.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.formatScheduleDayEn(widget.dateLocal),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                loc.translate('schedule_slot_available_sheet_hint'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  height: 1.35,
+                  color: Colors.white.withValues(alpha: 0.58),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_loadingRole)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: kStaffLuxGold,
+                      ),
+                    ),
+                  ),
+                )
+              else if (_roleNorm == 'anonymous')
+                Text(
+                  loc.translate('login_required'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    height: 1.35,
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                )
+              else if (!_isPatient)
+                Text(
+                  loc.translate('schedule_booking_staff_only'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    height: 1.35,
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                )
+              else if (widget.slotNotBookable)
+                Text(
+                  loc.translate('schedule_booking_past_slot'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    height: 1.35,
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                )
+              else
+                FilledButton(
+                  onPressed: _booking ? null : () => _confirmBook(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kSchedOpenFill.withValues(alpha: 0.92),
+                    foregroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _booking
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0F172A),
+                          ),
+                        )
+                      : Text(
+                          loc.translate('confirm_booking'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
