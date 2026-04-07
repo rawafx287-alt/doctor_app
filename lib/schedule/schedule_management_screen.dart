@@ -59,12 +59,6 @@ const double _kDowCapsuleBorderThin = 0.3;
 const double _kDowCapsuleHeight = 32.0;
 const double _kDowRowHeight = 40.0;
 
-/// Available: very subtle dark green tint (open, not loud).
-const Color _kSlotAvailableFill = Color(0xFF141F18);
-/// Booked: deep slate / dark navy — solid, occupied.
-const Color _kSlotBookedFill = Color(0xFF152238);
-const Color _kSlotBookedGoldEdge = Color(0xFFC5A028);
-
 bool _scheduleIsSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -1509,23 +1503,25 @@ class ScheduleDayPanelController extends ChangeNotifier {
   }
 
   /// Active booking per slot: patient name, doc id, status, raw data (detail sheet).
-  Map<String, (String name, String docId, String status, Map<String, dynamic> data)>
+  Map<String, (String? patientName, String docId, String status,
+      Map<String, dynamic> data)>
       _activeSlotBookingsByHhMm(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
-    final m = <String, (String, String, String, Map<String, dynamic>)>{};
+    final m = <String, (String?, String, String, Map<String, dynamic>)>{};
     for (final d in docs) {
       final data = d.data();
       final st = (data[AppointmentFields.status] ?? 'pending')
           .toString()
           .trim()
           .toLowerCase();
-      if (st == 'cancelled' || st == 'canceled') continue;
+      // Treat cancelled/rejected/available as NOT booked (slot should be available).
+      if (st == 'cancelled' || st == 'canceled' || st == 'available') continue;
       final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
       if (k.isEmpty) continue;
       final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
-      final displayName = n.isEmpty ? '—' : n;
-      m.putIfAbsent(k, () => (displayName, d.id, st, data));
+      final nameOrNull = n.isEmpty ? null : n;
+      m.putIfAbsent(k, () => (nameOrNull, d.id, st, data));
     }
     return m;
   }
@@ -1608,7 +1604,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
       }
       final priorData = priorSnap.data()!;
       await ref.update({
-        AppointmentFields.status: 'cancelled',
+        // Make the slot instantly available again.
+        AppointmentFields.status: 'available',
+        AppointmentFields.patientName: null,
+        AppointmentFields.patientId: null,
         AppointmentFields.cancellationReason:
             kAppointmentCancellationReasonSecretary,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
@@ -2124,168 +2123,121 @@ class ScheduleDayPanelController extends ChangeNotifier {
     required BuildContext context,
     required AppLocalizations loc,
     required DateTime slotStart,
-    required bool booked,
-    required String patientName,
+    required bool isBooked,
+    required String? patientName,
     required VoidCallback onTap,
   }) {
-    final appTextDir = Directionality.of(context);
     final timeEn = DateFormat.jm('en_US').format(slotStart);
-    final r = BorderRadius.circular(12);
-    final bookedSurface = _kSlotBookedFill;
-    final availableSurface = Color.alphaBlend(
-      Colors.green.withValues(alpha: 0.05),
-      _kSlotAvailableFill,
-    );
-    final subtleEdge = Colors.white.withValues(alpha: 0.07);
+    final rawName = (patientName ?? '').trim();
+    final hasName = rawName.isNotEmpty;
+    final displayName = hasName ? rawName : 'ناونەنراو';
 
-    final timeStyle = TextStyle(
-      fontFamily: kPatientPrimaryFont,
-      fontWeight: FontWeight.w900,
-      fontSize: 17,
-      height: 1.15,
-      letterSpacing: 0.2,
-      inherit: false,
-      color: booked ? Colors.white : Colors.white70,
-    );
-    final bookedNameStyle = TextStyle(
-      fontFamily: kPatientPrimaryFont,
-      fontWeight: FontWeight.w800,
-      fontSize: 13,
-      height: 1.2,
-      inherit: false,
-      color: const Color(0xFFFFE082),
-    );
+    // LOGIC CHECK:
+    // If patientName is not null/empty, it MUST show the booked UI.
+    final booked = isBooked || hasName;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: r,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: r,
-          splashColor: Colors.white.withValues(alpha: 0.12),
-          highlightColor: Colors.white.withValues(alpha: 0.06),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: booked ? bookedSurface : availableSurface,
-              borderRadius: r,
-              border: booked
-                  ? Border(
-                      left: BorderSide(
-                        color: _kSlotBookedGoldEdge.withValues(alpha: 0.82),
-                        width: 3,
+    const bookedBg = Color(0xFF1E293B); // Deep Navy
+    const availableBg = Color(0xFF064E3B); // Dark Green
+
+    // FORCED UI RENDERING TEMPLATE (Card + ListTile)
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: booked ? bookedBg : availableBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 6,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (booked)
+                const SizedBox(
+                  width: 6,
+                  child: ColoredBox(color: Colors.amber),
+                ),
+              Expanded(
+                child: ListTile(
+                  contentPadding: EdgeInsets.fromLTRB(
+                    booked ? 12 : 16,
+                    10,
+                    12,
+                    10,
+                  ),
+                  leading: Directionality(
+                    textDirection: ui.TextDirection.ltr,
+                    child: Text(
+                      timeEn,
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        height: 1.1,
+                        color: Colors.white,
                       ),
-                      top: BorderSide(color: subtleEdge, width: 0.65),
-                      right: BorderSide(color: subtleEdge, width: 0.65),
-                      bottom: BorderSide(color: subtleEdge, width: 0.65),
-                    )
-                  : Border.all(
-                      color: Colors.green.withValues(alpha: 0.28),
-                      width: 0.55,
                     ),
-              boxShadow: booked
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.28),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.green.withValues(alpha: 0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 12, 12, 12),
-              child: Directionality(
-                textDirection: ui.TextDirection.ltr,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.chevron_left_rounded,
-                      size: 11.5,
-                      color: Colors.white.withValues(alpha: booked ? 0.45 : 0.35),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(timeEn, style: timeStyle),
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: booked
-                                      ? kStaffLuxGold.withValues(alpha: 0.14)
-                                      : Colors.black.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: booked
-                                        ? kStaffLuxGold.withValues(alpha: 0.42)
-                                        : const Color(0xFF6EE7B7)
-                                            .withValues(alpha: 0.35),
-                                    width: 0.6,
-                                  ),
-                                ),
-                                child: Text(
-                                  booked
-                                      ? loc.translate('schedule_slot_booked')
-                                      : loc.translate(
-                                          'schedule_slot_available_ku',
-                                        ),
-                                  style: TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 9.5,
-                                    height: 1.1,
-                                    inherit: false,
-                                    color: booked
-                                        ? Colors.white.withValues(alpha: 0.88)
-                                        : const Color(0xFFBBF7D0),
-                                  ),
+                  ),
+                  title: booked
+                      ? Row(
+                          children: [
+                            const Icon(
+                              Icons.person_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  height: 1.15,
+                                  color: Colors.amber,
                                 ),
                               ),
-                              if (booked) ...[
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Directionality(
-                                    textDirection: appTextDir,
-                                    child: Text(
-                                      patientName,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: appTextDir == ui.TextDirection.rtl
-                                          ? TextAlign.right
-                                          : TextAlign.left,
-                                      style: bookedNameStyle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          'کاتی بەردەست',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            height: 1.15,
+                            color: Colors.white70,
                           ),
-                        ],
+                        ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: booked
+                          ? const Color(0xFFDC2626) // red
+                          : const Color(0xFF16A34A), // green
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      booked ? 'گیراوە' : 'بەردەستە',
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        height: 1.05,
+                        color: Colors.white,
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -2296,11 +2248,14 @@ class ScheduleDayPanelController extends ChangeNotifier {
     BuildContext context,
     AppLocalizations loc,
     DateTime slot,
-    Map<String, (String, String, String, Map<String, dynamic>)> byKey,
+    Map<String, (String?, String, String, Map<String, dynamic>)> byKey,
   ) {
     final k = formatTimeHhMm(slot);
     final booking = byKey[k];
-    final booked = booking != null;
+    final patientName = booking?.$1;
+    // LOGIC CHECK:
+    // If patientName exists, we must render the booked UI.
+    final isBooked = booking != null || patientName != null;
     final showCancel = booking != null &&
         !_isPast &&
         !appointmentStatusIsTerminalForStaffSort(booking.$3);
@@ -2308,8 +2263,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
       context: context,
       loc: loc,
       slotStart: slot,
-      booked: booked,
-      patientName: booking?.$1 ?? '',
+      isBooked: isBooked,
+      patientName: patientName,
       onTap: () {
         final b = booking;
         if (b != null) {
@@ -2358,6 +2313,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
         dayLocal: _dateLocal,
       ),
       builder: (context, snap) {
+        // FIX: never return an empty area silently.
+        // Always show loading, empty, or the slot list.
         if (snap.hasError) {
           logFirestoreIndexHelpOnce(
             snap.error,
@@ -2376,7 +2333,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
             ),
           );
         }
-        if (!snap.hasData) {
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
@@ -2392,34 +2349,37 @@ class ScheduleDayPanelController extends ChangeNotifier {
           );
         }
 
-        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-          snap.data ?? [],
-        );
-        final byKey = _activeSlotBookingsByHhMm(docs);
-
         if (slots.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Text(
               loc.translate('schedule_timeline_no_slots'),
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.58),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                height: 1.3,
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: slots
-              .map(
-                (slot) =>
-                    _appointmentSlotRow(context, loc, slot, byKey),
-              )
-              .toList(),
+        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+          snap.data ?? [],
+        );
+        final byKey = _activeSlotBookingsByHhMm(docs);
+
+        // FORCED UI RENDERING: reliable list rendering (no missing returns).
+        return ListView.builder(
+          itemCount: slots.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (context, index) {
+            final slot = slots[index];
+            return _appointmentSlotRow(context, loc, slot, byKey);
+          },
         );
       },
     );

@@ -1640,7 +1640,9 @@ class _DayAgendaPanel extends StatelessWidget {
                             );
                             if (ok != true || !context.mounted) return;
                             await aptDoc.reference.update({
-                              AppointmentFields.status: 'cancelled',
+                              AppointmentFields.status: 'available',
+                              AppointmentFields.patientName: null,
+                              AppointmentFields.patientId: null,
                               AppointmentFields.updatedAt:
                                   FieldValue.serverTimestamp(),
                             });

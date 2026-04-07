@@ -440,7 +440,10 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
     final slice = active.skip(i).take(chunk).toList();
     for (final doc in slice) {
       batch.update(doc.reference, {
-        AppointmentFields.status: 'cancelled',
+        // Make the slot instantly available again.
+        AppointmentFields.status: 'available',
+        AppointmentFields.patientName: null,
+        AppointmentFields.patientId: null,
         AppointmentFields.cancellationReason: cancellationReason,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       });

@@ -724,12 +724,16 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     try {
       final st = status.trim().toLowerCase();
       final patch = <String, dynamic>{
-        AppointmentFields.status: status,
+        // Cancel/reject should instantly free the slot for other patients.
+        AppointmentFields.status:
+            (st == 'cancelled' || st == 'canceled') ? 'available' : status,
         AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
       };
       if (st == 'cancelled' || st == 'canceled') {
         patch[AppointmentFields.cancellationReason] =
             kAppointmentCancellationReasonDoctor;
+        patch[AppointmentFields.patientName] = null;
+        patch[AppointmentFields.patientId] = null;
       } else if (st == 'completed') {
         patch[AppointmentFields.cancellationReason] = FieldValue.delete();
       }
