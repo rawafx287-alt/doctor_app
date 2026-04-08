@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
@@ -9,8 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../firestore/appointment_queries.dart';
-import '../patient/create_patient_appointment.dart';
-import '../firestore/root_notifications_firestore.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
 import '../locale/app_localizations.dart';
@@ -62,6 +59,150 @@ const double _kDowRowHeight = 40.0;
 
 bool _scheduleIsSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _scheduleEasternArabicDigits(String s) {
+  const western = '0123456789';
+  const eastern = '٠١٢٣٤٥٦٧٨٩';
+  final b = StringBuffer();
+  for (final unit in s.runes) {
+    final ch = String.fromCharCode(unit);
+    final i = western.indexOf(ch);
+    b.write(i >= 0 ? eastern[i] : ch);
+  }
+  return b.toString();
+}
+
+/// Day / month only (e.g. ٩ / ٤) for the reveal button label.
+(String, String) _scheduleSlotsRevealDayMonth(DateTime d) {
+  final day = _scheduleEasternArabicDigits('${d.day}');
+  final month = _scheduleEasternArabicDigits('${d.month}');
+  return (day, month);
+}
+
+/// Time-slot list for the selected calendar day; opens in a themed modal sheet.
+void showScheduleSlotsModalBottomSheet({
+  required BuildContext context,
+  required ScheduleDayPanelController panel,
+  required DateTime dayLocal,
+  required AppLocalizations loc,
+}) {
+  final d0 = DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final mediaH = MediaQuery.sizeOf(context).height;
+  final sheetH = mediaH * 0.76;
+  final (dayDig, monthDig) = _scheduleSlotsRevealDayMonth(d0);
+  final title = loc.translate(
+    'schedule_slots_sheet_title',
+    params: {'day': dayDig, 'month': monthDig},
+  );
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: false,
+    barrierColor: Colors.transparent,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      return SizedBox(
+        height: mediaH,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(ctx).pop(),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.48),
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                height: sheetH,
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(22.0),
+                  ),
+                  child: Material(
+                    color: const Color(0xFF0F172A),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: kStaffLuxGold.withValues(alpha: 0.38),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: SafeArea(
+                        top: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 10.0),
+                            Center(
+                              child: Container(
+                                width: 40.0,
+                                height: 4.0,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  borderRadius: BorderRadius.circular(2.0),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16.0,
+                                14.0,
+                                16.0,
+                                8.0,
+                              ),
+                              child: Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15.0,
+                                  height: 1.25,
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: ScheduleDayPanelScope(
+                                notifier: panel,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0,
+                                  ),
+                                  child: panel.buildSelectedDaySlotsListBody(
+                                    ctx,
+                                    loc,
+                                    dayLocal: d0,
+                                    forModalSheet: true,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
 /// Saturday-first month grid: leading/trailing nulls, padded to 42 cells (6×7).
 List<DateTime?> _monthGridCells(DateTime monthAnchor) {
@@ -243,30 +384,12 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  late final AnimationController _selectedDayPulseController;
-  late final Animation<double> _selectedDayPulse;
+  // Removed the pulse animation to keep day selection logic stable/simple.
 
   @override
   void initState() {
     super.initState();
-    final n = DateTime.now();
-    _selectedDay = DateTime(n.year, n.month, n.day);
-    _selectedDayPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _selectedDayPulse = Tween<double>(begin: 0.72, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _selectedDayPulseController,
-        curve: Curves.easeInOut,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _selectedDayPulseController.dispose();
-    super.dispose();
+    _selectedDay = null;
   }
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -287,7 +410,13 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     if (d0.isBefore(today)) {
       return;
     }
-    setState(() => _selectedDay = d0);
+    // Avoid "setState() called during build" when taps occur while rebuilding.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _selectedDay = d0;
+      });
+    });
   }
 
   Widget _scheduleGlassCard({
@@ -369,7 +498,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         isTodayWeekday ? Colors.white : Colors.white.withValues(alpha: 0.52);
 
     const neon = Color(0xFF00E676);
-    final pillW = (maxWidth * 0.58).clamp(18.0, 34.0);
+    final pillW = (maxWidth * 0.58).clamp(18.0, 34.0).toDouble();
 
     final capsule = Container(
       width: maxWidth,
@@ -523,7 +652,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
             style: TextStyle(
               fontFamily: kPatientPrimaryFont,
               fontWeight: FontWeight.w800,
-              fontSize: (side * 0.36).clamp(14.0, 19.0),
+              fontSize: (side * 0.36).clamp(14.0, 19.0).toDouble(),
               height: 1,
               color: textColor,
               decoration: strike
@@ -622,7 +751,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     final crossSp = _kGridCrossAxisSpacing;
     final mainSp = _kGridMainAxisSpacing;
     final colW = (calInnerW - 6 * crossSp) / 7;
-    final side = colW.clamp(42.0, 54.0);
+    final side = colW.clamp(42.0, 54.0).toDouble();
     final dowRowH = _kDowRowHeight;
     final gridH =
         _kScheduleGridRowCount * side +
@@ -631,6 +760,13 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         dowRowH +
         _kScheduleDowToGridGap +
         gridH;
+  }
+
+  /// Total height of [_scheduleGlassCard] that wraps the month grid (padding + grid).
+  double _scheduleGlassCalendarTotalHeight(double cardInnerW) {
+    return _kPrimaryCardPadding +
+        _scheduleCalendarInnerBodyHeight(cardInnerW) +
+        _kCalendarCardBottomPadding;
   }
 
   Widget _scheduleGridCell(
@@ -653,7 +789,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         day: day,
         openById: openById,
         isSelected: sel,
-        selectionPulse: sel ? _selectedDayPulse : null,
         onTap: isPast ? null : () => _onScheduleDayTapped(day),
       ),
     );
@@ -668,7 +803,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     final crossSp = _kGridCrossAxisSpacing;
     final mainSp = _kGridMainAxisSpacing;
     final colW = (calInnerW - 6 * crossSp) / 7;
-    final side = colW.clamp(42.0, 54.0);
+    final side = colW.clamp(42.0, 54.0).toDouble();
     final dowRowH = _kDowRowHeight;
     final gridH =
         _kScheduleGridRowCount * side +
@@ -885,83 +1020,84 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
           dateLocal: sel,
           existingDocId: docId,
           dayRow: dayRow,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  _kBodyHorizontalPad,
-                  10,
-                  _kBodyHorizontalPad,
-                  0,
-                ),
-                sliver: const SliverToBoxAdapter(
-                  child: RepaintBoundary(
-                    child: _ScheduleTimeCardPanel(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _kBodyHorizontalPad,
+                    10,
+                    _kBodyHorizontalPad,
+                    0,
                   ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  _kBodyHorizontalPad,
-                  0,
-                  _kBodyHorizontalPad,
-                  0,
-                ),
-                sliver: const SliverToBoxAdapter(
-                  child: SizedBox(height: _kTimeToCalendarGap),
-                ),
-              ),
-              SliverLayoutBuilder(
-                builder: (context, constraints) {
-                  final fullW =
-                      constraints.crossAxisExtent - 2 * _kBodyHorizontalPad;
-                  final cardInnerW = fullW - 2 * _kPrimaryCardPadding;
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      _kBodyHorizontalPad,
-                      0,
-                      _kBodyHorizontalPad,
-                      0,
-                    ),
-                    sliver: SliverToBoxAdapter(
-                      child: RepaintBoundary(
-                        child: _scheduleGlassCard(
-                          borderRadius: 28,
-                          blurSigma: _kPrimaryGlassBlur,
-                          fillAlpha: 0.2,
-                          padding: const EdgeInsets.fromLTRB(
-                            _kPrimaryCardPadding,
-                            _kPrimaryCardPadding,
-                            _kPrimaryCardPadding,
-                            _kCalendarCardBottomPadding,
-                          ),
-                          child: _buildIntrinsicCalendarColumn(
-                            map,
-                            cardInnerW,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  _kBodyHorizontalPad,
-                  10,
-                  _kBodyHorizontalPad,
-                  bottomReserve,
-                ),
-                sliver: const SliverToBoxAdapter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      RepaintBoundary(
-                        child: _ScheduleSlotsCardPanel(),
+                      const RepaintBoundary(
+                        child: _ScheduleTimeCardPanel(),
                       ),
-                      SizedBox(height: 40),
+                      const SizedBox(height: _kTimeToCalendarGap),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final fullW = constraints.maxWidth;
+                            if (fullW <= 0) {
+                              return const SizedBox.shrink();
+                            }
+                            final cardInnerW =
+                                fullW - 2 * _kPrimaryCardPadding;
+                            final stackH =
+                                _scheduleGlassCalendarTotalHeight(cardInnerW);
+                            return Align(
+                              alignment: Alignment.topCenter,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.topCenter,
+                                child: SizedBox(
+                                  width: fullW,
+                                  height: stackH,
+                                  child: RepaintBoundary(
+                                    child: _scheduleGlassCard(
+                                      borderRadius: 28,
+                                      blurSigma: _kPrimaryGlassBlur,
+                                      fillAlpha: 0.2,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        _kPrimaryCardPadding,
+                                        _kPrimaryCardPadding,
+                                        _kPrimaryCardPadding,
+                                        _kCalendarCardBottomPadding,
+                                      ),
+                                      child: _buildIntrinsicCalendarColumn(
+                                        map,
+                                        cardInnerW,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ],
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    _kBodyHorizontalPad,
+                    12,
+                    _kBodyHorizontalPad,
+                    bottomReserve,
+                  ),
+                  child: Center(
+                    child: _ScheduleBottomSlotsSection(
+                      userSelectedDay: _selectedDay,
+                    ),
                   ),
                 ),
               ),
@@ -998,7 +1134,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   }
 }
 
-/// Shared day panel state for time settings + slot list (split across scroll slivers).
+/// Shared day panel state for time settings + slot list (sheet opens from fixed bottom area).
 class ScheduleDayPanelScope extends InheritedNotifier<ScheduleDayPanelController> {
   const ScheduleDayPanelScope({
     super.key,
@@ -1100,21 +1236,6 @@ class _ScheduleTimeCardPanel extends StatelessWidget {
   }
 }
 
-class _ScheduleSlotsCardPanel extends StatelessWidget {
-  const _ScheduleSlotsCardPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ScheduleDayPanelScope.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 900;
-        return c.buildSlotsCard(context, compact);
-      },
-    );
-  }
-}
-
 class ScheduleDayPanelController extends ChangeNotifier {
   ScheduleDayPanelController({
     required String doctorUserId,
@@ -1145,7 +1266,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
     _dayRow = dayRow;
     _applyRowSnapshot();
     _timeExpanded = false;
-    _slotsExpanded = false;
     notifyListeners();
   }
 
@@ -1175,9 +1295,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
   String? _pendingSavedEndHhMm;
   int? _pendingSavedDurationMin;
 
-  // Mutual exclusion between the two cards.
   bool _timeExpanded = false;
-  bool _slotsExpanded = false;
 
   void _applyRowSnapshot() {
     final row = _dayRow;
@@ -1479,13 +1597,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
   bool get _isPast =>
       _dateOnly(_dateLocal).isBefore(_dateOnly(DateTime.now()));
 
-  Stream<DateTime> scheduleClockStream() async* {
-    yield DateTime.now();
-    await for (final _ in Stream.periodic(const Duration(seconds: 30))) {
-      yield DateTime.now();
-    }
-  }
-
   Future<void> _pickStart(BuildContext context) async {
     if (_isPast) return;
     final p = await _pickTimePremiumBottomSheet(
@@ -1688,6 +1799,327 @@ class ScheduleDayPanelController extends ChangeNotifier {
     }
   }
 
+  Stream<DateTime> _scheduleSlotListClockStream() async* {
+    yield DateTime.now();
+    await for (final _ in Stream.periodic(const Duration(seconds: 30))) {
+      yield DateTime.now();
+    }
+  }
+
+  Map<String, (String?, String, String, Map<String, dynamic>)>
+      _slotDocsByHhMmForList(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final m = <String, (String?, String, String, Map<String, dynamic>)>{};
+    for (final d in docs) {
+      final data = d.data();
+      final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+      if (k.isEmpty) continue;
+      final st = (data[AppointmentFields.status] ?? 'pending')
+          .toString()
+          .trim()
+          .toLowerCase();
+      final blocks = appointmentDocBlocksSlotForNewPatientBooking(data);
+      final prev = m[k];
+      if (prev != null) {
+        final prevBlocks = appointmentDocBlocksSlotForNewPatientBooking(prev.$4);
+        final prevSt = prev.$3.toLowerCase();
+        if (prevBlocks && !blocks) continue;
+        if (!prevBlocks && blocks) {
+          // replace with booking
+        } else {
+          if (prevSt == 'available' && st != 'available') continue;
+          if (prevSt != 'available' && st == 'available') {
+            // replace with available placeholder
+          }
+        }
+      }
+      final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
+      final nameOrNull = n.isEmpty ? null : n;
+      m[k] = (nameOrNull, d.id, st, data);
+    }
+    return m;
+  }
+
+  Widget _selectedDaySlotRow(
+    AppLocalizations loc, {
+    required DateTime slotStart,
+    required DateTime now,
+    required Map<String, (String?, String, String, Map<String, dynamic>)> byKey,
+  }) {
+    const Color baseBg = Color(0xFF1E293B);
+    const Color dividerGold = Color(0xFFFFD54F);
+
+    final DateTime slotDay = _dateOnly(slotStart);
+    final DateTime todayOnly = _dateOnly(now);
+    final bool isToday = slotDay.year == todayOnly.year &&
+        slotDay.month == todayOnly.month &&
+        slotDay.day == todayOnly.day;
+    final bool isPassed = (isToday == true) && !slotStart.isAfter(now);
+    final double rowOpacity = (isPassed == true) ? 0.5 : 1.0;
+
+    final String hhmm = formatTimeHhMm(slotStart);
+    final booking = byKey[hhmm];
+    final data = booking?.$4;
+    final rawName = (booking?.$1 ?? '').toString().trim();
+    final bool hasName = rawName.isNotEmpty;
+    final bool blocks = data == null
+        ? false
+        : appointmentDocBlocksSlotForNewPatientBooking(data);
+    final bool isBooked = (hasName == true) || (blocks == true);
+    final bool isAvailDoc =
+        data == null ? true : (data[AppointmentFields.isAvailable] != false);
+    final bool isManualClosed =
+        (isBooked == false) && (isAvailDoc == false);
+
+    final String timeEn = DateFormat.jm('en_US').format(slotStart);
+    final String statusText;
+    if (isPassed == true) {
+      statusText = loc.translate('schedule_slot_passed_ku');
+    } else if (isBooked == true) {
+      statusText = rawName.isNotEmpty ? rawName : 'گیراوە';
+    } else if (isManualClosed == true) {
+      statusText = loc.translate('schedule_slot_closed_ku');
+    } else {
+      statusText = loc.translate('schedule_slot_available_ku');
+    }
+
+    return Opacity(
+      opacity: rowOpacity,
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0.0),
+        color: baseBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+        elevation: 4.0,
+        child: SizedBox(
+          height: 56.0,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isBooked == true)
+                const SizedBox(
+                  width: 3.0,
+                  child: ColoredBox(color: dividerGold),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 12.0,
+                    end: 12.0,
+                    top: 4.0,
+                    bottom: 4.0,
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 72.0,
+                        child: Directionality(
+                          textDirection: ui.TextDirection.ltr,
+                          child: Text(
+                            timeEn,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14.0,
+                              height: 1.0,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8.0),
+                      if (isBooked == true) ...[
+                        const Icon(
+                          Icons.person_rounded,
+                          size: 14.0,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 5.0),
+                      ],
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: (isBooked == true)
+                                ? FontWeight.w900
+                                : FontWeight.w800,
+                            fontSize: 14.0,
+                            height: 1.0,
+                            color: (isBooked == true)
+                                ? dividerGold
+                                : Colors.white.withValues(alpha: 0.72),
+                          ),
+                        ),
+                      ),
+                      Opacity(
+                        opacity: isBooked ? 1.0 : 0.5,
+                        child: Icon(
+                          Icons.lock_rounded,
+                          size: 18.0,
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Slot list for the bottom card (shrink-wrapped) or modal sheet (scrollable).
+  Widget buildSelectedDaySlotsListBody(
+    BuildContext context,
+    AppLocalizations loc, {
+    required DateTime dayLocal,
+    bool forModalSheet = false,
+  }) {
+    final d0 = _dateOnly(dayLocal);
+
+    if (!_isOpen) {
+      final w = Text(
+        loc.translate('schedule_timeline_no_hours'),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w600,
+          fontSize: 12.0,
+          height: 1.35,
+          color: Colors.white.withValues(alpha: 0.65),
+        ),
+      );
+      if (forModalSheet) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: w,
+          ),
+        );
+      }
+      return w;
+    }
+
+    return Builder(
+      builder: (context) {
+        final slots = generatedSlotStartsForDay(
+          dateOnly: d0,
+          startTimeHhMm: _fmt(_start),
+          closingTimeHhMm: _fmt(_end),
+          durationMinutes: _durationMin,
+        );
+        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: watchDoctorAppointmentsForLocalDay(
+            doctorUserId: _doctorUserId,
+            dayLocal: d0,
+          ),
+          builder: (context, snap) {
+            if (snap.hasError) {
+              logFirestoreIndexHelpOnce(
+                snap.error,
+                tag: 'ScheduleManagementScreen.bottom_slots',
+                expectedCompositeIndexHint:
+                    kAppointmentsDoctorDateStatusIndexHint,
+              );
+              final err = Text(
+                loc.translate('schedule_load_error'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontFamily: kPatientPrimaryFont,
+                  fontSize: 11.0,
+                ),
+              );
+              if (forModalSheet) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: err,
+                  ),
+                );
+              }
+              return err;
+            }
+            if (snap.connectionState == ConnectionState.waiting &&
+                !snap.hasData) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20.0),
+                  child: SizedBox(
+                    width: 24.0,
+                    height: 24.0,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      color: kStaffLuxGold,
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (slots.isEmpty) {
+              final empty = Text(
+                loc.translate('schedule_timeline_no_slots'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.0,
+                  height: 1.3,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              );
+              if (forModalSheet) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: empty,
+                  ),
+                );
+              }
+              return empty;
+            }
+            final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+              snap.data ?? [],
+            );
+            final byKey = _slotDocsByHhMmForList(docs);
+            return StreamBuilder<DateTime>(
+              stream: _scheduleSlotListClockStream(),
+              initialData: DateTime.now(),
+              builder: (context, clockSnap) {
+                final DateTime now = clockSnap.data ?? DateTime.now();
+                return ListView.builder(
+                  shrinkWrap: !forModalSheet,
+                  physics: forModalSheet
+                      ? const BouncingScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
+                  padding: forModalSheet
+                      ? const EdgeInsets.only(bottom: 20.0)
+                      : EdgeInsets.zero,
+                  itemCount: slots.length,
+                  itemBuilder: (context, index) {
+                    return _selectedDaySlotRow(
+                      loc,
+                      slotStart: slots[index],
+                      now: now,
+                      byKey: byKey,
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _timeRow({
     required AppLocalizations loc,
     required VoidCallback onTap,
@@ -1810,965 +2242,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
           ),
         ),
       ),
-    );
-  }
-
-  /// Active booking per slot: patient name, doc id, status, raw data (detail sheet).
-  Map<String, (String? patientName, String docId, String status,
-      Map<String, dynamic> data)>
-  _slotDocsByHhMmForToggle(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    final m = <String, (String?, String, String, Map<String, dynamic>)>{};
-    for (final d in docs) {
-      final data = d.data();
-      final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
-      if (k.isEmpty) continue;
-      final st = (data[AppointmentFields.status] ?? 'pending')
-          .toString()
-          .trim()
-          .toLowerCase();
-      final blocks = appointmentDocBlocksSlotForNewPatientBooking(data);
-      final prev = m[k];
-      if (prev != null) {
-        final prevBlocks = appointmentDocBlocksSlotForNewPatientBooking(prev.$4);
-        final prevSt = prev.$3.toLowerCase();
-
-        // Always prefer the blocking/real booking for display/sync.
-        if (prevBlocks && !blocks) continue;
-        if (!prevBlocks && blocks) {
-          // replace with booking
-        } else {
-          // Both are non-blocking: prefer the existing available placeholder as the toggle target.
-          if (prevSt == 'available' && st != 'available') continue;
-          if (prevSt != 'available' && st == 'available') {
-            // replace with available placeholder
-          }
-        }
-      }
-      final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
-      final nameOrNull = n.isEmpty ? null : n;
-      m[k] = (nameOrNull, d.id, st, data);
-    }
-    return m;
-  }
-
-  Future<bool> _confirmAndCancelSecretaryBooking(
-    BuildContext context,
-    AppLocalizations loc, {
-    required String appointmentDocId,
-  }) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final yesStyle = TextButton.styleFrom(
-          foregroundColor: const Color(0xFFE57373),
-        );
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0D2137),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: kStaffLuxGold.withValues(alpha: 0.45),
-            ),
-          ),
-          title: Text(
-            loc.translate('schedule_slot_cancel_confirm_title'),
-            style: const TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
-              height: 1.35,
-              color: Color(0xFFE8EEF4),
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(
-                loc.translate('schedule_slot_cancel_no'),
-                style: const TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFB0BEC5),
-                ),
-              ),
-            ),
-            TextButton(
-              style: yesStyle,
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(
-                loc.translate('schedule_slot_cancel_yes'),
-                style: const TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    if (ok != true || !context.mounted) return false;
-    try {
-      final ref = FirebaseFirestore.instance
-          .collection(AppointmentFields.collection)
-          .doc(appointmentDocId);
-      final priorSnap = await ref.get();
-      if (!priorSnap.exists) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                loc.translate('schedule_slot_cancel_error_snack'),
-                style: const TextStyle(fontFamily: kPatientPrimaryFont),
-              ),
-            ),
-          );
-        }
-        return false;
-      }
-      final priorData = priorSnap.data()!;
-      await archiveRejectedAppointmentAndFreeSlot(
-        appointmentRef: ref,
-        priorData: priorData,
-        cancellationReason: kAppointmentCancellationReasonSecretary,
-      );
-      final copy = patientAppointmentRejectedNotificationCopy(priorData);
-      final doctorUid =
-          (priorData[AppointmentFields.doctorId] ?? '').toString().trim();
-      final doctorSnap = await loadDoctorNotificationSnapshot(doctorUid);
-      await createPatientRootNotification(
-        appointmentData: priorData,
-        appointmentDocId: appointmentDocId,
-        title: copy.$1,
-        message: copy.$2,
-        doctor: doctorSnap,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              loc.translate('schedule_slot_cancel_ok_snack'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-      return true;
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              loc.translate('schedule_slot_cancel_error_snack'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-      return false;
-    }
-  }
-
-  String _formatScheduleDayEn(DateTime d) {
-    final nf = NumberFormat.decimalPattern('en_US');
-    return '${nf.format(d.day)} / ${nf.format(d.month)} / ${nf.format(d.year)}';
-  }
-
-  void _showAvailableSlotBottomSheet(
-    BuildContext context,
-    AppLocalizations loc,
-    DateTime slotStart,
-  ) {
-    final slotPast = !slotStart.isAfter(DateTime.now());
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return _ScheduleAvailableSlotSheet(
-          loc: loc,
-          doctorUserId: _doctorUserId,
-          dateLocal: _dateLocal,
-          slotStart: slotStart,
-          slotNotBookable: _isPast || slotPast,
-          formatScheduleDayEn: _formatScheduleDayEn,
-        );
-      },
-    );
-  }
-
-  /// Gold accent for high-signal patient fields in the secretary detail sheet.
-  static const Color _kPatientSheetValueGold = Color(0xFFFFE082);
-
-  Widget _patientInfoSheetDetailCard({
-    required IconData icon,
-    required String label,
-    required Widget value,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF1E293B).withValues(alpha: 0.72),
-        border: Border.all(
-          color: kStaffLuxGold.withValues(alpha: 0.2),
-          width: 0.85,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: kStaffLuxGold.withValues(alpha: 0.11),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: 0.28),
-                width: 0.65,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: kStaffLuxGold.withValues(alpha: 0.94),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10.5,
-                    height: 1.25,
-                    letterSpacing: 0.2,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                value,
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _patientInfoSheetNotesCard(AppLocalizations loc, String notes) {
-    final empty = notes.isEmpty;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF1E293B).withValues(alpha: 0.72),
-        border: Border.all(
-          color: kStaffLuxGold.withValues(alpha: 0.2),
-          width: 0.85,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: kStaffLuxGold.withValues(alpha: 0.11),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: 0.28),
-                width: 0.65,
-              ),
-            ),
-            child: Icon(
-              Icons.sticky_note_2_outlined,
-              size: 22,
-              color: kStaffLuxGold.withValues(alpha: 0.94),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  loc.translate('booking_form_medical_notes'),
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10.5,
-                    height: 1.25,
-                    letterSpacing: 0.2,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  empty
-                      ? loc.translate('schedule_appointment_detail_no_notes')
-                      : notes,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13.5,
-                    height: 1.45,
-                    color: empty
-                        ? Colors.white.withValues(alpha: 0.42)
-                        : Colors.white.withValues(alpha: 0.88),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showBookedAppointmentBottomSheet(
-    BuildContext context,
-    AppLocalizations loc, {
-    required DateTime slotStart,
-    required Map<String, dynamic> data,
-    required String appointmentDocId,
-    required bool canCancel,
-  }) {
-    final name =
-        (data[AppointmentFields.patientName] ?? '').toString().trim();
-    final notes =
-        (data[AppointmentFields.bookingMedicalNotes] ?? '').toString().trim();
-    final phone =
-        (data[AppointmentFields.bookingPhone] ?? '').toString().trim();
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewPaddingOf(ctx).bottom + 12,
-            left: 16,
-            right: 16,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: 0.45),
-                width: 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.38),
-                  blurRadius: 26,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 48,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.28),
-                        borderRadius: BorderRadius.circular(3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    loc.translate('schedule_patient_details_title'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      height: 1.2,
-                      letterSpacing: 0.15,
-                      color: Colors.white.withValues(alpha: 0.96),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _patientInfoSheetDetailCard(
-                    icon: Icons.schedule_rounded,
-                    label: loc.translate('schedule_appointment_detail_time'),
-                    value: Directionality(
-                      textDirection: ui.TextDirection.ltr,
-                      child: Text(
-                        DateFormat.jm('en_US').format(slotStart),
-                        style: const TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
-                          height: 1.15,
-                          letterSpacing: 0.35,
-                          color: Color(0xFFE8EEF4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  _patientInfoSheetDetailCard(
-                    icon: Icons.calendar_month_rounded,
-                    label: loc.translate('schedule_appointment_detail_date'),
-                    value: Text(
-                      _formatScheduleDayEn(_dateLocal),
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        height: 1.2,
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                    ),
-                  ),
-                  _patientInfoSheetDetailCard(
-                    icon: Icons.person_rounded,
-                    label: loc.translate('doctor_appt_patient_name_label'),
-                    value: Text(
-                      name.isEmpty ? '—' : name,
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        height: 1.25,
-                        color: _kPatientSheetValueGold,
-                      ),
-                    ),
-                  ),
-                  if (phone.isNotEmpty)
-                    _patientInfoSheetDetailCard(
-                      icon: Icons.phone_android_rounded,
-                      label: loc.translate('booking_form_phone'),
-                      value: Directionality(
-                        textDirection: ui.TextDirection.ltr,
-                        child: Text(
-                          phone,
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            height: 1.2,
-                            letterSpacing: 0.2,
-                            color: _kPatientSheetValueGold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  _patientInfoSheetNotesCard(loc, notes),
-                  if (canCancel) ...[
-                    const SizedBox(height: 6),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: OutlinedButton.icon(
-                        onPressed: _isPast
-                            ? null
-                            : () async {
-                                // Safety: [_confirmAndCancelSecretaryBooking] shows
-                                // an AlertDialog ("Are you sure?") before any cancel.
-                                final nav = Navigator.of(ctx);
-                                final ok =
-                                    await _confirmAndCancelSecretaryBooking(
-                                  context,
-                                  loc,
-                                  appointmentDocId: appointmentDocId,
-                                );
-                                if (ok && ctx.mounted) {
-                                  nav.pop();
-                                }
-                              },
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 17,
-                          color: Color(0xFFE57373),
-                        ),
-                        label: Text(
-                          loc.translate('master_calendar_cancel_appt'),
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.5,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFE57373),
-                          side: const BorderSide(
-                            color: Color(0xFFB71C1C),
-                            width: 1.1,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 9,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _slotRowTile({
-    required BuildContext context,
-    required AppLocalizations loc,
-    required DateTime slotStart,
-    required bool isBooked,
-    required bool isPassed,
-    required bool isSlotAvailable,
-    required ValueChanged<bool> onToggleAvailable,
-    required String? patientName,
-    required VoidCallback onTap,
-  }) {
-    final timeEn = DateFormat.jm('en_US').format(slotStart);
-    final rawName = (patientName ?? '').trim();
-    final hasName = rawName.isNotEmpty;
-    final displayName = hasName ? rawName : 'ناونەنراو';
-
-    final booked = isBooked || hasName;
-
-    // Original clean style: dark card + yellow divider line.
-    const baseBg = Color(0xFF1E293B);
-    const closedSurface = Color(0xFF0F172A);
-    const dividerGold = Color(0xFFFFD54F);
-
-    final canToggleClose = !booked && !isPassed;
-    final rowOpacity = isPassed ? 0.5 : ((!booked && !isSlotAvailable) ? 0.62 : 1.0);
-
-    return Opacity(
-      opacity: rowOpacity,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-        color: !booked && !isSlotAvailable ? closedSurface : baseBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        elevation: 4,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: SizedBox(
-            height: 56,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (booked)
-                  const SizedBox(
-                    width: 3,
-                    child: ColoredBox(color: dividerGold),
-                  ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: 12,
-                      end: 8,
-                      top: 4,
-                      bottom: 4,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          flex: 4,
-                          child: Directionality(
-                            textDirection: ui.TextDirection.ltr,
-                            child: Text(
-                              timeEn,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                                height: 1.0,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 7,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (booked) ...[
-                                const Icon(
-                                  Icons.person_rounded,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 5),
-                              ],
-                              Expanded(
-                                child: Text(
-                                  booked
-                                      ? displayName
-                                      : (isPassed
-                                            ? loc.translate('schedule_slot_passed_ku')
-                                            : (isSlotAvailable
-                                                  ? loc.translate('schedule_slot_available_ku')
-                                                  : loc.translate('schedule_slot_closed_ku'))),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight:
-                                        booked ? FontWeight.w900 : FontWeight.w800,
-                                    fontSize: 14,
-                                    height: 1.0,
-                                    color: booked
-                                        ? dividerGold
-                                        : Colors.white.withValues(alpha: 0.72),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (canToggleClose)
-                          IconButton(
-                            tooltip: isSlotAvailable
-                                ? loc.translate('schedule_slot_close_confirm_title')
-                                : loc.translate('schedule_slot_closed_ku'),
-                            onPressed: () => onToggleAvailable(!isSlotAvailable),
-                            icon: Icon(
-                              isSlotAvailable ? Icons.lock_open_rounded : Icons.lock_rounded,
-                              size: 18,
-                              color: isSlotAvailable
-                                  ? Colors.white.withValues(alpha: 0.75)
-                                  : const Color(0xFFFCA5A5),
-                            ),
-                          )
-                        else
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(end: 4),
-                            child: Icon(
-                              Icons.lock_rounded,
-                              size: 18,
-                              color: Colors.white.withValues(alpha: 0.35),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _appointmentSlotRow(
-    BuildContext context,
-    AppLocalizations loc,
-    DateTime slot,
-    Map<String, (String?, String, String, Map<String, dynamic>)> byKey,
-  ) {
-    final now = DateTime.now();
-    final todayOnly = _dateOnly(now);
-    final slotDay = _dateOnly(slot);
-    final isToday = slotDay.year == todayOnly.year &&
-        slotDay.month == todayOnly.month &&
-        slotDay.day == todayOnly.day;
-    final isPassed = isToday && !slot.isAfter(now);
-
-    final k = formatTimeHhMm(slot);
-    final booking = byKey[k];
-    final patientName = booking?.$1;
-    // Booked UI only when a real patient is attached (closed/available placeholders are not “booked”).
-    final hasPatient = (patientName ?? '').toString().trim().isNotEmpty;
-    final isBooked = hasPatient;
-    final slotAvailable = booking == null ||
-        (booking.$4[AppointmentFields.isAvailable] != false);
-    final showCancel = booking != null &&
-        !_isPast &&
-        !appointmentStatusIsTerminalForStaffSort(booking.$3);
-    return _slotRowTile(
-      context: context,
-      loc: loc,
-      slotStart: slot,
-      isBooked: isBooked,
-      isPassed: isPassed,
-      isSlotAvailable: slotAvailable,
-      onToggleAvailable: (v) async {
-        if (_isPast) return;
-        if (isBooked) return;
-        if (isPassed) return;
-        if (!v) {
-          final ok = await showDialog<bool>(
-            context: context,
-            builder: (dctx) {
-              return AlertDialog(
-                backgroundColor: const Color(0xFF0F172A),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: kStaffLuxGold.withValues(alpha: 0.35),
-                  ),
-                ),
-                title: Text(
-                  loc.translate('schedule_slot_close_confirm_title'),
-                  style: const TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFE8EEF4),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dctx, false),
-                    child: Text(
-                      loc.translate('action_cancel'),
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFB0BEC5),
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(dctx, true),
-                    child: Text(
-                      loc.translate('ok'),
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFE57373),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-          if (ok != true) return;
-        }
-
-        final timeKey = formatTimeHhMm(slot);
-        final existing = booking;
-        try {
-          if (existing != null) {
-            await FirebaseFirestore.instance
-                .collection(AppointmentFields.collection)
-                .doc(existing.$2)
-                .set(
-              {AppointmentFields.isAvailable: v},
-              SetOptions(merge: true),
-            );
-          } else {
-            await FirebaseFirestore.instance
-                .collection(AppointmentFields.collection)
-                .add({
-              AppointmentFields.doctorId: _doctorUserId,
-              AppointmentFields.date: Timestamp.fromDate(_dateOnly(_dateLocal)),
-              AppointmentFields.time: timeKey,
-              AppointmentFields.status: 'available',
-              AppointmentFields.isBooked: false,
-              AppointmentFields.isAvailable: v,
-              AppointmentFields.createdAt: FieldValue.serverTimestamp(),
-              AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
-            });
-          }
-        } catch (_) {}
-      },
-      patientName: patientName,
-      onTap: () {
-        final b = booking;
-        if (b != null) {
-          _showBookedAppointmentBottomSheet(
-            context,
-            loc,
-            slotStart: slot,
-            data: b.$4,
-            appointmentDocId: b.$2,
-            canCancel: showCancel,
-          );
-        } else {
-          if (isPassed) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  loc.translate('schedule_slot_passed_ku'),
-                  style: const TextStyle(fontFamily: kPatientPrimaryFont),
-                ),
-              ),
-            );
-            return;
-          }
-          if (!slotAvailable) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  loc.translate('schedule_slot_closed_ku'),
-                  style: const TextStyle(fontFamily: kPatientPrimaryFont),
-                ),
-              ),
-            );
-            return;
-          }
-          _showAvailableSlotBottomSheet(context, loc, slot);
-        }
-      },
-    );
-  }
-
-  Widget _buildAppointmentSlotsPanel(AppLocalizations loc) {
-    if (!_isOpen) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(
-          loc.translate('schedule_timeline_no_hours'),
-          style: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 11,
-            height: 1.25,
-            color: Colors.white.withValues(alpha: 0.62),
-          ),
-        ),
-      );
-    }
-
-    final slots = generatedSlotStartsForDay(
-      dateOnly: _dateLocal,
-      startTimeHhMm: _fmt(_start),
-      closingTimeHhMm: _fmt(_end),
-      durationMinutes: _durationMin,
-    );
-
-    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: watchDoctorAppointmentsForLocalDay(
-        doctorUserId: _doctorUserId,
-        dayLocal: _dateLocal,
-      ),
-      builder: (context, snap) {
-        // FIX: never return an empty area silently.
-        // Always show loading, empty, or the slot list.
-        if (snap.hasError) {
-          logFirestoreIndexHelpOnce(
-            snap.error,
-            tag: 'ScheduleManagementScreen.footer_slots',
-            expectedCompositeIndexHint: kAppointmentsDoctorDateStatusIndexHint,
-          );
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              loc.translate('schedule_load_error'),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontFamily: kPatientPrimaryFont,
-                fontSize: 11,
-              ),
-            ),
-          );
-        }
-        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: kStaffLuxGold,
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (slots.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(
-              loc.translate('schedule_timeline_no_slots'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-                height: 1.3,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-          );
-        }
-
-        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-          snap.data ?? [],
-        );
-        final byKey = _slotDocsByHhMmForToggle(docs);
-
-        return StreamBuilder<DateTime>(
-          stream: scheduleClockStream(),
-          initialData: DateTime.now(),
-          builder: (context, _) {
-            // FORCED UI RENDERING: reliable list rendering (no missing returns).
-            return ListView.builder(
-              itemCount: slots.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final slot = slots[index];
-                return _appointmentSlotRow(context, loc, slot, byKey);
-              },
-            );
-          },
-        );
-      },
     );
   }
 
@@ -2924,10 +2397,11 @@ class ScheduleDayPanelController extends ChangeNotifier {
             initiallyExpanded: _timeExpanded,
             onExpansionChanged: (v) {
               _timeExpanded = v;
-              if (v) {
-                _slotsExpanded = false;
-              }
-              notifyListeners();
+              // ExpansionTile may invoke callbacks during its build/layout;
+              // defer notifications to avoid "markNeedsBuild called during build".
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                notifyListeners();
+              });
             },
             tilePadding: EdgeInsets.fromLTRB(
               compact ? 10 : 12,
@@ -2959,11 +2433,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
               ),
             ),
             children: [
-              SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Row(
@@ -3044,369 +2517,143 @@ class ScheduleDayPanelController extends ChangeNotifier {
                       vertical: 10,
                     ),
                   ),
-                  ],
-                ),
+                ],
               ),
             ],
           ),
       );
-      return AnimatedScale(
-        scale: _timeExpanded ? 1.0 : 0.985,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        child: AnimatedOpacity(
-          opacity: _timeExpanded ? 1.0 : 0.94,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
+      // Avoid [AnimatedOpacity]/[AnimatedScale]: their tweens use `value as double`
+      // and can throw if the target is not a double at runtime. Use explicit
+      // doubles + non-animated wrappers instead.
+      const double expandedOpacity = 1.0;
+      const double collapsedOpacity = 0.94;
+      const double expandedScale = 1.0;
+      const double collapsedScale = 0.985;
+      final double targetOpacity =
+          _timeExpanded ? expandedOpacity : collapsedOpacity;
+      final double targetScale =
+          _timeExpanded ? expandedScale : collapsedScale;
+      return Transform.scale(
+        scale: targetScale,
+        alignment: Alignment.center,
+        child: Opacity(
+          opacity: targetOpacity,
           child: card,
         ),
       );
   }
-
-  Widget buildSlotsCard(BuildContext context, bool compact) {
-    final loc = S.of(context);
-    final gold = kStaffLuxGold;
-    final titleStyle = TextStyle(
-      fontFamily: kPatientPrimaryFont,
-      fontWeight: FontWeight.w900,
-      fontSize: compact ? 12 : 13,
-      height: 1.2,
-      color: Colors.white.withValues(alpha: 0.96),
-    );
-    final card = _sectionCard(
-      context,
-      margin: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 8),
-      emphasized: _slotsExpanded,
-      child: ExpansionTile(
-            key: const PageStorageKey<String>(
-              'schedule_footer_slot_list_tile',
-            ),
-            maintainState: true,
-            initiallyExpanded: _slotsExpanded,
-            onExpansionChanged: (v) {
-              _slotsExpanded = v;
-              if (v) {
-                _timeExpanded = false;
-              }
-              notifyListeners();
-            },
-            tilePadding: EdgeInsets.symmetric(
-              horizontal: compact ? 10 : 12,
-              vertical: compact ? 4 : 6,
-            ),
-            childrenPadding: EdgeInsets.fromLTRB(
-              compact ? 10 : 12,
-              0,
-              compact ? 10 : 12,
-              compact ? 10 : 12,
-            ),
-            dense: true,
-            iconColor: gold,
-            collapsedIconColor: gold.withValues(alpha: 0.88),
-            title: Text(
-              loc.translate('schedule_today_focus_tab_list'),
-              style: titleStyle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
-            ),
-            children: [
-              _buildAppointmentSlotsPanel(S.of(context)),
-            ],
-          ),
-    );
-    return AnimatedScale(
-      scale: _slotsExpanded ? 1.0 : 0.985,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      child: AnimatedOpacity(
-        opacity: _slotsExpanded ? 1.0 : 0.94,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        child: card,
-      ),
-    );
-  }
 }
 
-String _normalizedScheduleBookingRole(Map<String, dynamic>? data) {
-  final raw = (data?['role'] ?? '').toString().trim().toLowerCase();
-  if (raw.isEmpty || raw == 'user' || raw == 'patient') return 'patient';
-  return raw;
-}
+/// Bottom area: hint until a day is chosen, then centered square → modal slot list.
+class _ScheduleBottomSlotsSection extends StatelessWidget {
+  const _ScheduleBottomSlotsSection({this.userSelectedDay});
 
-class _ScheduleAvailableSlotSheet extends StatefulWidget {
-  const _ScheduleAvailableSlotSheet({
-    required this.loc,
-    required this.doctorUserId,
-    required this.dateLocal,
-    required this.slotStart,
-    required this.slotNotBookable,
-    required this.formatScheduleDayEn,
-  });
+  final DateTime? userSelectedDay;
 
-  final AppLocalizations loc;
-  final String doctorUserId;
-  final DateTime dateLocal;
-  final DateTime slotStart;
-  final bool slotNotBookable;
-  final String Function(DateTime d) formatScheduleDayEn;
-
-  @override
-  State<_ScheduleAvailableSlotSheet> createState() =>
-      _ScheduleAvailableSlotSheetState();
-}
-
-class _ScheduleAvailableSlotSheetState extends State<_ScheduleAvailableSlotSheet> {
-  bool _loadingRole = true;
-  bool _booking = false;
-  /// `patient` | staff role key | `anonymous` when not signed in.
-  String _roleNorm = 'patient';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRole();
-  }
-
-  Future<void> _loadRole() async {
-    final u = FirebaseAuth.instance.currentUser;
-    if (u == null) {
-      if (mounted) {
-        setState(() {
-          _loadingRole = false;
-          _roleNorm = 'anonymous';
-        });
-      }
-      return;
-    }
-    try {
-      final snap =
-          await FirebaseFirestore.instance.collection('users').doc(u.uid).get();
-      final r = _normalizedScheduleBookingRole(snap.data());
-      if (mounted) {
-        setState(() {
-          _loadingRole = false;
-          _roleNorm = r;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loadingRole = false;
-          _roleNorm = 'patient';
-        });
-      }
-    }
-  }
-
-  bool get _isPatient => _roleNorm == 'patient';
-
-  Future<void> _confirmBook(BuildContext sheetContext) async {
-    setState(() => _booking = true);
-    final m = widget.slotStart.hour * 60 + widget.slotStart.minute;
-    final err = await bookPatientAppointmentAtScheduleSlot(
-      doctorId: widget.doctorUserId,
-      dateLocal: widget.dateLocal,
-      slotStartMinutes: m,
-    );
-    if (!mounted) return;
-    setState(() => _booking = false);
-    if (!sheetContext.mounted) return;
-    if (err == null) {
-      Navigator.pop(sheetContext);
-      ScaffoldMessenger.of(sheetContext).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.loc.translate('master_calendar_saved'),
-            style: const TextStyle(fontFamily: kPatientPrimaryFont),
-          ),
-        ),
-      );
-      return;
-    }
-    ScaffoldMessenger.of(sheetContext).showSnackBar(
-      SnackBar(
-        content: Text(
-          widget.loc.translate(err),
-          style: const TextStyle(fontFamily: kPatientPrimaryFont),
-        ),
-      ),
-    );
-  }
+  static const double _squareSide = 156.0;
 
   @override
   Widget build(BuildContext context) {
-    final loc = widget.loc;
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewPaddingOf(context).bottom + 12,
-        left: 16,
-        right: 16,
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: kStaffLuxGold.withValues(alpha: 0.42),
-            width: 0.8,
+    final loc = S.of(context);
+    if (userSelectedDay == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
+        child: Text(
+          loc.translate('schedule_slots_pick_day_hint'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w600,
+            fontSize: 13.0,
+            height: 1.35,
+            color: Colors.white.withValues(alpha: 0.72),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, -4),
-            ),
-          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      );
+    }
+    final c = ScheduleDayPanelScope.of(context);
+    final d0 = DateTime(
+      userSelectedDay!.year,
+      userSelectedDay!.month,
+      userSelectedDay!.day,
+    );
+    final hint = loc.translate('schedule_slots_square_hint');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(18.0),
+        border: Border.all(
+          color: kStaffLuxGold.withValues(alpha: 0.38),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 18.0,
+            offset: const Offset(0.0, 6.0),
+          ),
+        ],
+      ),
+      child: Center(
+        child: SizedBox(
+          width: _squareSide,
+          height: _squareSide,
+          child: Material(
+            color: _kSchedSelectedFill,
+            borderRadius: BorderRadius.circular(20.0),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () {
+                showScheduleSlotsModalBottomSheet(
+                  context: context,
+                  panel: c,
+                  dayLocal: d0,
+                  loc: loc,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10.0,
+                  vertical: 12.0,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                loc.translate('schedule_slot_available_ku'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                  color: _kSchedOpenFill.withValues(alpha: 0.95),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Directionality(
-                textDirection: ui.TextDirection.ltr,
-                child: Text(
-                  DateFormat.jm('en_US').format(widget.slotStart),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 26,
-                    height: 1.1,
-                    color: Color(0xFFE8EEF4),
-                    letterSpacing: 0.35,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.formatScheduleDayEn(widget.dateLocal),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.72),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                loc.translate('schedule_slot_available_sheet_hint'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  height: 1.35,
-                  color: Colors.white.withValues(alpha: 0.58),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_loadingRole)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: kStaffLuxGold,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      hint,
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11.5,
+                        height: 1.3,
+                        color: Colors.white.withValues(alpha: 0.78),
                       ),
                     ),
-                  ),
-                )
-              else if (_roleNorm == 'anonymous')
-                Text(
-                  loc.translate('login_required'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    height: 1.35,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
-                )
-              else if (!_isPatient)
-                Text(
-                  loc.translate('schedule_booking_staff_only'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    height: 1.35,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
-                )
-              else if (widget.slotNotBookable)
-                Text(
-                  loc.translate('schedule_booking_past_slot'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    height: 1.35,
-                    color: Colors.white.withValues(alpha: 0.72),
-                  ),
-                )
-              else
-                FilledButton(
-                  onPressed: _booking ? null : () => _confirmBook(context),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kSchedOpenFill.withValues(alpha: 0.92),
-                    foregroundColor: const Color(0xFF0F172A),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: _booking
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF0F172A),
-                          ),
-                        )
-                      : Text(
-                          loc.translate('confirm_booking'),
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
+                    const SizedBox(height: 10.0),
+                    Directionality(
+                      textDirection: ui.TextDirection.ltr,
+                      child: Text(
+                        '${d0.day}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 52.0,
+                          height: 1.0,
+                          color: kStaffLuxGold.withValues(alpha: 0.98),
                         ),
+                      ),
+                    ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       ),

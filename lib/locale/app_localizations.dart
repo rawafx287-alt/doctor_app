@@ -1768,6 +1768,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا فترات زمنية (نافذة غير صالحة)',
     'en': 'No time slots could be generated for this window.',
   },
+  'schedule_slots_pick_day_hint': {
+    'ckb': 'تکایە ڕۆژێک هەڵبژێرە بۆ بینینی نۆرەکان',
+    'ar': 'يرجى اختيار يوم لعرض المواعيد',
+    'en': 'Please select a day to view appointment slots.',
+  },
+  'schedule_slots_square_hint': {
+    'ckb': 'بۆ بینینی نۆرەکان کلیک بکە',
+    'ar': 'اضغط لعرض المواعيد',
+    'en': 'Tap to view slots',
+  },
+  'schedule_slots_sheet_title': {
+    'ckb': 'لیستی نۆرەکانی ڕۆژی: {day} / {month}',
+    'ar': 'قائمة مواعيد اليوم: {day} / {month}',
+    'en': 'Slots for day: {day} / {month}',
+  },
   'schedule_timeline_other_bookings': {
     'ckb': 'نۆرەکانی دیکە (کات ناناسراو)',
     'ar': 'مواعيد أخرى (وقت غير مطابق للفترات)',
