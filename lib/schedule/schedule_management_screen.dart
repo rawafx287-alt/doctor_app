@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -1132,6 +1133,23 @@ class ScheduleDayPanelController extends ChangeNotifier {
   DateTime _dateLocal;
   String _existingDocId;
   Map<String, dynamic>? _dayRow;
+  bool _disposed = false;
+
+  void _notifySafely() {
+    if (_disposed) return;
+    final phase = WidgetsBinding.instance.schedulerPhase;
+    final inBuildOrLayout =
+        phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks;
+    if (!inBuildOrLayout) {
+      notifyListeners();
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      notifyListeners();
+    });
+  }
 
   void applyHostDateOrDocChange({
     required String doctorUserId,
@@ -1458,6 +1476,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _durationController?.dispose();
     super.dispose();
   }
@@ -2758,6 +2777,12 @@ class ScheduleDayPanelController extends ChangeNotifier {
           builder: (context, _) {
             // FORCED UI RENDERING: reliable list rendering (no missing returns).
             return ListView.builder(
+              // Important: give this Scrollable its own PageStorage identity.
+              // Otherwise it will fall back to the ancestor ExpansionTile's
+              // PageStorageKey and collide with the tile's stored `bool` state,
+              // causing a runtime cast error (bool -> double) when restoring
+              // scroll offset.
+              key: const PageStorageKey<String>('schedule_footer_slot_list_scroll'),
               itemCount: slots.length,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -2927,7 +2952,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
               if (v) {
                 _slotsExpanded = false;
               }
-              notifyListeners();
+              _notifySafely();
             },
             tilePadding: EdgeInsets.fromLTRB(
               compact ? 10 : 12,
@@ -3088,7 +3113,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
               if (v) {
                 _timeExpanded = false;
               }
-              notifyListeners();
+              _notifySafely();
             },
             tilePadding: EdgeInsets.symmetric(
               horizontal: compact ? 10 : 12,
