@@ -19,6 +19,7 @@ import '../theme/patient_premium_theme.dart';
 import 'contact_support_screen.dart';
 import 'doctor_details_screen.dart';
 import 'patient_doctor_booking_screen.dart';
+import 'doctor_rating_service.dart';
 import 'patient_doctor_card.dart';
 import 'patient_profile_screen.dart';
 import 'patient_scroll_physics.dart';
@@ -142,7 +143,6 @@ Widget _patientGlassMenuInkRow({
   required Color iconColor,
   required String label,
   required String value,
-  bool showUnreadDot = false,
 }) {
   return InkWell(
     onTap: () => Navigator.pop(menuContext, value),
@@ -150,30 +150,7 @@ Widget _patientGlassMenuInkRow({
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          SizedBox(
-            width: 22,
-            height: 22,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Icon(icon, size: 22, color: iconColor),
-                if (showUnreadDot)
-                  Positioned(
-                    right: -1,
-                    top: -1,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE53935),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          Icon(icon, size: 22, color: iconColor),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -191,6 +168,109 @@ Widget _patientGlassMenuInkRow({
       ),
     ),
   );
+}
+
+/// Bell next to overflow menu; red dot when [hasUnread] (matches menu circle styling).
+class _PatientNotificationBellButton extends StatefulWidget {
+  const _PatientNotificationBellButton({
+    required this.hasUnread,
+    required this.onTap,
+  });
+
+  final bool hasUnread;
+  final VoidCallback onTap;
+
+  @override
+  State<_PatientNotificationBellButton> createState() =>
+      _PatientNotificationBellButtonState();
+}
+
+class _PatientNotificationBellButtonState
+    extends State<_PatientNotificationBellButton> {
+  bool _pressed = false;
+
+  static const double _diameter = 42;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: widget.onTap,
+        child: Listener(
+          onPointerDown: (_) => setState(() => _pressed = true),
+          onPointerUp: (_) => setState(() => _pressed = false),
+          onPointerCancel: (_) => setState(() => _pressed = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            width: _diameter,
+            height: _diameter,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.82),
+              border: Border.all(
+                color: const Color(0xFFE8EEF4).withValues(alpha: 0.95),
+                width: 0.75,
+              ),
+              boxShadow: _pressed
+                  ? [
+                      BoxShadow(
+                        color: _kBrandLuxGold.withValues(alpha: 0.48),
+                        blurRadius: 14,
+                        spreadRadius: 0.6,
+                      ),
+                      BoxShadow(
+                        color: _kBrandLuxGoldLight.withValues(alpha: 0.32),
+                        blurRadius: 10,
+                        spreadRadius: -1,
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_none_outlined,
+                  size: 23,
+                  color: _kPremiumDeepBlue,
+                ),
+                if (widget.hasUnread)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53935),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Staggered hamburger for patient home overflow; gold glow on press (matches medical +).
@@ -876,6 +956,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                     specialty: specialty,
                     profileImageUrl:
                         (data['profileImageUrl'] ?? '').toString(),
+                    ratingAverage: doctorRatingAverageFromData(data),
+                    ratingCount: doctorRatingCountFromData(data),
                     onBook: () {
                       Navigator.push<void>(
                         context,
@@ -1095,6 +1177,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
             ),
           ),
           const Spacer(),
+          _PatientNotificationBellButton(
+            hasUnread: hasUnreadNotifications,
+            onTap: () async {
+              HapticFeedback.lightImpact();
+              if (!context.mounted) return;
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const PatientNotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
           Theme(
             data: Theme.of(context).copyWith(
               popupMenuTheme: const PopupMenuThemeData(
@@ -1136,13 +1232,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                       builder: (context) => const ContactSupportScreen(),
                     ),
                   );
-                } else if (value == 'notifications') {
-                  await Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) => const PatientNotificationsScreen(),
-                    ),
-                  );
                 } else if (value == 'logout') {
                   await _logout();
                 }
@@ -1150,7 +1239,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
               itemBuilder: (ctx) {
                 const profileBlue = Color(0xFF1565C0);
                 const feedbackTeal = Color(0xFF00897B);
-                const notificationsIndigo = Color(0xFF5C6BC0);
                 const logoutCoral = Color(0xFFE57373);
                 final dividerColor = Colors.grey.withValues(alpha: 0.15);
                 return [
@@ -1198,22 +1286,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                                 iconColor: feedbackTeal,
                                 label: s.translate('patient_home_menu_feedback'),
                                 value: 'feedback',
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 0.5,
-                                indent: 14,
-                                endIndent: 14,
-                                color: dividerColor,
-                              ),
-                              _patientGlassMenuInkRow(
-                                menuContext: ctx,
-                                icon: Icons.notifications_none_rounded,
-                                iconColor: notificationsIndigo,
-                                label:
-                                    s.translate('patient_home_menu_notifications'),
-                                value: 'notifications',
-                                showUnreadDot: hasUnreadNotifications,
                               ),
                               Divider(
                                 height: 1,

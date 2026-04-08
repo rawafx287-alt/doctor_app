@@ -2,8 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart' show CupertinoColors, CupertinoSwitch;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -12,7 +13,6 @@ import '../patient/create_patient_appointment.dart';
 import '../firestore/root_notifications_firestore.dart';
 import '../firestore/available_days_queries.dart';
 import '../firestore/firestore_index_error_log.dart';
-import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../doctor/doctor_premium_shell.dart'
     show
@@ -23,7 +23,6 @@ import '../doctor/doctor_premium_shell.dart'
 import '../theme/calendar_crystal_surfaces.dart';
 import '../theme/hr_nora_colors.dart';
 import '../theme/staff_premium_theme.dart';
-import '../theme/staff_time_picker_theme.dart';
 
 /// Secretary/doctor schedule UI — aligned with patient month grid (rounded cells, glass shell).
 /// Deep teal “open” (matches [HrNoraColors.openDayFill]).
@@ -1054,14 +1053,20 @@ class _ScheduleDayPanelHostState extends State<_ScheduleDayPanelHost> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.dateLocal != widget.dateLocal ||
         oldWidget.existingDocId != widget.existingDocId) {
-      _controller.applyHostDateOrDocChange(
-        doctorUserId: widget.doctorUserId,
-        dateLocal: widget.dateLocal,
-        existingDocId: widget.existingDocId,
-        dayRow: widget.dayRow,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.applyHostDateOrDocChange(
+          doctorUserId: widget.doctorUserId,
+          dateLocal: widget.dateLocal,
+          existingDocId: widget.existingDocId,
+          dayRow: widget.dayRow,
+        );
+      });
     } else if (oldWidget.dayRow != widget.dayRow) {
-      _controller.applyDayRowRefresh(widget.dayRow);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.applyDayRowRefresh(widget.dayRow);
+      });
     }
   }
 
@@ -1111,8 +1116,6 @@ class _ScheduleSlotsCardPanel extends StatelessWidget {
 }
 
 class ScheduleDayPanelController extends ChangeNotifier {
-  static const List<int> _kDurations = [15, 30, 45, 60];
-
   ScheduleDayPanelController({
     required String doctorUserId,
     required DateTime dateLocal,
@@ -1147,30 +1150,30 @@ class ScheduleDayPanelController extends ChangeNotifier {
   }
 
   void applyDayRowRefresh(Map<String, dynamic>? dayRow) {
+    // After saving, streams may briefly emit stale snapshots.
+    // Avoid reverting the UI until Firestore reflects the values we just saved.
+    if (_pendingSavedStartHhMm != null ||
+        _pendingSavedEndHhMm != null ||
+        _pendingSavedDurationMin != null) {
+      if (!_snapshotMatchesPending(dayRow)) {
+        return;
+      }
+      _clearPendingSavedIfMatched(dayRow);
+    }
     _dayRow = dayRow;
     _applyRowSnapshot();
     notifyListeners();
-  }
-
-  static int _coerceDuration(int minutes) {
-    if (_kDurations.contains(minutes)) return minutes;
-    var best = _kDurations[1];
-    var bestD = 1 << 30;
-    for (final c in _kDurations) {
-      final d = (c - minutes).abs();
-      if (d < bestD) {
-        bestD = d;
-        best = c;
-      }
-    }
-    return best;
   }
 
   late bool _isOpen;
   late TimeOfDay _start;
   late TimeOfDay _end;
   late int _durationMin;
+  TextEditingController? _durationController;
   var _saving = false;
+  String? _pendingSavedStartHhMm;
+  String? _pendingSavedEndHhMm;
+  int? _pendingSavedDurationMin;
 
   // Mutual exclusion between the two cards.
   bool _timeExpanded = false;
@@ -1183,11 +1186,280 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final eh = normalizeAvailableDayClosingTimeHhMm(row?[AvailableDayFields.closingTime]);
     _start = _parseHhMm(sh) ?? const TimeOfDay(hour: 9, minute: 0);
     _end = _parseHhMm(eh) ?? const TimeOfDay(hour: 20, minute: 0);
-    _durationMin = _coerceDuration(
-      normalizeAppointmentDurationMinutes(
-        row?[AvailableDayFields.appointmentDuration],
-      ),
+    final rawDur = normalizeAppointmentDurationMinutes(
+      row?[AvailableDayFields.appointmentDuration],
     );
+    _durationMin = rawDur <= 0 ? 15 : rawDur;
+    _durationController ??= TextEditingController();
+    _durationController!.text = '$_durationMin';
+  }
+
+  void _markPendingSavedValues({
+    required String startHhMm,
+    required String endHhMm,
+    required int durationMin,
+  }) {
+    _pendingSavedStartHhMm = normalizeAvailableDayStartTimeHhMm(startHhMm);
+    _pendingSavedEndHhMm = normalizeAvailableDayClosingTimeHhMm(endHhMm);
+    _pendingSavedDurationMin = durationMin.clamp(1, 24 * 60);
+  }
+
+  bool _snapshotMatchesPending(Map<String, dynamic>? row) {
+    final ps = _pendingSavedStartHhMm;
+    final pe = _pendingSavedEndHhMm;
+    final pd = _pendingSavedDurationMin;
+    if (ps == null && pe == null && pd == null) return true;
+    if (row == null) return false;
+    final sh = normalizeAvailableDayStartTimeHhMm(row[AvailableDayFields.startTime]);
+    final eh =
+        normalizeAvailableDayClosingTimeHhMm(row[AvailableDayFields.closingTime]);
+    final dur =
+        normalizeAppointmentDurationMinutes(row[AvailableDayFields.appointmentDuration]);
+    return sh == ps && eh == pe && dur == pd;
+  }
+
+  void _clearPendingSavedIfMatched(Map<String, dynamic>? row) {
+    if (_snapshotMatchesPending(row)) {
+      _pendingSavedStartHhMm = null;
+      _pendingSavedEndHhMm = null;
+      _pendingSavedDurationMin = null;
+    }
+  }
+
+  Future<TimeOfDay?> _pickTimePremiumBottomSheet(
+    BuildContext context, {
+    required TimeOfDay initial,
+    required String title,
+  }) async {
+    if (_isPast) return null;
+    final loc = S.of(context);
+    var h = initial.hour.clamp(0, 23);
+    const minuteStep = 5;
+    var minuteIndex =
+        (initial.minute / minuteStep).round().clamp(0, 59 ~/ minuteStep);
+
+    return showModalBottomSheet<TimeOfDay>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final bottom = MediaQuery.viewPaddingOf(ctx).bottom;
+        final accent = kStaffLuxGold;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, bottom + 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.5),
+                    width: 0.9,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      offset: const Offset(0, -6),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 190,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: CupertinoPicker(
+                                scrollController: FixedExtentScrollController(
+                                  initialItem: h,
+                                ),
+                                itemExtent: 36,
+                                onSelectedItemChanged: (v) => h = v,
+                                selectionOverlay: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: accent.withValues(alpha: 0.18),
+                                        width: 1,
+                                      ),
+                                      bottom: BorderSide(
+                                        color: accent.withValues(alpha: 0.18),
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                children: List.generate(24, (i) {
+                                  return Center(
+                                    child: Text(
+                                      i.toString().padLeft(2, '0'),
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 16,
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(
+                                ':',
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 18,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: CupertinoPicker(
+                                scrollController: FixedExtentScrollController(
+                                  initialItem: minuteIndex,
+                                ),
+                                itemExtent: 36,
+                                onSelectedItemChanged: (v) => minuteIndex = v,
+                                selectionOverlay: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: accent.withValues(alpha: 0.18),
+                                        width: 1,
+                                      ),
+                                      bottom: BorderSide(
+                                        color: accent.withValues(alpha: 0.18),
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                children: List.generate(60 ~/ minuteStep, (i) {
+                                  final mm =
+                                      (i * minuteStep).toString().padLeft(2, '0');
+                                  return Center(
+                                    child: Text(
+                                      mm,
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 16,
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white.withValues(alpha: 0.9),
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                loc.translate('action_cancel'),
+                                style: const TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                final mm = (minuteIndex * minuteStep).clamp(0, 59);
+                                Navigator.pop(
+                                  ctx,
+                                  TimeOfDay(hour: h, minute: mm),
+                                );
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor:
+                                    const Color(0xFF1565C0).withValues(alpha: 0.92),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                loc.translate('ok'),
+                                style: const TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _durationController?.dispose();
+    super.dispose();
   }
 
   TimeOfDay? _parseHhMm(String s) {
@@ -1207,19 +1479,19 @@ class ScheduleDayPanelController extends ChangeNotifier {
   bool get _isPast =>
       _dateOnly(_dateLocal).isBefore(_dateOnly(DateTime.now()));
 
+  Stream<DateTime> scheduleClockStream() async* {
+    yield DateTime.now();
+    await for (final _ in Stream.periodic(const Duration(seconds: 30))) {
+      yield DateTime.now();
+    }
+  }
+
   Future<void> _pickStart(BuildContext context) async {
     if (_isPast) return;
-    final p = await showTimePicker(
-      context: context,
-      initialTime: _start,
-      initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (c, ch) => Theme(
-        data: staffTimePickerDialogTheme(Theme.of(c)),
-        child: Directionality(
-          textDirection: AppLocaleScope.of(c).textDirection,
-          child: ch ?? const SizedBox.shrink(),
-        ),
-      ),
+    final p = await _pickTimePremiumBottomSheet(
+      context,
+      initial: _start,
+      title: S.of(context).translate('schedule_control_start_time_label'),
     );
     if (p != null) {
       _start = p;
@@ -1229,17 +1501,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   Future<void> _pickEnd(BuildContext context) async {
     if (_isPast) return;
-    final p = await showTimePicker(
-      context: context,
-      initialTime: _end,
-      initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (c, ch) => Theme(
-        data: staffTimePickerDialogTheme(Theme.of(c)),
-        child: Directionality(
-          textDirection: AppLocaleScope.of(c).textDirection,
-          child: ch ?? const SizedBox.shrink(),
-        ),
-      ),
+    final p = await _pickTimePremiumBottomSheet(
+      context,
+      initial: _end,
+      title: S.of(context).translate('schedule_control_end_time_label'),
     );
     if (p != null) {
       _end = p;
@@ -1256,6 +1521,30 @@ class ScheduleDayPanelController extends ChangeNotifier {
       final id = _existingDocId;
       final hasDoc = _dayRow != null;
       final wasOpen = hasDoc && availableDayIsOpen(_dayRow!);
+
+      final raw = (_durationController?.text ?? '').trim();
+      final durEffective = int.tryParse(raw);
+      if (_isOpen && (durEffective == null || durEffective <= 0)) {
+        if (context.mounted) {
+          _saving = false;
+          notifyListeners();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                s.translate('schedule_custom_duration_required'),
+                style: const TextStyle(fontFamily: kPatientPrimaryFont),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final dur = (durEffective ?? 15).clamp(1, 24 * 60);
+      _markPendingSavedValues(
+        startHhMm: _fmt(_start),
+        endHhMm: _fmt(_end),
+        durationMin: dur,
+      );
 
       if (!_isOpen) {
         if (hasDoc) {
@@ -1342,7 +1631,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
             dateLocal: _dateLocal,
             startTimeHhMm: _fmt(_start),
             closingTimeHhMm: _fmt(_end),
-            appointmentDurationMinutes: _durationMin,
+            appointmentDurationMinutes: dur,
           );
         } else {
           await setAvailableDayOpenState(availableDayDocId: id, isOpen: true);
@@ -1350,9 +1639,29 @@ class ScheduleDayPanelController extends ChangeNotifier {
             availableDayDocId: id,
             startTimeHhMm: _fmt(_start),
             closingTimeHhMm: _fmt(_end),
-            appointmentDurationMinutes: _durationMin,
+            appointmentDurationMinutes: dur,
           );
         }
+
+        // Regenerate freed `available` placeholders so all apps match the new grid immediately.
+        await regenerateAvailableSlotsForDoctorLocalDay(
+          doctorUserId: _doctorUserId,
+          dayLocal: _dateLocal,
+          startTimeHhMm: _fmt(_start),
+          closingTimeHhMm: _fmt(_end),
+          durationMinutes: dur,
+        );
+
+        // Refresh local state immediately (don’t wait for stream rebuild).
+        try {
+          final fresh = await FirebaseFirestore.instance
+              .collection(AvailableDayFields.collection)
+              .doc(id)
+              .get(const GetOptions(source: Source.server));
+          _dayRow = fresh.data();
+          _applyRowSnapshot();
+        } catch (_) {}
+        notifyListeners();
       }
       if (context.mounted) {
         showScheduleSaveSuccessSnackBar(
@@ -1507,22 +1816,39 @@ class ScheduleDayPanelController extends ChangeNotifier {
   /// Active booking per slot: patient name, doc id, status, raw data (detail sheet).
   Map<String, (String? patientName, String docId, String status,
       Map<String, dynamic> data)>
-      _activeSlotBookingsByHhMm(
+  _slotDocsByHhMmForToggle(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final m = <String, (String?, String, String, Map<String, dynamic>)>{};
     for (final d in docs) {
       final data = d.data();
-      if (!appointmentSlotCountsAsBookedOnPatientSchedule(data)) continue;
+      final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+      if (k.isEmpty) continue;
       final st = (data[AppointmentFields.status] ?? 'pending')
           .toString()
           .trim()
           .toLowerCase();
-      final k = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
-      if (k.isEmpty) continue;
+      final blocks = appointmentDocBlocksSlotForNewPatientBooking(data);
+      final prev = m[k];
+      if (prev != null) {
+        final prevBlocks = appointmentDocBlocksSlotForNewPatientBooking(prev.$4);
+        final prevSt = prev.$3.toLowerCase();
+
+        // Always prefer the blocking/real booking for display/sync.
+        if (prevBlocks && !blocks) continue;
+        if (!prevBlocks && blocks) {
+          // replace with booking
+        } else {
+          // Both are non-blocking: prefer the existing available placeholder as the toggle target.
+          if (prevSt == 'available' && st != 'available') continue;
+          if (prevSt != 'available' && st == 'available') {
+            // replace with available placeholder
+          }
+        }
+      }
       final n = (data[AppointmentFields.patientName] ?? '').toString().trim();
       final nameOrNull = n.isEmpty ? null : n;
-      m.putIfAbsent(k, () => (nameOrNull, d.id, st, data));
+      m[k] = (nameOrNull, d.id, st, data);
     }
     return m;
   }
@@ -2037,6 +2363,9 @@ class ScheduleDayPanelController extends ChangeNotifier {
     required AppLocalizations loc,
     required DateTime slotStart,
     required bool isBooked,
+    required bool isPassed,
+    required bool isSlotAvailable,
+    required ValueChanged<bool> onToggleAvailable,
     required String? patientName,
     required VoidCallback onTap,
   }) {
@@ -2045,127 +2374,136 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final hasName = rawName.isNotEmpty;
     final displayName = hasName ? rawName : 'ناونەنراو';
 
-    // LOGIC CHECK:
-    // If patientName is not null/empty, it MUST show the booked UI.
     final booked = isBooked || hasName;
 
-    const bookedBg = Color(0xFF1E293B); // Deep Navy
-    const availableBg = Color(0xFF064E3B); // Dark Green
+    // Original clean style: dark card + yellow divider line.
+    const baseBg = Color(0xFF1E293B);
+    const closedSurface = Color(0xFF0F172A);
+    const dividerGold = Color(0xFFFFD54F);
 
-    // ULTRA COMPACT: single-line row, fixed short height.
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-      color: booked ? bookedBg : availableBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 4,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (booked)
-                const SizedBox(
-                  width: 3,
-                  child: ColoredBox(color: Colors.amber),
-                ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    booked ? 10 : 12,
-                    4,
-                    10,
-                    4,
+    final canToggleClose = !booked && !isPassed;
+    final rowOpacity = isPassed ? 0.5 : ((!booked && !isSlotAvailable) ? 0.62 : 1.0);
+
+    return Opacity(
+      opacity: rowOpacity,
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+        color: !booked && !isSlotAvailable ? closedSurface : baseBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 4,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: SizedBox(
+            height: 56,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (booked)
+                  const SizedBox(
+                    width: 3,
+                    child: ColoredBox(color: dividerGold),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Time
-                      Flexible(
-                        flex: 4,
-                        child: Directionality(
-                          textDirection: ui.TextDirection.ltr,
-                          child: Text(
-                            timeEn,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: kPatientPrimaryFont,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              height: 1.0,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Patient name (or available)
-                      Expanded(
-                        flex: 7,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (booked) ...[
-                              const Icon(
-                                Icons.person_rounded,
-                                size: 14,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 12,
+                      end: 8,
+                      top: 4,
+                      bottom: 4,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          flex: 4,
+                          child: Directionality(
+                            textDirection: ui.TextDirection.ltr,
+                            child: Text(
+                              timeEn,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                height: 1.0,
                                 color: Colors.white,
                               ),
-                              const SizedBox(width: 5),
-                            ],
-                            Expanded(
-                              child: Text(
-                                booked ? displayName : 'کاتی بەردەست',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight:
-                                      booked ? FontWeight.w900 : FontWeight.w800,
-                                  fontSize: 14,
-                                  height: 1.0,
-                                  color: booked ? Colors.amber : Colors.white70,
-                                ),
-                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Status badge (slim)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: booked
-                              ? const Color(0xFFDC2626) // red
-                              : const Color(0xFF16A34A), // green
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          booked ? 'گیراوە' : 'بەردەستە',
-                          maxLines: 1,
-                          overflow: TextOverflow.clip,
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 9.5,
-                            height: 1.0,
-                            color: Colors.white,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 7,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (booked) ...[
+                                const Icon(
+                                  Icons.person_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 5),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  booked
+                                      ? displayName
+                                      : (isPassed
+                                            ? loc.translate('schedule_slot_passed_ku')
+                                            : (isSlotAvailable
+                                                  ? loc.translate('schedule_slot_available_ku')
+                                                  : loc.translate('schedule_slot_closed_ku'))),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight:
+                                        booked ? FontWeight.w900 : FontWeight.w800,
+                                    fontSize: 14,
+                                    height: 1.0,
+                                    color: booked
+                                        ? dividerGold
+                                        : Colors.white.withValues(alpha: 0.72),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (canToggleClose)
+                          IconButton(
+                            tooltip: isSlotAvailable
+                                ? loc.translate('schedule_slot_close_confirm_title')
+                                : loc.translate('schedule_slot_closed_ku'),
+                            onPressed: () => onToggleAvailable(!isSlotAvailable),
+                            icon: Icon(
+                              isSlotAvailable ? Icons.lock_open_rounded : Icons.lock_rounded,
+                              size: 18,
+                              color: isSlotAvailable
+                                  ? Colors.white.withValues(alpha: 0.75)
+                                  : const Color(0xFFFCA5A5),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 4),
+                            child: Icon(
+                              Icons.lock_rounded,
+                              size: 18,
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2178,12 +2516,22 @@ class ScheduleDayPanelController extends ChangeNotifier {
     DateTime slot,
     Map<String, (String?, String, String, Map<String, dynamic>)> byKey,
   ) {
+    final now = DateTime.now();
+    final todayOnly = _dateOnly(now);
+    final slotDay = _dateOnly(slot);
+    final isToday = slotDay.year == todayOnly.year &&
+        slotDay.month == todayOnly.month &&
+        slotDay.day == todayOnly.day;
+    final isPassed = isToday && !slot.isAfter(now);
+
     final k = formatTimeHhMm(slot);
     final booking = byKey[k];
     final patientName = booking?.$1;
-    // LOGIC CHECK:
-    // If patientName exists, we must render the booked UI.
-    final isBooked = booking != null || patientName != null;
+    // Booked UI only when a real patient is attached (closed/available placeholders are not “booked”).
+    final hasPatient = (patientName ?? '').toString().trim().isNotEmpty;
+    final isBooked = hasPatient;
+    final slotAvailable = booking == null ||
+        (booking.$4[AppointmentFields.isAvailable] != false);
     final showCancel = booking != null &&
         !_isPast &&
         !appointmentStatusIsTerminalForStaffSort(booking.$3);
@@ -2192,6 +2540,89 @@ class ScheduleDayPanelController extends ChangeNotifier {
       loc: loc,
       slotStart: slot,
       isBooked: isBooked,
+      isPassed: isPassed,
+      isSlotAvailable: slotAvailable,
+      onToggleAvailable: (v) async {
+        if (_isPast) return;
+        if (isBooked) return;
+        if (isPassed) return;
+        if (!v) {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (dctx) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF0F172A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: kStaffLuxGold.withValues(alpha: 0.35),
+                  ),
+                ),
+                title: Text(
+                  loc.translate('schedule_slot_close_confirm_title'),
+                  style: const TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE8EEF4),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dctx, false),
+                    child: Text(
+                      loc.translate('action_cancel'),
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB0BEC5),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dctx, true),
+                    child: Text(
+                      loc.translate('ok'),
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE57373),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+          if (ok != true) return;
+        }
+
+        final timeKey = formatTimeHhMm(slot);
+        final existing = booking;
+        try {
+          if (existing != null) {
+            await FirebaseFirestore.instance
+                .collection(AppointmentFields.collection)
+                .doc(existing.$2)
+                .set(
+              {AppointmentFields.isAvailable: v},
+              SetOptions(merge: true),
+            );
+          } else {
+            await FirebaseFirestore.instance
+                .collection(AppointmentFields.collection)
+                .add({
+              AppointmentFields.doctorId: _doctorUserId,
+              AppointmentFields.date: Timestamp.fromDate(_dateOnly(_dateLocal)),
+              AppointmentFields.time: timeKey,
+              AppointmentFields.status: 'available',
+              AppointmentFields.isBooked: false,
+              AppointmentFields.isAvailable: v,
+              AppointmentFields.createdAt: FieldValue.serverTimestamp(),
+              AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (_) {}
+      },
       patientName: patientName,
       onTap: () {
         final b = booking;
@@ -2205,6 +2636,28 @@ class ScheduleDayPanelController extends ChangeNotifier {
             canCancel: showCancel,
           );
         } else {
+          if (isPassed) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  loc.translate('schedule_slot_passed_ku'),
+                  style: const TextStyle(fontFamily: kPatientPrimaryFont),
+                ),
+              ),
+            );
+            return;
+          }
+          if (!slotAvailable) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  loc.translate('schedule_slot_closed_ku'),
+                  style: const TextStyle(fontFamily: kPatientPrimaryFont),
+                ),
+              ),
+            );
+            return;
+          }
           _showAvailableSlotBottomSheet(context, loc, slot);
         }
       },
@@ -2297,76 +2750,103 @@ class ScheduleDayPanelController extends ChangeNotifier {
         final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
           snap.data ?? [],
         );
-        final byKey = _activeSlotBookingsByHhMm(docs);
+        final byKey = _slotDocsByHhMmForToggle(docs);
 
-        // FORCED UI RENDERING: reliable list rendering (no missing returns).
-        return ListView.builder(
-          itemCount: slots.length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemBuilder: (context, index) {
-            final slot = slots[index];
-            return _appointmentSlotRow(context, loc, slot, byKey);
+        return StreamBuilder<DateTime>(
+          stream: scheduleClockStream(),
+          initialData: DateTime.now(),
+          builder: (context, _) {
+            // FORCED UI RENDERING: reliable list rendering (no missing returns).
+            return ListView.builder(
+              itemCount: slots.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final slot = slots[index];
+                return _appointmentSlotRow(context, loc, slot, byKey);
+              },
+            );
           },
         );
       },
     );
   }
 
-  Widget _durationChip(AppLocalizations loc, int minutes, bool enabled) {
-    final sel = _durationMin == minutes;
-    final label = loc.translate(
-      'schedule_day_slot_minutes_option',
-      params: {'minutes': '$minutes'},
-    );
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled
-            ? () {
-                _durationMin = minutes;
+  Widget _durationMinutesField(AppLocalizations loc, bool enabled) {
+    const deepNavy = Color(0xFF0F172A);
+    const border = Color(0xFF1565C0);
+    final controller = (_durationController ??= TextEditingController(text: '15'));
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              loc.translate('schedule_duration_minutes_field_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.72),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              enabled: enabled,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                color: Colors.white,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: true,
+                fillColor: deepNavy.withValues(alpha: enabled ? 0.52 : 0.26),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: border.withValues(alpha: enabled ? 0.55 : 0.25),
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: border.withValues(alpha: 0.42),
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: border,
+                    width: 1.5,
+                  ),
+                ),
+                suffixText: loc.translate('schedule_minutes_suffix'),
+                suffixStyle: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+              ),
+              onChanged: (v) {
+                final n = int.tryParse(v.trim());
+                if (n != null) _durationMin = n.clamp(1, 24 * 60);
                 notifyListeners();
-              }
-            : null,
-        borderRadius: BorderRadius.circular(22),
-        splashColor: Colors.white.withValues(alpha: 0.12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: sel
-                  ? const Color(0xFF1565C0)
-                  : Colors.white.withValues(alpha: enabled ? 0.22 : 0.12),
-              width: sel ? 1.5 : 1,
+              },
             ),
-            color: sel
-                ? const Color(0xFF0D47A1).withValues(alpha: 0.92)
-                : Colors.white.withValues(alpha: enabled ? 0.07 : 0.04),
-            boxShadow: sel
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D47A1).withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-              height: 1.15,
-              color: sel
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: enabled ? 0.78 : 0.42),
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -2479,10 +2959,11 @@ class ScheduleDayPanelController extends ChangeNotifier {
               ),
             ),
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Row(
@@ -2548,23 +3029,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                     enabled: enabled,
                   ),
                   const SizedBox(height: 14),
-                  Text(
-                    loc.translate('schedule_duration_per_appointment_label'),
-                    style: TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.58),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final m in _kDurations) _durationChip(loc, m, enabled),
-                    ],
-                  ),
+                  _durationMinutesField(loc, enabled),
                   const SizedBox(height: 14),
                   StaffGoldGradientButton(
                     label: loc.translate('schedule_save_button'),
@@ -2579,7 +3044,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
                       vertical: 10,
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

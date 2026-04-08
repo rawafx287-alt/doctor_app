@@ -174,6 +174,26 @@ Set<String> bookedTimeKeysHhMmForAvailableDay({
   return out;
 }
 
+/// Slot keys that are explicitly closed by staff (`appointments.isAvailable == false`).
+Set<String> unavailableTimeKeysHhMmForAvailableDay({
+  required Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> sameDayDocs,
+  required String availableDayDocId,
+}) {
+  final aid = availableDayDocId.trim();
+  final out = <String>{};
+  for (final d in sameDayDocs) {
+    final data = d.data();
+    final docAid =
+        (data[AppointmentFields.availableDayDocId] ?? '').toString().trim();
+    if (docAid.isNotEmpty && docAid != aid) continue;
+    if (data[AppointmentFields.isAvailable] != false) continue;
+    final t = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+    if (t.isEmpty) continue;
+    out.add(t);
+  }
+  return out;
+}
+
 /// First slot start in [slots] whose `HH:mm` is not in [bookedKeys], or `null` if full.
 DateTime? firstAvailableSlotStart({
   required List<DateTime> slots,
@@ -446,10 +466,15 @@ Future<String?> bookAvailableDayTransaction({
       sameDayDocs: apptSnap.docs,
       availableDayDocId: availableDayDocId,
     );
+    final unavailableKeys = unavailableTimeKeysHhMmForAvailableDay(
+      sameDayDocs: apptSnap.docs,
+      availableDayDocId: availableDayDocId,
+    );
+    final blockedKeys = <String>{...bookedKeys, ...unavailableKeys};
 
     final freeStart = firstBookableSlotStartForPatientDay(
       slots: slots,
-      bookedKeys: bookedKeys,
+      bookedKeys: blockedKeys,
       dayOnlyLocal: dayStart,
     );
     if (freeStart == null) return 'available_day_full';

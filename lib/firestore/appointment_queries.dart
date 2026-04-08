@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import 'root_notifications_firestore.dart';
+import '../firestore/available_days_queries.dart' show normalizeAppointmentTimeToHhMm;
 
 /// [appointments] collection — field names must match composite indexes exactly.
 /// Use [doctorId] (capital **I** in `Id`), never `doctorld` or `doctor_id`.
@@ -57,6 +58,10 @@ abstract final class AppointmentFields {
 
   /// Optional; set `true` when a patient holds the slot, cleared when the slot is freed.
   static const String isBooked = 'isBooked';
+
+  /// Per-slot secretary toggle: when `false` the slot is closed/unavailable for patients.
+  /// Default is `true` when missing.
+  static const String isAvailable = 'isAvailable';
 }
 
 /// Archive for doctor/secretary rejections — does **not** replace live [appointments] queries.
@@ -76,6 +81,8 @@ abstract final class RejectedAppointmentFields {
 /// even if patient fields are cleared later. Only freed placeholders (`available`) and
 /// cancelled/rejected rows allow reuse.
 bool appointmentDocBlocksSlotForNewPatientBooking(Map<String, dynamic> data) {
+  final avail = data[AppointmentFields.isAvailable];
+  if (avail == false) return true;
   final s =
       (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
   if (s == 'available') return false;
@@ -91,12 +98,120 @@ bool appointmentDocBlocksSlotForNewPatientBooking(Map<String, dynamic> data) {
 /// patient ids were cleared). Otherwise: explicit [AppointmentFields.isBooked] `false` → free, or
 /// follow [appointmentDocBlocksSlotForNewPatientBooking].
 bool appointmentSlotCountsAsBookedOnPatientSchedule(Map<String, dynamic> data) {
+  final avail = data[AppointmentFields.isAvailable];
+  if (avail == false) return true;
   final s =
       (data[AppointmentFields.status] ?? 'pending').toString().trim().toLowerCase();
   if (s == 'completed' || s == 'complete' || s == 'done') return true;
   final ib = data[AppointmentFields.isBooked];
   if (ib == false) return false;
   return appointmentDocBlocksSlotForNewPatientBooking(data);
+}
+
+List<String> _slotKeysHhMmFromSettings({
+  required String startTimeHhMm,
+  required String closingTimeHhMm,
+  required int durationMinutes,
+}) {
+  int parseMin(String s) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(s.trim());
+    if (m == null) return -1;
+    final h = int.tryParse(m.group(1)!) ?? -1;
+    final mi = int.tryParse(m.group(2)!) ?? -1;
+    if (h < 0 || h > 23 || mi < 0 || mi > 59) return -1;
+    return h * 60 + mi;
+  }
+
+  final startMin = parseMin(startTimeHhMm);
+  final endMin = parseMin(closingTimeHhMm);
+  final dur = durationMinutes.clamp(1, 24 * 60);
+  if (startMin < 0 || endMin < 0) return const [];
+  if (endMin <= startMin) return const [];
+  final out = <String>[];
+  for (var m = startMin; m + dur <= endMin; m += dur) {
+    final hh = (m ~/ 60).toString().padLeft(2, '0');
+    final mm = (m % 60).toString().padLeft(2, '0');
+    out.add('$hh:$mm');
+  }
+  return out;
+}
+
+/// Regenerates **only** `status: available` placeholders for a doctor/day based on
+/// the provided schedule settings, without touching real bookings or locked `done/completed` rows.
+///
+/// Rules:
+/// - Keeps any time that is already occupied (anything where [appointmentDocBlocksSlotForNewPatientBooking] is true).
+/// - Creates missing `available` docs for free keys.
+/// - Deletes old `available` docs that no longer exist in the generated window.
+Future<void> regenerateAvailableSlotsForDoctorLocalDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+  required String startTimeHhMm,
+  required String closingTimeHhMm,
+  required int durationMinutes,
+}) async {
+  final did = doctorUserId.trim();
+  if (did.isEmpty) return;
+  final dayStart = DateTime(dayLocal.year, dayLocal.month, dayLocal.day);
+  final desiredKeys = _slotKeysHhMmFromSettings(
+    startTimeHhMm: startTimeHhMm,
+    closingTimeHhMm: closingTimeHhMm,
+    durationMinutes: durationMinutes,
+  );
+  if (desiredKeys.isEmpty) return;
+
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: did,
+    dayLocal: dayStart,
+  );
+
+  final occupiedKeys = <String>{};
+  final availableDocsByKey =
+      <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+
+  for (final d in docs) {
+    final data = d.data();
+    final key = normalizeAppointmentTimeToHhMm(data[AppointmentFields.time]);
+    if (key.isEmpty) continue;
+    final st = (data[AppointmentFields.status] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (appointmentDocBlocksSlotForNewPatientBooking(data)) {
+      occupiedKeys.add(key);
+      continue;
+    }
+    if (st == 'available') {
+      availableDocsByKey[key] = d;
+    }
+  }
+
+  final desired = desiredKeys.toSet();
+
+  // Delete old placeholders outside the new grid.
+  for (final e in availableDocsByKey.entries) {
+    final k = e.key;
+    if (!desired.contains(k)) {
+      await e.value.reference.delete();
+    }
+  }
+
+  // Create missing placeholders for free desired keys.
+  final col = FirebaseFirestore.instance.collection(AppointmentFields.collection);
+  for (final k in desiredKeys) {
+    if (occupiedKeys.contains(k)) continue;
+    if (availableDocsByKey.containsKey(k)) continue;
+    await col.add({
+      AppointmentFields.doctorId: did,
+      AppointmentFields.date: Timestamp.fromDate(dayStart),
+      AppointmentFields.time: k,
+      AppointmentFields.status: 'available',
+      AppointmentFields.isBooked: false,
+      AppointmentFields.isAvailable: true,
+      AppointmentFields.createdAt: FieldValue.serverTimestamp(),
+      AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
 }
 
 /// Archives the prior appointment payload, then frees the live [appointments] doc for re-booking.

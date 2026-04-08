@@ -1096,6 +1096,52 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'العنوان',
     'en': 'Address',
   },
+  'doctor_rating_section_title': {
+    'ckb': 'ئەم پزیشکە بەرز بکەرەوە',
+    'ar': 'قيّم هذا الطبيب',
+    'en': 'Rate this doctor',
+  },
+  'doctor_rating_tap_stars': {
+    'ckb': '١ بۆ ٥ ئەستێرە هەڵبژێرە',
+    'ar': 'اختر من ١ إلى ٥ نجوم',
+    'en': 'Tap 1–5 stars',
+  },
+  'doctor_rating_comment_hint': {
+    'ckb': 'پێداچوونەوە (دڵخواز)',
+    'ar': 'مراجعة نصية (اختياري)',
+    'en': 'Written review (optional)',
+  },
+  'doctor_rating_submit': {
+    'ckb': 'ناردن',
+    'ar': 'إرسال',
+    'en': 'Submit',
+  },
+  'doctor_rating_thanks': {
+    'ckb': 'سوپاس! هەڵسەنگاندنەکەت تۆمار کرا',
+    'ar': 'شكرًا! تم حفظ تقييمك',
+    'en': 'Thanks! Your rating was saved',
+  },
+  'doctor_rating_already': {
+    'ckb': 'تۆ پێشتر ئەم پزیشکەت هەڵسەنگاندووە',
+    'ar': 'لقد قيّمت هذا الطبيب مسبقًا',
+    'en': 'You already rated this doctor',
+  },
+  'doctor_rating_need_visit': {
+    'ckb':
+        'تەنها دوای تەواوبوونی نۆرەیەک لەگەڵ ئەم پزیشکە دەتوانیت نرخاندن بکەیت',
+    'ar': 'يمكنك التقييم بعد إكمال موعد مع هذا الطبيب',
+    'en': 'You can rate after a completed appointment with this doctor',
+  },
+  'doctor_rating_error': {
+    'ckb': 'نەتوانرا نرخاندن بنێردرێت، دووبارە هەوڵ بدەرەوە',
+    'ar': 'تعذر إرسال التقييم',
+    'en': 'Could not submit rating',
+  },
+  'doctor_card_rating_none': {
+    'ckb': 'هێشتا نرخاندن نییە',
+    'ar': 'لا تقييمات بعد',
+    'en': 'No ratings yet',
+  },
   'doctor_experience_years': {
     'ckb': '{years} ساڵ ئەزموون',
     'ar': '{years} سنوات خبرة',
@@ -2514,6 +2560,21 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'متاح',
     'en': 'Available',
   },
+  'schedule_slot_passed_ku': {
+    'ckb': 'ئەم کاتە بەسەرچووە',
+    'ar': 'انتهى وقت هذا الموعد',
+    'en': 'This time has passed',
+  },
+  'schedule_slot_closed_ku': {
+    'ckb': 'داخراوە',
+    'ar': 'مغلق',
+    'en': 'Closed',
+  },
+  'schedule_slot_close_confirm_title': {
+    'ckb': 'ئایا دڵنیای لە داخستنی ئەم نۆرەیە؟',
+    'ar': 'هل أنت متأكد من إغلاق هذا الموعد؟',
+    'en': 'Are you sure you want to close this slot?',
+  },
   'schedule_appointment_duration_ku': {
     'ckb': 'ماوەی نۆرە',
     'ar': 'مدة الموعد',
@@ -2538,6 +2599,36 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'ماوەی هەر نۆرەیەک',
     'ar': 'مدة كل موعد',
     'en': 'Duration per patient',
+  },
+  'schedule_duration_minutes_field_title': {
+    'ckb': 'ماوەی هەر نۆرەیەک (بە خولەک)',
+    'ar': 'مدة كل موعد (بالدقائق)',
+    'en': 'Duration per patient (minutes)',
+  },
+  'schedule_duration_custom_chip': {
+    'ckb': 'ئارەزوومەندانە',
+    'ar': 'مخصص',
+    'en': 'Custom',
+  },
+  'schedule_minutes_suffix': {
+    'ckb': 'خولەک',
+    'ar': 'دقيقة',
+    'en': 'min',
+  },
+  'schedule_custom_duration_invalid': {
+    'ckb': 'ماوەی بەدڵی خۆت دروست نییە. تکایە ژمارەیەکی دروست بنووسە.',
+    'ar': 'المدة المخصصة غير صحيحة. الرجاء إدخال رقم صحيح.',
+    'en': 'Custom duration is invalid. Please enter a valid number.',
+  },
+  'schedule_custom_duration_field_label': {
+    'ckb': 'خولەکەکان بنووسە',
+    'ar': 'اكتب الدقائق',
+    'en': 'Enter minutes',
+  },
+  'schedule_custom_duration_required': {
+    'ckb': 'تکایە ماوەی نۆرە دیاری بکە',
+    'ar': 'يرجى تحديد مدة الموعد',
+    'en': 'Please set the appointment duration.',
   },
   'secretary_nav_calendar': {
     'ckb': 'کاڵێندەر',
@@ -2937,6 +3028,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'بەتاڵە',
     'ar': 'متاح',
     'en': 'Available',
+  },
+  'patient_slot_label_unavailable': {
+    'ckb': 'نابەردەستە',
+    'ar': 'غير متاح',
+    'en': 'Unavailable',
   },
   'patient_slot_label_past': {
     'ckb': 'کات تێپەڕیوە',

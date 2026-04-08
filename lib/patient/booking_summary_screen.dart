@@ -902,6 +902,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         sameDayDocs: docs,
                         availableDayDocId: widget.availableDayDocId,
                       );
+                      final unavailableKeys = unavailableTimeKeysHhMmForAvailableDay(
+                        sameDayDocs: docs,
+                        availableDayDocId: widget.availableDayDocId,
+                      );
+                      final blockedKeys = <String>{...bookedKeys, ...unavailableKeys};
                       final now = DateTime.now();
                       final todayStart =
                           DateTime(now.year, now.month, now.day);
@@ -910,7 +915,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                           dayOnly.day == todayStart.day;
                       final firstFree = firstBookableSlotStartForPatientDay(
                         slots: slots,
-                        bookedKeys: bookedKeys,
+                        bookedKeys: blockedKeys,
                         dayOnlyLocal: dayOnly,
                       );
                       final assignedTimeDisplay = firstFree != null
@@ -927,7 +932,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       final totalCapacity = slots.length;
                       final bookableSlotsLeft = slots.where((slot) {
                         final k = formatTimeHhMm(slot);
-                        if (bookedKeys.contains(k)) return false;
+                        if (blockedKeys.contains(k)) return false;
                         if (bookingDayIsToday && !slot.isAfter(now)) {
                           return false;
                         }
@@ -1176,12 +1181,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                         final isBooked = bookedKeys.contains(
                                           key,
                                         );
+                                        final isUnavailable =
+                                            unavailableKeys.contains(key);
                                         final isPastSlot = bookingDayIsToday &&
                                             !slot.isAfter(now);
                                         final assigned = firstFree;
                                         final isYourSlot =
                                             assigned != null &&
                                             !isBooked &&
+                                            !isUnavailable &&
                                             !isPastSlot &&
                                             key == formatTimeHhMm(assigned);
                                         final dimOthers =
@@ -1196,7 +1204,11 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                             ? s.translate(
                                                 'patient_slot_label_booked',
                                               )
-                                            : (isPastSlot
+                                            : (isUnavailable
+                                                  ? s.translate(
+                                                      'patient_slot_label_unavailable',
+                                                    )
+                                                  : (isPastSlot
                                                   ? s.translate(
                                                       'patient_slot_label_past',
                                                     )
@@ -1206,7 +1218,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                           )
                                                         : s.translate(
                                                             'patient_slot_label_available',
-                                                          )));
+                                                          ))));
 
                                         final statusStyle = TextStyle(
                                           fontFamily: kPatientPrimaryFont,
