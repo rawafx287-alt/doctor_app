@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:flutter/services.dart'
     show FilteringTextInputFormatter, HapticFeedback;
 import 'package:google_fonts/google_fonts.dart';
@@ -1575,6 +1576,23 @@ class ScheduleDayPanelController extends ChangeNotifier {
   DateTime _dateLocal;
   String _existingDocId;
   Map<String, dynamic>? _dayRow;
+  bool _disposed = false;
+
+  void _notifySafely() {
+    if (_disposed) return;
+    final phase = WidgetsBinding.instance.schedulerPhase;
+    final inBuildOrLayout =
+        phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks;
+    if (!inBuildOrLayout) {
+      notifyListeners();
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      notifyListeners();
+    });
+  }
 
   void applyHostDateOrDocChange({
     required String doctorUserId,
@@ -1665,6 +1683,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _durationController?.dispose();
     super.dispose();
   }
@@ -2479,6 +2498,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
   }
 
   Widget _selectedDaySlotRow(
+    BuildContext context,
     AppLocalizations loc, {
     required DateTime slotStart,
     required DateTime now,
@@ -2486,6 +2506,9 @@ class ScheduleDayPanelController extends ChangeNotifier {
   }) {
     const Color baseBg = Color(0xFF1E293B);
     const Color dividerGold = Color(0xFFFFD54F);
+    const Color stripeAvailable = Color(0xFF34D399);
+    const Color stripeBooked = Color(0xFFF59E0B);
+    const Color stripeClosed = Color(0xFFEF4444);
 
     final DateTime slotDay = _dateOnly(slotStart);
     final DateTime todayOnly = _dateOnly(now);
@@ -2498,6 +2521,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final String hhmm = formatTimeHhMm(slotStart);
     final booking = byKey[hhmm];
     final data = booking?.$4;
+    final docId = booking?.$2;
+    final statusRaw = (booking?.$3 ?? '').toString().trim().toLowerCase();
     final rawName = (booking?.$1 ?? '').toString().trim();
     final bool hasName = rawName.isNotEmpty;
     final bool blocks = data == null
@@ -2521,7 +2546,36 @@ class ScheduleDayPanelController extends ChangeNotifier {
       statusText = loc.translate('schedule_slot_available_ku');
     }
 
-    return Opacity(
+    late final Color stripeColor;
+    if (isPassed) {
+      stripeColor = Colors.blueGrey.shade600;
+    } else if (isBooked) {
+      stripeColor = stripeBooked;
+    } else if (isManualClosed) {
+      stripeColor = stripeClosed;
+    } else {
+      stripeColor = stripeAvailable;
+    }
+
+    final nameStyleBooked = GoogleFonts.plusJakartaSans(
+      fontWeight: FontWeight.w700,
+      fontSize: 14,
+      height: 1.05,
+      color: dividerGold.withValues(alpha: 0.98),
+    );
+
+    final canOpenPatientDetail = isBooked &&
+        hasName &&
+        !isPassed &&
+        docId != null &&
+        data != null &&
+        statusRaw != 'completed' &&
+        statusRaw != 'complete' &&
+        statusRaw != 'done' &&
+        statusRaw != 'cancelled' &&
+        statusRaw != 'canceled';
+
+    final card = Opacity(
       opacity: rowOpacity,
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0.0),
@@ -2533,15 +2587,19 @@ class ScheduleDayPanelController extends ChangeNotifier {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isBooked == true)
-                const SizedBox(
-                  width: 3.0,
-                  child: ColoredBox(color: dividerGold),
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: stripeColor,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(14),
+                  ),
                 ),
+              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsetsDirectional.only(
-                    start: 12.0,
+                    start: 10.0,
                     end: 12.0,
                     top: 4.0,
                     bottom: 4.0,
@@ -2568,10 +2626,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
                       ),
                       const SizedBox(width: 8.0),
                       if (isBooked == true) ...[
-                        const Icon(
+                        Icon(
                           Icons.person_rounded,
-                          size: 14.0,
-                          color: Colors.white,
+                          size: 15.0,
+                          color: Colors.white.withValues(alpha: 0.88),
                         ),
                         const SizedBox(width: 5.0),
                       ],
@@ -2580,25 +2638,23 @@ class ScheduleDayPanelController extends ChangeNotifier {
                           statusText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: (isBooked == true)
-                                ? FontWeight.w900
-                                : FontWeight.w800,
-                            fontSize: 14.0,
-                            height: 1.0,
-                            color: (isBooked == true)
-                                ? dividerGold
-                                : Colors.white.withValues(alpha: 0.72),
-                          ),
+                          style: (isBooked == true)
+                              ? nameStyleBooked
+                              : TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14.0,
+                                  height: 1.0,
+                                  color:
+                                      Colors.white.withValues(alpha: 0.72),
+                                ),
                         ),
                       ),
-                      Opacity(
-                        opacity: isBooked ? 1.0 : 0.5,
-                        child: Icon(
-                          Icons.lock_rounded,
-                          size: 18.0,
-                          color: Colors.white.withValues(alpha: 0.55),
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20.0,
+                        color: Colors.white.withValues(
+                          alpha: isBooked ? 0.72 : 0.38,
                         ),
                       ),
                     ],
@@ -2608,6 +2664,27 @@ class ScheduleDayPanelController extends ChangeNotifier {
             ],
           ),
         ),
+      ),
+    );
+
+    if (!canOpenPatientDetail) {
+      return card;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          showScheduleSlotPatientGlassDialog(
+            context: context,
+            loc: loc,
+            appointmentDocId: docId!,
+            priorData: Map<String, dynamic>.from(data!),
+            timeEn: timeEn,
+          );
+        },
+        child: card,
       ),
     );
   }
@@ -2622,133 +2699,104 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final d0 = _dateOnly(dayLocal);
 
     if (!_isOpen) {
-      final w = Text(
-        loc.translate('schedule_timeline_no_hours'),
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontFamily: kPatientPrimaryFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 12.0,
-          height: 1.35,
-          color: Colors.white.withValues(alpha: 0.65),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(
+          loc.translate('schedule_timeline_no_hours'),
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+            height: 1.25,
+            color: Colors.white.withValues(alpha: 0.62),
+          ),
         ),
       );
-      if (forModalSheet) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: w,
-          ),
-        );
-      }
-      return w;
     }
 
-    return Builder(
-      builder: (context) {
-        final slots = generatedSlotStartsForDay(
-          dateOnly: d0,
-          startTimeHhMm: _fmt(_start),
-          closingTimeHhMm: _fmt(_end),
-          durationMinutes: _durationMin,
+    final slots = generatedSlotStartsForDay(
+      dateOnly: _dateLocal,
+      startTimeHhMm: _fmt(_start),
+      closingTimeHhMm: _fmt(_end),
+      durationMinutes: _durationMin,
+    );
+
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: watchDoctorAppointmentsForLocalDay(
+        doctorUserId: _doctorUserId,
+        dayLocal: _dateLocal,
+      ),
+      builder: (context, snap) {
+        // FIX: never return an empty area silently.
+        // Always show loading, empty, or the slot list.
+        if (snap.hasError) {
+          logFirestoreIndexHelpOnce(
+            snap.error,
+            tag: 'ScheduleManagementScreen.footer_slots',
+            expectedCompositeIndexHint: kAppointmentsDoctorDateStatusIndexHint,
+          );
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              loc.translate('schedule_load_error'),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontFamily: kPatientPrimaryFont,
+                fontSize: 11,
+              ),
+            ),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kStaffLuxGold,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (slots.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              loc.translate('schedule_timeline_no_slots'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                height: 1.3,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          );
+        }
+
+        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+          snap.data ?? [],
         );
-        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: watchDoctorAppointmentsForLocalDay(
-            doctorUserId: _doctorUserId,
-            dayLocal: d0,
-          ),
-          builder: (context, snap) {
-            if (snap.hasError) {
-              logFirestoreIndexHelpOnce(
-                snap.error,
-                tag: 'ScheduleManagementScreen.bottom_slots',
-                expectedCompositeIndexHint:
-                    kAppointmentsDoctorDateStatusIndexHint,
-              );
-              final err = Text(
-                loc.translate('schedule_load_error'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontFamily: kPatientPrimaryFont,
-                  fontSize: 11.0,
-                ),
-              );
-              if (forModalSheet) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: err,
-                  ),
-                );
-              }
-              return err;
-            }
-            if (snap.connectionState == ConnectionState.waiting &&
-                !snap.hasData) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
-                  child: SizedBox(
-                    width: 24.0,
-                    height: 24.0,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.0,
-                      color: kStaffLuxGold,
-                    ),
-                  ),
-                ),
-              );
-            }
-            if (slots.isEmpty) {
-              final empty = Text(
-                loc.translate('schedule_timeline_no_slots'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.0,
-                  height: 1.3,
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
-              );
-              if (forModalSheet) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: empty,
-                  ),
-                );
-              }
-              return empty;
-            }
-            final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-              snap.data ?? [],
-            );
-            final byKey = _slotDocsByHhMmForList(docs);
-            return StreamBuilder<DateTime>(
-              stream: _scheduleSlotListClockStream(),
-              initialData: DateTime.now(),
-              builder: (context, clockSnap) {
-                final DateTime now = clockSnap.data ?? DateTime.now();
-                return ListView.builder(
-                  shrinkWrap: !forModalSheet,
-                  physics: forModalSheet
-                      ? const BouncingScrollPhysics()
-                      : const NeverScrollableScrollPhysics(),
-                  padding: forModalSheet
-                      ? const EdgeInsets.only(bottom: 20.0)
-                      : EdgeInsets.zero,
-                  itemCount: slots.length,
-                  itemBuilder: (context, index) {
-                    return _selectedDaySlotRow(
-                      loc,
-                      slotStart: slots[index],
-                      now: now,
-                      byKey: byKey,
-                    );
-                  },
-                );
+        final byKey = _slotDocsByHhMmForToggle(docs);
+
+        return StreamBuilder<DateTime>(
+          stream: scheduleClockStream(),
+          initialData: DateTime.now(),
+          builder: (context, _) {
+            // FORCED UI RENDERING: reliable list rendering (no missing returns).
+            return ListView.builder(
+              itemCount: slots.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final slot = slots[index];
+                return _appointmentSlotRow(context, loc, slot, byKey);
               },
             );
           },
@@ -2757,182 +2805,278 @@ class ScheduleDayPanelController extends ChangeNotifier {
     );
   }
 
-}
+  Widget _durationMinutesField(AppLocalizations loc, bool enabled) {
+    const deepNavy = Color(0xFF0F172A);
+    const border = Color(0xFF1565C0);
+    final controller = (_durationController ??= TextEditingController(text: '15'));
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              loc.translate('schedule_duration_minutes_field_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.72),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              enabled: enabled,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                color: Colors.white,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: true,
+                fillColor: deepNavy.withValues(alpha: enabled ? 0.52 : 0.26),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: border.withValues(alpha: enabled ? 0.55 : 0.25),
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: border.withValues(alpha: 0.42),
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: border,
+                    width: 1.5,
+                  ),
+                ),
+                suffixText: loc.translate('schedule_minutes_suffix'),
+                suffixStyle: TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+              ),
+              onChanged: (v) {
+                final n = int.tryParse(v.trim());
+                if (n != null) _durationMin = n.clamp(1, 24 * 60);
+                notifyListeners();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-/// Glass summary strip between header and calendar; opens [ScheduleDayPanelController.openTimeSettingsSheet].
-class _ScheduleSettingsSummaryCard extends StatelessWidget {
-  const _ScheduleSettingsSummaryCard();
-
-  static String _hhMm(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = S.of(context);
-    final borderGold = kStaffLuxGold.withValues(alpha: 0.42);
-
-    return ListenableBuilder(
-      listenable: ScheduleDayPanelScope.of(context),
-      builder: (context, _) {
-        final c = ScheduleDayPanelScope.of(context);
-        final past = c.scheduleDayIsPast;
-        final open = c.scheduleSummaryClinicOpen;
-        final dur = c.scheduleSummaryDurationMin;
-        final startEn =
-            _scheduleHhMmToEnglish12h(_hhMm(c.scheduleSummaryStart));
-        final endEn = _scheduleHhMmToEnglish12h(_hhMm(c.scheduleSummaryEnd));
-
-        final summaryLines = open
-            ? [
-                loc.translate('schedule_settings_card_duration',
-                    params: {'minutes': '$dur'}),
-                loc.translate('schedule_settings_card_shift',
-                    params: {'start': startEn, 'end': endEn}),
-              ]
-            : [loc.translate('schedule_settings_card_closed')];
-
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+  Widget _sectionCard(
+    BuildContext context, {
+    required Widget child,
+    EdgeInsetsGeometry margin = const EdgeInsets.symmetric(vertical: 8),
+    bool emphasized = false,
+  }) {
+    const r = 18.0;
+    final gold = kStaffLuxGold;
+    final borderAlpha = emphasized ? 0.62 : 0.48;
+    return Padding(
+      padding: margin,
+      child: RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(r),
           child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: borderGold, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(r),
+                border: Border.all(
+                  color: gold.withValues(alpha: borderAlpha),
+                  width: emphasized ? 0.8 : 0.5,
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    kStaffShellGradientTop.withValues(alpha: 0.94),
+                    kStaffShellGradientMid.withValues(alpha: 0.92),
+                    const Color(0xFF0D2137).withValues(alpha: 0.96),
+                  ],
+                ),
               ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  dividerColor: Colors.transparent,
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildTimeCard(BuildContext context, bool compact) {
+    final loc = S.of(context);
+    final enabled = !_isPast;
+    final gold = kStaffLuxGold;
+      final titleStyle = TextStyle(
+        fontFamily: kPatientPrimaryFont,
+        fontWeight: FontWeight.w900,
+        fontSize: compact ? 12 : 13,
+        height: 1.2,
+        color: Colors.white.withValues(alpha: 0.96),
+      );
+
+      final card = _sectionCard(
+        context,
+        margin: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 8),
+        emphasized: _timeExpanded,
+        child: ExpansionTile(
+            key: const PageStorageKey<String>(
+              'schedule_footer_time_settings_tile',
+            ),
+            maintainState: true,
+            initiallyExpanded: _timeExpanded,
+            onExpansionChanged: (v) {
+              _timeExpanded = v;
+              if (v) {
+                _slotsExpanded = false;
+              }
+              notifyListeners();
+            },
+            tilePadding: EdgeInsets.fromLTRB(
+              compact ? 10 : 12,
+              10,
+              compact ? 10 : 12,
+              8,
+            ),
+            childrenPadding: EdgeInsets.fromLTRB(
+              compact ? 10 : 12,
+              4,
+              compact ? 10 : 12,
+              compact ? 10 : 12,
+            ),
+            dense: true,
+            iconColor: gold,
+            collapsedIconColor: gold.withValues(alpha: 0.88),
+            title: Text(
+              loc.translate('schedule_sheet_tab_settings'),
+              style: titleStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 10),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: _scheduleSelectedDateBadge(_dateLocal),
+              ),
+            ),
+            children: [
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            loc.translate('schedule_settings_card_caption'),
-                            style: TextStyle(
-                              fontFamily: kPatientPrimaryFont,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                              height: 1.25,
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ...summaryLines.map(
-                            (line) => Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Directionality(
-                                textDirection: ui.TextDirection.ltr,
-                                child: Text(
-                                  line,
-                                  style: TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 10.5,
-                                    height: 1.2,
-                                    color:
-                                        Colors.white.withValues(alpha: 0.78),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                    children: [
+                      Icon(
+                        Icons.local_hospital_rounded,
+                        size: compact ? 15 : 16,
+                        color: gold.withValues(alpha: 0.88),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: past
-                            ? null
-                            : () => c.openTimeSettingsSheet(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: past
-                                  ? [
-                                      const Color(0xFF334155)
-                                          .withValues(alpha: 0.75),
-                                      const Color(0xFF475569)
-                                          .withValues(alpha: 0.65),
-                                    ]
-                                  : const [
-                                      Color(0xFF2563EB),
-                                      Color(0xFF6366F1),
-                                      Color(0xFF7C3AED),
-                                    ],
-                            ),
-                            border: Border.all(
-                              color: Colors.white
-                                  .withValues(alpha: past ? 0.12 : 0.22),
-                              width: 0.85,
-                            ),
-                            boxShadow: past
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: const Color(0xFF6366F1)
-                                          .withValues(alpha: 0.28),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.schedule_rounded,
-                                  size: 18,
-                                  color: Colors.white
-                                      .withValues(alpha: past ? 0.55 : 1),
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    loc.translate(
-                                        'schedule_edit_time_settings_button'),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: kPatientPrimaryFont,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 11,
-                                      height: 1.15,
-                                      color: Colors.white
-                                          .withValues(alpha: past ? 0.55 : 1),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        fit: FlexFit.tight,
+                        child: Text(
+                          loc.translate('schedule_clinic_status_title'),
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.92),
                           ),
                         ),
                       ),
+                      CupertinoSwitch(
+                        value: _isOpen,
+                        onChanged: enabled
+                            ? (v) {
+                                _isOpen = v;
+                                notifyListeners();
+                              }
+                            : null,
+                        activeTrackColor: _kSchedOpenFill,
+                        inactiveTrackColor:
+                            _kSchedClosedFill.withValues(alpha: 0.55),
+                        thumbColor: CupertinoColors.white,
+                      ),
+                    ],
+                  ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(
+                    height: 1,
+                    thickness: 0.5,
+                    color: Color(0x40D4AF37),
+                  ),
+                  const SizedBox(height: 12),
+                  _timeRow(
+                    loc: loc,
+                    onTap: () => _pickStart(context),
+                    icon: Icons.schedule_rounded,
+                    iconSize: compact ? 16 : 17,
+                    label: loc.translate('schedule_control_start_time_label'),
+                    timeEn12h: _scheduleHhMmToEnglish12h(_fmt(_start)),
+                    enabled: enabled,
+                  ),
+                  const SizedBox(height: 8),
+                  _timeRow(
+                    loc: loc,
+                    onTap: () => _pickEnd(context),
+                    icon: Icons.event_available_rounded,
+                    iconSize: compact ? 16 : 17,
+                    label: loc.translate('schedule_control_end_time_label'),
+                    timeEn12h: _scheduleHhMmToEnglish12h(_fmt(_end)),
+                    enabled: enabled,
+                  ),
+                  const SizedBox(height: 14),
+                  _durationMinutesField(loc, enabled),
+                  const SizedBox(height: 14),
+                  StaffGoldGradientButton(
+                    label: loc.translate('schedule_save_button'),
+                    onPressed:
+                        enabled && !_saving ? () => _save(context) : null,
+                    isLoading: _saving,
+                    fontSize: 12,
+                    borderRadius: 12,
+                    minHeight: 38,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
+                  ),
                   ],
                 ),
               ),
@@ -2942,14 +3086,87 @@ class _ScheduleSettingsSummaryCard extends StatelessWidget {
       },
     );
   }
+
+  Widget buildSlotsCard(BuildContext context, bool compact) {
+    final loc = S.of(context);
+    final gold = kStaffLuxGold;
+    final titleStyle = TextStyle(
+      fontFamily: kPatientPrimaryFont,
+      fontWeight: FontWeight.w900,
+      fontSize: compact ? 12 : 13,
+      height: 1.2,
+      color: Colors.white.withValues(alpha: 0.96),
+    );
+    final card = _sectionCard(
+      context,
+      margin: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 8),
+      emphasized: _slotsExpanded,
+      child: ExpansionTile(
+            key: const PageStorageKey<String>(
+              'schedule_footer_slot_list_tile',
+            ),
+            maintainState: true,
+            initiallyExpanded: _slotsExpanded,
+            onExpansionChanged: (v) {
+              _slotsExpanded = v;
+              if (v) {
+                _timeExpanded = false;
+              }
+              notifyListeners();
+            },
+            tilePadding: EdgeInsets.symmetric(
+              horizontal: compact ? 10 : 12,
+              vertical: compact ? 4 : 6,
+            ),
+            childrenPadding: EdgeInsets.fromLTRB(
+              compact ? 10 : 12,
+              0,
+              compact ? 10 : 12,
+              compact ? 10 : 12,
+            ),
+            dense: true,
+            iconColor: gold,
+            collapsedIconColor: gold.withValues(alpha: 0.88),
+            title: Text(
+              loc.translate('schedule_today_focus_tab_list'),
+              style: titleStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+            ),
+            children: [
+              _buildAppointmentSlotsPanel(S.of(context)),
+            ],
+          ),
+    );
+    return AnimatedScale(
+      scale: _slotsExpanded ? 1.0 : 0.985,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: _slotsExpanded ? 1.0 : 0.94,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        child: card,
+      ),
+    );
+  }
 }
 
-/// Pulsing gradient square — opens slot list; centerpiece of the bottom strip.
-class _ScheduleBottomDayHeroButton extends StatefulWidget {
-  const _ScheduleBottomDayHeroButton({
-    required this.dayLocal,
-    required this.panel,
-    required this.hint,
+String _normalizedScheduleBookingRole(Map<String, dynamic>? data) {
+  final raw = (data?['role'] ?? '').toString().trim().toLowerCase();
+  if (raw.isEmpty || raw == 'user' || raw == 'patient') return 'patient';
+  return raw;
+}
+
+class _ScheduleAvailableSlotSheet extends StatefulWidget {
+  const _ScheduleAvailableSlotSheet({
+    required this.loc,
+    required this.doctorUserId,
+    required this.dateLocal,
+    required this.slotStart,
+    required this.slotNotBookable,
+    required this.formatScheduleDayEn,
   });
 
   final DateTime dayLocal;
