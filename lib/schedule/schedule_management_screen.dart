@@ -1,9 +1,11 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+import 'package:flutter/services.dart'
+    show FilteringTextInputFormatter, HapticFeedback;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -35,7 +37,6 @@ const Color _kSchedPastDayText = Color(0xFFCBD5E1);
 const Color _kSelectedDayFocusGold = Color(0xFFFFD54F);
 const double _kDayBoxR = 10.0;
 /// Space between time-settings card and pinned calendar.
-const double _kTimeToCalendarGap = 18.0;
 const double _kPrimaryGlassBlur = 22.0;
 const double _kGridCrossAxisSpacing = 5.0;
 const double _kGridMainAxisSpacing = 2.0;
@@ -77,6 +78,338 @@ String _scheduleEasternArabicDigits(String s) {
   final day = _scheduleEasternArabicDigits('${d.day}');
   final month = _scheduleEasternArabicDigits('${d.month}');
   return (day, month);
+}
+
+/// Floating card + gradient rim; [Localizations.override] enforces Western numerals on the wheel.
+Widget _schedSheetFloatingTimePickerCard({
+  required BuildContext context,
+  required String label,
+  required TimeOfDay value,
+  required ValueChanged<TimeOfDay> onChanged,
+  required bool enabled,
+}) {
+  const pickerH = 152.0;
+  final picker = AbsorbPointer(
+    absorbing: !enabled,
+    child: Opacity(
+      opacity: enabled ? 1.0 : 0.42,
+      child: Localizations.override(
+        context: context,
+        locale: const Locale('en', 'US'),
+        child: CupertinoTheme(
+          data: const CupertinoThemeData(
+            brightness: Brightness.dark,
+            applyThemeToAll: true,
+          ),
+          child: SizedBox(
+            height: pickerH,
+            child: CupertinoDatePicker(
+              mode: CupertinoDatePickerMode.time,
+              use24hFormat: false,
+              initialDateTime:
+                  DateTime(2020, 1, 1, value.hour, value.minute),
+              onDateTimeChanged: (DateTime dt) {
+                onChanged(TimeOfDay(hour: dt.hour, minute: dt.minute));
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w800,
+          fontSize: 12.5,
+          height: 1.2,
+          color: Colors.white.withValues(alpha: 0.9),
+        ),
+      ),
+      const SizedBox(height: 8),
+      DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.38),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(1.6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF22D3EE).withValues(alpha: 0.95),
+                const Color(0xFF6366F1).withValues(alpha: 0.92),
+                kStaffLuxGold.withValues(alpha: 0.75),
+              ],
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18.5),
+            child: ColoredBox(
+              color: const Color(0xFF0B1220).withValues(alpha: 0.96),
+              child: picker,
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+/// Quick duration presets (Western numerals).
+Widget _schedDurationQuickChips({
+  required bool enabled,
+  required int currentMinutes,
+  required ValueChanged<int> onSelect,
+}) {
+  const presets = [10, 15, 20];
+  return Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final m in presets)
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? () => onSelect(m) : null,
+            borderRadius: BorderRadius.circular(22),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                color: currentMinutes == m
+                    ? const Color(0xFF0891B2).withValues(alpha: 0.35)
+                    : Colors.white.withValues(alpha: 0.07),
+                border: Border.all(
+                  color: currentMinutes == m
+                      ? const Color(0xFF22D3EE).withValues(alpha: 0.85)
+                      : Colors.white.withValues(alpha: 0.28),
+                  width: currentMinutes == m ? 1.4 : 1,
+                ),
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                child: Directionality(
+                  textDirection: ui.TextDirection.ltr,
+                  child: Text(
+                    '$m min',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Colors.white.withValues(
+                        alpha: enabled ? 0.95 : 0.38,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+/// Custom minutes (digits only); syncs with [ScheduleDayPanelController] duration.
+Widget _schedDurationCustomMinutesField({
+  required AppLocalizations loc,
+  required TextEditingController controller,
+  required bool enabled,
+  required ValueChanged<int> onValidMinutes,
+}) {
+  const fill = Color(0xFF060A12);
+  return SizedBox(
+    width: 80,
+    child: TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      style: TextStyle(
+        fontFamily: kPatientPrimaryFont,
+        fontWeight: FontWeight.w800,
+        fontSize: 14,
+        color: Colors.white.withValues(alpha: 0.95),
+      ),
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        filled: true,
+        fillColor: fill.withValues(alpha: 0.88),
+        hintText: loc.translate('schedule_custom_duration_field_label'),
+        hintStyle: TextStyle(
+          fontFamily: kPatientPrimaryFont,
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          color: Colors.white.withValues(alpha: 0.35),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Colors.white.withValues(alpha: 0.14),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Colors.white.withValues(alpha: 0.18),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFF22D3EE).withValues(alpha: 0.65),
+            width: 1.2,
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      onChanged: (v) {
+        final n = int.tryParse(v.trim());
+        if (n != null && n > 0) {
+          onValidMinutes(n.clamp(1, 24 * 60));
+        }
+      },
+    ),
+  );
+}
+
+/// Time settings sheet — transparent fill, white outline (luxury minimal).
+Widget _schedSettingsGradientCancelButton({
+  required String label,
+  required VoidCallback onPressed,
+}) {
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.transparent,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.52),
+            width: 1.2,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Center(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.94),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Time settings sheet save — deep blue → cyan.
+Widget _schedPremiumBluePurpleSaveButton({
+  required String label,
+  required bool isLoading,
+  required VoidCallback? onPressed,
+}) {
+  const c1 = Color(0xFF0A1628);
+  const c2 = Color(0xFF0E7490);
+  const c3 = Color(0xFF22D3EE);
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [c1, c2, c3],
+          ),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.22),
+            width: 0.85,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: c3.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 5),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Time-slot list for the selected calendar day; opens in a themed modal sheet.
@@ -1014,13 +1347,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         );
         final dayRow = map[docId];
 
-        final scrollBody = _ScheduleDayPanelHost(
-          key: ValueKey<String>(docId),
-          doctorUserId: uid,
-          dateLocal: sel,
-          existingDocId: docId,
-          dayRow: dayRow,
-          child: Column(
+        Widget scheduleMainColumn() {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
@@ -1028,17 +1356,15 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     _kBodyHorizontalPad,
-                    10,
+                    4,
                     _kBodyHorizontalPad,
                     0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const RepaintBoundary(
-                        child: _ScheduleTimeCardPanel(),
-                      ),
-                      const SizedBox(height: _kTimeToCalendarGap),
+                      const _ScheduleSettingsSummaryCard(),
+                      const SizedBox(height: 8),
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, constraints) {
@@ -1102,31 +1428,42 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
                 ),
               ),
             ],
-          ),
-        );
-
-        if (widget.embedded) {
-          return Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Container(
-              decoration: kDoctorPremiumGradientDecoration,
-              child: scrollBody,
-            ),
           );
         }
 
-        return Scaffold(
-          backgroundColor: kDoctorPremiumGradientBottom,
-          extendBodyBehindAppBar: true,
-          appBar: doctorPremiumAppBar(
-            title: Text(s.translate('schedule_management_title')),
-          ),
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              const DoctorPremiumBackground(),
-              SafeArea(child: scrollBody),
-            ],
+        return _ScheduleDayPanelHost(
+          key: ValueKey<String>(docId),
+          doctorUserId: uid,
+          dateLocal: sel,
+          existingDocId: docId,
+          dayRow: dayRow,
+          child: Builder(
+            builder: (innerCtx) {
+              if (widget.embedded) {
+                return Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: Container(
+                    decoration: kDoctorPremiumGradientDecoration,
+                    child: scheduleMainColumn(),
+                  ),
+                );
+              }
+
+              return Scaffold(
+                backgroundColor: kDoctorPremiumGradientBottom,
+                extendBodyBehindAppBar: true,
+                appBar: doctorPremiumAppBar(
+                  title: Text(s.translate('schedule_management_title')),
+                ),
+                body: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const DoctorPremiumBackground(),
+                    SafeArea(child: scheduleMainColumn()),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
@@ -1134,7 +1471,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   }
 }
 
-/// Shared day panel state for time settings + slot list (sheet opens from fixed bottom area).
+/// Shared day panel state: time settings (summary card → glass sheet) + slot list modal.
 class ScheduleDayPanelScope extends InheritedNotifier<ScheduleDayPanelController> {
   const ScheduleDayPanelScope({
     super.key,
@@ -1221,21 +1558,6 @@ class _ScheduleDayPanelHostState extends State<_ScheduleDayPanelHost> {
   }
 }
 
-class _ScheduleTimeCardPanel extends StatelessWidget {
-  const _ScheduleTimeCardPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ScheduleDayPanelScope.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 900;
-        return c.buildTimeCard(context, compact);
-      },
-    );
-  }
-}
-
 class ScheduleDayPanelController extends ChangeNotifier {
   ScheduleDayPanelController({
     required String doctorUserId,
@@ -1265,7 +1587,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
     _existingDocId = existingDocId;
     _dayRow = dayRow;
     _applyRowSnapshot();
-    _timeExpanded = false;
     notifyListeners();
   }
 
@@ -1294,8 +1615,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
   String? _pendingSavedStartHhMm;
   String? _pendingSavedEndHhMm;
   int? _pendingSavedDurationMin;
-
-  bool _timeExpanded = false;
 
   void _applyRowSnapshot() {
     final row = _dayRow;
@@ -1344,236 +1663,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
     }
   }
 
-  Future<TimeOfDay?> _pickTimePremiumBottomSheet(
-    BuildContext context, {
-    required TimeOfDay initial,
-    required String title,
-  }) async {
-    if (_isPast) return null;
-    final loc = S.of(context);
-    var h = initial.hour.clamp(0, 23);
-    const minuteStep = 5;
-    var minuteIndex =
-        (initial.minute / minuteStep).round().clamp(0, 59 ~/ minuteStep);
-
-    return showModalBottomSheet<TimeOfDay>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final bottom = MediaQuery.viewPaddingOf(ctx).bottom;
-        final accent = kStaffLuxGold;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, bottom + 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: accent.withValues(alpha: 0.5),
-                    width: 0.9,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 28,
-                      offset: const Offset(0, -6),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 190,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: CupertinoPicker(
-                                scrollController: FixedExtentScrollController(
-                                  initialItem: h,
-                                ),
-                                itemExtent: 36,
-                                onSelectedItemChanged: (v) => h = v,
-                                selectionOverlay: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: accent.withValues(alpha: 0.18),
-                                        width: 1,
-                                      ),
-                                      bottom: BorderSide(
-                                        color: accent.withValues(alpha: 0.18),
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                children: List.generate(24, (i) {
-                                  return Center(
-                                    child: Text(
-                                      i.toString().padLeft(2, '0'),
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: Text(
-                                ':',
-                                style: TextStyle(
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 18,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: CupertinoPicker(
-                                scrollController: FixedExtentScrollController(
-                                  initialItem: minuteIndex,
-                                ),
-                                itemExtent: 36,
-                                onSelectedItemChanged: (v) => minuteIndex = v,
-                                selectionOverlay: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: accent.withValues(alpha: 0.18),
-                                        width: 1,
-                                      ),
-                                      bottom: BorderSide(
-                                        color: accent.withValues(alpha: 0.18),
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                children: List.generate(60 ~/ minuteStep, (i) {
-                                  final mm =
-                                      (i * minuteStep).toString().padLeft(2, '0');
-                                  return Center(
-                                    child: Text(
-                                      mm,
-                                      style: TextStyle(
-                                        fontFamily: kPatientPrimaryFont,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white.withValues(alpha: 0.9),
-                                side: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: Text(
-                                loc.translate('action_cancel'),
-                                style: const TextStyle(
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: () {
-                                final mm = (minuteIndex * minuteStep).clamp(0, 59);
-                                Navigator.pop(
-                                  ctx,
-                                  TimeOfDay(hour: h, minute: mm),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor:
-                                    const Color(0xFF1565C0).withValues(alpha: 0.92),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: Text(
-                                loc.translate('ok'),
-                                style: const TextStyle(
-                                  fontFamily: kPatientPrimaryFont,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   void dispose() {
     _durationController?.dispose();
@@ -1597,31 +1686,12 @@ class ScheduleDayPanelController extends ChangeNotifier {
   bool get _isPast =>
       _dateOnly(_dateLocal).isBefore(_dateOnly(DateTime.now()));
 
-  Future<void> _pickStart(BuildContext context) async {
-    if (_isPast) return;
-    final p = await _pickTimePremiumBottomSheet(
-      context,
-      initial: _start,
-      title: S.of(context).translate('schedule_control_start_time_label'),
-    );
-    if (p != null) {
-      _start = p;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _pickEnd(BuildContext context) async {
-    if (_isPast) return;
-    final p = await _pickTimePremiumBottomSheet(
-      context,
-      initial: _end,
-      title: S.of(context).translate('schedule_control_end_time_label'),
-    );
-    if (p != null) {
-      _end = p;
-      notifyListeners();
-    }
-  }
+  /// Summary strip + sheet (read-only for UI).
+  TimeOfDay get scheduleSummaryStart => _start;
+  TimeOfDay get scheduleSummaryEnd => _end;
+  int get scheduleSummaryDurationMin => _durationMin;
+  bool get scheduleSummaryClinicOpen => _isOpen;
+  bool get scheduleDayIsPast => _isPast;
 
   Future<void> _save(BuildContext context) async {
     if (_isPast) return;
@@ -1797,6 +1867,573 @@ class ScheduleDayPanelController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  /// Glass time-settings modal (opened from the summary card).
+  void openTimeSettingsSheet(BuildContext context) {
+    final loc = S.of(context);
+    final rootMedia = MediaQuery.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: false,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final sheetH = rootMedia.size.height * 0.88;
+        return SizedBox(
+          height: rootMedia.size.height,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.of(sheetCtx).pop(),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.56),
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(26),
+                  ),
+                  child: SizedBox(
+                    height: sheetH,
+                    width: double.infinity,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF0E1628).withValues(alpha: 0.97),
+                              const Color(0xFF080F1A).withValues(alpha: 0.99),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: kStaffLuxGold.withValues(alpha: 0.32),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 36,
+                              offset: const Offset(0, -12),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 6),
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 3.5,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF94A3B8)
+                                      .withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 44,
+                                    ),
+                                    child: Text(
+                                      loc.translate(
+                                          'schedule_sheet_tab_settings'),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 17,
+                                        height: 1.25,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.96),
+                                      ),
+                                    ),
+                                  ),
+                                  PositionedDirectional(
+                                    end: -10,
+                                    top: -6,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.88),
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.of(sheetCtx).pop(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Center(
+                                child:
+                                    _scheduleSelectedDateBadge(_dateLocal)),
+                            const SizedBox(height: 6),
+                            Expanded(
+                              child: ListenableBuilder(
+                                listenable: this,
+                                builder: (context, _) {
+                                  final enabled = !_isPast;
+                                  final compact =
+                                      MediaQuery.sizeOf(sheetCtx).width <
+                                          440;
+                                  _durationController ??=
+                                      TextEditingController(
+                                          text: '$_durationMin');
+                                  final sliderVal =
+                                      _durationMin.clamp(1, 180).toDouble();
+                                  return SingleChildScrollView(
+                                    physics: const ClampingScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      20,
+                                      0,
+                                      20,
+                                      10,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.07),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.16),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.22),
+                                                blurRadius: 16,
+                                                offset: const Offset(0, 6),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.local_hospital_rounded,
+                                                  size: compact ? 18 : 20,
+                                                  color: kStaffLuxGold
+                                                      .withValues(alpha: 0.88),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Flexible(
+                                                  child: Text(
+                                                    loc.translate(
+                                                        'schedule_clinic_status_title'),
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          kPatientPrimaryFont,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: 12,
+                                                      height: 1.2,
+                                                      color: Colors.white
+                                                          .withValues(
+                                                              alpha: 0.92),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                CupertinoSwitch(
+                                                  value: _isOpen,
+                                                  onChanged: enabled
+                                                      ? (v) {
+                                                          _isOpen = v;
+                                                          notifyListeners();
+                                                        }
+                                                      : null,
+                                                  activeTrackColor:
+                                                      _kSchedOpenFill,
+                                                  inactiveTrackColor:
+                                                      _kSchedClosedFill
+                                                          .withValues(
+                                                              alpha: 0.55),
+                                                  thumbColor:
+                                                      CupertinoColors.white,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        if (compact)
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _schedSheetFloatingTimePickerCard(
+                                                context: sheetCtx,
+                                                label: loc.translate(
+                                                    'schedule_control_start_time_label'),
+                                                value: _start,
+                                                enabled: enabled,
+                                                onChanged: (t) {
+                                                  _start = t;
+                                                  notifyListeners();
+                                                },
+                                              ),
+                                              const SizedBox(height: 8),
+                                              _schedSheetFloatingTimePickerCard(
+                                                context: sheetCtx,
+                                                label: loc.translate(
+                                                    'schedule_control_end_time_label'),
+                                                value: _end,
+                                                enabled: enabled,
+                                                onChanged: (t) {
+                                                  _end = t;
+                                                  notifyListeners();
+                                                },
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child:
+                                                    _schedSheetFloatingTimePickerCard(
+                                                  context: sheetCtx,
+                                                  label: loc.translate(
+                                                      'schedule_control_start_time_label'),
+                                                  value: _start,
+                                                  enabled: enabled,
+                                                  onChanged: (t) {
+                                                    _start = t;
+                                                    notifyListeners();
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child:
+                                                    _schedSheetFloatingTimePickerCard(
+                                                  context: sheetCtx,
+                                                  label: loc.translate(
+                                                      'schedule_control_end_time_label'),
+                                                  value: _end,
+                                                  enabled: enabled,
+                                                  onChanged: (t) {
+                                                    _end = t;
+                                                    notifyListeners();
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        const SizedBox(height: 10),
+                                        DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.06),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.14),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.2),
+                                                blurRadius: 14,
+                                                offset: const Offset(0, 5),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              14,
+                                              12,
+                                              14,
+                                              14,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  loc.translate(
+                                                      'schedule_duration_minutes_field_title'),
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 12.5,
+                                                    height: 1.2,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.88),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Directionality(
+                                                  textDirection:
+                                                      ui.TextDirection.ltr,
+                                                  child: Text(
+                                                    '$_durationMin min',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          kPatientPrimaryFont,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      fontSize: 22,
+                                                      height: 1.1,
+                                                      color: const Color(
+                                                              0xFF22D3EE)
+                                                          .withValues(
+                                                              alpha: 0.95),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                SliderTheme(
+                                                  data: SliderTheme.of(context)
+                                                      .copyWith(
+                                                    trackHeight: 8,
+                                                    thumbShape:
+                                                        const RoundSliderThumbShape(
+                                                      enabledThumbRadius: 14,
+                                                    ),
+                                                    overlayShape:
+                                                        const RoundSliderOverlayShape(
+                                                      overlayRadius: 26,
+                                                    ),
+                                                    activeTrackColor:
+                                                        const Color(0xFF06B6D4),
+                                                    inactiveTrackColor: Colors
+                                                        .white
+                                                        .withValues(
+                                                            alpha: 0.14),
+                                                    thumbColor: Colors.white,
+                                                    overlayColor:
+                                                        const Color(0xFF22D3EE)
+                                                            .withValues(
+                                                                alpha: 0.22),
+                                                  ),
+                                                  child: Slider(
+                                                    value: sliderVal,
+                                                    min: 1,
+                                                    max: 180,
+                                                    divisions: 179,
+                                                    label:
+                                                        '$_durationMin',
+                                                    onChanged: enabled
+                                                        ? (v) {
+                                                            _durationMin =
+                                                                v.round().clamp(
+                                                                    1,
+                                                                    24 * 60,
+                                                                  );
+                                                            _durationController
+                                                                ?.text =
+                                                                '$_durationMin';
+                                                            notifyListeners();
+                                                          }
+                                                        : null,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  loc.translate(
+                                                      'schedule_duration_quick_select'),
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 10.5,
+                                                    letterSpacing: 0.4,
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.5),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                _schedDurationQuickChips(
+                                                  enabled: enabled,
+                                                  currentMinutes: _durationMin,
+                                                  onSelect: (m) {
+                                                    _durationMin = m;
+                                                    _durationController?.text =
+                                                        '$m';
+                                                    notifyListeners();
+                                                  },
+                                                ),
+                                                const SizedBox(height: 10),
+                                                Wrap(
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  alignment:
+                                                      WrapAlignment.center,
+                                                  spacing: 10,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    Text(
+                                                      loc.translate(
+                                                          'schedule_duration_custom_chip'),
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                            kPatientPrimaryFont,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontSize: 12,
+                                                        height: 1.2,
+                                                        color: Colors.white
+                                                            .withValues(
+                                                                alpha: 0.78),
+                                                      ),
+                                                    ),
+                                                    _schedDurationCustomMinutesField(
+                                                      loc: loc,
+                                                      controller:
+                                                          _durationController!,
+                                                      enabled: enabled,
+                                                      onValidMinutes: (n) {
+                                                        _durationMin = n;
+                                                        notifyListeners();
+                                                      },
+                                                    ),
+                                                    Directionality(
+                                                      textDirection: ui
+                                                          .TextDirection.ltr,
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                top: 2,
+                                                              ),
+                                                        child: Text(
+                                                          'min',
+                                                          style: TextStyle(
+                                                            fontFamily:
+                                                                kPatientPrimaryFont,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                            fontSize: 12,
+                                                            color: Colors.white
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.45,
+                                                                  ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            SafeArea(
+                              top: false,
+                              minimum: EdgeInsets.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                                child: ListenableBuilder(
+                                  listenable: this,
+                                  builder: (context, _) {
+                                    final enabled = !_isPast;
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child:
+                                              _schedSettingsGradientCancelButton(
+                                            label:
+                                                loc.translate('action_cancel'),
+                                            onPressed: () =>
+                                                Navigator.of(sheetCtx).pop(),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child:
+                                              _schedPremiumBluePurpleSaveButton(
+                                            label: loc.translate(
+                                                'schedule_save_button'),
+                                            isLoading: _saving,
+                                            onPressed: (!enabled || _saving)
+                                                ? null
+                                                : () async {
+                                                    await _save(sheetCtx);
+                                                    if (sheetCtx.mounted) {
+                                                      Navigator.of(sheetCtx)
+                                                          .pop();
+                                                    }
+                                                  },
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Stream<DateTime> _scheduleSlotListClockStream() async* {
@@ -2120,427 +2757,451 @@ class ScheduleDayPanelController extends ChangeNotifier {
     );
   }
 
-  Widget _timeRow({
-    required AppLocalizations loc,
-    required VoidCallback onTap,
-    required IconData icon,
-    double iconSize = 17,
-    required String label,
-    required String timeEn12h,
-    required bool enabled,
-  }) {
-    final goldSoft = kStaffLuxGold.withValues(alpha: enabled ? 0.92 : 0.35);
+}
 
-    Widget timeDisplay = Directionality(
-      textDirection: ui.TextDirection.ltr,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: kStaffLuxGold.withValues(alpha: enabled ? 0.09 : 0.04),
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(
-            color: kStaffLuxGold.withValues(alpha: enabled ? 0.5 : 0.2),
-            width: 0.8,
-          ),
-        ),
-        child: Text(
-          timeEn12h,
-          style: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.w900,
-            fontSize: 12.5,
-            height: 1.1,
-            letterSpacing: 0.2,
-            color: kStaffLuxGold.withValues(alpha: enabled ? 0.98 : 0.45),
-          ),
-        ),
-      ),
-    );
+/// Glass summary strip between header and calendar; opens [ScheduleDayPanelController.openTimeSettingsSheet].
+class _ScheduleSettingsSummaryCard extends StatelessWidget {
+  const _ScheduleSettingsSummaryCard();
 
-    return Tooltip(
-      message: enabled ? loc.translate('schedule_time_row_tap_hint') : '',
-      waitDuration: const Duration(milliseconds: 400),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(12),
-          splashColor: Colors.white.withValues(alpha: 0.14),
-          highlightColor: Colors.white.withValues(alpha: 0.07),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: enabled
-                  ? Colors.white.withValues(alpha: 0.045)
-                  : Colors.white.withValues(alpha: 0.02),
-              border: Border.all(
-                color: kStaffLuxGold.withValues(alpha: enabled ? 0.22 : 0.1),
-                width: 0.5,
+  static String _hhMm(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = S.of(context);
+    final borderGold = kStaffLuxGold.withValues(alpha: 0.42);
+
+    return ListenableBuilder(
+      listenable: ScheduleDayPanelScope.of(context),
+      builder: (context, _) {
+        final c = ScheduleDayPanelScope.of(context);
+        final past = c.scheduleDayIsPast;
+        final open = c.scheduleSummaryClinicOpen;
+        final dur = c.scheduleSummaryDurationMin;
+        final startEn =
+            _scheduleHhMmToEnglish12h(_hhMm(c.scheduleSummaryStart));
+        final endEn = _scheduleHhMmToEnglish12h(_hhMm(c.scheduleSummaryEnd));
+
+        final summaryLines = open
+            ? [
+                loc.translate('schedule_settings_card_duration',
+                    params: {'minutes': '$dur'}),
+                loc.translate('schedule_settings_card_shift',
+                    params: {'start': startEn, 'end': endEn}),
+              ]
+            : [loc.translate('schedule_settings_card_closed')];
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.42),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderGold, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: iconSize,
-                    color: kStaffLuxGold.withValues(alpha: enabled ? 0.9 : 0.35),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    fit: FlexFit.tight,
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        color: Colors.white.withValues(
-                          alpha: enabled ? 0.9 : 0.45,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          timeDisplay,
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.edit_rounded,
-                            size: 17,
-                            color: goldSoft,
+                          Text(
+                            loc.translate('schedule_settings_card_caption'),
+                            style: TextStyle(
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              height: 1.25,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          ...summaryLines.map(
+                            (line) => Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Directionality(
+                                textDirection: ui.TextDirection.ltr,
+                                child: Text(
+                                  line,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10.5,
+                                    height: 1.2,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.78),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      if (enabled) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          loc.translate('schedule_time_row_tap_hint'),
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 8,
-                            height: 1.1,
-                            color: Colors.white.withValues(alpha: 0.38),
+                    ),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: past
+                            ? null
+                            : () => c.openTimeSettingsSheet(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: past
+                                  ? [
+                                      const Color(0xFF334155)
+                                          .withValues(alpha: 0.75),
+                                      const Color(0xFF475569)
+                                          .withValues(alpha: 0.65),
+                                    ]
+                                  : const [
+                                      Color(0xFF2563EB),
+                                      Color(0xFF6366F1),
+                                      Color(0xFF7C3AED),
+                                    ],
+                            ),
+                            border: Border.all(
+                              color: Colors.white
+                                  .withValues(alpha: past ? 0.12 : 0.22),
+                              width: 0.85,
+                            ),
+                            boxShadow: past
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: const Color(0xFF6366F1)
+                                          .withValues(alpha: 0.28),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                  color: Colors.white
+                                      .withValues(alpha: past ? 0.55 : 1),
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    loc.translate(
+                                        'schedule_edit_time_settings_button'),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      height: 1.15,
+                                      color: Colors.white
+                                          .withValues(alpha: past ? 0.55 : 1),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _durationMinutesField(AppLocalizations loc, bool enabled) {
-    const deepNavy = Color(0xFF0F172A);
-    const border = Color(0xFF1565C0);
-    final controller = (_durationController ??= TextEditingController(text: '15'));
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              loc.translate('schedule_duration_minutes_field_title'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.72),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: controller,
-              enabled: enabled,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-                color: Colors.white,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                filled: true,
-                fillColor: deepNavy.withValues(alpha: enabled ? 0.52 : 0.26),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: border.withValues(alpha: enabled ? 0.55 : 0.25),
-                    width: 1,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: border.withValues(alpha: 0.42),
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: border,
-                    width: 1.5,
-                  ),
-                ),
-                suffixText: loc.translate('schedule_minutes_suffix'),
-                suffixStyle: TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
-              ),
-              onChanged: (v) {
-                final n = int.tryParse(v.trim());
-                if (n != null) _durationMin = n.clamp(1, 24 * 60);
-                notifyListeners();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionCard(
-    BuildContext context, {
-    required Widget child,
-    EdgeInsetsGeometry margin = const EdgeInsets.symmetric(vertical: 8),
-    bool emphasized = false,
-  }) {
-    const r = 18.0;
-    final gold = kStaffLuxGold;
-    final borderAlpha = emphasized ? 0.62 : 0.48;
-    return Padding(
-      padding: margin,
-      child: RepaintBoundary(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(r),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(r),
-                border: Border.all(
-                  color: gold.withValues(alpha: borderAlpha),
-                  width: emphasized ? 0.8 : 0.5,
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    kStaffShellGradientTop.withValues(alpha: 0.94),
-                    kStaffShellGradientMid.withValues(alpha: 0.92),
-                    const Color(0xFF0D2137).withValues(alpha: 0.96),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  dividerColor: Colors.transparent,
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                ),
-                child: child,
-              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+}
+
+/// Pulsing gradient square — opens slot list; centerpiece of the bottom strip.
+class _ScheduleBottomDayHeroButton extends StatefulWidget {
+  const _ScheduleBottomDayHeroButton({
+    required this.dayLocal,
+    required this.panel,
+    required this.hint,
+  });
+
+  final DateTime dayLocal;
+  final ScheduleDayPanelController panel;
+  final String hint;
+
+  static const double squareSide = 184.0;
+  static const double _radius = 28.0;
+
+  @override
+  State<_ScheduleBottomDayHeroButton> createState() =>
+      _ScheduleBottomDayHeroButtonState();
+}
+
+class _ScheduleBottomDayHeroButtonState extends State<_ScheduleBottomDayHeroButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _pulseCurve;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
+    _pulseCurve = CurvedAnimation(
+      parent: _pulse,
+      curve: Curves.easeInOut,
     );
   }
 
-  Widget buildTimeCard(BuildContext context, bool compact) {
-    final loc = S.of(context);
-    final enabled = !_isPast;
-    final gold = kStaffLuxGold;
-      final titleStyle = TextStyle(
-        fontFamily: kPatientPrimaryFont,
-        fontWeight: FontWeight.w900,
-        fontSize: compact ? 12 : 13,
-        height: 1.2,
-        color: Colors.white.withValues(alpha: 0.96),
-      );
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
-      final card = _sectionCard(
-        context,
-        margin: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 8),
-        emphasized: _timeExpanded,
-        child: ExpansionTile(
-            key: const PageStorageKey<String>(
-              'schedule_footer_time_settings_tile',
-            ),
-            maintainState: true,
-            initiallyExpanded: _timeExpanded,
-            onExpansionChanged: (v) {
-              _timeExpanded = v;
-              // ExpansionTile may invoke callbacks during its build/layout;
-              // defer notifications to avoid "markNeedsBuild called during build".
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                notifyListeners();
-              });
-            },
-            tilePadding: EdgeInsets.fromLTRB(
-              compact ? 10 : 12,
-              10,
-              compact ? 10 : 12,
-              8,
-            ),
-            childrenPadding: EdgeInsets.fromLTRB(
-              compact ? 10 : 12,
-              4,
-              compact ? 10 : 12,
-              compact ? 10 : 12,
-            ),
-            dense: true,
-            iconColor: gold,
-            collapsedIconColor: gold.withValues(alpha: 0.88),
-            title: Text(
-              loc.translate('schedule_sheet_tab_settings'),
-              style: titleStyle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 10),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: _scheduleSelectedDateBadge(_dateLocal),
-              ),
-            ),
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Row(
-                    children: [
-                      Icon(
-                        Icons.local_hospital_rounded,
-                        size: compact ? 15 : 16,
-                        color: gold.withValues(alpha: 0.88),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        fit: FlexFit.tight,
-                        child: Text(
-                          loc.translate('schedule_clinic_status_title'),
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.92),
-                          ),
-                        ),
-                      ),
-                      CupertinoSwitch(
-                        value: _isOpen,
-                        onChanged: enabled
-                            ? (v) {
-                                _isOpen = v;
-                                notifyListeners();
-                              }
-                            : null,
-                        activeTrackColor: _kSchedOpenFill,
-                        inactiveTrackColor:
-                            _kSchedClosedFill.withValues(alpha: 0.55),
-                        thumbColor: CupertinoColors.white,
-                      ),
-                    ],
+  @override
+  Widget build(BuildContext context) {
+    final loc = S.of(context);
+    final dayNum = '${widget.dayLocal.day}';
+
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, _) {
+        final t = _pulseCurve.value;
+        final glow = 0.28 + 0.62 * t;
+        final lift = 10.0 + 10.0 * t;
+        final spread = 0.5 + 2.2 * t;
+
+        return Transform.translate(
+          offset: Offset(0, -1.0 * t),
+          child: Container(
+            width: _ScheduleBottomDayHeroButton.squareSide + 10,
+            height: _ScheduleBottomDayHeroButton.squareSide + 10,
+            alignment: Alignment.center,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(_ScheduleBottomDayHeroButton._radius + 4),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.42 * glow),
+                    blurRadius: lift + 8,
+                    spreadRadius: spread,
                   ),
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.32 * glow),
+                    blurRadius: lift * 0.65,
+                    spreadRadius: spread * 0.4,
                   ),
-                  const SizedBox(height: 12),
-                  const Divider(
-                    height: 1,
-                    thickness: 0.5,
-                    color: Color(0x40D4AF37),
-                  ),
-                  const SizedBox(height: 12),
-                  _timeRow(
-                    loc: loc,
-                    onTap: () => _pickStart(context),
-                    icon: Icons.schedule_rounded,
-                    iconSize: compact ? 16 : 17,
-                    label: loc.translate('schedule_control_start_time_label'),
-                    timeEn12h: _scheduleHhMmToEnglish12h(_fmt(_start)),
-                    enabled: enabled,
-                  ),
-                  const SizedBox(height: 8),
-                  _timeRow(
-                    loc: loc,
-                    onTap: () => _pickEnd(context),
-                    icon: Icons.event_available_rounded,
-                    iconSize: compact ? 16 : 17,
-                    label: loc.translate('schedule_control_end_time_label'),
-                    timeEn12h: _scheduleHhMmToEnglish12h(_fmt(_end)),
-                    enabled: enabled,
-                  ),
-                  const SizedBox(height: 14),
-                  _durationMinutesField(loc, enabled),
-                  const SizedBox(height: 14),
-                  StaffGoldGradientButton(
-                    label: loc.translate('schedule_save_button'),
-                    onPressed:
-                        enabled && !_saving ? () => _save(context) : null,
-                    isLoading: _saving,
-                    fontSize: 12,
-                    borderRadius: 12,
-                    minHeight: 38,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
                   ),
                 ],
               ),
-            ],
+              child: Material(
+                color: Colors.transparent,
+                clipBehavior: Clip.antiAlias,
+                borderRadius:
+                    BorderRadius.circular(_ScheduleBottomDayHeroButton._radius),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    showScheduleSlotsModalBottomSheet(
+                      context: context,
+                      panel: widget.panel,
+                      dayLocal: widget.dayLocal,
+                      loc: loc,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(
+                      _ScheduleBottomDayHeroButton._radius),
+                  splashColor: Colors.white.withValues(alpha: 0.18),
+                  highlightColor: Colors.white.withValues(alpha: 0.06),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                          _ScheduleBottomDayHeroButton._radius),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1E40AF),
+                          Color(0xFF3730A3),
+                          Color(0xFF5B21B6),
+                        ],
+                        stops: [0.0, 0.55, 1.0],
+                      ),
+                      border: Border.all(
+                        color: Color.lerp(
+                          const Color(0xFFE8E8E8),
+                          kStaffLuxGold,
+                          0.65,
+                        )!,
+                        width: 1.15,
+                      ),
+                    ),
+                    child: SizedBox(
+                      width: _ScheduleBottomDayHeroButton.squareSide,
+                      height: _ScheduleBottomDayHeroButton.squareSide,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 11,
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: _ScheduleBottomDayHeroButton.squareSide -
+                                  22,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: BackdropFilter(
+                                    filter: ui.ImageFilter.blur(
+                                      sigmaX: 10,
+                                      sigmaY: 10,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(11),
+                                        border: Border.all(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.22),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        widget.hint,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: kPatientPrimaryFont,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 9.8,
+                                          height: 1.22,
+                                          color: Colors.white
+                                              .withValues(alpha: 0.9),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Directionality(
+                                        textDirection: ui.TextDirection.ltr,
+                                        child: Text(
+                                          dayNum,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontFamily: kPatientPrimaryFont,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 52,
+                                            height: 1.0,
+                                            letterSpacing: -0.5,
+                                            shadows: [
+                                              Shadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.35),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                              Shadow(
+                                                color: kStaffLuxGold
+                                                    .withValues(alpha: 0.45),
+                                                blurRadius: 12,
+                                              ),
+                                            ],
+                                            color: Colors.white.withValues(
+                                                alpha: 0.98),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Transform.scale(
+                                        scale: 0.9 +
+                                            0.1 *
+                                                (0.5 +
+                                                    0.5 *
+                                                        math.sin(_pulse.value *
+                                                            2 *
+                                                            math.pi)),
+                                        alignment: Alignment.center,
+                                        child: Icon(
+                                          Icons.touch_app_rounded,
+                                          size: 22,
+                                          color: kStaffLuxGold
+                                              .withValues(alpha: 0.9),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-      );
-      // Avoid [AnimatedOpacity]/[AnimatedScale]: their tweens use `value as double`
-      // and can throw if the target is not a double at runtime. Use explicit
-      // doubles + non-animated wrappers instead.
-      const double expandedOpacity = 1.0;
-      const double collapsedOpacity = 0.94;
-      const double expandedScale = 1.0;
-      const double collapsedScale = 0.985;
-      final double targetOpacity =
-          _timeExpanded ? expandedOpacity : collapsedOpacity;
-      final double targetScale =
-          _timeExpanded ? expandedScale : collapsedScale;
-      return Transform.scale(
-        scale: targetScale,
-        alignment: Alignment.center,
-        child: Opacity(
-          opacity: targetOpacity,
-          child: card,
-        ),
-      );
+        );
+      },
+    );
   }
 }
 
@@ -2549,8 +3210,6 @@ class _ScheduleBottomSlotsSection extends StatelessWidget {
   const _ScheduleBottomSlotsSection({this.userSelectedDay});
 
   final DateTime? userSelectedDay;
-
-  static const double _squareSide = 156.0;
 
   @override
   Widget build(BuildContext context) {
@@ -2579,82 +3238,13 @@ class _ScheduleBottomSlotsSection extends StatelessWidget {
     );
     final hint = loc.translate('schedule_slots_square_hint');
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(18.0),
-        border: Border.all(
-          color: kStaffLuxGold.withValues(alpha: 0.38),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 18.0,
-            offset: const Offset(0.0, 6.0),
-          ),
-        ],
-      ),
-      child: Center(
-        child: SizedBox(
-          width: _squareSide,
-          height: _squareSide,
-          child: Material(
-            color: _kSchedSelectedFill,
-            borderRadius: BorderRadius.circular(20.0),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () {
-                showScheduleSlotsModalBottomSheet(
-                  context: context,
-                  panel: c,
-                  dayLocal: d0,
-                  loc: loc,
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10.0,
-                  vertical: 12.0,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      hint,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11.5,
-                        height: 1.3,
-                        color: Colors.white.withValues(alpha: 0.78),
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
-                    Directionality(
-                      textDirection: ui.TextDirection.ltr,
-                      child: Text(
-                        '${d0.day}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 52.0,
-                          height: 1.0,
-                          color: kStaffLuxGold.withValues(alpha: 0.98),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
+        child: _ScheduleBottomDayHeroButton(
+          dayLocal: d0,
+          panel: c,
+          hint: hint,
         ),
       ),
     );

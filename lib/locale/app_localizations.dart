@@ -1743,6 +1743,31 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'إعدادات الوقت',
     'en': 'Time settings',
   },
+  'schedule_settings_card_caption': {
+    'ckb': 'ڕێکخستنی کاتەکانی نۆرەکان بۆ ئەم ڕۆژە',
+    'ar': 'إعدادات أوقات المواعيد لهذا اليوم',
+    'en': 'Today’s appointment window settings',
+  },
+  'schedule_settings_card_duration': {
+    'ckb': 'ماوە: {minutes} خولەک',
+    'ar': 'المدة: {minutes} دقيقة',
+    'en': 'Duration: {minutes} min',
+  },
+  'schedule_settings_card_shift': {
+    'ckb': 'نۆرە: {start} – {end}',
+    'ar': 'الوردية: {start} – {end}',
+    'en': 'Shift: {start} – {end}',
+  },
+  'schedule_settings_card_closed': {
+    'ckb': 'کلینیک داخکراوە',
+    'ar': 'العيادة مغلقة',
+    'en': 'Clinic closed',
+  },
+  'schedule_edit_time_settings_button': {
+    'ckb': 'دەستکاری ڕێکخستنی کات',
+    'ar': 'تعديل إعدادات الوقت',
+    'en': 'Edit time settings',
+  },
   'schedule_sheet_tab_patients': {
     'ckb': 'لیستى نەخۆشەکان',
     'ar': 'قائمة المرضى',
@@ -2629,6 +2654,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ckb': 'خولەک',
     'ar': 'دقيقة',
     'en': 'min',
+  },
+  'schedule_duration_quick_select': {
+    'ckb': 'هەڵبژاردنی خێرا',
+    'ar': 'اختيار سريع',
+    'en': 'Quick select',
   },
   'schedule_custom_duration_invalid': {
     'ckb': 'ماوەی بەدڵی خۆت دروست نییە. تکایە ژمارەیەکی دروست بنووسە.',
