@@ -689,11 +689,7 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
     final slice = active.skip(i).take(chunk).toList();
     for (final doc in slice) {
       batch.update(doc.reference, {
-        // Make the slot instantly available again.
-        AppointmentFields.status: 'available',
-        AppointmentFields.patientName: null,
-        AppointmentFields.patientId: null,
-        AppointmentFields.userId: FieldValue.delete(),
+        AppointmentFields.status: 'cancelled',
         AppointmentFields.isBooked: false,
         AppointmentFields.queueNumber: FieldValue.delete(),
         AppointmentFields.cancellationReason: cancellationReason,
@@ -706,6 +702,12 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
     for (final doc in slice) {
       final data = doc.data();
       if (cancellationReason == kAppointmentCancellationReasonClinicClosed) {
+        final dateLabel = formatAppointmentDateForNotificationKu(data);
+        final stubBody =
+            clinicClosePatientNotificationStubMessageKu(dateLabel);
+        for (final key in recipientKeysFromAppointmentData(data)) {
+          sendPatientNotification(key, stubBody);
+        }
         final keys = recipientKeysFromAppointmentData(data);
         if (keys.isEmpty) continue;
         final dk = appointmentNotificationDayKey(data) ?? 'unknown';
@@ -713,7 +715,6 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
         final dedupe = '${sorted.join('|')}|$dk';
         if (seenClinicDayKeys.contains(dedupe)) continue;
         seenClinicDayKeys.add(dedupe);
-        final dateLabel = formatAppointmentDateForNotificationKu(data);
         final body = kClinicClosurePatientNotificationMessageKu.replaceAll(
           '{date}',
           dateLabel,
@@ -743,6 +744,51 @@ Future<int> bulkCancelActiveAppointmentsForDoctorLocalDay({
         );
       }
     }
+  }
+  return total;
+}
+
+/// When reopening a clinic day, frees slots that were bulk-cancelled for [kAppointmentCancellationReasonClinicClosed]
+/// so [regenerateAvailableSlotsForDoctorLocalDay] can restore placeholders.
+Future<int> resetClinicClosedCancelledAppointmentSlotsForDay({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) async {
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: doctorUserId,
+    dayLocal: dayLocal,
+  );
+  const chunk = 450;
+  var total = 0;
+  for (var i = 0; i < docs.length; i += chunk) {
+    final batch = FirebaseFirestore.instance.batch();
+    final slice = docs.skip(i).take(chunk).toList();
+    for (final doc in slice) {
+      final data = doc.data();
+      if (!appointmentStatusIsCancelled(
+        (data[AppointmentFields.status] ?? '').toString(),
+      )) {
+        continue;
+      }
+      if ((data[AppointmentFields.cancellationReason] ?? '')
+              .toString()
+              .trim() !=
+          kAppointmentCancellationReasonClinicClosed) {
+        continue;
+      }
+      batch.update(doc.reference, {
+        AppointmentFields.status: 'available',
+        AppointmentFields.patientName: null,
+        AppointmentFields.patientId: null,
+        AppointmentFields.userId: FieldValue.delete(),
+        AppointmentFields.isBooked: false,
+        AppointmentFields.queueNumber: FieldValue.delete(),
+        AppointmentFields.cancellationReason: FieldValue.delete(),
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+      total++;
+    }
+    await batch.commit();
   }
   return total;
 }

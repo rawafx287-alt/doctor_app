@@ -35,6 +35,28 @@ const Color _kSchedPastDaySurface = Color(0xFF475569);
 const Color _kSchedPastDayText = Color(0xFFCBD5E1);
 /// Focus ring for the secretary’s selected calendar day (pulse + border).
 const Color _kSelectedDayFocusGold = Color(0xFFFFD54F);
+/// No [available_days] doc — neutral grey cell.
+const LinearGradient _kScheduleCalendarNoDocGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFF64748B),
+    Color(0xFF475569),
+    Color(0xFF334155),
+  ],
+  stops: [0.0, 0.5, 1.0],
+);
+/// [available_days] exists but clinic explicitly closed — dark red “out of service”.
+const LinearGradient _kScheduleCalendarClosedClinicGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFF7F1D1D),
+    Color(0xFF991B1B),
+    Color(0xFF450A0A),
+  ],
+  stops: [0.0, 0.45, 1.0],
+);
 const double _kDayBoxR = 10.0;
 /// Space between time-settings card and pinned calendar.
 const double _kPrimaryGlassBlur = 22.0;
@@ -897,6 +919,61 @@ Widget _schedulePatientInfoGlassCard({
   );
 }
 
+Future<bool?> _showScheduleCloseDayWarningDialog(
+  BuildContext context,
+  AppLocalizations loc,
+) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        backgroundColor: const Color(0xFF0D2137),
+        title: Text(
+          loc.translate('schedule_close_day_bulk_title'),
+          style: const TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFFE8EEF4),
+          ),
+        ),
+        content: Text(
+          loc.translate('schedule_close_day_confirm_warning'),
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            height: 1.35,
+            color: Colors.white.withValues(alpha: 0.88),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              loc.translate('appt_action_confirm_no'),
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              loc.translate('appt_action_confirm_yes'),
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFE57373),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class ScheduleManagementScreen extends StatefulWidget {
   const ScheduleManagementScreen({
     super.key,
@@ -1139,6 +1216,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         uid.isEmpty ? '' : availableDayDocumentId(doctorUserId: uid, dateLocal: d0);
     final row = docId.isEmpty ? null : openById[docId];
     final open = row != null && availableDayIsOpen(row);
+    final hasDayDoc = row != null;
     final closedLook = row == null || !open;
 
     final nf = NumberFormat.decimalPattern('en_US');
@@ -1163,10 +1241,14 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
       flatFill = null;
       crystalGrad = CalendarCrystalSurfaces.greenCrystalBase;
       textColor = Colors.white;
+    } else if (hasDayDoc && !open) {
+      flatFill = null;
+      crystalGrad = _kScheduleCalendarClosedClinicGradient;
+      textColor = Colors.white.withValues(alpha: 0.96);
     } else {
       flatFill = null;
-      crystalGrad = CalendarCrystalSurfaces.redCrystalBase;
-      textColor = Colors.white;
+      crystalGrad = _kScheduleCalendarNoDocGradient;
+      textColor = Colors.white.withValues(alpha: 0.9);
     }
 
     final radius = BorderRadius.circular(_kDayBoxR);
@@ -1258,7 +1340,9 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
               : crystalGrad != null
                   ? Border.all(
                       color: closedLook
-                          ? CalendarCrystalSurfaces.redCrystalEdge
+                          ? (hasDayDoc
+                              ? const Color(0xFF9B1C1C)
+                              : const Color(0xFF475569))
                           : CalendarCrystalSurfaces.greenCrystalEdge,
                       width: 1.05,
                     )
@@ -1897,11 +1981,104 @@ class ScheduleDayPanelController extends ChangeNotifier {
   bool get scheduleSummaryClinicOpen => _isOpen;
   bool get scheduleDayIsPast => _isPast;
 
+  Future<void> _refreshDayRowFromServer() async {
+    try {
+      final fresh = await FirebaseFirestore.instance
+          .collection(AvailableDayFields.collection)
+          .doc(_existingDocId)
+          .get(const GetOptions(source: Source.server));
+      _dayRow = fresh.data();
+    } catch (_) {}
+  }
+
+  /// Bulk-cancel active appointments, close [available_days], refresh local row, success snack.
+  Future<void> _executeCloseClinicDayAfterConfirm(
+    BuildContext context,
+    AppLocalizations s,
+  ) async {
+    final activeCount = await countActiveAppointmentsForDoctorLocalDay(
+      doctorUserId: _doctorUserId,
+      dayLocal: _dateLocal,
+    );
+    if (activeCount > 0) {
+      await bulkCancelActiveAppointmentsForDoctorLocalDay(
+        doctorUserId: _doctorUserId,
+        dayLocal: _dateLocal,
+        cancellationReason: kAppointmentCancellationReasonClinicClosed,
+      );
+    }
+    await setAvailableDayOpenState(
+      availableDayDocId: _existingDocId,
+      isOpen: false,
+    );
+    await _refreshDayRowFromServer();
+    _applyRowSnapshot();
+    _isOpen = false;
+    notifyListeners();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('schedule_close_day_success_snack'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Clinic toggle → closed: confirm, cancel bookings, notify patients, close day in Firestore.
+  Future<void> confirmAndCloseClinicFromSheet(BuildContext context) async {
+    if (_isPast || _saving) return;
+    final s = S.of(context);
+    if (_dayRow == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('schedule_close_day_toggle_needs_save'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (!availableDayIsOpen(_dayRow!)) {
+      _isOpen = false;
+      notifyListeners();
+      return;
+    }
+    final proceed = await _showScheduleCloseDayWarningDialog(context, s);
+    if (proceed != true || !context.mounted) return;
+
+    _saving = true;
+    notifyListeners();
+    try {
+      await _executeCloseClinicDayAfterConfirm(context, s);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('schedule_save_error_generic'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+    } finally {
+      _saving = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _save(BuildContext context) async {
     if (_isPast) return;
     final s = S.of(context);
     _saving = true;
     notifyListeners();
+    var suppressDefaultSaveSnack = false;
     try {
       final id = _existingDocId;
       final hasDoc = _dayRow != null;
@@ -1934,80 +2111,37 @@ class ScheduleDayPanelController extends ChangeNotifier {
       if (!_isOpen) {
         if (hasDoc) {
           if (wasOpen) {
-            final activeCount = await countActiveAppointmentsForDoctorLocalDay(
-              doctorUserId: _doctorUserId,
-              dayLocal: _dateLocal,
-            );
-            if (activeCount > 0) {
-              if (!context.mounted) return;
-              _saving = false;
-              notifyListeners();
-              final proceed = await showDialog<bool>(
-                context: context,
-                builder: (ctx) {
-                  final loc = S.of(ctx);
-                  final nf = NumberFormat.decimalPattern('en_US');
-                  return AlertDialog(
-                    backgroundColor: const Color(0xFF0D2137),
-                    title: Text(
-                      loc.translate('schedule_close_day_bulk_title'),
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFE8EEF4),
-                      ),
-                    ),
+            if (!context.mounted) return;
+            _saving = false;
+            notifyListeners();
+            final proceed =
+                await _showScheduleCloseDayWarningDialog(context, s);
+            if (!context.mounted) return;
+            if (proceed != true) return;
+            _saving = true;
+            notifyListeners();
+            try {
+              await _executeCloseClinicDayAfterConfirm(context, s);
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
                     content: Text(
-                      loc.translate(
-                        'schedule_close_day_bulk_body',
-                        params: {'count': nf.format(activeCount)},
-                      ),
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        height: 1.35,
-                        color: Colors.white.withValues(alpha: 0.88),
-                      ),
+                      s.translate('schedule_save_error_generic'),
+                      style: const TextStyle(fontFamily: kPatientPrimaryFont),
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: Text(
-                          loc.translate('appt_action_confirm_no'),
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: Text(
-                          loc.translate('appt_action_confirm_yes'),
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFE57373),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-              if (!context.mounted) return;
-              if (proceed != true) return;
-              _saving = true;
-              notifyListeners();
-              await bulkCancelActiveAppointmentsForDoctorLocalDay(
-                doctorUserId: _doctorUserId,
-                dayLocal: _dateLocal,
-                cancellationReason: kAppointmentCancellationReasonClinicClosed,
-              );
+                  ),
+                );
+              }
+              return;
             }
+            suppressDefaultSaveSnack = true;
+          } else {
+            await setAvailableDayOpenState(availableDayDocId: id, isOpen: false);
+            await _refreshDayRowFromServer();
+            _applyRowSnapshot();
+            notifyListeners();
           }
-          await setAvailableDayOpenState(availableDayDocId: id, isOpen: false);
         }
       } else {
         if (!hasDoc) {
@@ -2019,6 +2153,12 @@ class ScheduleDayPanelController extends ChangeNotifier {
             appointmentDurationMinutes: dur,
           );
         } else {
+          if (!wasOpen) {
+            await resetClinicClosedCancelledAppointmentSlotsForDay(
+              doctorUserId: _doctorUserId,
+              dayLocal: _dateLocal,
+            );
+          }
           await setAvailableDayOpenState(availableDayDocId: id, isOpen: true);
           await updateAvailableDayTimeSettings(
             availableDayDocId: id,
@@ -2028,7 +2168,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
           );
         }
 
-        // Regenerate freed `available` placeholders so all apps match the new grid immediately.
         await regenerateAvailableSlotsForDoctorLocalDay(
           doctorUserId: _doctorUserId,
           dayLocal: _dateLocal,
@@ -2037,7 +2176,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
           durationMinutes: dur,
         );
 
-        // Refresh local state immediately (don’t wait for stream rebuild).
         try {
           final fresh = await FirebaseFirestore.instance
               .collection(AvailableDayFields.collection)
@@ -2048,7 +2186,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
         } catch (_) {}
         notifyListeners();
       }
-      if (context.mounted) {
+      if (context.mounted && !suppressDefaultSaveSnack) {
         showScheduleSaveSuccessSnackBar(
           context,
           s.translate('schedule_save_ok'),
@@ -2134,21 +2272,29 @@ class ScheduleDayPanelController extends ChangeNotifier {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 6),
-                            Center(
-                              child: Container(
-                                width: 40,
-                                height: 3.5,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF94A3B8)
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ),
+                        child: ListenableBuilder(
+                          listenable: this,
+                          builder: (context, _) {
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    Center(
+                                      child: Container(
+                                        width: 40,
+                                        height: 3.5,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF94A3B8)
+                                              .withValues(alpha: 0.5),
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                    ),
                             Padding(
                               padding:
                                   const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -2183,8 +2329,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                         color: Colors.white
                                             .withValues(alpha: 0.88),
                                       ),
-                                      onPressed: () =>
-                                          Navigator.of(sheetCtx).pop(),
+                                      onPressed: _saving
+                                          ? null
+                                          : () =>
+                                              Navigator.of(sheetCtx).pop(),
                                     ),
                                   ),
                                 ],
@@ -2280,8 +2428,13 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   value: _isOpen,
                                                   onChanged: enabled
                                                       ? (v) {
-                                                          _isOpen = v;
-                                                          notifyListeners();
+                                                          if (v) {
+                                                            _isOpen = true;
+                                                            notifyListeners();
+                                                            return;
+                                                          }
+                                                          confirmAndCloseClinicFromSheet(
+                                                              sheetCtx);
                                                         }
                                                       : null,
                                                   activeTrackColor:
@@ -2598,8 +2751,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                               _schedSettingsGradientCancelButton(
                                             label:
                                                 loc.translate('action_cancel'),
-                                            onPressed: () =>
-                                                Navigator.of(sheetCtx).pop(),
+                                            onPressed: () {
+                                              if (_saving) return;
+                                              Navigator.of(sheetCtx).pop();
+                                            },
                                           ),
                                         ),
                                         const SizedBox(width: 12),
@@ -2626,7 +2781,36 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                 ),
                               ),
                             ),
-                          ],
+                                  ],
+                                ),
+                                if (_saving)
+                                  Positioned.fill(
+                                    child: ClipRRect(
+                                      borderRadius:
+                                          const BorderRadius.vertical(
+                                        top: Radius.circular(26),
+                                      ),
+                                      child: AbsorbPointer(
+                                        child: ColoredBox(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.44),
+                                          child: const Center(
+                                            child: SizedBox(
+                                              width: 42,
+                                              height: 42,
+                                              child: CircularProgressIndicator(
+                                                color: kStaffLuxGold,
+                                                strokeWidth: 3,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -2709,6 +2893,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final docId = booking?.$2;
     final statusRaw = (booking?.$3 ?? '').toString().trim().toLowerCase();
     final rawName = (booking?.$1 ?? '').toString().trim();
+    final bool isCancelled =
+        statusRaw == 'cancelled' || statusRaw == 'canceled';
     final bool hasName = rawName.isNotEmpty;
     final bool blocks = data == null
         ? false
@@ -2723,6 +2909,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
     final String statusText;
     if (isPassed == true) {
       statusText = loc.translate('schedule_slot_passed_ku');
+    } else if (isCancelled) {
+      statusText = loc.translate('schedule_slot_cancelled_ku');
     } else if (isBooked == true) {
       statusText = rawName.isNotEmpty ? rawName : 'گیراوە';
     } else if (isManualClosed == true) {
@@ -2734,6 +2922,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
     late final Color stripeColor;
     if (isPassed) {
       stripeColor = Colors.blueGrey.shade600;
+    } else if (isCancelled) {
+      stripeColor = const Color(0xFFB91C1C);
     } else if (isBooked) {
       stripeColor = stripeBooked;
     } else if (isManualClosed) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import 'appointment_queries.dart';
 
@@ -119,6 +120,17 @@ String patientPushBodyAppointmentRejectedKu(String dateLabel) =>
 /// Kurdish body for bulk day closure (matches Cloud Function copy).
 const String kClinicClosurePatientNotificationMessageKu =
     'ئاگاداری: نۆرینگە لە ڕێکەوتی {date} داخراوە، تکایە نۆرەیەکی نوێ وەربگرە.';
+
+/// SMS / push stub (no gateway yet): clinic closed, date placeholder is [dateLabel] `yyyy/MM/dd`.
+String clinicClosePatientNotificationStubMessageKu(String dateLabel) =>
+    'نەخۆشی بەڕێز، نۆرەکەت بۆ ڕێکەوتی $dateLabel بەهۆی داخستنی کلینیکەوە ڕەتکرایەوە.';
+
+/// Temporary stand-in until a real SMS/push gateway is wired; logs to console.
+void sendPatientNotification(String patientId, String message) {
+  final id = patientId.trim();
+  if (id.isEmpty) return;
+  debugPrint('[sendPatientNotification] patientId=$id\n$message');
+}
 
 String formatAppointmentDateForNotificationKu(Map<String, dynamic> data) {
   final raw = data[AppointmentFields.date];

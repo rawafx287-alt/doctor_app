@@ -1562,6 +1562,30 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en':
         'This day has {count} active bookings. Closing the day will reject all of them. Proceed?',
   },
+  'schedule_close_day_confirm_warning': {
+    'ckb':
+        'ئایا دڵنیای لە داخستنی ئەم ڕۆژە؟ هەموو نۆرە گیراوەکان ڕەت دەبنەوە و ئاگادارییان بۆ دەچێت.',
+    'ar':
+        'هل أنت متأكد من إغلاق هذا اليوم؟ سيتم إلغاء جميع المواعيد المحجوزة وإشعار المراجعين.',
+    'en':
+        'Are you sure you want to close this day? All booked appointments will be cancelled and patients will be notified.',
+  },
+  'schedule_close_day_success_snack': {
+    'ckb': 'ڕۆژەکە داخرا و نۆتیفیکەیشن بۆ هەموو نەخۆشەکان نێردرا.',
+    'ar': 'تم إغلاق اليوم وإرسال الإشعارات لجميع المرضى.',
+    'en': 'The day was closed and notifications were sent to all patients.',
+  },
+  'schedule_close_day_toggle_needs_save': {
+    'ckb':
+        'سەرەتا ڕۆژەکە لە خشتەکەدا دابنێ یان پاشەکەوت بکە پێش داخستنی کلینیک.',
+    'ar': 'أضف أو احفظ اليوم في الجدول قبل إغلاق العيادة.',
+    'en': 'Add or save this day on the schedule before closing the clinic.',
+  },
+  'schedule_slot_cancelled_ku': {
+    'ckb': 'ڕەتکراوەتەوە',
+    'ar': 'ملغى',
+    'en': 'Cancelled',
+  },
   'patient_appt_status_cancelled_clinic_closed': {
     'ckb': 'هەڵوەشاوە — کلینیک داخراوە',
     'ar': 'ملغى — العيادة مغلقة',
