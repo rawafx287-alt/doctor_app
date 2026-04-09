@@ -1581,6 +1581,11 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'أضف أو احفظ اليوم في الجدول قبل إغلاق العيادة.',
     'en': 'Add or save this day on the schedule before closing the clinic.',
   },
+  'schedule_day_reopened_toast': {
+    'ckb': 'ڕۆژەکە کرایەوە و هەموو کاتەکان نوێ کرانەوە',
+    'ar': 'تم فتح اليوم وإعادة إنشاء كل الأوقات.',
+    'en': 'Day reopened; all slots were regenerated.',
+  },
   'schedule_slot_cancelled_ku': {
     'ckb': 'ڕەتکراوەتەوە',
     'ar': 'ملغى',

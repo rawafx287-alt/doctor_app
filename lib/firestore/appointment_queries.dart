@@ -793,6 +793,41 @@ Future<int> resetClinicClosedCancelledAppointmentSlotsForDay({
   return total;
 }
 
+/// Force-resets **all** appointment rows for a doctor/day back to a clean `available` state.
+///
+/// Used when the secretary re-opens a previously closed day and wants a clean slot list.
+/// This clears any patient-bound fields so all slots show as available immediately.
+Future<int> resetAllAppointmentsForDoctorLocalDayToAvailable({
+  required String doctorUserId,
+  required DateTime dayLocal,
+}) async {
+  final docs = await fetchMergedDoctorAppointmentDocsForLocalDay(
+    doctorUserId: doctorUserId,
+    dayLocal: dayLocal,
+  );
+  const chunk = 450;
+  var total = 0;
+  for (var i = 0; i < docs.length; i += chunk) {
+    final batch = FirebaseFirestore.instance.batch();
+    final slice = docs.skip(i).take(chunk).toList();
+    for (final doc in slice) {
+      batch.update(doc.reference, {
+        AppointmentFields.status: 'available',
+        AppointmentFields.patientName: null,
+        AppointmentFields.patientId: null,
+        AppointmentFields.userId: FieldValue.delete(),
+        AppointmentFields.isBooked: false,
+        AppointmentFields.queueNumber: FieldValue.delete(),
+        AppointmentFields.cancellationReason: FieldValue.delete(),
+        AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+      total++;
+    }
+    await batch.commit();
+  }
+  return total;
+}
+
 /// `true` when the row should sort **after** active patients (doctor & secretary lists).
 /// Matches: pending/active first, then completed/cancelled at bottom.
 bool appointmentStatusIsTerminalForStaffSort(String raw) {
@@ -1011,19 +1046,16 @@ Future<int> smallestAvailableQueueNumberForDoctor({
   return n;
 }
 
-/// Next daily ticket: smallest free number (reuses gaps after reject/cancel).
+/// Next daily ticket: gap-filling per day (no jumps), resets every day.
+///
+/// Rule: return the smallest positive queue number not currently reserved by an active row.
 Future<int> nextDailyQueueNumberForDoctor({
   required String doctorUserId,
   required DateTime dayStartLocal,
 }) async {
-  final dayStart = DateTime(
-    dayStartLocal.year,
-    dayStartLocal.month,
-    dayStartLocal.day,
-  );
   return smallestAvailableQueueNumberForDoctor(
     doctorUserId: doctorUserId,
-    dayStartLocal: dayStart,
+    dayStartLocal: dayStartLocal,
   );
 }
 

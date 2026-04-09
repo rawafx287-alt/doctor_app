@@ -480,7 +480,10 @@ Future<String?> bookAvailableDayTransaction({
     if (freeStart == null) return 'available_day_full';
 
     final timeStr = formatTimeHhMm(freeStart);
-    final queueNumber = countNonCancelledAppointments(apptSnap.docs) + 1;
+    final queueNumber = await nextDailyQueueNumberForDoctor(
+      doctorUserId: did,
+      dayStartLocal: dayStart,
+    );
 
     try {
       final err = await FirebaseFirestore.instance.runTransaction<String?>((

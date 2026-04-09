@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show FilteringTextInputFormatter, HapticFeedback;
+    show HapticFeedback;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -110,7 +110,7 @@ Widget _schedSheetFloatingTimePickerCard({
   required ValueChanged<TimeOfDay> onChanged,
   required bool enabled,
 }) {
-  const pickerH = 152.0;
+  const pickerH = 120.0;
   final picker = AbsorbPointer(
     absorbing: !enabled,
     child: Opacity(
@@ -150,12 +150,12 @@ Widget _schedSheetFloatingTimePickerCard({
         style: TextStyle(
           fontFamily: kPatientPrimaryFont,
           fontWeight: FontWeight.w800,
-          fontSize: 12.5,
+          fontSize: 11.5,
           height: 1.2,
           color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
-      const SizedBox(height: 8),
+      const SizedBox(height: 6),
       DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -173,7 +173,7 @@ Widget _schedSheetFloatingTimePickerCard({
           ],
         ),
         child: Container(
-          padding: const EdgeInsets.all(1.6),
+          padding: const EdgeInsets.all(1.3),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             gradient: LinearGradient(
@@ -205,11 +205,11 @@ Widget _schedDurationQuickChips({
   required int currentMinutes,
   required ValueChanged<int> onSelect,
 }) {
-  const presets = [10, 15, 20];
+  const presets = [15, 30, 45, 60];
   return Wrap(
     alignment: WrapAlignment.center,
-    spacing: 8,
-    runSpacing: 8,
+    spacing: 7,
+    runSpacing: 7,
     children: [
       for (final m in presets)
         Material(
@@ -232,7 +232,7 @@ Widget _schedDurationQuickChips({
               ),
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 child: Directionality(
                   textDirection: ui.TextDirection.ltr,
                   child: Text(
@@ -241,7 +241,7 @@ Widget _schedDurationQuickChips({
                     style: TextStyle(
                       fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w800,
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       color: Colors.white.withValues(
                         alpha: enabled ? 0.95 : 0.38,
                       ),
@@ -253,77 +253,6 @@ Widget _schedDurationQuickChips({
           ),
         ),
     ],
-  );
-}
-
-/// Custom minutes (digits only); syncs with [ScheduleDayPanelController] duration.
-Widget _schedDurationCustomMinutesField({
-  required AppLocalizations loc,
-  required TextEditingController controller,
-  required bool enabled,
-  required ValueChanged<int> onValidMinutes,
-}) {
-  const fill = Color(0xFF060A12);
-  return SizedBox(
-    width: 80,
-    child: TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      style: TextStyle(
-        fontFamily: kPatientPrimaryFont,
-        fontWeight: FontWeight.w800,
-        fontSize: 14,
-        color: Colors.white.withValues(alpha: 0.95),
-      ),
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        filled: true,
-        fillColor: fill.withValues(alpha: 0.88),
-        hintText: loc.translate('schedule_custom_duration_field_label'),
-        hintStyle: TextStyle(
-          fontFamily: kPatientPrimaryFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 11,
-          color: Colors.white.withValues(alpha: 0.35),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.14),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.18),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: const Color(0xFF22D3EE).withValues(alpha: 0.65),
-            width: 1.2,
-          ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
-      onChanged: (v) {
-        final n = int.tryParse(v.trim());
-        if (n != null && n > 0) {
-          onValidMinutes(n.clamp(1, 24 * 60));
-        }
-      },
-    ),
   );
 }
 
@@ -347,7 +276,7 @@ Widget _schedSettingsGradientCancelButton({
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
             child: Text(
               label,
@@ -355,7 +284,7 @@ Widget _schedSettingsGradientCancelButton({
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
                 fontWeight: FontWeight.w800,
-                fontSize: 13,
+                fontSize: 12.5,
                 color: Colors.white.withValues(alpha: 0.94),
               ),
             ),
@@ -406,7 +335,7 @@ Widget _schedPremiumBluePurpleSaveButton({
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
             child: isLoading
                 ? const SizedBox(
@@ -423,7 +352,7 @@ Widget _schedPremiumBluePurpleSaveButton({
                     style: const TextStyle(
                       fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w900,
-                      fontSize: 13,
+                      fontSize: 12.5,
                       color: Colors.white,
                     ),
                   ),
@@ -1863,6 +1792,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
   DateTime _dateLocal;
   String _existingDocId;
   Map<String, dynamic>? _dayRow;
+  ScrollController? _modalSlotsScrollController;
+  bool _didAutoScrollModalSlots = false;
 
   void applyHostDateOrDocChange({
     required String doctorUserId,
@@ -1874,6 +1805,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
     _dateLocal = dateLocal;
     _existingDocId = existingDocId;
     _dayRow = dayRow;
+    _didAutoScrollModalSlots = false;
     _applyRowSnapshot();
     notifyListeners();
   }
@@ -1953,6 +1885,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _modalSlotsScrollController?.dispose();
     _durationController?.dispose();
     super.dispose();
   }
@@ -2056,6 +1989,93 @@ class ScheduleDayPanelController extends ChangeNotifier {
     notifyListeners();
     try {
       await _executeCloseClinicDayAfterConfirm(context, s);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('schedule_save_error_generic'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+    } finally {
+      _saving = false;
+      notifyListeners();
+    }
+  }
+
+  /// Clinic toggle → open: clear all appointments for the day, mark day open, regenerate slots, toast.
+  Future<void> openClinicAndResetDayFromSheet(BuildContext context) async {
+    if (_isPast || _saving) return;
+    final s = S.of(context);
+    if (_dayRow == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('schedule_close_day_toggle_needs_save'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (availableDayIsOpen(_dayRow!)) {
+      _isOpen = true;
+      notifyListeners();
+      return;
+    }
+
+    _saving = true;
+    notifyListeners();
+    try {
+      // 1) Clear all old appointment docs (so list becomes clean immediately).
+      await resetAllAppointmentsForDoctorLocalDayToAvailable(
+        doctorUserId: _doctorUserId,
+        dayLocal: _dateLocal,
+      );
+
+      // 2) Mark day open and keep current settings.
+      final durEffective = int.tryParse((_durationController?.text ?? '').trim());
+      final dur = (durEffective ?? _durationMin).clamp(1, 24 * 60);
+      await setAvailableDayOpenState(
+        availableDayDocId: _existingDocId,
+        isOpen: true,
+      );
+      await updateAvailableDayTimeSettings(
+        availableDayDocId: _existingDocId,
+        startTimeHhMm: _fmt(_start),
+        closingTimeHhMm: _fmt(_end),
+        appointmentDurationMinutes: dur,
+      );
+
+      // 3) Regenerate `available` placeholders from current settings.
+      await regenerateAvailableSlotsForDoctorLocalDay(
+        doctorUserId: _doctorUserId,
+        dayLocal: _dateLocal,
+        startTimeHhMm: _fmt(_start),
+        closingTimeHhMm: _fmt(_end),
+        durationMinutes: dur,
+      );
+
+      await _refreshDayRowFromServer();
+      _applyRowSnapshot();
+      _isOpen = true;
+      notifyListeners();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              s.translate('schedule_day_reopened_toast'),
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2342,30 +2362,30 @@ class ScheduleDayPanelController extends ChangeNotifier {
                             Center(
                                 child:
                                     _scheduleSelectedDateBadge(_dateLocal)),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Expanded(
                               child: ListenableBuilder(
                                 listenable: this,
                                 builder: (context, _) {
                                   final enabled = !_isPast;
                                   final compact =
-                                      MediaQuery.sizeOf(sheetCtx).width <
-                                          440;
+                                      MediaQuery.sizeOf(sheetCtx).width < 440;
+                                  final durUi = _durationMin.clamp(5, 60);
+                                  _durationMin = durUi;
                                   _durationController ??=
-                                      TextEditingController(
-                                          text: '$_durationMin');
-                                  final sliderVal =
-                                      _durationMin.clamp(1, 180).toDouble();
-                                  return SingleChildScrollView(
-                                    physics: const ClampingScrollPhysics(),
+                                      TextEditingController(text: '$durUi');
+                                  _durationController!.text = '$durUi';
+                                  final sliderVal = durUi.toDouble();
+
+                                  return Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                      20,
+                                      16,
                                       0,
-                                      20,
-                                      10,
+                                      16,
+                                      8,
                                     ),
                                     child: Column(
-                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisSize: MainAxisSize.max,
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
@@ -2429,8 +2449,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   onChanged: enabled
                                                       ? (v) {
                                                           if (v) {
-                                                            _isOpen = true;
-                                                            notifyListeners();
+                                                            openClinicAndResetDayFromSheet(sheetCtx);
                                                             return;
                                                           }
                                                           confirmAndCloseClinicFromSheet(
@@ -2450,7 +2469,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 6),
                                         if (compact)
                                           Column(
                                             crossAxisAlignment:
@@ -2468,7 +2487,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   notifyListeners();
                                                 },
                                               ),
-                                              const SizedBox(height: 8),
+                                              const SizedBox(height: 6),
                                               _schedSheetFloatingTimePickerCard(
                                                 context: sheetCtx,
                                                 label: loc.translate(
@@ -2518,7 +2537,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                               ),
                                             ],
                                           ),
-                                        const SizedBox(height: 10),
+                                        const SizedBox(height: 8),
                                         DecoratedBox(
                                           decoration: BoxDecoration(
                                             borderRadius:
@@ -2565,7 +2584,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                             alpha: 0.88),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 6),
+                                                const SizedBox(height: 4),
                                                 Directionality(
                                                   textDirection:
                                                       ui.TextDirection.ltr,
@@ -2586,7 +2605,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                     ),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 6),
+                                                const SizedBox(height: 4),
                                                 SliderTheme(
                                                   data: SliderTheme.of(context)
                                                       .copyWith(
@@ -2613,18 +2632,19 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   ),
                                                   child: Slider(
                                                     value: sliderVal,
-                                                    min: 1,
-                                                    max: 180,
-                                                    divisions: 179,
+                                                    min: 5,
+                                                    max: 60,
+                                                    divisions: 11,
                                                     label:
                                                         '$_durationMin',
                                                     onChanged: enabled
                                                         ? (v) {
-                                                            _durationMin =
-                                                                v.round().clamp(
-                                                                    1,
-                                                                    24 * 60,
-                                                                  );
+                                                            final stepped =
+                                                                (v / 5)
+                                                                        .round() *
+                                                                    5;
+                                                            _durationMin = stepped
+                                                                .clamp(5, 60);
                                                             _durationController
                                                                 ?.text =
                                                                 '$_durationMin';
@@ -2633,7 +2653,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                         : null,
                                                   ),
                                                 ),
-                                                const SizedBox(height: 6),
+                                                const SizedBox(height: 4),
                                                 Text(
                                                   loc.translate(
                                                       'schedule_duration_quick_select'),
@@ -2648,7 +2668,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                         .withValues(alpha: 0.5),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 6),
+                                                const SizedBox(height: 5),
                                                 _schedDurationQuickChips(
                                                   enabled: enabled,
                                                   currentMinutes: _durationMin,
@@ -2658,71 +2678,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                         '$m';
                                                     notifyListeners();
                                                   },
-                                                ),
-                                                const SizedBox(height: 10),
-                                                Wrap(
-                                                  crossAxisAlignment:
-                                                      WrapCrossAlignment.center,
-                                                  alignment:
-                                                      WrapAlignment.center,
-                                                  spacing: 10,
-                                                  runSpacing: 8,
-                                                  children: [
-                                                    Text(
-                                                      loc.translate(
-                                                          'schedule_duration_custom_chip'),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: TextStyle(
-                                                        fontFamily:
-                                                            kPatientPrimaryFont,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        fontSize: 12,
-                                                        height: 1.2,
-                                                        color: Colors.white
-                                                            .withValues(
-                                                                alpha: 0.78),
-                                                      ),
-                                                    ),
-                                                    _schedDurationCustomMinutesField(
-                                                      loc: loc,
-                                                      controller:
-                                                          _durationController!,
-                                                      enabled: enabled,
-                                                      onValidMinutes: (n) {
-                                                        _durationMin = n;
-                                                        notifyListeners();
-                                                      },
-                                                    ),
-                                                    Directionality(
-                                                      textDirection: ui
-                                                          .TextDirection.ltr,
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .only(
-                                                                top: 2,
-                                                              ),
-                                                        child: Text(
-                                                          'min',
-                                                          style: TextStyle(
-                                                            fontFamily:
-                                                                kPatientPrimaryFont,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                            fontSize: 12,
-                                                            color: Colors.white
-                                                                .withValues(
-                                                                    alpha:
-                                                                        0.45,
-                                                                  ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
                                                 ),
                                               ],
                                             ),
@@ -2739,7 +2694,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                               minimum: EdgeInsets.zero,
                               child: Padding(
                                 padding:
-                                    const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                                    const EdgeInsets.fromLTRB(16, 6, 16, 10),
                                 child: ListenableBuilder(
                                   listenable: this,
                                   builder: (context, _) {
@@ -2904,30 +2859,33 @@ class ScheduleDayPanelController extends ChangeNotifier {
         data == null ? true : (data[AppointmentFields.isAvailable] != false);
     final bool isManualClosed =
         (isBooked == false) && (isAvailDoc == false);
+    final nf = NumberFormat.decimalPattern('en_US');
+    final qnRaw = data == null ? null : data[AppointmentFields.queueNumber];
+    final qn = parseStoredAppointmentQueueNumber(qnRaw);
 
     final String timeEn = DateFormat.jm('en_US').format(slotStart);
     final String statusText;
-    if (isPassed == true) {
-      statusText = loc.translate('schedule_slot_passed_ku');
-    } else if (isCancelled) {
+    if (isCancelled) {
       statusText = loc.translate('schedule_slot_cancelled_ku');
     } else if (isBooked == true) {
       statusText = rawName.isNotEmpty ? rawName : 'گیراوە';
     } else if (isManualClosed == true) {
       statusText = loc.translate('schedule_slot_closed_ku');
+    } else if (isPassed == true) {
+      statusText = loc.translate('schedule_slot_passed_ku');
     } else {
       statusText = loc.translate('schedule_slot_available_ku');
     }
 
     late final Color stripeColor;
-    if (isPassed) {
-      stripeColor = Colors.blueGrey.shade600;
-    } else if (isCancelled) {
+    if (isCancelled) {
       stripeColor = const Color(0xFFB91C1C);
     } else if (isBooked) {
       stripeColor = stripeBooked;
     } else if (isManualClosed) {
       stripeColor = stripeClosed;
+    } else if (isPassed) {
+      stripeColor = Colors.blueGrey.shade600;
     } else {
       stripeColor = stripeAvailable;
     }
@@ -2936,12 +2894,11 @@ class ScheduleDayPanelController extends ChangeNotifier {
       fontWeight: FontWeight.w700,
       fontSize: 14,
       height: 1.05,
-      color: dividerGold.withValues(alpha: 0.98),
+      color: dividerGold.withValues(alpha: isPassed ? 0.7 : 0.98),
     );
 
     final canOpenPatientDetail = isBooked &&
         hasName &&
-        !isPassed &&
         docId != null &&
         data != null &&
         statusRaw != 'completed' &&
@@ -3025,13 +2982,51 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                 ),
                         ),
                       ),
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 20.0,
-                        color: Colors.white.withValues(
-                          alpha: isBooked ? 0.72 : 0.38,
+                      if (isBooked && qn != null && qn > 0)
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                kStaffLuxGold.withValues(alpha: 0.95),
+                                const Color(0xFF22D3EE).withValues(alpha: 0.9),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kStaffLuxGold.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Directionality(
+                            textDirection: ui.TextDirection.ltr,
+                            child: Text(
+                              nf.format(qn),
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                                height: 1,
+                                color: Color(0xFF0D2137),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20.0,
+                          color: Colors.white.withValues(
+                            alpha: isBooked ? 0.72 : 0.38,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -3181,15 +3176,46 @@ class ScheduleDayPanelController extends ChangeNotifier {
         );
         final byKey = _slotDocsByHhMmForList(docs);
 
+        final ScrollController? modalController;
+        if (forModalSheet) {
+          _modalSlotsScrollController ??= ScrollController();
+          modalController = _modalSlotsScrollController;
+        } else {
+          modalController = null;
+        }
+
         return StreamBuilder<DateTime>(
           stream: _scheduleSlotListClockStream(),
           initialData: DateTime.now(),
           builder: (context, clockSnap) {
             final DateTime now = clockSnap.data ?? DateTime.now();
+            if (forModalSheet &&
+                modalController != null &&
+                _didAutoScrollModalSlots == false) {
+              _didAutoScrollModalSlots = true;
+              final c = modalController;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!c.hasClients) return;
+                var targetIndex = 0;
+                for (var i = 0; i < slots.length; i++) {
+                  if (!slots[i].isBefore(now)) {
+                    targetIndex = i;
+                    break;
+                  }
+                  targetIndex = i; // if all before now, land on last
+                }
+                // Each row is ~56px + vertical margin; use a slightly larger estimate.
+                const rowExtent = 64.0;
+                final targetOffset = (targetIndex * rowExtent)
+                    .clamp(0.0, c.position.maxScrollExtent);
+                c.jumpTo(targetOffset);
+              });
+            }
             return ListView.builder(
               key: const PageStorageKey<String>(
                 'schedule_day_slot_list_v1',
               ),
+              controller: modalController,
               shrinkWrap: !forModalSheet,
               physics: forModalSheet
                   ? const BouncingScrollPhysics()
@@ -3386,12 +3412,16 @@ class _SchedulePatientGlassDialogBodyState
     const dialogR = 26.0;
     const borderPad = 1.35;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: DecoratedBox(
+    return Material(
+      type: MaterialType.transparency,
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(decoration: TextDecoration.none),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(dialogR),
               gradient: LinearGradient(
@@ -3670,7 +3700,9 @@ class _SchedulePatientGlassDialogBodyState
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

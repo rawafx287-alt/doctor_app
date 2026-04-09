@@ -1097,8 +1097,9 @@ int _queueSortValueForSlot(
   return 1 << 20;
 }
 
-/// Booked slots: **active (no green / not completed) first**, then terminal rows.
-/// Within each group: ticket / queue number, then slot time (tie-break).
+/// Booked slots: one unified chronological list.
+///
+/// Rule: sort strictly by slot time (ascending), then queue number (ascending).
 List<DateTime> _sortedBookedSlotsUnified({
   required List<DateTime> visibleSlots,
   required Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
@@ -1108,37 +1109,19 @@ List<DateTime> _sortedBookedSlotsUnified({
   int cmp(DateTime a, DateTime b) {
     final da = byKeyAll[formatTimeHhMm(a)]!;
     final db = byKeyAll[formatTimeHhMm(b)]!;
-    final ta = appointmentStatusIsTerminalForStaffSort(
-      (da.data()[AppointmentFields.status] ?? 'pending').toString(),
-    );
-    final tb = appointmentStatusIsTerminalForStaffSort(
-      (db.data()[AppointmentFields.status] ?? 'pending').toString(),
-    );
-    // Same as: !isCompleted before isCompleted
-    if (ta != tb) {
-      return ta ? 1 : -1;
-    }
+    // Primary: slot time (ascending).
+    final t = a.compareTo(b);
+    if (t != 0) return t;
+    // Secondary: queue number (ascending).
     final qa = _queueSortValueForSlot(da, queueByDocId);
     final qb = _queueSortValueForSlot(db, queueByDocId);
-    if (qa != qb) {
-      return qa.compareTo(qb);
-    }
-    return a.compareTo(b);
+    if (qa != qb) return qa.compareTo(qb);
+    // Stable tie-break.
+    return da.id.compareTo(db.id);
   }
 
   list.sort(cmp);
   return list;
-}
-
-bool _slotAppointmentIsTerminal(
-  DateTime slot,
-  Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> byKeyAll,
-) {
-  final doc = byKeyAll[formatTimeHhMm(slot)];
-  if (doc == null) return false;
-  return appointmentStatusIsTerminalForStaffSort(
-    (doc.data()[AppointmentFields.status] ?? 'pending').toString(),
-  );
 }
 
 String _unifiedBookedListAnimationKey(
@@ -1341,7 +1324,7 @@ class _DoctorTodayStatsRow extends StatelessWidget {
 }
 
 /// Full-height “نۆرەکان بەپێی کات” list driven by day settings + appointments streams.
-class _DoctorTodayScheduleSection extends StatelessWidget {
+class _DoctorTodayScheduleSection extends StatefulWidget {
   const _DoctorTodayScheduleSection({
     super.key,
     required this.doctorUserId,
@@ -1357,11 +1340,55 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
   final String searchQuery;
 
   @override
+  State<_DoctorTodayScheduleSection> createState() =>
+      _DoctorTodayScheduleSectionState();
+}
+
+class _DoctorTodayScheduleSectionState extends State<_DoctorTodayScheduleSection> {
+  final ScrollController _todayScroll = ScrollController();
+  bool _didInitialScroll = false;
+  int _lastOrderedCount = 0;
+
+  @override
+  void dispose() {
+    _todayScroll.dispose();
+    super.dispose();
+  }
+
+  void _autoScrollToBottomIfNeeded({
+    required int orderedCount,
+  }) {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_todayScroll.hasClients) return;
+
+      final shouldInitial = _didInitialScroll == false;
+      final grew = orderedCount > _lastOrderedCount;
+      if (!shouldInitial && !grew) return;
+
+      _didInitialScroll = true;
+      _lastOrderedCount = orderedCount;
+
+      final target = _todayScroll.position.maxScrollExtent;
+      if (shouldInitial) {
+        _todayScroll.jumpTo(target);
+      } else {
+        _todayScroll.animateTo(
+          target,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     final dayDocId = availableDayDocumentId(
-      doctorUserId: doctorUserId,
-      dateLocal: todayOnly,
+      doctorUserId: widget.doctorUserId,
+      dateLocal: widget.todayOnly,
     );
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -1372,8 +1399,8 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
       builder: (context, daySnap) {
         return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
           stream: watchDoctorAppointmentsForLocalDay(
-            doctorUserId: doctorUserId,
-            dayLocal: todayOnly,
+            doctorUserId: widget.doctorUserId,
+            dayLocal: widget.todayOnly,
           ),
           builder: (context, apptSnap) {
             if (apptSnap.hasError) {
@@ -1435,7 +1462,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                 d[AvailableDayFields.appointmentDuration],
               );
               slots = generatedSlotStartsForDay(
-                dateOnly: todayOnly,
+                dateOnly: widget.todayOnly,
                 startTimeHhMm: start,
                 closingTimeHhMm: end,
                 durationMinutes: dur,
@@ -1474,26 +1501,17 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
             }
 
             final visibleSlots = _visibleBookedSlotsForSearch(
-              todayOnly,
+              widget.todayOnly,
               slots,
               byKeyAll,
-              searchQuery,
+              widget.searchQuery,
             );
             final orderedSlots = _sortedBookedSlotsUnified(
               visibleSlots: visibleSlots,
               byKeyAll: byKeyAll,
               queueByDocId: queueById,
             );
-            final hasNonTerminalSlot = orderedSlots.any(
-              (s) => !_slotAppointmentIsTerminal(s, byKeyAll),
-            );
-            final firstTerminalIdx = orderedSlots.indexWhere(
-              (s) => _slotAppointmentIsTerminal(s, byKeyAll),
-            );
-            final completedSectionStartIndex =
-                hasNonTerminalSlot && firstTerminalIdx >= 0
-                    ? firstTerminalIdx
-                    : null;
+            _autoScrollToBottomIfNeeded(orderedCount: orderedSlots.length);
             final bottomListPadding =
                 16 + MediaQuery.paddingOf(context).bottom + 76;
 
@@ -1505,7 +1523,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                       ? Center(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                            child: searchQuery.trim().isNotEmpty
+                            child: widget.searchQuery.trim().isNotEmpty
                                 ? Text(
                                     s.translate('doctor_patients_empty'),
                                     textAlign: TextAlign.center,
@@ -1581,6 +1599,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                               byKeyAll,
                             ),
                           ),
+                          controller: _todayScroll,
                           padding: EdgeInsets.fromLTRB(
                             12,
                             0,
@@ -1592,13 +1611,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                           ),
                           children: [
                             for (var i = 0; i < orderedSlots.length; i++) ...[
-                              if (completedSectionStartIndex != null &&
-                                  i == completedSectionStartIndex) ...[
-                                if (i > 0) const SizedBox(height: 20),
-                                const _DoctorCompletedAppointmentsSectionHeader(),
-                                const SizedBox(height: 8),
-                              ] else if (i > 0)
-                                const SizedBox(height: 6),
+                              if (i > 0) const SizedBox(height: 6),
                               _DoctorSlotGlassCard(
                                 key: ValueKey<String>(
                                   byKeyAll[formatTimeHhMm(orderedSlots[i])]!.id,
@@ -1607,7 +1620,7 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
                                 appointmentDoc:
                                     byKeyAll[formatTimeHhMm(orderedSlots[i])]!,
                                 queueByDocId: queueById,
-                                onSetStatus: onSetStatus,
+                                onSetStatus: widget.onSetStatus,
                               ),
                             ],
                           ],
@@ -1618,54 +1631,6 @@ class _DoctorTodayScheduleSection extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _DoctorCompletedAppointmentsSectionHeader extends StatelessWidget {
-  const _DoctorCompletedAppointmentsSectionHeader();
-
-  static final Color _dividerTone = Colors.white.withValues(alpha: 0.14);
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    final labelStyle = TextStyle(
-      fontFamily: kPatientPrimaryFont,
-      fontWeight: FontWeight.w600,
-      fontSize: 11.5,
-      height: 1.2,
-      color: Colors.white.withValues(alpha: 0.48),
-    );
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: _dividerTone,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              s.translate('doctor_today_completed_section_label'),
-              textAlign: TextAlign.center,
-              style: labelStyle,
-            ),
-          ),
-          Expanded(
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: _dividerTone,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
