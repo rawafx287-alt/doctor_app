@@ -2565,6 +2565,31 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا توجد ملاحظات',
     'en': 'No notes',
   },
+  'schedule_are_you_sure': {
+    'ckb': 'دڵنیایت؟',
+    'ar': 'هل أنت متأكد؟',
+    'en': 'Are you sure?',
+  },
+  'schedule_appointment_detail_name_label': {
+    'ckb': 'ناو',
+    'ar': 'الاسم',
+    'en': 'Name',
+  },
+  'schedule_appointment_detail_phone_label': {
+    'ckb': 'ژمارەی مۆبایل',
+    'ar': 'رقم الهاتف',
+    'en': 'Phone',
+  },
+  'schedule_appointment_detail_notes_label': {
+    'ckb': 'تێبینی',
+    'ar': 'ملاحظات',
+    'en': 'Note',
+  },
+  'schedule_slot_cancel_appointment_short': {
+    'ckb': 'هەڵوەشاندنەوەی نۆرە',
+    'ar': 'إلغاء الموعد',
+    'en': 'Cancel appointment',
+  },
   'schedule_slot_available_sheet_hint': {
     'ckb': 'ئەم کاتە بەردەستە بۆ نۆرەی نوێ.',
     'ar': 'هذا الوقت متاح لموعد جديد.',
