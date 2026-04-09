@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -1133,24 +1132,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
   DateTime _dateLocal;
   String _existingDocId;
   Map<String, dynamic>? _dayRow;
-  bool _disposed = false;
-
-  /// Avoid [notifyListeners] during build (e.g. [ExpansionTile.onExpansionChanged]).
-  void _notifySafely() {
-    if (_disposed) return;
-    final phase = WidgetsBinding.instance.schedulerPhase;
-    final inBuildOrLayout =
-        phase == SchedulerPhase.persistentCallbacks ||
-            phase == SchedulerPhase.midFrameMicrotasks;
-    if (!inBuildOrLayout) {
-      notifyListeners();
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      notifyListeners();
-    });
-  }
 
   void applyHostDateOrDocChange({
     required String doctorUserId,
@@ -1477,7 +1458,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed = true;
     _durationController?.dispose();
     super.dispose();
   }
@@ -2776,16 +2756,15 @@ class ScheduleDayPanelController extends ChangeNotifier {
           stream: scheduleClockStream(),
           initialData: DateTime.now(),
           builder: (context, _) {
-            // Use [Column] instead of [ListView]: a shrink-wrapped [ListView] still
-            // installs a [Scrollable] that can share [PageStorage] with the parent
-            // [ExpansionTile] (bool expansion vs double scroll offset) → runtime cast error.
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final slot in slots)
-                  _appointmentSlotRow(context, loc, slot, byKey),
-              ],
+            // FORCED UI RENDERING: reliable list rendering (no missing returns).
+            return ListView.builder(
+              itemCount: slots.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final slot = slots[index];
+                return _appointmentSlotRow(context, loc, slot, byKey);
+              },
             );
           },
         );
@@ -2948,7 +2927,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
               if (v) {
                 _slotsExpanded = false;
               }
-              _notifySafely();
+              notifyListeners();
             },
             tilePadding: EdgeInsets.fromLTRB(
               compact ? 10 : 12,
@@ -2981,9 +2960,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
             ),
             children: [
               SingleChildScrollView(
-                key: const PageStorageKey<String>(
-                  'schedule_footer_time_settings_scroll',
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
@@ -3112,7 +3088,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
               if (v) {
                 _timeExpanded = false;
               }
-              _notifySafely();
+              notifyListeners();
             },
             tilePadding: EdgeInsets.symmetric(
               horizontal: compact ? 10 : 12,
