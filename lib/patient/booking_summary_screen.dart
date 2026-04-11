@@ -154,11 +154,18 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   Future<bool> _hasActiveAppointmentForPatient(String patientUid) async {
     final uid = patientUid.trim();
     if (uid.isEmpty) return false;
-    const activeStatuses = {'pending', 'booked', 'confirmed', 'arrived'};
+    const activeStatuses = {
+      'pending',
+      'waiting',
+      'booked',
+      'confirmed',
+      'arrived',
+    };
 
     final col = FirebaseFirestore.instance.collection(
       AppointmentFields.collection,
     );
+    final now = DateTime.now();
 
     final byUserId = await col
         .where(AppointmentFields.userId, isEqualTo: uid)
@@ -169,7 +176,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           .toString()
           .trim()
           .toLowerCase();
-      if (activeStatuses.contains(st)) return true;
+      if (!activeStatuses.contains(st)) continue;
+      if (appointmentSlotDateTimeForStaffSort(d.data()).isAfter(now)) {
+        return true;
+      }
     }
 
     final byPatientId = await col
@@ -181,7 +191,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           .toString()
           .trim()
           .toLowerCase();
-      if (activeStatuses.contains(st)) return true;
+      if (!activeStatuses.contains(st)) continue;
+      if (appointmentSlotDateTimeForStaffSort(d.data()).isAfter(now)) {
+        return true;
+      }
     }
     return false;
   }

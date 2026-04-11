@@ -512,6 +512,7 @@ Future<String?> bookAvailableDayTransaction({
           AppointmentFields.date: Timestamp.fromDate(dayStart),
           AppointmentFields.time: timeStr,
           'dateTime': Timestamp.fromDate(freeStart),
+          AppointmentFields.appointmentDateTime: Timestamp.fromDate(freeStart),
           AppointmentFields.status: kAppointmentStatusBooked,
           AppointmentFields.isBooked: true,
           AppointmentFields.queueNumber: queueNumber,

@@ -35,6 +35,22 @@
         { "fieldPath": "city", "order": "ASCENDING" },
         { "fieldPath": "specialty", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "appointmentDateTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patientId", "order": "ASCENDING" },
+        { "fieldPath": "appointmentDateTime", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

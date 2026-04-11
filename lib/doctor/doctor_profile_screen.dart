@@ -14,7 +14,6 @@ import '../auth/firestore_user_doc_id.dart';
 import '../auth/doctor_session_cache.dart';
 import '../specialty_categories.dart';
 import '../theme/staff_premium_theme.dart';
-import 'doctor_premium_shell.dart';
 import 'profile_settings_screen.dart';
 
 const Color _kDoctorProfileSubtitle = Color(0xFFC9C4B0);
@@ -36,7 +35,288 @@ String _hospitalDisplay(Map<String, dynamic>? data) {
   return h;
 }
 
-/// Doctor profile tab: premium gold/navy layout, glass menu rows, outlined logout.
+String _phoneDisplay(Map<String, dynamic>? data, User? user) {
+  final fromDoc = _firstNonEmptyField(data, [
+    'phone',
+    'phoneNumber',
+    'mobile',
+    'phone_number',
+  ]);
+  final authPhone = (user?.phoneNumber ?? '').trim();
+  if (fromDoc.isNotEmpty) return fromDoc;
+  if (authPhone.isNotEmpty) return authPhone;
+  return '—';
+}
+
+bool _userCanUseEmailPassword(User? user) {
+  final email = user?.email?.trim() ?? '';
+  if (email.isEmpty) return false;
+  for (final p in user!.providerData) {
+    if (p.providerId == 'password') return true;
+  }
+  return false;
+}
+
+Future<void> _showDoctorChangePasswordDialog(BuildContext context) async {
+  final s = S.of(context);
+  final user = FirebaseAuth.instance.currentUser;
+  if (!_userCanUseEmailPassword(user)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          s.translate('doctor_profile_password_requires_email'),
+          style: const TextStyle(fontFamily: kPatientPrimaryFont),
+        ),
+      ),
+    );
+    return;
+  }
+
+  final authUser = user!;
+  final current = TextEditingController();
+  final next = TextEditingController();
+  final confirm = TextEditingController();
+
+  try {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        var busy = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F172A),
+              title: Text(
+                s.translate('doctor_profile_change_password_title'),
+                style: const TextStyle(
+                  fontFamily: kPatientPrimaryFont,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: current,
+                      obscureText: true,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: kPatientPrimaryFont,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: s.translate('doctor_profile_password_current'),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontFamily: kPatientPrimaryFont,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: next,
+                      obscureText: true,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: kPatientPrimaryFont,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: s.translate('doctor_profile_password_new'),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontFamily: kPatientPrimaryFont,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirm,
+                      obscureText: true,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: kPatientPrimaryFont,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: s.translate('doctor_profile_password_confirm'),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontFamily: kPatientPrimaryFont,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: busy ? null : () => Navigator.pop(ctx),
+                  child: Text(
+                    s.translate('action_cancel'),
+                    style: const TextStyle(fontFamily: kPatientPrimaryFont),
+                  ),
+                ),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          final pw = current.text;
+                          final n1 = next.text;
+                          final n2 = confirm.text;
+                          if (n1.length < 6) return;
+                          if (n1 != n2) return;
+                          setLocal(() => busy = true);
+                          try {
+                            final cred = EmailAuthProvider.credential(
+                              email: authUser.email!,
+                              password: pw,
+                            );
+                            await authUser.reauthenticateWithCredential(cred);
+                            await authUser.updatePassword(n1);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    s.translate(
+                                      'doctor_profile_password_change_success',
+                                    ),
+                                    style: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (_) {
+                            setLocal(() => busy = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    s.translate(
+                                      'doctor_profile_password_change_failed',
+                                    ),
+                                    style: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: busy
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: kStaffLuxGold,
+                          ),
+                        )
+                      : Text(
+                          s.translate('doctor_profile_password_save'),
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                            color: kStaffLuxGold,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  } finally {
+    current.dispose();
+    next.dispose();
+    confirm.dispose();
+  }
+}
+
+Future<void> _sendDoctorPasswordReset(
+  BuildContext context,
+  String email,
+) async {
+  final s = S.of(context);
+  final trimmed = email.trim();
+  if (trimmed.isEmpty || trimmed == '—' || !trimmed.contains('@')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          s.translate('doctor_profile_password_requires_email'),
+          style: const TextStyle(fontFamily: kPatientPrimaryFont),
+        ),
+      ),
+    );
+    return;
+  }
+  try {
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: trimmed);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('doctor_profile_password_reset_sent'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.translate('doctor_profile_password_change_failed'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    }
+  }
+}
+
+void _openDoctorSecuritySheet(
+  BuildContext context, {
+  required String email,
+  required String phone,
+}) {
+  final rootContext = context;
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      return _DoctorSecurityAccountSheet(
+        email: email,
+        phone: phone,
+        onChangePassword: () {
+          Navigator.of(sheetContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (rootContext.mounted) {
+              _showDoctorChangePasswordDialog(rootContext);
+            }
+          });
+        },
+        onForgotPassword: () {
+          Navigator.of(sheetContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (rootContext.mounted) {
+              _sendDoctorPasswordReset(rootContext, email);
+            }
+          });
+        },
+      );
+    },
+  );
+}
+
+/// Doctor profile tab: premium gold/navy layout, glass menu rows, subtle logout.
 class DoctorProfileScreen extends StatelessWidget {
   const DoctorProfileScreen({super.key, this.doctorUserId});
   final String? doctorUserId;
@@ -116,26 +396,25 @@ class DoctorProfileScreen extends StatelessWidget {
               final email = emailFromDoc.isNotEmpty
                   ? emailFromDoc
                   : (authEmail.isNotEmpty ? authEmail : '—');
+              final phone = _phoneDisplay(data, user);
               final photoUrl = (data?['profileImageUrl'] ?? '')
                   .toString()
                   .trim();
 
-              return SizedBox.expand(
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Center(
-                            child: FittedBox(
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return FittedBox(
                               fit: BoxFit.scaleDown,
-                              alignment: Alignment.center,
+                              alignment: Alignment.topCenter,
                               child: ConstrainedBox(
                                 constraints: BoxConstraints(
                                   maxWidth: constraints.maxWidth,
-                                  maxHeight: constraints.maxHeight,
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -144,7 +423,6 @@ class DoctorProfileScreen extends StatelessWidget {
                                   children: [
                                     _DoctorProfileHeaderCard(
                                       name: name,
-                                      email: email,
                                       hospital: hospital,
                                       specialtyLabel:
                                           s.translate('field_specialty'),
@@ -156,8 +434,9 @@ class DoctorProfileScreen extends StatelessWidget {
                                           city.isEmpty ? '—' : city,
                                       photoUrl: photoUrl,
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 6),
                                     _DoctorProfileGlassMenuTile(
+                                      dense: true,
                                       icon: Icons.edit_outlined,
                                       title: s.translate(
                                         'doctor_profile_tile_edit',
@@ -175,8 +454,25 @@ class DoctorProfileScreen extends StatelessWidget {
                                         );
                                       },
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 5),
                                     _DoctorProfileGlassMenuTile(
+                                      dense: true,
+                                      icon: Icons.shield_outlined,
+                                      title: s.translate(
+                                        'doctor_profile_security_section_title',
+                                      ),
+                                      subtitle: s.translate(
+                                        'doctor_profile_security_tile_sub',
+                                      ),
+                                      onTap: () => _openDoctorSecuritySheet(
+                                        context,
+                                        email: email,
+                                        phone: phone,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    _DoctorProfileGlassMenuTile(
+                                      dense: true,
                                       icon: Icons.language_rounded,
                                       title: s.translate('language'),
                                       subtitle:
@@ -187,27 +483,30 @@ class DoctorProfileScreen extends StatelessWidget {
                                       onTap: () =>
                                           _showLanguageSheet(context),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 5),
                                     _DoctorProfileGlassMenuTile(
+                                      dense: true,
                                       icon: Icons.info_outline_rounded,
                                       title: s.translate('about_app'),
                                       subtitle:
                                           s.translate('about_app_subtitle'),
                                       onTap: () => _showAbout(context),
                                     ),
-                                    const SizedBox(height: 16),
-                                    _DoctorLogoutButton(
-                                      label: s.translate('logout'),
-                                      onPressed: () => _logout(context),
-                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Center(
+                        child: _DoctorLogoutButton(
+                          label: s.translate('logout'),
+                          onPressed: () => _logout(context),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -219,11 +518,10 @@ class DoctorProfileScreen extends StatelessWidget {
   }
 }
 
-/// Compact header card: silver border, gold avatar ring, hospital + specialty/clinic rows.
+/// Header: avatar + professional name (solid tone, authority cue — no gradient text).
 class _DoctorProfileHeaderCard extends StatelessWidget {
   const _DoctorProfileHeaderCard({
     required this.name,
-    required this.email,
     required this.hospital,
     required this.specialtyLabel,
     required this.specialtyValue,
@@ -233,7 +531,6 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
   });
 
   final String name;
-  final String email;
   final String hospital;
   final String specialtyLabel;
   final String specialtyValue;
@@ -241,31 +538,34 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
   final String clinicValue;
   final String photoUrl;
 
-  static const double _avatarOuter = 88;
-  static const double _goldRing = 2.6;
+  static const double _avatarOuter = 92;
+  static const double _goldRing = 4;
+
+  static const Color _kNameSoftIvory = Color(0xFFF7F4ED);
 
   @override
   Widget build(BuildContext context) {
     final textDir = AppLocaleScope.of(context).textDirection;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: kStaffSilverBorder,
               width: kStaffCardOutlineWidth,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -282,16 +582,22 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                     gradient: kStaffGoldActionGradient,
                     boxShadow: [
                       BoxShadow(
-                        color: kStaffLuxGold.withValues(alpha: 0.32),
-                        blurRadius: 10,
+                        color: kStaffLuxGold.withValues(alpha: 0.48),
+                        blurRadius: 16,
+                        spreadRadius: 0.5,
                         offset: const Offset(0, 3),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: DecoratedBox(
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: kDoctorPremiumGradientTop,
+                      color: kStaffShellGradientTop,
                     ),
                     child: ClipOval(
                       child: photoUrl.isNotEmpty
@@ -308,16 +614,41 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 19,
-                  color: Colors.white,
-                  height: 1.15,
-                ),
+              Row(
+                textDirection: textDir,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.workspace_premium_rounded,
+                    size: 19,
+                    color: kStaffLuxGold.withValues(alpha: 0.88),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        height: 1.12,
+                        letterSpacing: 0.65,
+                        color: _kNameSoftIvory,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.32),
+                            blurRadius: 5,
+                            offset: const Offset(0, 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (hospital.isNotEmpty) ...[
                 const SizedBox(height: 5),
@@ -328,21 +659,22 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.local_hospital_rounded,
-                      size: 17,
+                      size: 15,
                       color: kStaffLuxGold,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     Flexible(
                       child: Text(
                         hospital,
                         textAlign: TextAlign.center,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                          color: Color(0xFFE8F4F0),
+                          fontSize: 12,
+                          color: const Color(0xFFE8F4F0)
+                              .withValues(alpha: 0.95),
                         ),
                       ),
                     ),
@@ -350,51 +682,26 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 6),
-              Row(
-                textDirection: textDir,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.alternate_email_rounded,
-                    size: 16,
-                    color: kStaffLuxGold.withValues(alpha: 0.75),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      email,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.5,
-                        color: _kDoctorProfileSubtitle.withValues(alpha: 0.95),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
               Divider(
                 height: 1,
-                thickness: 1,
-                color: kStaffSilverBorder.withValues(alpha: 0.55),
+                thickness: 0.75,
+                color: kStaffSilverBorder.withValues(alpha: 0.5),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _InfoChipRow(
                 textDirection: textDir,
                 icon: Icons.workspace_premium_rounded,
                 label: specialtyLabel,
                 value: specialtyValue,
+                compact: true,
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 4),
               _InfoChipRow(
                 textDirection: textDir,
                 icon: Icons.apartment_rounded,
                 label: clinicLabel,
                 value: clinicValue,
+                compact: true,
               ),
             ],
           ),
@@ -405,9 +712,195 @@ class _DoctorProfileHeaderCard extends StatelessWidget {
 
   static Widget _avatarPlaceholder() {
     return ColoredBox(
-      color: kDoctorPremiumGradientMid,
+      color: kStaffShellGradientMid,
       child: const Center(
-        child: Icon(Icons.person_rounded, size: 38, color: kStaffLuxGold),
+        child: Icon(Icons.person_rounded, size: 40, color: kStaffLuxGold),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet: email, phone, password actions (main profile stays compact).
+class _DoctorSecurityAccountSheet extends StatelessWidget {
+  const _DoctorSecurityAccountSheet({
+    required this.email,
+    required this.phone,
+    required this.onChangePassword,
+    required this.onForgotPassword,
+  });
+
+  final String email;
+  final String phone;
+  final VoidCallback onChangePassword;
+  final VoidCallback onForgotPassword;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    Widget line(IconData icon, String label, String value) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          textDirection: AppLocaleScope.of(context).textDirection,
+          children: [
+            Icon(icon, size: 20, color: kStaffLuxGold.withValues(alpha: 0.9)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      color: _kDoctorProfileSubtitle.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  SelectableText(
+                    value,
+                    style: const TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.white,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xE8121827),
+              border: Border.all(color: kStaffSilverBorder.withValues(alpha: 0.5)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(18, 10, 18, 14 + bottomInset),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      s.translate('doctor_profile_security_section_title'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 17,
+                        color: Colors.white,
+                        letterSpacing: 0.25,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    line(
+                      Icons.alternate_email_rounded,
+                      s.translate('doctor_profile_security_email_label'),
+                      email,
+                    ),
+                    line(
+                      Icons.phone_iphone_rounded,
+                      s.translate('doctor_profile_security_phone_label'),
+                      phone,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onChangePassword,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: kStaffLuxGold,
+                              side: BorderSide(
+                                color: kStaffLuxGold.withValues(alpha: 0.75),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              s.translate('doctor_profile_change_password'),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onForgotPassword,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  Colors.white.withValues(alpha: 0.92),
+                              side: BorderSide(
+                                color: kStaffSilverBorder
+                                    .withValues(alpha: 0.85),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              s.translate('doctor_profile_forgot_password'),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -419,24 +912,29 @@ class _InfoChipRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.compact = false,
   });
 
   final TextDirection textDirection;
   final IconData icon;
   final String label;
   final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = compact ? 16.0 : 19.0;
+    final labelSize = compact ? 9.5 : 10.5;
+    final valueSize = compact ? 12.5 : 14.0;
     return Row(
       textDirection: textDirection,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(icon, size: 19, color: kStaffLuxGold),
+          padding: EdgeInsets.only(top: compact ? 0.5 : 1),
+          child: Icon(icon, size: iconSize, color: kStaffLuxGold),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: compact ? 8 : 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,20 +944,20 @@ class _InfoChipRow extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
-                  fontSize: 10.5,
+                  fontSize: labelSize,
                   color: _kDoctorProfileSubtitle.withValues(alpha: 0.9),
-                  letterSpacing: 0.15,
+                  letterSpacing: compact ? 0.12 : 0.15,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: compact ? 1 : 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: kPatientPrimaryFont,
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: valueSize,
                   color: Colors.white,
-                  height: 1.2,
+                  height: 1.15,
                 ),
               ),
             ],
@@ -476,29 +974,41 @@ class _DoctorProfileGlassMenuTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.dense = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final radius = dense ? 14.0 : 16.0;
+    final hPad = dense ? 11.0 : 14.0;
+    final vPad = dense ? 9.0 : 14.0;
+    final iconSize = dense ? 22.0 : 26.0;
+    final gap = dense ? 10.0 : 14.0;
+    final titleSize = dense ? 14.5 : 16.0;
+    final subSize = dense ? 11.0 : 12.5;
+    final chev = dense ? 21.0 : 24.0;
+    final strip = dense ? 3.0 : 4.0;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(radius),
             child: Ink(
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(radius),
                 border: Border.all(
                   color: kStaffSilverBorder,
                   width: kStaffCardOutlineWidth,
@@ -508,18 +1018,18 @@ class _DoctorProfileGlassMenuTile extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(width: 4, color: kStaffAccentSlateBlue),
+                    Container(width: strip, color: kStaffAccentSlateBlue),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: hPad,
+                          vertical: vPad,
                         ),
                         child: Row(
                           textDirection: TextDirection.ltr,
                           children: [
-                            Icon(icon, color: kStaffLuxGold, size: 26),
-                            const SizedBox(width: 14),
+                            Icon(icon, color: kStaffLuxGold, size: iconSize),
+                            SizedBox(width: gap),
                             Expanded(
                               child: Directionality(
                                 textDirection: AppLocaleScope.of(
@@ -531,25 +1041,26 @@ class _DoctorProfileGlassMenuTile extends StatelessWidget {
                                   children: [
                                     Text(
                                       title,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontFamily: kPatientPrimaryFont,
                                         fontWeight: FontWeight.w800,
-                                        fontSize: 16,
+                                        fontSize: titleSize,
                                         color: Colors.white,
+                                        height: 1.1,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: dense ? 2 : 4),
                                     Text(
                                       subtitle,
-                                      maxLines: 2,
+                                      maxLines: dense ? 1 : 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontFamily: kPatientPrimaryFont,
                                         fontWeight: FontWeight.w600,
-                                        fontSize: 12.5,
+                                        fontSize: subSize,
                                         color: _kDoctorProfileSubtitle
                                             .withValues(alpha: 0.92),
-                                        height: 1.25,
+                                        height: 1.2,
                                       ),
                                     ),
                                   ],
@@ -561,7 +1072,7 @@ class _DoctorProfileGlassMenuTile extends StatelessWidget {
                                   ? Icons.chevron_left_rounded
                                   : Icons.chevron_right_rounded,
                               color: kStaffLuxGold.withValues(alpha: 0.75),
-                              size: 24,
+                              size: chev,
                             ),
                           ],
                         ),
@@ -586,15 +1097,33 @@ class _DoctorLogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: StaffGoldGradientButton(
-        label: label,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 168, minHeight: 36),
+      child: OutlinedButton(
         onPressed: onPressed,
-        fontSize: 16,
-        borderRadius: 16,
-        minHeight: 52,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white.withValues(alpha: 0.72),
+          side: BorderSide(
+            color: kStaffLuxGold.withValues(alpha: 0.32),
+            width: 1,
+          ),
+          backgroundColor: Colors.black.withValues(alpha: 0.08),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          minimumSize: const Size(0, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            letterSpacing: 0.15,
+          ),
+        ),
       ),
     );
   }

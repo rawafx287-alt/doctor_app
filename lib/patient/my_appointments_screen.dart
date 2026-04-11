@@ -114,6 +114,15 @@ const List<Shadow> _kPastTicketPreviewTitleShadows = [
   Shadow(color: Color(0x22000000), blurRadius: 4, offset: Offset(0, 1)),
 ];
 
+/// Ticks periodically so “active vs past” updates when [DateTime.now] crosses a slot,
+/// without relying on new Firestore snapshots.
+Stream<DateTime> _patientAppointmentsUiClock() async* {
+  yield DateTime.now();
+  await for (final _ in Stream.periodic(const Duration(seconds: 15))) {
+    yield DateTime.now();
+  }
+}
+
 /// Parses [date] from Firestore: [Timestamp], [DateTime], or strings like `2026/03/30`.
 DateTime? _parseAppointmentDate(dynamic value) {
   if (value == null) return null;
@@ -200,37 +209,38 @@ bool _isPastAppointmentStatus(String st) =>
     st == 'canceled' ||
     st == 'expired';
 
-/// Active section: [pending] rows first, then others; within each bucket, newest date/time first.
+/// Status string shown on cards / dialogs when the slot time has passed but Firestore
+/// has not yet been updated to `expired`.
+String _effectivePatientAppointmentStatusForUi(
+  Map<String, dynamic> data,
+  DateTime now,
+) {
+  final st = _normAppointmentStatus(data[AppointmentFields.status]);
+  if (_isPastAppointmentStatus(st)) return st;
+  if (st == 'completed' || st == 'complete' || st == 'done') return st;
+  if (st == 'available' || st == 'rejected') return st;
+  final instant = appointmentSlotDateTimeForStaffSort(data);
+  if (!instant.isAfter(now) &&
+      (st == 'pending' ||
+          st == 'waiting' ||
+          st == 'booked' ||
+          st == 'confirmed' ||
+          st == 'arrived')) {
+    return 'expired';
+  }
+  return st;
+}
+
+/// Active list: soonest slot first (chronological).
 void _sortActiveAppointmentsForDisplay(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> list,
 ) {
-  int pendingRank(String st) => st == 'pending' ? 0 : 1;
   list.sort((a, b) {
-    final sa = _normAppointmentStatus(a.data()[AppointmentFields.status]);
-    final sb = _normAppointmentStatus(b.data()[AppointmentFields.status]);
-    final ra = pendingRank(sa);
-    final rb = pendingRank(sb);
-    if (ra != rb) return ra.compareTo(rb);
-
-    final da = _parseAppointmentDate(a.data()[AppointmentFields.date]);
-    final db = _parseAppointmentDate(b.data()[AppointmentFields.date]);
-    if (da != null && db != null) {
-      final c = db.compareTo(da);
-      if (c != 0) return c;
-    } else if (da != null) {
-      return 1;
-    } else if (db != null) {
-      return -1;
-    }
-    final ta = a.data()[AppointmentFields.createdAt];
-    final tb = b.data()[AppointmentFields.createdAt];
-    if (ta is Timestamp && tb is Timestamp) {
-      final c = tb.compareTo(ta);
-      if (c != 0) return c;
-    }
-    return _appointmentTimeSortMinutes(
-      b.data()[AppointmentFields.time],
-    ).compareTo(_appointmentTimeSortMinutes(a.data()[AppointmentFields.time]));
+    final ia = appointmentSlotDateTimeForStaffSort(a.data());
+    final ib = appointmentSlotDateTimeForStaffSort(b.data());
+    final c = ia.compareTo(ib);
+    if (c != 0) return c;
+    return a.id.compareTo(b.id);
   });
 }
 
@@ -417,6 +427,10 @@ class _DashedLinePainter extends CustomPainter {
     final c = appointmentStatusBadgeColors('arrived');
     return (c.$1, c.$2, tr.translate('status_arrived'));
   }
+  if (s == 'waiting') {
+    final c = appointmentStatusBadgeColors('pending');
+    return (c.$1, c.$2, tr.translate('status_pending'));
+  }
   final c = appointmentStatusBadgeColors('pending');
   return (c.$1, c.$2, tr.translate('status_pending'));
 }
@@ -496,6 +510,13 @@ class _PremiumBookingCard extends StatelessWidget {
         const Color(0xFFE65100),
       );
     }
+    if (s == 'waiting') {
+      return (
+        tr.translate('status_pending'),
+        kAppointmentStatusPendingBg,
+        kAppointmentStatusPendingFg,
+      );
+    }
     return (
       tr.translate('status_pending'),
       kAppointmentStatusPendingBg,
@@ -506,6 +527,7 @@ class _PremiumBookingCard extends StatelessWidget {
   IconData _statusIconFor(String stNorm) {
     switch (stNorm) {
       case 'pending':
+      case 'waiting':
         return Icons.schedule_rounded;
       case 'confirmed':
         return Icons.event_available_outlined;
@@ -526,6 +548,7 @@ class _PremiumBookingCard extends StatelessWidget {
   (Color bg, Color fg) _modernChipSurface(String stNorm) {
     switch (stNorm) {
       case 'pending':
+      case 'waiting':
         return (const Color(0xFFFFF3E0), const Color(0xFFE65100));
       case 'confirmed':
         return (const Color(0xFFE8EAF6), const Color(0xFF283593));
@@ -1657,17 +1680,25 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     if (_expireWriteInFlight) return;
 
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
 
     final toExpire = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
     for (final d in docs) {
       if (_expiredWriteAttemptedApptIds.contains(d.id)) continue;
       final data = d.data();
       final st = _normAppointmentStatus(data[AppointmentFields.status]);
-      if (st != 'pending' && st != 'waiting') continue;
-      final day = _parseAppointmentDate(data[AppointmentFields.date]);
-      if (day == null) continue;
-      if (!day.isBefore(today)) continue;
+      if (st == 'completed' || st == 'complete' || st == 'done') continue;
+      if (st == 'cancelled' || st == 'canceled') continue;
+      if (st == 'expired') continue;
+      if (st == 'available' || st == 'rejected') continue;
+      if (st != 'pending' &&
+          st != 'waiting' &&
+          st != 'booked' &&
+          st != 'confirmed' &&
+          st != 'arrived') {
+        continue;
+      }
+      final instant = appointmentSlotDateTimeForStaffSort(data);
+      if (instant.isAfter(now)) continue;
       toExpire.add(d);
     }
 
@@ -1795,9 +1826,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           );
         }
-        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: _watchAppointmentsForPatientIds(patientIds),
-          builder: (context, snapshot) {
+        return StreamBuilder<DateTime>(
+          stream: _patientAppointmentsUiClock(),
+          initialData: DateTime.now(),
+          builder: (context, clockSnap) {
+            final now = clockSnap.data ?? DateTime.now();
+            return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+              stream: _watchAppointmentsForPatientIds(patientIds),
+              builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator(color: _uiAccent));
             }
@@ -1827,20 +1863,23 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             for (final d in docs) {
+              final data = d.data();
               final st = _normAppointmentStatus(
-                d.data()[AppointmentFields.status],
+                data[AppointmentFields.status],
               );
+              final instant = appointmentSlotDateTimeForStaffSort(data);
               if (_isPastAppointmentStatus(st)) {
                 pastDocs.add(d);
-              } else {
+              } else if (instant.isAfter(now)) {
                 activeDocs.add(d);
+              } else {
+                pastDocs.add(d);
               }
             }
             _sortActiveAppointmentsForDisplay(activeDocs);
             _sortPatientAppointmentsAll(pastDocs);
             _maybeShowDoctorClosedAlert(docs);
-            // Keep list fresh: expire "waiting" appointments that are before today.
-            // Fire-and-forget: StreamBuilder will rebuild as soon as writes land.
+            // Best-effort Firestore status → expired when slot time has passed.
             unawaited(_maybeExpireOutdatedAppointments(docs));
 
             if (docs.isEmpty) {
@@ -1910,9 +1949,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               final patientName = (data[AppointmentFields.patientName] ?? '—')
                   .toString();
               final specialty = (data['doctorSpecialty'] ?? '—').toString();
-              final status = (data[AppointmentFields.status] ?? 'pending')
-                  .toString();
-              final stNorm = _normAppointmentStatus(status);
+              final displayStatus =
+                  _effectivePatientAppointmentStatusForUi(data, now);
+              final stNorm = _normAppointmentStatus(displayStatus);
               final timeStr = (data[AppointmentFields.time] ?? '—').toString();
               final rawDate = data[AppointmentFields.date];
               final parsedDay = _parseAppointmentDate(rawDate);
@@ -1950,7 +1989,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     patientName: patientName,
                     dateStr: dateStr,
                     timeStr: timeStr,
-                    status: status,
+                    status: displayStatus,
                     cancellationReason: cancelReason,
                     queueLabel: queueLabel,
                     daysStyle: daysStyle,
@@ -1995,7 +2034,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           patientName: patientName,
                           dateStr: dateStr,
                           timeStr: timeStr,
-                          status: status,
+                          status: displayStatus,
                           cancellationReason: cancelReason,
                           isPast: isPastSection,
                         ),
@@ -2062,6 +2101,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             return ListView(
               padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
               children: children,
+            );
+              },
             );
           },
         );

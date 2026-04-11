@@ -1943,6 +1943,82 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'صورة، الاسم، العنوان، التخصص، الجوال',
     'en': 'Photo, name, address, specialty, phone',
   },
+  'doctor_profile_security_section_title': {
+    'ckb': 'ئاسایش و هەژمار',
+    'ar': 'الأمان والحساب',
+    'en': 'Security & account',
+  },
+  'doctor_profile_security_tile_sub': {
+    'ckb': 'ئیمەیڵ، مۆبایل و تێپەڕەوشە',
+    'ar': 'البريد والجوال وكلمة المرور',
+    'en': 'Email, phone & password',
+  },
+  'doctor_profile_security_email_label': {
+    'ckb': 'ئیمەیڵ',
+    'ar': 'البريد الإلكتروني',
+    'en': 'Email',
+  },
+  'doctor_profile_security_phone_label': {
+    'ckb': 'ژمارەی مۆبایل',
+    'ar': 'رقم الجوال',
+    'en': 'Phone',
+  },
+  'doctor_profile_change_password': {
+    'ckb': 'گۆڕینی تێپەڕەوشە',
+    'ar': 'تغيير كلمة المرور',
+    'en': 'Change password',
+  },
+  'doctor_profile_forgot_password': {
+    'ckb': 'لەبیرچوونی تێپەڕەوشە',
+    'ar': 'نسيت كلمة المرور',
+    'en': 'Forgot password',
+  },
+  'doctor_profile_change_password_title': {
+    'ckb': 'گۆڕینی تێپەڕەوشە',
+    'ar': 'تغيير كلمة المرور',
+    'en': 'Change password',
+  },
+  'doctor_profile_password_current': {
+    'ckb': 'تێپەڕەوشەی ئێستا',
+    'ar': 'كلمة المرور الحالية',
+    'en': 'Current password',
+  },
+  'doctor_profile_password_new': {
+    'ckb': 'تێپەڕەوشەی نوێ',
+    'ar': 'كلمة المرور الجديدة',
+    'en': 'New password',
+  },
+  'doctor_profile_password_confirm': {
+    'ckb': 'دووبارەکردنەوەی تێپەڕەوشە',
+    'ar': 'تأكيد كلمة المرور',
+    'en': 'Confirm new password',
+  },
+  'doctor_profile_password_save': {
+    'ckb': 'پاشەکەوت',
+    'ar': 'حفظ',
+    'en': 'Save',
+  },
+  'doctor_profile_password_change_success': {
+    'ckb': 'تێپەڕەوشەکە بە سەرکەوتوویی گۆڕدرا.',
+    'ar': 'تم تغيير كلمة المرور بنجاح.',
+    'en': 'Password updated successfully.',
+  },
+  'doctor_profile_password_change_failed': {
+    'ckb': 'نەتوانرا تێپەڕەوشە بگۆڕدرێت. تکایە دڵنیابە لە دروستی زانیارییەکان.',
+    'ar': 'تعذر تغيير كلمة المرور. تحقق من البيانات.',
+    'en': 'Could not change password. Check your entries.',
+  },
+  'doctor_profile_password_reset_sent': {
+    'ckb': 'لینکی گۆڕینی تێپەڕەوشە نێردرا بۆ ئیمەیڵەکەت.',
+    'ar': 'أُرسل رابط إعادة التعيين إلى بريدك.',
+    'en': 'A reset link was sent to your email.',
+  },
+  'doctor_profile_password_requires_email': {
+    'ckb':
+        'گۆڕینی تێپەڕەوشە پێویستی بە چوونەژوورەوە بە ئیمەیڵ هەیە. تکایە پەیوەندی بە پشتیوانی بکە.',
+    'ar': 'تغيير كلمة المرور يتطلب تسجيل الدخول بالبريد. تواصل مع الدعم.',
+    'en': 'Password change requires email sign-in. Contact support if needed.',
+  },
   'doctor_profile_no_session': {
     'ckb': 'هیچ هەژمارێک نییە',
     'ar': 'لا يوجد حساب',

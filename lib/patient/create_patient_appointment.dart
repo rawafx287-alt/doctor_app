@@ -186,6 +186,7 @@ Future<String?> createPatientAppointment({
     dayStartLocal: dayStart,
   );
 
+  final slotTs = appointmentTimestampFromLocalDayAndTimeKey(dayStart, timeStr);
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: uid,
     AppointmentFields.userId: uid,
@@ -195,6 +196,8 @@ Future<String?> createPatientAppointment({
         patientName.trim().isEmpty ? '—' : patientName.trim(),
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
+    'dateTime': slotTs,
+    AppointmentFields.appointmentDateTime: slotTs,
     AppointmentFields.status: kAppointmentStatusBooked,
     AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
@@ -247,6 +250,7 @@ Future<String?> createStaffAppointment({
     dayStartLocal: dayStart,
   );
 
+  final slotTs = appointmentTimestampFromLocalDayAndTimeKey(dayStart, timeStr);
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: patientId,
     if (patientId.trim().isNotEmpty) AppointmentFields.userId: patientId.trim(),
@@ -256,6 +260,8 @@ Future<String?> createStaffAppointment({
         patientName.trim().isEmpty ? '—' : patientName.trim(),
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
+    'dateTime': slotTs,
+    AppointmentFields.appointmentDateTime: slotTs,
     AppointmentFields.status: kAppointmentStatusBooked,
     AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,
@@ -395,6 +401,7 @@ Future<String?> bookPatientAppointmentAtScheduleSlot({
 
   if (claimSnap != null) {
     final claimRef = claimSnap.reference;
+    final slotTs = appointmentTimestampFromLocalDayAndTimeKey(dayStart, timeStr);
     for (var attempt = 0; attempt < 4; attempt++) {
       final queueNumber = await smallestAvailableQueueNumberForDoctor(
         doctorUserId: did,
@@ -426,6 +433,8 @@ Future<String?> bookPatientAppointmentAtScheduleSlot({
             AppointmentFields.status: kAppointmentStatusBooked,
             AppointmentFields.isBooked: true,
             AppointmentFields.queueNumber: queueNumber,
+            'dateTime': slotTs,
+            AppointmentFields.appointmentDateTime: slotTs,
             AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
           });
         });
@@ -445,6 +454,7 @@ Future<String?> bookPatientAppointmentAtScheduleSlot({
     dayStartLocal: dayStart,
   );
 
+  final slotTs = appointmentTimestampFromLocalDayAndTimeKey(dayStart, timeStr);
   await FirebaseFirestore.instance.collection(AppointmentFields.collection).add({
     AppointmentFields.patientId: uid,
     AppointmentFields.userId: uid,
@@ -453,6 +463,8 @@ Future<String?> bookPatientAppointmentAtScheduleSlot({
     AppointmentFields.patientName: patientName.isEmpty ? '—' : patientName,
     AppointmentFields.date: Timestamp.fromDate(dayStart),
     AppointmentFields.time: timeStr,
+    'dateTime': slotTs,
+    AppointmentFields.appointmentDateTime: slotTs,
     AppointmentFields.status: kAppointmentStatusBooked,
     AppointmentFields.isBooked: true,
     AppointmentFields.queueNumber: queueNumber,

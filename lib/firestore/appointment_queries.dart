@@ -25,6 +25,11 @@ abstract final class AppointmentFields {
   static const String doctorName = 'doctorName';
   static const String patientName = 'patientName';
   static const String time = 'time';
+
+  /// Local instant for the slot (date + time). Used for patient “active vs past” logic.
+  /// Legacy docs may only have [`dateTime`] instead; readers should fall back.
+  static const String appointmentDateTime = 'appointmentDateTime';
+
   static const String queueNumber = 'queueNumber';
   static const String createdAt = 'createdAt';
   static const String updatedAt = 'updatedAt';
@@ -558,6 +563,12 @@ const bool kPatientAppointmentsWhereOnlyNoOrderBy = false;
 /// [dateLocalDay] is **not** applied in Firestore (range + `orderBy` can require a
 /// different index). Filter “today” in [PatientAppointmentsScreen] instead.
 ///
+/// **Active vs past by slot time:** Firestore `where(appointmentDateTime, isGreaterThan: now)`
+/// uses a **fixed** timestamp at query build time and does not tick with the device clock.
+/// The patient “نۆرەکانم” screen therefore applies the same rule **client-side** on the
+/// merged snapshot (see [AppointmentFields.appointmentDateTime]) and refreshes on a short
+/// timer so rows move when the slot passes.
+///
 /// Legacy docs without [userId]: backfill from [patientId] or they will not appear.
 Query<Map<String, dynamic>> patientAppointmentsQuery({
   required String patientUid,
@@ -849,10 +860,31 @@ int _timeMinutesFromAppointmentField(dynamic timeVal) {
   return 1 << 20;
 }
 
-/// Slot instant for ordering (uses `dateTime` when set, else [AppointmentFields.date] + [time]).
+/// Local [Timestamp] for a calendar day + `HH:mm` slot key (same convention as [formatTimeHhMm]).
+Timestamp appointmentTimestampFromLocalDayAndTimeKey(
+  DateTime dayLocalMidnight,
+  String timeHhMm,
+) {
+  final m = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(timeHhMm.trim());
+  final h = m != null ? int.parse(m.group(1)!) : 0;
+  final mi = m != null ? int.parse(m.group(2)!) : 0;
+  final dt = DateTime(
+    dayLocalMidnight.year,
+    dayLocalMidnight.month,
+    dayLocalMidnight.day,
+    h,
+    mi,
+  );
+  return Timestamp.fromDate(dt);
+}
+
+/// Slot instant for ordering (uses [AppointmentFields.appointmentDateTime] / `dateTime` when set,
+/// else [AppointmentFields.date] + [time]).
 DateTime appointmentSlotDateTimeForStaffSort(Map<String, dynamic> data) {
-  final raw = data['dateTime'];
-  if (raw is Timestamp) return raw.toDate();
+  final rawPrimary = data[AppointmentFields.appointmentDateTime];
+  if (rawPrimary is Timestamp) return rawPrimary.toDate();
+  final rawLegacy = data['dateTime'];
+  if (rawLegacy is Timestamp) return rawLegacy.toDate();
   final day = appointmentLocalDateOnlyFromData(data);
   final mins = _timeMinutesFromAppointmentField(data[AppointmentFields.time]);
   if (day != null) {

@@ -108,6 +108,7 @@ flutter:
     # Optional: copy your Firebase service account JSON to assets/service-account.json
     # and add `- assets/service-account.json` here if you use client-side Doctor FCM v1.
     # (File is gitignored; do not commit real keys.)
+    - assets/images/app_icon.png
     - assets/images/kurdish_flag.png
     - assets/images/iraq_flag.png
     - assets/images/british_flag.png
