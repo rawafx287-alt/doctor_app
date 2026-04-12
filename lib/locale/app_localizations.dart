@@ -2730,6 +2730,18 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'متاح',
     'en': 'Available',
   },
+  /// Appointment list modal: booked patient count badge ({count} = localized numerals).
+  'schedule_booked_patients_badge': {
+    'ckb': 'نەخۆشی گرتووە: {count}',
+    'ar': 'المرضى المحجوزون: {count}',
+    'en': 'Patients booked: {count}',
+  },
+  /// Fixed glass bar above the slot list (total booked patients).
+  'schedule_slots_total_patients_bar': {
+    'ckb': 'کۆی گشتی نەخۆش: {count}',
+    'ar': 'إجمالي المرضى: {count}',
+    'en': 'Total patients: {count}',
+  },
   'schedule_slot_passed_ku': {
     'ckb': 'ئەم کاتە بەسەرچووە',
     'ar': 'انتهى وقت هذا الموعد',
@@ -3220,9 +3232,24 @@ const Map<String, Map<String, String>> kAppStrings = {
     'en': "It's your turn",
   },
   'booking_summary_selected_slot_hint': {
-    'ckb': 'کاتی دیاریکراو بە ڕەنگی جیاواز نیشان دراوە',
-    'ar': 'الوقت المحدد مميز بلون مختلف',
-    'en': 'Your assigned time is highlighted below',
+    'ckb': 'کاتی هەڵبژاردوو بە ڕێڕەوی زێڕین نیشان دراوە',
+    'ar': 'الوقت الذي اخترته محدد بإطار ذهبي',
+    'en': 'Your chosen time is outlined in gold below',
+  },
+  'booking_summary_pick_slot_hint': {
+    'ckb': 'کاتێکی بەتاڵ لە خوارەوە هەڵبژێرە، پاشان دووپاتکردنەوە بکە.',
+    'ar': 'اختر وقتاً فارغاً أدناه، ثم أكّد الحجز.',
+    'en': 'Tap a free time below, then confirm your booking.',
+  },
+  'booking_summary_visit_reason_label': {
+    'ckb': 'هۆکاری سەردان (ئارەزوومەندانە)',
+    'ar': 'سبب الزيارة (اختياري)',
+    'en': 'Reason for visit (optional)',
+  },
+  'booking_summary_visit_reason_hint': {
+    'ckb': 'کورتە…',
+    'ar': 'ملاحظة قصيرة…',
+    'en': 'Brief note…',
   },
   'available_days_tap_to_book': {
     'ckb': 'داوە بکە',

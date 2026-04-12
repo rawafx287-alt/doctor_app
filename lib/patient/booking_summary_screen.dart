@@ -22,7 +22,6 @@ const Color _kNavy = Color(0xFF0D2137);
 const Color _kBodyMuted = Color(0xFF455A64);
 const Color _kGoldDark = Color(0xFF8B6914);
 const Color _kGoldMid = Color(0xFFD4AF37);
-const Color _kGoldShine = Color(0xFFFFE082);
 const Color _kEmeraldAvailable = HrNoraColors.openDayFill;
 const Color _kSlotBorderBlue = Color(0xFF1565C0);
 const Color _kBookedRed = HrNoraColors.closedDayFill;
@@ -84,8 +83,9 @@ class BookingSummaryScreen extends StatefulWidget {
 class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
   bool _submitting = false;
   final GlobalKey _selectedSlotKey = GlobalKey();
-  bool _didEnsureSelectedVisible = false;
-  bool _scrollToSlotScheduled = false;
+
+  /// Slot start chosen from the generated list (see [generatedSlotStartsForDay]).
+  DateTime? _patientSelectedSlot;
 
   String get _doctorUid => widget.doctorId.trim();
 
@@ -94,9 +94,23 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.availableDayDocId != widget.availableDayDocId ||
         oldWidget.dateLocal != widget.dateLocal) {
-      _didEnsureSelectedVisible = false;
-      _scrollToSlotScheduled = false;
+      _patientSelectedSlot = null;
     }
+  }
+
+  void _ensureSelectedSlotVisible() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _selectedSlotKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.22,
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   String get _resolvedDoctorUid {
@@ -110,45 +124,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
             .toString()
             .trim();
     return fromMap;
-  }
-
-  void _scheduleScrollToAssignedSlot(
-    DateTime? firstFree,
-    List<DateTime> slots,
-  ) {
-    if (_scrollToSlotScheduled ||
-        _didEnsureSelectedVisible ||
-        firstFree == null ||
-        slots.isEmpty) {
-      return;
-    }
-    final target = formatTimeHhMm(firstFree);
-    if (!slots.any((s) => formatTimeHhMm(s) == target)) return;
-
-    _scrollToSlotScheduled = true;
-
-    void tryVisible({bool allowRetry = true}) {
-      if (!mounted || _didEnsureSelectedVisible) return;
-      final ctx = _selectedSlotKey.currentContext;
-      if (ctx != null) {
-        _didEnsureSelectedVisible = true;
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.22,
-          duration: const Duration(milliseconds: 420),
-          curve: Curves.easeOutCubic,
-        );
-      } else if (allowRetry) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => tryVisible(allowRetry: false),
-        );
-      }
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) => tryVisible());
-    });
   }
 
   Future<bool> _hasActiveAppointmentForPatient(String patientUid) async {
@@ -527,6 +502,12 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       return;
     }
 
+    final chosenSlot = _patientSelectedSlot;
+    if (chosenSlot == null) {
+      snack(s.translate('booking_summary_pick_slot_hint'));
+      return;
+    }
+
     if (!mounted) return;
     setState(() => _submitting = true);
     try {
@@ -555,6 +536,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           patientName: displayName.isEmpty ? widget.patientName : displayName,
           doctorId: doctorUid,
           doctorDisplayName: doctorName,
+          requestedSlotStartLocal: chosenSlot,
           paymentMethod: 'Cash',
           paymentStatus: 'pending_cash',
           receiptImageUrl: null,
@@ -575,6 +557,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
           'available_day_doctor_mismatch' => 'available_day_mismatch',
           'available_day_closed' => 'available_day_closed',
           'login_required' => 'login_required',
+          'booking_slot_conflict' => 'booking_slot_conflict',
           _ => 'available_day_tx_failed',
         };
         snack(s.translate(key));
@@ -926,13 +909,27 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                       final bookingDayIsToday = dayOnly.year == todayStart.year &&
                           dayOnly.month == todayStart.month &&
                           dayOnly.day == todayStart.day;
-                      final firstFree = firstBookableSlotStartForPatientDay(
-                        slots: slots,
-                        bookedKeys: blockedKeys,
-                        dayOnlyLocal: dayOnly,
-                      );
-                      final assignedTimeDisplay = firstFree != null
-                          ? DateFormat.jm(localeTag).format(firstFree)
+
+                      if (_patientSelectedSlot != null) {
+                        final sel = _patientSelectedSlot!;
+                        final sk = formatTimeHhMm(sel);
+                        final stillValid =
+                            slots.any((s) => formatTimeHhMm(s) == sk) &&
+                                !blockedKeys.contains(sk) &&
+                                !(bookingDayIsToday && !sel.isAfter(now));
+                        if (!stillValid) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() => _patientSelectedSlot = null);
+                            }
+                          });
+                        }
+                      }
+
+                      final assignedTimeDisplay = _patientSelectedSlot != null
+                          ? DateFormat.jm(localeTag).format(
+                              _patientSelectedSlot!,
+                            )
                           : '—';
 
                       final doctorName = widget.doctorDisplayName.trim().isEmpty
@@ -956,8 +953,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                         0,
                         totalCapacity,
                       );
-
-                      _scheduleScrollToAssignedSlot(firstFree, slots);
 
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -1123,7 +1118,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            if (firstFree != null && slots.isNotEmpty) ...[
+                            if (slots.isNotEmpty && bookableSlotsLeft > 0) ...[
                               DecoratedBox(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.72),
@@ -1150,7 +1145,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                       Expanded(
                                         child: Text(
                                           s.translate(
-                                            'booking_summary_selected_slot_hint',
+                                            _patientSelectedSlot == null
+                                                ? 'booking_summary_pick_slot_hint'
+                                                : 'booking_summary_selected_slot_hint',
                                           ),
                                           style: TextStyle(
                                             fontFamily: kPatientPrimaryFont,
@@ -1198,17 +1195,16 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                             unavailableKeys.contains(key);
                                         final isPastSlot = bookingDayIsToday &&
                                             !slot.isAfter(now);
-                                        final assigned = firstFree;
-                                        final isYourSlot =
-                                            assigned != null &&
-                                            !isBooked &&
+                                        final canSelect = !isBooked &&
                                             !isUnavailable &&
-                                            !isPastSlot &&
-                                            key == formatTimeHhMm(assigned);
-                                        final dimOthers =
-                                            firstFree != null &&
-                                            slots.isNotEmpty &&
-                                            !isYourSlot;
+                                            !isPastSlot;
+                                        final isSelected =
+                                            _patientSelectedSlot != null &&
+                                                formatTimeHhMm(
+                                                      _patientSelectedSlot!,
+                                                    ) ==
+                                                    key;
+
                                         final timePretty = DateFormat.jm(
                                           localeTag,
                                         ).format(slot);
@@ -1222,21 +1218,17 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                       'patient_slot_label_unavailable',
                                                     )
                                                   : (isPastSlot
-                                                  ? s.translate(
-                                                      'patient_slot_label_past',
-                                                    )
-                                                  : (isYourSlot
                                                         ? s.translate(
-                                                            'patient_slot_label_yours',
+                                                            'patient_slot_label_past',
                                                           )
                                                         : s.translate(
                                                             'patient_slot_label_available',
-                                                          ))));
+                                                          )));
 
                                         final statusStyle = TextStyle(
                                           fontFamily: kPatientPrimaryFont,
-                                          fontSize: isYourSlot ? 15 : 14,
-                                          fontWeight: isYourSlot
+                                          fontSize: isSelected ? 15 : 14,
+                                          fontWeight: isSelected
                                               ? FontWeight.w900
                                               : FontWeight.w800,
                                           color: isBooked
@@ -1245,71 +1237,105 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                     ? _kBodyMuted.withValues(
                                                         alpha: 0.75,
                                                       )
-                                                    : (isYourSlot
-                                                          ? _kNavy
-                                                          : _kEmeraldAvailable)),
+                                                    : _kEmeraldAvailable),
+                                        );
+
+                                        final borderColor = isSelected
+                                            ? _kGoldMid.withValues(alpha: 0.98)
+                                            : _kSlotBorderBlue.withValues(
+                                                alpha: 0.28,
+                                              );
+                                        final borderWidth =
+                                            isSelected ? 2.75 : 0.75;
+
+                                        final fill = isSelected
+                                            ? (Color.lerp(
+                                                  Colors.white.withValues(
+                                                    alpha: 0.96,
+                                                  ),
+                                                  const Color(0xFFFFF8E1),
+                                                  0.35,
+                                                ) ??
+                                                Colors.white.withValues(
+                                                  alpha: 0.96,
+                                                ))
+                                            : Colors.white.withValues(
+                                                alpha: 0.94,
+                                              );
+
+                                        Widget inner = Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.schedule_rounded,
+                                                color: isSelected
+                                                    ? _kGoldDark.withValues(
+                                                        alpha: 0.95,
+                                                      )
+                                                    : _kGoldMid.withValues(
+                                                        alpha: 0.95,
+                                                      ),
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              SizedBox(
+                                                width: 86,
+                                                child: Text(
+                                                  timePretty,
+                                                  style: const TextStyle(
+                                                    fontFamily:
+                                                        kPatientPrimaryFont,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 13,
+                                                    color: _kNavy,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  statusText,
+                                                  textAlign: TextAlign.end,
+                                                  style: statusStyle,
+                                                ),
+                                              ),
+                                              if (isSelected) ...[
+                                                const SizedBox(width: 6),
+                                                Icon(
+                                                  Icons.check_circle_rounded,
+                                                  color: _kGoldDark.withValues(
+                                                    alpha: 0.88,
+                                                  ),
+                                                  size: 22,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
                                         );
 
                                         Widget card = DecoratedBox(
                                           decoration: BoxDecoration(
-                                            gradient: isYourSlot
-                                                ? LinearGradient(
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                    colors: [
-                                                      const Color(
-                                                        0xFFFFF8E1,
-                                                      ).withValues(alpha: 0.98),
-                                                      const Color(
-                                                        0xFFFFECB3,
-                                                      ).withValues(alpha: 0.92),
-                                                      Color(
-                                                        0xFFE8EAF6,
-                                                      ).withValues(alpha: 0.55),
-                                                    ],
-                                                  )
-                                                : null,
-                                            color: isYourSlot
-                                                ? null
-                                                : Colors.white.withValues(
-                                                    alpha: 0.94,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
+                                            color: fill,
+                                            borderRadius:
+                                                BorderRadius.circular(14),
                                             border: Border.all(
-                                              color: isYourSlot
-                                                  ? _kGoldMid.withValues(
-                                                      alpha: 0.98,
-                                                    )
-                                                  : _kSlotBorderBlue.withValues(
-                                                      alpha: 0.28,
-                                                    ),
-                                              width: isYourSlot ? 2.85 : 0.75,
+                                              color: borderColor,
+                                              width: borderWidth,
                                             ),
-                                            boxShadow: isYourSlot
+                                            boxShadow: isSelected
                                                 ? [
                                                     BoxShadow(
                                                       color: _kGoldMid
                                                           .withValues(
-                                                            alpha: 0.38,
+                                                            alpha: 0.32,
                                                           ),
-                                                      blurRadius: 20,
+                                                      blurRadius: 18,
                                                       offset: const Offset(
                                                         0,
-                                                        5,
-                                                      ),
-                                                      spreadRadius: 0.5,
-                                                    ),
-                                                    BoxShadow(
-                                                      color: _kGoldShine
-                                                          .withValues(
-                                                            alpha: 0.35,
-                                                          ),
-                                                      blurRadius: 16,
-                                                      offset: const Offset(
-                                                        0,
-                                                        2,
+                                                        4,
                                                       ),
                                                     ),
                                                   ]
@@ -1327,83 +1353,31 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                                                     ),
                                                   ],
                                           ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 14,
-                                              vertical: 12,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.schedule_rounded,
-                                                  color: isYourSlot
-                                                      ? _kGoldDark.withValues(
-                                                          alpha: 0.95,
-                                                        )
-                                                      : _kGoldMid.withValues(
-                                                          alpha: 0.95,
-                                                        ),
-                                                  size: 20,
-                                                ),
-                                                const SizedBox(width: 10),
-                                                SizedBox(
-                                                  width: 86,
-                                                  child: Text(
-                                                    timePretty,
-                                                    style: const TextStyle(
-                                                      fontFamily:
-                                                          kPatientPrimaryFont,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      fontSize: 13,
-                                                      color: _kNavy,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: Text(
-                                                    statusText,
-                                                    textAlign: TextAlign.end,
-                                                    style: statusStyle,
-                                                  ),
-                                                ),
-                                                if (isYourSlot) ...[
-                                                  const SizedBox(width: 6),
-                                                  Icon(
-                                                    Icons.check_circle_rounded,
-                                                    color: _kEmeraldAvailable,
-                                                    size: 22,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Icon(
-                                                    Icons.star_rounded,
-                                                    color: _kGoldMid,
-                                                    size: 26,
-                                                    shadows: [
-                                                      Shadow(
-                                                        color: _kGoldDark
-                                                            .withValues(
-                                                              alpha: 0.35,
-                                                            ),
-                                                        blurRadius: 6,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
+                                          child: inner,
+                                        );
+
+                                        card = Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            onTap: canSelect
+                                                ? () {
+                                                    HapticFeedback
+                                                        .lightImpact();
+                                                    setState(
+                                                      () => _patientSelectedSlot =
+                                                          slot,
+                                                    );
+                                                    _ensureSelectedSlotVisible();
+                                                  }
+                                                : null,
+                                            child: card,
                                           ),
                                         );
 
-                                        if (dimOthers) {
-                                          card = Opacity(
-                                            opacity: 0.5,
-                                            child: card,
-                                          );
-                                        }
-
                                         return Padding(
-                                          key: isYourSlot
+                                          key: isSelected
                                               ? _selectedSlotKey
                                               : ValueKey<String>('slot_$key'),
                                           padding: const EdgeInsets.only(
@@ -1419,14 +1393,14 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
                               enabled:
                                   !_submitting &&
                                   open &&
-                                  firstFree != null &&
+                                  _patientSelectedSlot != null &&
                                   slots.isNotEmpty,
                               submitting: _submitting,
                               label: s.translate('confirm_booking'),
                               onPressed: () {
-                                final slotEn = firstFree != null
-                                    ? DateFormat.jm('en_US').format(firstFree)
-                                    : '—';
+                                final sel = _patientSelectedSlot!;
+                                final slotEn =
+                                    DateFormat.jm('en_US').format(sel);
                                 _confirmWithPreview(
                                   context,
                                   slotTimeLabelEn: slotEn,

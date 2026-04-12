@@ -46,6 +46,7 @@ class BookingDetailsPage extends StatefulWidget {
     required this.doctorDisplayName,
     required this.dateLocal,
     required this.slotTimeLabelEn,
+    this.initialMedicalNotes,
   });
 
   final String doctorDisplayName;
@@ -53,6 +54,9 @@ class BookingDetailsPage extends StatefulWidget {
 
   /// First free slot label using English numerals (e.g. 9:00 AM).
   final String slotTimeLabelEn;
+
+  /// Optional text from the summary screen (visit reason) prefilled into notes.
+  final String? initialMedicalNotes;
 
   @override
   State<BookingDetailsPage> createState() => _BookingDetailsPageState();
@@ -64,6 +68,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   final _phoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    final pre = widget.initialMedicalNotes?.trim();
+    if (pre != null && pre.isNotEmpty) {
+      _notesCtrl.text = pre;
+    }
+  }
 
   String? _blood;
   String? _city;

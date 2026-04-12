@@ -227,6 +227,35 @@ DateTime? firstBookableSlotStartForPatientDay({
   return null;
 }
 
+/// Returns the matching slot from [slots] when [requested] is on [dayOnlyLocal],
+/// not blocked, and not in the past on the same calendar day; otherwise `null`.
+DateTime? resolveRequestedBookableSlot({
+  required List<DateTime> slots,
+  required Set<String> blockedKeys,
+  required DateTime dayOnlyLocal,
+  required DateTime requested,
+}) {
+  final want = formatTimeHhMm(requested);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final isToday = dayOnlyLocal.year == today.year &&
+      dayOnlyLocal.month == today.month &&
+      dayOnlyLocal.day == today.day;
+
+  for (final s in slots) {
+    if (s.year != dayOnlyLocal.year ||
+        s.month != dayOnlyLocal.month ||
+        s.day != dayOnlyLocal.day) {
+      continue;
+    }
+    if (formatTimeHhMm(s) != want) continue;
+    if (blockedKeys.contains(want)) return null;
+    if (isToday && !s.isAfter(now)) return null;
+    return s;
+  }
+  return null;
+}
+
 /// Stable document id: `{doctorUid}_{yyyy-MM-dd}`.
 String availableDayDocumentId({
   required String doctorUserId,
@@ -398,10 +427,12 @@ Future<void> deleteAvailableDay({
 
 /// Returns `null` on success, or a short error code for UI translation.
 ///
-/// Picks the **first free** slot from [generatedSlotStartsForDay] vs existing
-/// [appointments] (same day + [availableDayDocId] / legacy). [Transaction] only
-/// supports document reads, so appointment rows are loaded with `.get()` before
-/// each attempt; loop retries on contention.
+/// When [requestedSlotStartLocal] is set, books that slot if it is still free
+/// and valid. Otherwise picks the **first free** slot from
+/// [generatedSlotStartsForDay] vs existing [appointments] (same day +
+/// [availableDayDocId] / legacy). [Transaction] only supports document reads,
+/// so appointment rows are loaded with `.get()` before each attempt; loop
+/// retries on contention.
 Future<String?> bookAvailableDayTransaction({
   required DocumentReference<Map<String, dynamic>> appointmentRef,
   required String availableDayDocId,
@@ -409,6 +440,8 @@ Future<String?> bookAvailableDayTransaction({
   required String patientName,
   required String doctorId,
   required String doctorDisplayName,
+  /// If non-null, must match a generated slot start for that day (local).
+  DateTime? requestedSlotStartLocal,
   String? paymentMethod,
   String? paymentStatus,
   String? receiptImageUrl,
@@ -472,12 +505,25 @@ Future<String?> bookAvailableDayTransaction({
     );
     final blockedKeys = <String>{...bookedKeys, ...unavailableKeys};
 
-    final freeStart = firstBookableSlotStartForPatientDay(
-      slots: slots,
-      bookedKeys: blockedKeys,
-      dayOnlyLocal: dayStart,
-    );
-    if (freeStart == null) return 'available_day_full';
+    late final DateTime freeStart;
+    if (requestedSlotStartLocal != null) {
+      final resolved = resolveRequestedBookableSlot(
+        slots: slots,
+        blockedKeys: blockedKeys,
+        dayOnlyLocal: dayStart,
+        requested: requestedSlotStartLocal,
+      );
+      if (resolved == null) return 'booking_slot_conflict';
+      freeStart = resolved;
+    } else {
+      final first = firstBookableSlotStartForPatientDay(
+        slots: slots,
+        bookedKeys: blockedKeys,
+        dayOnlyLocal: dayStart,
+      );
+      if (first == null) return 'available_day_full';
+      freeStart = first;
+    }
 
     final timeStr = formatTimeHhMm(freeStart);
     final queueNumber = await nextDailyQueueNumberForDoctor(
