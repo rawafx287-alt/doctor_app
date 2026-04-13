@@ -2695,6 +2695,31 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'إلغاء الموعد',
     'en': 'Cancel appointment',
   },
+  'patient_cancel_window_expired_contact_secretary': {
+    'ckb': 'کاتى هەڵوەشاندنەوە بەسەرچوو، پەیوەندی بە سکرتێر بکە',
+    'ar': 'انتهت مدة الإلغاء، تواصل مع السكرتير.',
+    'en': 'Cancellation window has ended. Please contact the secretary.',
+  },
+  'patient_cancel_ok_snack': {
+    'ckb': 'نۆرەکەت هەڵوەشایەوە',
+    'ar': 'تم إلغاء موعدك',
+    'en': 'Your appointment was cancelled',
+  },
+  'patient_cancel_error_snack': {
+    'ckb': 'نەتوانرا نۆرە هەڵبوەشێنرێتەوە',
+    'ar': 'تعذر إلغاء الموعد',
+    'en': 'Could not cancel the appointment',
+  },
+  'patient_cancel_countdown_remaining': {
+    'ckb': '{time} ماوە بۆ هەڵوەشاندنەوە',
+    'ar': 'متبقٍ {time} للإلغاء',
+    'en': '{time} left to cancel',
+  },
+  'patient_cancel_countdown_expired_inline': {
+    'ckb': 'کاتەکەت کۆتایی هات، تکایە پەیوەندی بە سکرتێر بکە',
+    'ar': 'انتهى الوقت، الرجاء التواصل مع السكرتير.',
+    'en': 'Time is up. Please contact the secretary.',
+  },
   'schedule_slot_available_sheet_hint': {
     'ckb': 'ئەم کاتە بەردەستە بۆ نۆرەی نوێ.',
     'ar': 'هذا الوقت متاح لموعد جديد.',

@@ -15,6 +15,261 @@ import '../auth/phone_normalization.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../theme/patient_premium_theme.dart';
+import '../push/appointment_local_notifications.dart';
+import '../push/appointment_reminder_worker.dart';
+
+class _ModernConfirmDialog extends StatelessWidget {
+  const _ModernConfirmDialog({
+    required this.title,
+    required this.message,
+    required this.confirmText,
+    required this.cancelText,
+    required this.confirmColor,
+    required this.icon,
+    this.cancelDeadline,
+  });
+
+  final String title;
+  final String message;
+  final String confirmText;
+  final String cancelText;
+  final Color confirmColor;
+  final IconData icon;
+  final DateTime? cancelDeadline;
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
+
+  static String _formatHhMmSs(Duration d) {
+    final total = d.inSeconds.clamp(0, 24 * 3600 * 7); // hard cap for safety
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    final s = total % 60;
+    return '${_two(h)}:${_two(m)}:${_two(s)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const r = 24.0;
+    final tr = S.of(context);
+    final deadline = cancelDeadline;
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(r),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.87),
+                    borderRadius: BorderRadius.circular(r),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        blurRadius: 30,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+                    child: StreamBuilder<DateTime>(
+                      stream: deadline == null
+                          ? null
+                          : Stream<DateTime>.periodic(
+                              const Duration(seconds: 1),
+                              (_) => DateTime.now(),
+                            ),
+                      initialData: DateTime.now(),
+                      builder: (context, snap) {
+                        final now = snap.data ?? DateTime.now();
+                        final remaining = deadline == null
+                            ? Duration.zero
+                            : deadline.difference(now);
+                        final expired = deadline != null && remaining.inSeconds <= 0;
+
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                        Center(
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.06),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: confirmColor.withValues(alpha: 0.25),
+                                  blurRadius: 18,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 30,
+                              color: confirmColor.withValues(alpha: 0.92),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            height: 1.25,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          message,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                            height: 1.45,
+                            color: Colors.white.withValues(alpha: 0.86),
+                          ),
+                        ),
+                        if (deadline != null) ...[
+                          const SizedBox(height: 14),
+                          Directionality(
+                            textDirection: ui.TextDirection.ltr,
+                            child: Text(
+                              tr.translate(
+                                'patient_cancel_countdown_remaining',
+                                params: {
+                                  'time': _formatHhMmSs(remaining),
+                                },
+                              ),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                height: 1.2,
+                                color: const Color(0xFFFBBF24).withValues(
+                                  alpha: expired ? 0.55 : 0.92,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (expired) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              tr.translate(
+                                'patient_cancel_countdown_expired_inline',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                                height: 1.35,
+                                color: Colors.white.withValues(alpha: 0.78),
+                              ),
+                            ),
+                          ],
+                        ],
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                style: OutlinedButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  minimumSize: const Size(0, 42),
+                                  foregroundColor:
+                                      Colors.white.withValues(alpha: 0.85),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                    width: 1,
+                                  ),
+                                  backgroundColor:
+                                      Colors.white.withValues(alpha: 0.04),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  cancelText,
+                                  style: const TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: expired
+                                    ? null
+                                    : () =>
+                                    Navigator.of(context).pop(true),
+                                style: FilledButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  minimumSize: const Size(0, 42),
+                                  backgroundColor:
+                                      confirmColor.withValues(
+                                        alpha: expired ? 0.35 : 0.92,
+                                      ),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  confirmText,
+                                  style: const TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Rose-gold / peach accents for bookings UI (section bars, cards, ticket highlights).
 const Color _kBookingsRoseTop = Color(0xFFE5989B);
@@ -444,6 +699,9 @@ class _PremiumBookingCard extends StatelessWidget {
     required this.dateStr,
     required this.timeStr,
     required this.status,
+    required this.createdAt,
+    required this.now,
+    required this.onCancel,
     this.cancellationReason = '',
     this.isPast = false,
   });
@@ -455,6 +713,9 @@ class _PremiumBookingCard extends StatelessWidget {
   final String dateStr;
   final String timeStr;
   final String status;
+  final DateTime? createdAt;
+  final DateTime now;
+  final VoidCallback? onCancel;
   final String cancellationReason;
   final bool isPast;
 
@@ -627,6 +888,16 @@ class _PremiumBookingCard extends StatelessWidget {
         ],
       ),
     );
+
+    final bool cancelWindowOk = createdAt != null &&
+        now.difference(createdAt!) < const Duration(hours: 2);
+    final bool canShowCancelAction = onCancel != null &&
+        !isPast &&
+        !isExpired &&
+        stNorm != 'completed' &&
+        stNorm != 'cancelled' &&
+        stNorm != 'canceled' &&
+        stNorm != 'expired';
 
     final queueDigits = queueLabel.startsWith('#')
         ? queueLabel.substring(1)
@@ -829,6 +1100,58 @@ class _PremiumBookingCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: statusChip,
           ),
+          const SizedBox(height: 10),
+          if (canShowCancelAction && cancelWindowOk)
+            Align(
+              alignment: Alignment.centerRight,
+              child: SizedBox(
+                height: 32,
+                child: FilledButton(
+                  onPressed: onCancel,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB91C1C).withValues(
+                      alpha: 0.88,
+                    ),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 0,
+                    ),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    S.of(context).translate(
+                      'schedule_slot_cancel_appointment_short',
+                    ),
+                    style: const TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11.5,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else if (canShowCancelAction && !cancelWindowOk)
+            Text(
+              S.of(context).translate(
+                'patient_cancel_window_expired_contact_secretary',
+              ),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                height: 1.35,
+                color: const Color(0xFF94A3B8).withValues(alpha: 0.95),
+              ),
+            ),
           if (isExpired) ...[
             const SizedBox(height: 8),
             Text(
@@ -1614,9 +1937,103 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   final Set<String> _expiredWriteAttemptedApptIds = <String>{};
   bool _expireWriteInFlight = false;
 
+  DateTime? _parseCreatedAt(dynamic raw) {
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    return null;
+  }
+
+  Future<void> _cancelAppointmentIfAllowed({
+    required BuildContext context,
+    required String appointmentDocId,
+    required Map<String, dynamic> priorData,
+    required DateTime now,
+  }) async {
+    final tr = S.of(context);
+    final createdAt = _parseCreatedAt(priorData[AppointmentFields.createdAt]);
+    final withinWindow = createdAt != null &&
+        now.difference(createdAt) < const Duration(hours: 2);
+    if (!withinWindow) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr.translate('patient_cancel_window_expired_contact_secretary'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final ok = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel:
+          MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (ctx, anim, sec) {
+        return _ModernConfirmDialog(
+          title: tr.translate('schedule_are_you_sure'),
+          message: tr.translate('schedule_slot_cancel_confirm_title'),
+          confirmText: tr.translate('schedule_slot_cancel_yes'),
+          cancelText: tr.translate('schedule_slot_cancel_no'),
+          confirmColor: const Color(0xFFB91C1C),
+          icon: Icons.warning_amber_rounded,
+          cancelDeadline: createdAt.add(const Duration(hours: 2)),
+        );
+      },
+      transitionBuilder: (ctx, a, s, child) {
+        final curved = CurvedAnimation(parent: a, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+    if (ok != true || !context.mounted) return;
+
+    try {
+      await archivePatientCancelledAppointmentAndFreeSlot(
+        appointmentRef: FirebaseFirestore.instance
+            .collection(AppointmentFields.collection)
+            .doc(appointmentDocId),
+        priorData: priorData,
+      );
+      await AppointmentLocalNotifications.cancelAppointmentAlerts(
+        appointmentDocId,
+      );
+      await AppointmentReminderWorker.removeBooking(appointmentDocId);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr.translate('patient_cancel_ok_snack'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr.translate('patient_cancel_error_snack'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    unawaited(AppointmentLocalNotifications.requestPermissions());
     _highlightActive = (widget.highlightAvailableDayDocId ?? '')
         .trim()
         .isNotEmpty;
@@ -1969,6 +2386,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   (data[AppointmentFields.cancellationReason] ?? '')
                       .toString()
                       .trim();
+              final createdAt =
+                  _parseCreatedAt(data[AppointmentFields.createdAt]);
               final docId = docSnap.id;
               final heroTag = 'appointment_ticket_$docId';
               final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
@@ -2035,6 +2454,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                           dateStr: dateStr,
                           timeStr: timeStr,
                           status: displayStatus,
+                          createdAt: createdAt,
+                          now: now,
+                          onCancel: () => _cancelAppointmentIfAllowed(
+                            context: context,
+                            appointmentDocId: docId,
+                            priorData: Map<String, dynamic>.from(data),
+                            now: now,
+                          ),
                           cancellationReason: cancelReason,
                           isPast: isPastSection,
                         ),
@@ -2127,6 +2554,44 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           foregroundColor: kPatientNavyText,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+          actions: [
+            IconButton(
+              tooltip: 'Test notification',
+              icon: const Icon(Icons.notifications_active_outlined),
+              onPressed: () async {
+                await AppointmentLocalNotifications.scheduleTestAfter(
+                  delay: const Duration(seconds: 5),
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    content: Text(
+                      'Test notification scheduled (5s).',
+                      style: TextStyle(fontFamily: kPatientPrimaryFont),
+                    ),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: 'Test notification now',
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () async {
+                await AppointmentLocalNotifications.showTestNow();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    content: Text(
+                      'Immediate test notification sent.',
+                      style: TextStyle(fontFamily: kPatientPrimaryFont),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
           leading: IconButton(
             icon: Icon(
               pageRtl

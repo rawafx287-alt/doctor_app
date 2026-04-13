@@ -1,10 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:workmanager/workmanager.dart';
 import 'bootstrap/ensure_shared_preferences_registered.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_1/nawarok/listidoctorakan.dart';
@@ -14,6 +16,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'locale/app_locale.dart';
 import 'patient/my_appointments_screen.dart';
 import 'push/fcm_foreground_notifications.dart';
+import 'push/fcm_cancellation_sync.dart';
+import 'push/appointment_local_notifications.dart';
+import 'push/appointment_reminder_worker.dart';
 import 'push/firebase_messaging_background.dart';
 import 'push/patient_push_registration.dart';
 import 'splash_screen.dart';
@@ -37,10 +42,27 @@ Future<void> main() async {
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await FcmForegroundNotifications.init();
+    // Ensure timezone DB is initialized before scheduling local notifications.
+    await AppointmentLocalNotifications.ensureTimeZoneInitialized();
+    await AppointmentLocalNotifications.init();
+    await AppointmentLocalNotifications.requestPermissions();
+    // Background fallback (no Settings UX): poll every ~15 min and trigger
+    // instant notifications when reminders are due.
+    await Workmanager().initialize(
+      appointmentReminderCallbackDispatcher,
+    );
+    await AppointmentReminderWorker.registerPeriodic();
     await PatientPushRegistration.promptNotificationPermissionOnFirstLaunch();
     FirebaseMessaging.onMessage.listen(
       FcmForegroundNotifications.showFromRemoteMessage,
     );
+    FirebaseMessaging.onMessageOpenedApp.listen((m) {
+      unawaited(syncLocalRemindersForRemoteCancellation(m));
+    });
+    final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMsg != null) {
+      await syncLocalRemindersForRemoteCancellation(initialMsg);
+    }
   }
   final localeController = LocaleController();
   await localeController.load();

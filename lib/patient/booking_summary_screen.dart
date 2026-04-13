@@ -15,6 +15,8 @@ import '../models/doctor_localized_content.dart';
 import 'my_appointments_screen.dart';
 import '../theme/hr_nora_colors.dart';
 import '../theme/patient_premium_theme.dart';
+import '../push/appointment_local_notifications.dart';
+import '../push/appointment_reminder_worker.dart';
 import 'booking_details_page.dart';
 import 'patient_booking_form_result.dart';
 
@@ -564,6 +566,32 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
         return;
       }
 
+      if (!mounted || !context.mounted) return;
+
+      // Schedule local reminders (3h + 1h) for this booking.
+      AppointmentLocalNotifications.onUserWarning = (msg) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              msg,
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      };
+      await AppointmentLocalNotifications.scheduleTwoAlerts(
+        appointmentId: apptRef.id,
+        appointmentTimeLocal: chosenSlot,
+        doctorName: doctorName,
+      );
+      // Background fallback uses a local store + 15-minute polling.
+      await AppointmentReminderWorker.upsertBooking(
+        appointmentId: apptRef.id,
+        appointmentTimeLocal: chosenSlot,
+        doctorName: doctorName,
+      );
       if (!mounted || !context.mounted) return;
 
       final goToMyBookings = await showDialog<bool>(

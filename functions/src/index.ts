@@ -174,6 +174,17 @@ function isWaitingAppointmentStatus(raw: unknown): boolean {
   return s === "pending" || s === "waiting";
 }
 
+function wasBookedPatientSlotStatus(raw: unknown): boolean {
+  const s = String(raw ?? "").trim().toLowerCase();
+  return (
+    s === "pending" ||
+    s === "booked" ||
+    s === "waiting" ||
+    s === "confirmed" ||
+    s === "arrived"
+  );
+}
+
 function appointmentDateLabelKu(raw: unknown): string {
   if (raw && typeof raw === "object" && "toDate" in (raw as any)) {
     try {
@@ -320,6 +331,62 @@ export const onAvailableDayClosedOrFull = onDocumentUpdated(
       doctorId,
       count: docs.length,
       reason: trans.reason,
+    });
+  },
+);
+
+/**
+ * Secretary (or calendar) cancels a single slot: live [appointments] becomes `available`
+ * with `cancellationReason: secretary` and patient fields cleared — use **before** snapshot
+ * for patient ids. Writes [notifications] so [onRootNotificationCreated] sends FCM.
+ *
+ * Doctor single-slot cancel from the app already creates [notifications] on the client;
+ * this trigger is scoped to `secretary` only to avoid duplicate pushes.
+ */
+export const onAppointmentSecretarySlotReleased = onDocumentUpdated(
+  "appointments/{apptId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const afterSt = String(after.status ?? "").trim().toLowerCase();
+    const reason = String(after.cancellationReason ?? "").trim().toLowerCase();
+    if (afterSt !== "available" || reason !== "secretary") return;
+
+    const beforeSt = String(before.status ?? "").trim().toLowerCase();
+    if (!wasBookedPatientSlotStatus(beforeSt)) return;
+
+    const appointmentId = String(event.params.apptId ?? "").trim();
+    const patientId = String(before.patientId ?? "").trim();
+    const userId = String(before.userId ?? "").trim();
+    const keys = [...new Set([patientId, userId].filter(Boolean))];
+    if (keys.length === 0 || !appointmentId) {
+      logger.warn("onAppointmentSecretarySlotReleased: missing patient keys", {
+        appointmentId,
+      });
+      return;
+    }
+
+    const doctorId = String(before.doctorId ?? "").trim();
+    const { name: doctorName, imageUrl: doctorImage } = await loadDoctorSnapshot(doctorId);
+    const dayLabel = appointmentDateLabelKu(before.date);
+    const title = "ئاگاداری نۆرە";
+    const message = `ببوورە، نۆرەکەت لە ڕێکەوتی ${dayLabel} لەلایەن سکرتێرەوە هەڵوەشایەوە.`;
+
+    await createNotificationRowsAndPush(
+      appointmentId,
+      keys,
+      title,
+      message,
+      "appointment_cancelled",
+      doctorName,
+      doctorImage,
+    );
+
+    logger.info("onAppointmentSecretarySlotReleased: notified", {
+      appointmentId,
+      keys,
     });
   },
 );

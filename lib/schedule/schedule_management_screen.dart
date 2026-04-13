@@ -581,6 +581,184 @@ void showScheduleSlotsModalBottomSheet({
   );
 }
 
+class _ScheduleModernConfirmDialog extends StatelessWidget {
+  const _ScheduleModernConfirmDialog({
+    required this.title,
+    required this.message,
+    required this.confirmText,
+    required this.cancelText,
+    required this.confirmColor,
+    required this.icon,
+  });
+
+  final String title;
+  final String message;
+  final String confirmText;
+  final String cancelText;
+  final Color confirmColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    const r = 24.0;
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(r),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.87),
+                    borderRadius: BorderRadius.circular(r),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        blurRadius: 30,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.06),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: confirmColor.withValues(alpha: 0.25),
+                                  blurRadius: 18,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 30,
+                              color: confirmColor.withValues(alpha: 0.92),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            height: 1.25,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          message,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                            height: 1.45,
+                            color: Colors.white.withValues(alpha: 0.86),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                style: OutlinedButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  minimumSize: const Size(0, 42),
+                                  foregroundColor:
+                                      Colors.white.withValues(alpha: 0.85),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                    width: 1,
+                                  ),
+                                  backgroundColor:
+                                      Colors.white.withValues(alpha: 0.04),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  cancelText,
+                                  style: const TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                style: FilledButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  minimumSize: const Size(0, 42),
+                                  backgroundColor:
+                                      confirmColor.withValues(alpha: 0.92),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  confirmText,
+                                  style: const TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Saturday-first month grid: leading/trailing nulls, padded to 42 cells (6×7).
 List<DateTime?> _monthGridCells(DateTime monthAnchor) {
   final y = monthAnchor.year;
@@ -3510,46 +3688,33 @@ class _SchedulePatientGlassDialogBodyState
   var _cancelling = false;
 
   Future<void> _onCancelPressed(BuildContext dialogContext) async {
-    final ok = await showDialog<bool>(
+    final ok = await showGeneralDialog<bool>(
       context: dialogContext,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        title: Text(
-          widget.loc.translate('schedule_are_you_sure'),
-          style: const TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
+      barrierDismissible: true,
+      barrierLabel:
+          MaterialLocalizations.of(dialogContext).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (ctx, anim, sec) {
+        return _ScheduleModernConfirmDialog(
+          title: widget.loc.translate('schedule_are_you_sure'),
+          message: widget.loc.translate('schedule_slot_cancel_confirm_title'),
+          confirmText: widget.loc.translate('schedule_slot_cancel_yes'),
+          cancelText: widget.loc.translate('schedule_slot_cancel_no'),
+          confirmColor: const Color(0xFFB91C1C),
+          icon: Icons.warning_amber_rounded,
+        );
+      },
+      transitionBuilder: (ctx, a, s, child) {
+        final curved = CurvedAnimation(parent: a, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
           ),
-        ),
-        content: Text(
-          widget.loc.translate('schedule_slot_cancel_confirm_title'),
-          style: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            color: Colors.white.withValues(alpha: 0.88),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: Text(
-              widget.loc.translate('schedule_slot_cancel_no'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: Text(
-              widget.loc.translate('schedule_slot_cancel_yes'),
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                color: Colors.redAccent.shade200,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
     if (ok != true || !dialogContext.mounted) return;
 

@@ -260,6 +260,47 @@ Future<void> archiveRejectedAppointmentAndFreeSlot({
   await batch.commit();
 }
 
+/// Patient-initiated cancellation: archives the prior payload, then frees the live
+/// [appointments] doc for re-booking.
+Future<void> archivePatientCancelledAppointmentAndFreeSlot({
+  required DocumentReference<Map<String, dynamic>> appointmentRef,
+  required Map<String, dynamic> priorData,
+}) async {
+  final batch = FirebaseFirestore.instance.batch();
+
+  final rejectedRef = FirebaseFirestore.instance
+      .collection(RejectedAppointmentFields.collection)
+      .doc();
+
+  final day = appointmentLocalDateOnlyFromData(priorData);
+  final dayKey = day == null ? '' : DateFormat('yyyy/MM/dd').format(day);
+
+  final archived = Map<String, dynamic>.from(priorData);
+  archived[RejectedAppointmentFields.originalAppointmentId] = appointmentRef.id;
+  archived[RejectedAppointmentFields.rejectedAt] = FieldValue.serverTimestamp();
+  archived[AppointmentFields.status] = 'cancelled';
+  archived[AppointmentFields.cancellationReason] =
+      kAppointmentCancellationReasonPatient;
+  if (dayKey.isNotEmpty) {
+    archived[RejectedAppointmentFields.rejectedDayKey] = dayKey;
+  }
+
+  batch.set(rejectedRef, archived);
+
+  batch.update(appointmentRef, {
+    AppointmentFields.status: 'available',
+    AppointmentFields.patientName: null,
+    AppointmentFields.patientId: null,
+    AppointmentFields.userId: FieldValue.delete(),
+    AppointmentFields.isBooked: false,
+    AppointmentFields.queueNumber: FieldValue.delete(),
+    AppointmentFields.cancellationReason: kAppointmentCancellationReasonPatient,
+    AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
 /// Rejected rows for one doctor + local day — listens by [RejectedAppointmentFields.rejectedDayKey].
 ///
 /// **Firestore index:** collection `rejected_appointments` —
@@ -601,6 +642,9 @@ const String kAppointmentCancellationReasonDoctorDayClosed = 'doctor_day_closed'
 
 /// Secretary cancelled the slot from schedule management (same patient push as doctor cancel).
 const String kAppointmentCancellationReasonSecretary = 'secretary';
+
+/// Patient cancelled their own booking (within the allowed time window).
+const String kAppointmentCancellationReasonPatient = 'patient';
 
 /// Bookings that still count as “active” for day-close bulk operations (not completed/cancelled).
 bool appointmentIsActiveForClinicOperations(String raw) {

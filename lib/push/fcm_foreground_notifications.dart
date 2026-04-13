@@ -4,6 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'fcm_cancellation_sync.dart';
+
 /// Android channel id — must match
 /// `com.google.firebase.messaging.default_notification_channel_id` in manifest.
 const String kFcmAndroidChannelId = 'hr_nora_default';
@@ -56,6 +58,8 @@ class FcmForegroundNotifications {
   /// Displays [message] as a system notification when the app is foregrounded.
   static Future<void> showFromRemoteMessage(RemoteMessage message) async {
     if (kIsWeb || !_inited) return;
+
+    await syncLocalRemindersForRemoteCancellation(message);
 
     final n = message.notification;
     var title = (n?.title ?? '').trim();

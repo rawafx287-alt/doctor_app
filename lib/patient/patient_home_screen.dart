@@ -716,9 +716,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     BuildContext context, {
     required bool overlapsContent,
   }) {
-    final scrollableCategoryKeys = patientSpecialtyFilterCategoryKeys
-        .where((k) => k != kPatientSpecialtyAllKey)
-        .toList();
+    final scrollableCategoryKeys = patientSpecialtyFilterCategoryKeys.toList();
 
     Widget specialtyTile({
       required String catKey,

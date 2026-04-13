@@ -105,11 +105,24 @@ class PatientDoctorCard extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFF4F9FF),
+              const Color(0xFFEAF4FF),
+              const Color(0xFFE8F4FC),
+            ],
+            stops: const [0.0, 0.52, 1.0],
+          ),
           borderRadius: BorderRadius.circular(_radius),
+          border: Border.all(
+            color: _deepBlue.withValues(alpha: 0.08),
+            width: 1,
+          ),
           boxShadow: _kFloatingCardShadows,
         ),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
         child: SizedBox(
           height: _kCardContentHeight,
           child: Stack(
@@ -155,7 +168,7 @@ class PatientDoctorCard extends StatelessWidget {
                                                 maxWidth: innerW,
                                               ),
                                             ),
-                                            const SizedBox(height: 10),
+                                            const SizedBox(height: 12),
                                             Expanded(
                                               child: Center(
                                                 child: Column(
@@ -211,25 +224,38 @@ class PatientDoctorCard extends StatelessWidget {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 6),
-                                                    _PatientDoctorCardRatingLine(
-                                                      average: ratingAverage,
-                                                      count: ratingCount,
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    Center(
-                                                      child:
-                                                          _DoctorCardPressableButton(
-                                                        onTap: onBook,
-                                                        child:
-                                                            _BookNowPrimaryButton(
-                                                          bookCtaText: S
-                                                              .of(context)
-                                                              .translate(
-                                                            'patient_doctor_card_book_cta',
+                                                    const SizedBox(height: 10),
+                                                    // Use [Wrap] instead of [Row] so small
+                                                    // widths never overflow (rating + CTA can
+                                                    // wrap to 2 lines when needed).
+                                                    Wrap(
+                                                      alignment:
+                                                          WrapAlignment.center,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      spacing: 10,
+                                                      runSpacing: 8,
+                                                      children: [
+                                                        if (ratingCount > 0)
+                                                          _PatientDoctorCardRatingLine(
+                                                            average:
+                                                                ratingAverage,
+                                                            count: ratingCount,
+                                                            compact: true,
+                                                          ),
+                                                        _DoctorCardPressableButton(
+                                                          onTap: onBook,
+                                                          child:
+                                                              _BookNowPrimaryButton(
+                                                            bookCtaText: S
+                                                                .of(context)
+                                                                .translate(
+                                                              'patient_doctor_card_book_cta',
+                                                            ),
                                                           ),
                                                         ),
-                                                      ),
+                                                      ],
                                                     ),
                                                   ],
                                                 ),
@@ -337,10 +363,12 @@ class _PatientDoctorCardRatingLine extends StatelessWidget {
   const _PatientDoctorCardRatingLine({
     required this.average,
     required this.count,
+    this.compact = false,
   });
 
   final double average;
   final int count;
+  final bool compact;
 
   static const Color _goldStar = Color(0xFFD4AF37);
 
@@ -352,7 +380,7 @@ class _PatientDoctorCardRatingLine extends StatelessWidget {
           S.of(context).translate('doctor_card_rating_none'),
           style: TextStyle(
             fontFamily: kPatientPrimaryFont,
-            fontSize: 11.5,
+            fontSize: compact ? 11 : 11.5,
             fontWeight: FontWeight.w600,
             color: kPatientNavyText.withValues(alpha: 0.48),
             height: 1.1,
@@ -362,39 +390,28 @@ class _PatientDoctorCardRatingLine extends StatelessWidget {
         ),
       );
     }
-    return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        textDirection: TextDirection.rtl,
-        children: [
-          const Icon(
-            Icons.star_rounded,
-            size: 16,
-            color: _goldStar,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      textDirection: TextDirection.ltr,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.star_rounded,
+          size: compact ? 15 : 16,
+          color: _goldStar,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          average.clamp(0, 5).toStringAsFixed(1),
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontSize: compact ? 12.25 : 12.5,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF0A1628).withValues(alpha: 0.92),
+            height: 1.1,
           ),
-          const SizedBox(width: 4),
-          Text(
-            average.clamp(0, 5).toStringAsFixed(1),
-            style: const TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0A1628),
-              height: 1.1,
-            ),
-          ),
-          Text(
-            ' (${count.toString()})',
-            style: TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: kPatientNavyText.withValues(alpha: 0.58),
-              height: 1.1,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
