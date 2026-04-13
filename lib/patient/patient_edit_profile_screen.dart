@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
+import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../theme/patient_premium_theme.dart';
 
@@ -46,6 +47,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   /// Mirrors gender label (نێر / مێ) for the same data as [_genderValue].
   final _genderController = TextEditingController();
   final _dobController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _bloodController = TextEditingController();
 
   String? _genderValue;
   DateTime? _dob;
@@ -56,6 +59,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   final _phoneFocus = FocusNode();
   final _addressFocus = FocusNode();
   final _dobFocus = FocusNode();
+  final _ageFocus = FocusNode();
+  final _bloodFocus = FocusNode();
 
   bool _loading = true;
   bool _saving = false;
@@ -75,12 +80,20 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _phoneFocus.addListener(_onFocusChanged);
     _addressFocus.addListener(_onFocusChanged);
     _dobFocus.addListener(_onFocusChanged);
+    _ageFocus.addListener(_onFocusChanged);
+    _bloodFocus.addListener(_onFocusChanged);
     _load();
+  }
+
+  static String _usersDocId(User? user) {
+    if (user == null) return '';
+    final id = firestoreUserDocId(user).trim();
+    return id.isNotEmpty ? id : user.uid.trim();
   }
 
   Future<void> _load() async {
     final user = FirebaseAuth.instance.currentUser;
-    final docId = user?.uid.trim() ?? '';
+    final docId = _usersDocId(user);
     if (docId.isEmpty) {
       setState(() => _loading = false);
       return;
@@ -128,6 +141,19 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       _dob = parsedDob;
       _dobController.text =
           parsedDob == null ? '' : DateFormat('yyyy/MM/dd').format(parsedDob);
+
+      final ageRaw = data['ageYears'] ?? data['age'];
+      if (ageRaw is int) {
+        _ageController.text = '$ageRaw';
+      } else if (ageRaw is num) {
+        _ageController.text = '${ageRaw.round()}';
+      } else {
+        final as = ageRaw?.toString().trim() ?? '';
+        _ageController.text = as;
+      }
+
+      _bloodController.text =
+          (data['bloodGroup'] ?? data['blood'] ?? '').toString().trim();
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -141,6 +167,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _phoneFocus.removeListener(_onFocusChanged);
     _addressFocus.removeListener(_onFocusChanged);
     _dobFocus.removeListener(_onFocusChanged);
+    _ageFocus.removeListener(_onFocusChanged);
+    _bloodFocus.removeListener(_onFocusChanged);
     _nameFocus.dispose();
     _passwordFocus.dispose();
     _emailFocus.dispose();
@@ -154,6 +182,10 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _addressController.dispose();
     _genderController.dispose();
     _dobController.dispose();
+    _ageController.dispose();
+    _bloodController.dispose();
+    _ageFocus.dispose();
+    _bloodFocus.dispose();
     super.dispose();
   }
 
@@ -207,6 +239,16 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     final s = (v ?? '').trim();
     if (s.isEmpty) return 'تکایە ئیمەیڵ بنووسە';
     if (!_isValidEmail(s)) return 'شێوازی ئیمەیڵ هەڵەیە';
+    return null;
+  }
+
+  static String? _validateAgeOptional(String? v) {
+    final s = (v ?? '').trim();
+    if (s.isEmpty) return null;
+    final n = int.tryParse(s);
+    if (n == null || n < 1 || n > 130) {
+      return 'تەمەن دەبێت لە نێوان ١ بۆ ١٣٠ بێت';
+    }
     return null;
   }
 
@@ -553,7 +595,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     if (!valid) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    final docId = user?.uid.trim() ?? '';
+    final docId = _usersDocId(user);
     if (docId.isEmpty) return;
 
     setState(() => _saving = true);
@@ -566,6 +608,9 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       final password = _passwordController.text.trim();
       final gender = (_genderValue ?? '').trim();
 
+      final ageText = _ageController.text.trim();
+      final bloodText = _bloodController.text.trim();
+
       final update = <String, dynamic>{
         'fullName': name,
         'email': email,
@@ -577,6 +622,18 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
           'profileImageUrl': avatarUrl.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      if (ageText.isEmpty) {
+        update['ageYears'] = FieldValue.delete();
+      } else {
+        final n = int.tryParse(ageText);
+        if (n != null) update['ageYears'] = n;
+      }
+      if (bloodText.isEmpty) {
+        update['bloodGroup'] = FieldValue.delete();
+      } else {
+        update['bloodGroup'] = bloodText;
+      }
       await FirebaseFirestore.instance.collection('users').doc(docId).set(
             update,
             SetOptions(merge: true),
@@ -896,6 +953,26 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                                   .withValues(alpha: 0.55),
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _miniCardField(
+                                      controller: _ageController,
+                                      focusNode: _ageFocus,
+                                      label: 'تەمەن (ساڵ)',
+                                      icon: Icons.cake_outlined,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(3),
+                                      ],
+                                      validator: _validateAgeOptional,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _miniCardField(
+                                      controller: _bloodController,
+                                      focusNode: _bloodFocus,
+                                      label: 'گرووپی خوێن (وەک A+)',
+                                      icon: Icons.bloodtype_rounded,
                                     ),
                                     const SizedBox(height: 18),
                                     SizedBox(

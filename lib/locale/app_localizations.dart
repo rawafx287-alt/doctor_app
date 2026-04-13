@@ -661,6 +661,46 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'لا يوجد حساب',
     'en': 'No account',
   },
+  'profile_screen_title': {
+    'ckb': 'پڕۆفایلی من',
+    'ar': 'ملفي الشخصي',
+    'en': 'My profile',
+  },
+  'profile_stat_age': {
+    'ckb': 'تەمەن',
+    'ar': 'العمر',
+    'en': 'Age',
+  },
+  'profile_stat_blood': {
+    'ckb': 'گرووپی خوێن',
+    'ar': 'فصيلة الدم',
+    'en': 'Blood',
+  },
+  'profile_stat_appointments': {
+    'ckb': 'نۆرەکان',
+    'ar': 'المواعيد',
+    'en': 'Appointments',
+  },
+  'patient_profile_stat_weight': {
+    'ckb': 'کێش',
+    'ar': 'الوزن',
+    'en': 'Weight',
+  },
+  'profile_stat_not_set': {
+    'ckb': '—',
+    'ar': '—',
+    'en': '—',
+  },
+  'profile_personal_info': {
+    'ckb': 'زانیارییە کەسییەکان',
+    'ar': 'المعلومات الشخصية',
+    'en': 'Personal information',
+  },
+  'profile_logout': {
+    'ckb': 'چوونە دەرەوە',
+    'ar': 'تسجيل الخروج',
+    'en': 'Log out',
+  },
   'patient_default': {
     'ckb': 'نەخۆش',
     'ar': 'مريض',

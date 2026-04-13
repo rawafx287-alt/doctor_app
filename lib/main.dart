@@ -260,8 +260,6 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  static const Color _tealAccent = Color(0xFF1FD1B6);
-  static const Color _tealDeep = Color(0xFF0AAE95);
   static const double _fabColumnW = 88;
   static const double _barBodyH = 76;
   static const double _topRadius = 22;
@@ -276,8 +274,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   int _currentIndex = 0;
-  static const Color _mainBgTop = Colors.white;
-  static const Color _mainBgBottom = Color(0xFFE3F2FD);
+  /// Sky-blue shell (matches patient profile — airy clinic aesthetic).
+  static const Color _mainBgTop = Color(0xFFF1F9FF);
+  static const Color _mainBgBottom = Color(0xFFEEF7FC);
+  static const Color _navBarSkyFill = Color(0xEEF1F9FF);
+  static const Color _navBarBorderGold = Color(0x66D4AF37);
+  static const Color _navIconMuted = Color(0x9901579B);
 
   /// Order: Home, Search, (center FAB) Appointments, Chat, Profile.
   final List<Widget> _screens = const [
@@ -340,6 +342,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _centerFab() {
     final selected = _currentIndex == 2;
+    const skyDeep = Color(0xFF29B6F6);
+    const skyLight = Color(0xFF81D4FA);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -355,36 +359,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             shape: BoxShape.circle,
             gradient: LinearGradient(
               colors: selected
-                  ? const [_tealDeep, _tealAccent]
-                  : const [_tealAccent, Color(0xFF17C4A8)],
+                  ? const [Color(0xFF4FC3F7), skyDeep]
+                  : const [skyLight, skyDeep],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
-                color: (selected ? kStaffLuxGold : _tealAccent)
-                    .withValues(alpha: selected ? 0.42 : 0.35),
-                blurRadius: selected ? 20 : 16,
+                color: (selected ? kStaffLuxGold : skyDeep)
+                    .withValues(alpha: selected ? 0.38 : 0.28),
+                blurRadius: selected ? 18 : 14,
                 spreadRadius: selected ? 1 : 0,
                 offset: const Offset(0, 8),
               ),
               if (selected)
                 BoxShadow(
-                  color: kStaffLuxGoldLight.withValues(alpha: 0.35),
-                  blurRadius: 22,
+                  color: kStaffLuxGoldLight.withValues(alpha: 0.3),
+                  blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
             ],
             border: Border.all(
               color: selected
-                  ? kStaffLuxGold.withValues(alpha: 0.85)
-                  : Colors.white.withValues(alpha: 0.15),
-              width: selected ? 2 : 1,
+                  ? kStaffLuxGold.withValues(alpha: 0.9)
+                  : kStaffLuxGold.withValues(alpha: 0.45),
+              width: selected ? 2.5 : 2,
             ),
           ),
           child: Icon(
             Icons.calendar_month_rounded,
-            color: Colors.white,
+            color: const Color(0xFF01579B),
             size: 30,
             shadows: _goldIconShadows(selected),
           ),
@@ -421,8 +425,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     selected ? iconSelected : iconNormal,
                     size: 22,
                     color: selected
-                        ? kStaffLuxGoldLight
-                        : Colors.white54,
+                        ? kStaffLuxGold
+                        : _navIconMuted,
                     shadows: _goldIconShadows(selected),
                   ),
                 ),
@@ -435,10 +439,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     fontFamily: kPatientPrimaryFont,
                     fontSize: 10,
                     height: 1.1,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                    color: selected
-                        ? kStaffLuxGoldLight
-                        : Colors.white54,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? kStaffLuxGold : _navIconMuted,
                     shadows: _goldTextShadows(selected),
                   ),
                 ),
@@ -472,17 +474,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   child: Container(
                     height: _barBodyH,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.8),
+                      color: _navBarSkyFill,
                       border: Border(
                         top: BorderSide(
-                          color: kStaffLuxGold.withValues(alpha: 0.14),
+                          color: _navBarBorderGold,
+                          width: 1.2,
                         ),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          blurRadius: 28,
-                          offset: const Offset(0, 12),
+                          color: const Color(0xFF01579B).withValues(alpha: 0.06),
+                          blurRadius: 20,
+                          offset: const Offset(0, -4),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
@@ -504,10 +512,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(18),
-                                  color: kStaffLuxGold.withValues(alpha: 0.1),
+                                  color: const Color(0xFF81D4FA).withValues(alpha: 0.45),
                                   border: Border.all(
-                                    color: kStaffLuxGold.withValues(alpha: 0.38),
-                                    width: 1,
+                                    color: kStaffLuxGold.withValues(alpha: 0.45),
+                                    width: 1.2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
