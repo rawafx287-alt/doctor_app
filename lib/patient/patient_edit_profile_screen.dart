@@ -15,13 +15,15 @@ import '../auth/firestore_user_doc_id.dart';
 import '../locale/app_locale.dart';
 import '../theme/patient_premium_theme.dart';
 
-const Color _kPersonalInfoGold = Color(0xFFD4AF37);
-const Color _kPersonalInfoBorderGrey = Color(0xFFE2E8F0);
+const Color _kPersonalInfoGold = Color(0xFFC9A227);
+const Color _kPersonalInfoGoldDeep = Color(0xFFB8860B);
 const Color _kPersonalInfoPrimaryBlue = Color(0xFF1976D2);
-const Color _kPersonalInfoBg = Color(0xFFF6FAFF);
+const Color _kFieldFillTint = Color(0xFFF0F7FF);
 const Color _kGenderCardGreyBorder = Color(0xFFD1D9E0);
 const Color _kGenderCardGreyIcon = Color(0xFF94A3B8);
-const Color _kGenderSelectedFill = Color(0xFFE8F4FC);
+const Color _kGenderSelectedFill = Color(0xFFE3F2FD);
+const Color _kGradientSkyTop = Color(0xFFB3E5FC);
+const Color _kGradientWhiteBottom = Color(0xFFFFFFFF);
 
 /// Edit patient personal info in Firestore `users`.
 class PatientEditProfileScreen extends StatefulWidget {
@@ -64,6 +66,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
 
   bool _loading = true;
   bool _saving = false;
+  /// True when email is auto-style (e.g. phone@…) — show read-only line, not a TextField.
+  bool _syntheticEmailDisplay = false;
   /// Brief scale pulse on tap: `'male'` | `'female'`.
   String? _genderTapAnim;
 
@@ -121,6 +125,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       // Password is never loaded from Firestore.
       _passwordController.text = '';
       _emailController.text = dbEmail.isNotEmpty ? dbEmail : authEmail;
+      _syntheticEmailDisplay = _isSyntheticAuthEmail(_emailController.text);
       _phoneController.text = _normalizePhoneForField(
         dbPhone.isNotEmpty ? dbPhone : authPhone,
       );
@@ -216,6 +221,22 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     };
   }
 
+  /// Hides messy Firebase-style emails (phone local part, hrnora placeholder, etc.).
+  static bool _isSyntheticAuthEmail(String email) {
+    final s = email.trim().toLowerCase();
+    if (s.isEmpty) return false;
+    if (s.contains('hrnora')) return true;
+    final parts = s.split('@');
+    if (parts.length != 2) return false;
+    final local = parts[0].trim();
+    if (local.isEmpty) return false;
+    final digitsOnly = _digitsOnly(local);
+    if (digitsOnly.length >= 10 && digitsOnly == local.replaceAll(RegExp(r'\D'), '')) {
+      return true;
+    }
+    return false;
+  }
+
   static String? _normalizeGenderValue(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return null;
@@ -286,7 +307,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
             fontFamily: kPatientPrimaryFont,
             fontWeight: FontWeight.w700,
             fontSize: 13,
-            color: kPatientNavyText.withValues(alpha: 0.58),
+            color: kPatientNavyText.withValues(alpha: 0.72),
           ),
         ),
         const SizedBox(height: 10),
@@ -322,7 +343,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }) {
     final selected = _genderValue == value;
     final pulsing = _genderTapAnim == value;
-    final scale = pulsing ? 1.06 : (selected ? 1.03 : 1.0);
+    final scale = pulsing ? 1.04 : (selected ? 1.02 : 1.0);
 
     return AnimatedScale(
       scale: scale,
@@ -332,26 +353,26 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: _saving ? null : () => unawaited(_onGenderCardTap(value)),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: SizedBox(
-            height: 122,
+            height: 76,
             width: double.infinity,
             child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              color: selected ? _kGenderSelectedFill : Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              color: selected ? _kGenderSelectedFill : Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: selected
-                    ? _kPersonalInfoPrimaryBlue
+                    ? _kPersonalInfoGold
                     : _kGenderCardGreyBorder,
-                width: selected ? 2 : 1,
+                width: selected ? 2.2 : 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: selected ? 0.07 : 0.05),
-                  blurRadius: selected ? 12 : 8,
-                  offset: const Offset(0, 3),
+                  color: Colors.black.withValues(alpha: selected ? 0.05 : 0.03),
+                  blurRadius: selected ? 8 : 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -359,53 +380,53 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
+                Row(
+                  textDirection: TextDirection.rtl,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       icon,
-                      size: 34,
+                      size: 22,
                       color: selected
-                          ? _kPersonalInfoPrimaryBlue
+                          ? _kPersonalInfoGoldDeep
                           : _kGenderCardGreyIcon,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(width: 8),
                     Text(
                       label,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: kPatientPrimaryFont,
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                        fontSize: 14,
                         color: selected
                             ? kPatientNavyText.withValues(alpha: 0.92)
-                            : kPatientNavyText.withValues(alpha: 0.62),
+                            : kPatientNavyText.withValues(alpha: 0.58),
                       ),
                     ),
                   ],
                 ),
                 if (selected)
                   PositionedDirectional(
-                    top: 0,
-                    end: 0,
+                    top: -2,
+                    end: -2,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: _kPersonalInfoPrimaryBlue,
+                        color: _kPersonalInfoGold,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _kPersonalInfoPrimaryBlue.withValues(alpha: 0.35),
-                            blurRadius: 6,
+                            color: _kPersonalInfoGold.withValues(alpha: 0.45),
+                            blurRadius: 5,
                             offset: const Offset(0, 1),
                           ),
                         ],
                       ),
                       child: const Padding(
-                        padding: EdgeInsets.all(3),
+                        padding: EdgeInsets.all(2.5),
                         child: Icon(
                           Icons.check_rounded,
-                          size: 14,
+                          size: 12,
                           color: Colors.white,
                         ),
                       ),
@@ -421,7 +442,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   }
 
   static const BorderRadius _fieldRadius = BorderRadius.all(
-    Radius.circular(16),
+    Radius.circular(14),
   );
 
   InputDecoration _fieldDecoration({
@@ -430,46 +451,53 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     required bool focused,
   }) {
     final iconColor = focused
-        ? _kPersonalInfoPrimaryBlue
-        : kPatientNavyText.withValues(alpha: 0.55);
+        ? _kPersonalInfoGoldDeep
+        : _kPersonalInfoGold.withValues(alpha: 0.72);
+    final subtleBorder = const Color(0xFFD6E8F5);
     return InputDecoration(
       labelText: label,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
       labelStyle: TextStyle(
         fontFamily: kPatientPrimaryFont,
-        fontWeight: FontWeight.w700,
-        fontSize: 13,
-        color: kPatientNavyText.withValues(alpha: 0.58),
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+        color: kPatientNavyText.withValues(alpha: 0.52),
       ),
       floatingLabelStyle: TextStyle(
         fontFamily: kPatientPrimaryFont,
         fontWeight: FontWeight.w700,
         fontSize: 12.5,
-        color: _kPersonalInfoPrimaryBlue.withValues(alpha: 0.92),
+        color: focused
+            ? _kPersonalInfoGoldDeep
+            : kPatientNavyText.withValues(alpha: 0.55),
       ),
-      // In RTL, "start" is the right side.
+      // In RTL, "start" is the right side — gold icon on the right.
       prefixIcon: Padding(
         padding: const EdgeInsetsDirectional.only(start: 10, end: 6),
-        child: Icon(icon, size: 20, color: iconColor),
+        child: Icon(icon, size: 21, color: iconColor),
       ),
       prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 48),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: _kFieldFillTint,
       isDense: false,
-      contentPadding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+      contentPadding: const EdgeInsets.fromLTRB(12, 18, 14, 16),
       border: OutlineInputBorder(
         borderRadius: _fieldRadius,
-        borderSide: BorderSide(color: _kPersonalInfoBorderGrey, width: 1),
+        borderSide: BorderSide(color: subtleBorder.withValues(alpha: 0.65), width: 1),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: _fieldRadius,
         borderSide: BorderSide(
-          color: _kPersonalInfoBorderGrey.withValues(alpha: 0.95),
+          color: subtleBorder.withValues(alpha: 0.85),
           width: 1,
         ),
       ),
-      focusedBorder: const OutlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: _fieldRadius,
-        borderSide: BorderSide(color: _kPersonalInfoPrimaryBlue, width: 1.4),
+        borderSide: BorderSide(
+          color: _kPersonalInfoGold.withValues(alpha: 0.85),
+          width: 1.6,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: _fieldRadius,
@@ -509,11 +537,69 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       validator: validator,
       style: TextStyle(
         fontFamily: kPatientPrimaryFont,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         fontSize: 15,
-        color: kPatientNavyText.withValues(alpha: 0.9),
+        color: kPatientNavyText.withValues(alpha: 0.92),
       ),
       decoration: base.copyWith(suffixIcon: suffixIcon),
+    );
+  }
+
+  /// Non-editable account email when it is a system-generated placeholder.
+  Widget _syntheticEmailReadOnlyRow() {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'ئیمەیڵی هەژمار',
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            color: kPatientNavyText.withValues(alpha: 0.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: _kFieldFillTint,
+            borderRadius: _fieldRadius,
+            border: Border.all(
+              color: const Color(0xFFD6E8F5).withValues(alpha: 0.9),
+            ),
+          ),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              Icon(
+                Icons.alternate_email_rounded,
+                size: 20,
+                color: _kPersonalInfoGold.withValues(alpha: 0.85),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  email,
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: kPatientNavyText.withValues(alpha: 0.72),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -698,7 +784,7 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       textDirection: AppLocaleScope.of(context).textDirection,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: _kPersonalInfoBg,
+        backgroundColor: _kGradientSkyTop,
         appBar: AppBar(
           systemOverlayStyle: SystemUiOverlayStyle.light,
           backgroundColor: Colors.transparent,
@@ -738,7 +824,16 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
         ),
         body: DecoratedBox(
           decoration: const BoxDecoration(
-            color: _kPersonalInfoBg,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                _kGradientSkyTop,
+                Color(0xFFE1F5FE),
+                _kGradientWhiteBottom,
+              ],
+              stops: [0.0, 0.45, 1.0],
+            ),
           ),
           child: _loading
               ? const SafeArea(
@@ -793,65 +888,68 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                   clipBehavior: Clip.none,
                                   children: [
                                     Container(
-                                      width: 106,
-                                      height: 106,
+                                      width: 112,
+                                      height: 112,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: Colors.white,
                                         boxShadow: [
                                           BoxShadow(
                                             color:
-                                                Colors.black.withValues(alpha: 0.12),
-                                            blurRadius: 18,
+                                                Colors.black.withValues(alpha: 0.1),
+                                            blurRadius: 20,
                                             offset: const Offset(0, 10),
                                           ),
                                         ],
                                         border: Border.all(
-                                          color: Colors.white,
-                                          width: 4,
+                                          color: _kPersonalInfoGold,
+                                          width: 5,
                                         ),
                                       ),
-                                      child: CircleAvatar(
-                                        backgroundImage: avatarImage,
-                                        backgroundColor: const Color(0xFFE9F2FF),
-                                        child: avatarImage == null
-                                            ? Icon(
-                                                Icons.person_rounded,
-                                                size: 46,
-                                                color: _kPersonalInfoPrimaryBlue
-                                                    .withValues(alpha: 0.45),
-                                              )
-                                            : null,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(3),
+                                        child: CircleAvatar(
+                                          radius: 48,
+                                          backgroundImage: avatarImage,
+                                          backgroundColor: const Color(0xFFE8F4FC),
+                                          child: avatarImage == null
+                                              ? Icon(
+                                                  Icons.person_rounded,
+                                                  size: 44,
+                                                  color: kPatientNavyText
+                                                      .withValues(alpha: 0.35),
+                                                )
+                                              : null,
+                                        ),
                                       ),
                                     ),
                                     PositionedDirectional(
-                                      bottom: -2,
-                                      end: -2,
+                                      bottom: 0,
+                                      end: 0,
                                       child: Container(
-                                        width: 34,
-                                        height: 34,
+                                        width: 28,
+                                        height: 28,
+                                        alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          gradient: const LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Color(0xFFFFD54F),
-                                              _kPersonalInfoGold,
-                                            ],
+                                          color: _kPersonalInfoGold,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 2,
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.18),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 5),
+                                              color: _kPersonalInfoGold
+                                                  .withValues(alpha: 0.45),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
                                             ),
                                           ],
                                         ),
-                                        child: const Icon(
+                                        child: Icon(
                                           Icons.photo_camera_rounded,
-                                          color: Colors.white,
-                                          size: 18,
+                                          color: Colors.white.withValues(alpha: 0.95),
+                                          size: 14,
                                         ),
                                       ),
                                     ),
@@ -863,21 +961,19 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                             Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(22),
-                                color: Colors.white,
+                                color: Colors.white.withValues(alpha: 0.94),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.white.withValues(alpha: 0.55),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, -2),
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 10),
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                              padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
                               child: Form(
                                 key: _formKey,
                                 child: Column(
@@ -904,14 +1000,18 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                       obscureText: true,
                                     ),
                                     const SizedBox(height: 14),
-                                    _miniCardField(
-                                      controller: _emailController,
-                                      focusNode: _emailFocus,
-                                      label: 'ئیمەیڵ',
-                                      icon: Icons.alternate_email_rounded,
-                                      keyboardType: TextInputType.emailAddress,
-                                      validator: _validateEmailField,
-                                    ),
+                                    if (_syntheticEmailDisplay) ...[
+                                      _syntheticEmailReadOnlyRow(),
+                                    ] else ...[
+                                      _miniCardField(
+                                        controller: _emailController,
+                                        focusNode: _emailFocus,
+                                        label: 'ئیمەیڵ',
+                                        icon: Icons.alternate_email_rounded,
+                                        keyboardType: TextInputType.emailAddress,
+                                        validator: _validateEmailField,
+                                      ),
+                                    ],
                                     const SizedBox(height: 14),
                                     _miniCardField(
                                       controller: _phoneController,
@@ -948,9 +1048,9 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                         icon: Icon(
                                           Icons.edit_calendar_rounded,
                                           color: _dobFocus.hasFocus
-                                              ? _kPersonalInfoPrimaryBlue
-                                              : kPatientNavyText
-                                                  .withValues(alpha: 0.55),
+                                              ? _kPersonalInfoGoldDeep
+                                              : _kPersonalInfoGold
+                                                  .withValues(alpha: 0.65),
                                         ),
                                       ),
                                     ),
@@ -974,36 +1074,37 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                       label: 'گرووپی خوێن (وەک A+)',
                                       icon: Icons.bloodtype_rounded,
                                     ),
-                                    const SizedBox(height: 18),
+                                    const SizedBox(height: 22),
                                     SizedBox(
-                                      height: 54,
+                                      height: 56,
                                       child: ElevatedButton(
                                         onPressed: _saving ? null : _save,
                                         style: ElevatedButton.styleFrom(
                                           padding: EdgeInsets.zero,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius: BorderRadius.circular(18),
                                           ),
                                           backgroundColor: Colors.transparent,
                                           elevation: 0,
                                         ),
                                         child: Ink(
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(20),
-                                            gradient: LinearGradient(
+                                            borderRadius: BorderRadius.circular(18),
+                                            gradient: const LinearGradient(
                                               begin: Alignment.topLeft,
                                               end: Alignment.bottomRight,
                                               colors: [
-                                                _kPersonalInfoPrimaryBlue,
-                                                const Color(0xFF42A5F5),
-                                                _kPersonalInfoGold.withValues(alpha: 0.92),
+                                                Color(0xFFE8C547),
+                                                _kPersonalInfoGold,
+                                                _kPersonalInfoGoldDeep,
                                               ],
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.14),
-                                                blurRadius: 12,
-                                                offset: const Offset(0, 7),
+                                                color: _kPersonalInfoGoldDeep
+                                                    .withValues(alpha: 0.35),
+                                                blurRadius: 16,
+                                                offset: const Offset(0, 8),
                                               ),
                                             ],
                                           ),
@@ -1013,13 +1114,14 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                               textDirection: TextDirection.rtl,
                                               children: [
                                                 const Text(
-                                                  'پاشکەوتکردنی گۆڕانکارییەکان',
+                                                  'Update Info',
                                                   style: TextStyle(
                                                     fontFamily:
                                                         kPatientPrimaryFont,
                                                     fontWeight: FontWeight.w800,
-                                                    fontSize: 15.5,
+                                                    fontSize: 16,
                                                     color: Colors.white,
+                                                    letterSpacing: 0.3,
                                                   ),
                                                 ),
                                                 if (_saving) ...[
@@ -1083,13 +1185,13 @@ class _PatientDobPickerSheetState extends State<_PatientDobPickerSheet> {
     _selected = widget.initialDate;
   }
 
-  LinearGradient get _primaryGradient => LinearGradient(
+  LinearGradient get _primaryGradient => const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          _kPersonalInfoPrimaryBlue,
-          const Color(0xFF42A5F5),
-          _kPersonalInfoGold.withValues(alpha: 0.92),
+          Color(0xFFE8C547),
+          _kPersonalInfoGold,
+          _kPersonalInfoGoldDeep,
         ],
       );
 
@@ -1167,23 +1269,21 @@ class _PatientDobPickerSheetState extends State<_PatientDobPickerSheet> {
                                 borderRadius: BorderRadius.circular(14),
                                 gradient: LinearGradient(
                                   colors: [
-                                    _kPersonalInfoPrimaryBlue
-                                        .withValues(alpha: 0.2),
-                                    const Color(0xFF42A5F5)
-                                        .withValues(alpha: 0.16),
-                                    _kPersonalInfoGold.withValues(alpha: 0.2),
+                                    _kPersonalInfoGold.withValues(alpha: 0.22),
+                                    const Color(0xFFE1F5FE)
+                                        .withValues(alpha: 0.65),
+                                    _kPersonalInfoGold.withValues(alpha: 0.18),
                                   ],
                                 ),
                                 border: Border.all(
-                                  color: _kPersonalInfoPrimaryBlue
-                                      .withValues(alpha: 0.35),
-                                  width: 1.2,
+                                  color: _kPersonalInfoGold.withValues(alpha: 0.55),
+                                  width: 1.4,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _kPersonalInfoPrimaryBlue
-                                        .withValues(alpha: 0.12),
-                                    blurRadius: 14,
+                                    color: _kPersonalInfoGold
+                                        .withValues(alpha: 0.18),
+                                    blurRadius: 12,
                                     offset: const Offset(0, 2),
                                   ),
                                 ],
@@ -1193,6 +1293,7 @@ class _PatientDobPickerSheetState extends State<_PatientDobPickerSheet> {
                           CupertinoTheme(
                             data: CupertinoThemeData(
                               brightness: Brightness.light,
+                              primaryColor: _kPersonalInfoGold,
                               textTheme: CupertinoTextThemeData(
                                 dateTimePickerTextStyle: pickerStyle,
                               ),

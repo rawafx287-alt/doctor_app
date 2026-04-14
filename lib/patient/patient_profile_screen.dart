@@ -13,11 +13,13 @@ import '../theme/patient_premium_theme.dart';
 import 'patient_edit_profile_screen.dart';
 
 const Color _kLuxuryGold = Color(0xFFD4AF37);
+const Color _kLuxuryGoldSoft = Color(0xFFFFF8E7);
 const Color _kTitleNavy = Color(0xFF1A237E);
 const Color _kBodyMuted = Color(0xFF546E7A);
 const Color _kLogoutRed = Color(0xFFC62828);
 const Color _kLogoutBg = Color(0xFFFFEBEE);
 const Color _kAvatarFill = Color(0xFFF5F5F5);
+const Color _kStatPillFill = Color(0xFFE3F2FD);
 const String _kEmptyStat = '--';
 /// Logout title (fixed copy per product spec).
 const String _kLogoutTitleKu = 'چوونەدەرەوە';
@@ -178,7 +180,7 @@ class PatientProfileScreen extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: h),
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(22, 12, 22, 16 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(22, 16, 22, 20 + bottomPad),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -190,7 +192,7 @@ class PatientProfileScreen extends StatelessWidget {
                           ageLabel: loc.translate('profile_stat_age'),
                           bloodLabel: loc.translate('profile_stat_blood'),
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 28),
                         _ProfileMenuTile(
                           icon: Icons.badge_outlined,
                           title: loc.translate('profile_personal_info'),
@@ -205,7 +207,7 @@ class PatientProfileScreen extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 22),
                         _ProfileMenuTile(
                           icon: Icons.language_rounded,
                           title: loc.translate('language'),
@@ -214,14 +216,14 @@ class PatientProfileScreen extends StatelessWidget {
                               _kEmptyStat,
                           onTap: () => showHrNoraLanguagePicker(context),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 22),
                         _ProfileMenuTile(
                           icon: Icons.auto_awesome_outlined,
                           title: loc.translate('about_app'),
                           subtitle: loc.translate('about_app_subtitle'),
                           onTap: () => showHrNoraAboutDialog(context),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 22),
                         _ProfileLogoutTile(
                           onTap: () => performAppLogout(context),
                         ),
@@ -338,49 +340,72 @@ class _ProfileHeaderCard extends StatelessWidget {
   final String ageLabel;
   final String bloodLabel;
 
+  static const double _radius = 25;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kLuxuryGold, width: 1),
+        borderRadius: BorderRadius.circular(_radius + 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _kLuxuryGold.withValues(alpha: 0.95),
+            const Color(0xFFE8C547),
+            _kLuxuryGold.withValues(alpha: 0.75),
+          ],
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: _kLuxuryGold.withValues(alpha: 0.28),
+            blurRadius: 36,
+            spreadRadius: -4,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: _kLuxuryGold.withValues(alpha: 0.12),
+            blurRadius: 48,
+            spreadRadius: 0,
+            offset: const Offset(0, 22),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _ProfileAvatar(imageUrl: imageUrl),
-          const SizedBox(height: 20),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: kPatientPrimaryFont,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-              color: _kTitleNavy,
-              letterSpacing: 0.15,
+      padding: const EdgeInsets.all(1),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(24, 30, 24, 26),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(_radius),
+        ),
+        child: Column(
+          children: [
+            _ProfileAvatar(imageUrl: imageUrl),
+            const SizedBox(height: 22),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
+                height: 1.25,
+                color: _kTitleNavy,
+                letterSpacing: 0.2,
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          _ProfileStatsRow(
-            ageLabel: ageLabel,
-            ageText: ageText,
-            bloodLabel: bloodLabel,
-            bloodText: bloodText,
-          ),
-        ],
+            const SizedBox(height: 18),
+            _ProfileStatsRow(
+              ageLabel: ageLabel,
+              ageText: ageText,
+              bloodLabel: bloodLabel,
+              bloodText: bloodText,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -393,21 +418,67 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double r = 46;
-    return CircleAvatar(
-      radius: r,
-      backgroundColor: _kAvatarFill,
-      backgroundImage: imageUrl.isNotEmpty
-          ? CachedNetworkImageProvider(imageUrl)
-          : null,
-      onBackgroundImageError: imageUrl.isNotEmpty ? (_, _) {} : null,
-      child: imageUrl.isEmpty
-          ? Icon(
-              Icons.person_rounded,
-              size: 48,
-              color: _kBodyMuted.withValues(alpha: 0.65),
-            )
-          : null,
+    const double ring = 4.5;
+    const double r = 50;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(ring),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFE8C547),
+                _kLuxuryGold,
+                Color(0xFFB8860B),
+              ],
+            ),
+          ),
+          child: CircleAvatar(
+            radius: r,
+            backgroundColor: _kAvatarFill,
+            backgroundImage: imageUrl.isNotEmpty
+                ? CachedNetworkImageProvider(imageUrl)
+                : null,
+            onBackgroundImageError: imageUrl.isNotEmpty ? (_, _) {} : null,
+            child: imageUrl.isEmpty
+                ? Icon(
+                    Icons.person_rounded,
+                    size: 52,
+                    color: _kBodyMuted.withValues(alpha: 0.65),
+                  )
+                : null,
+          ),
+        ),
+        PositionedDirectional(
+          bottom: 2,
+          end: 4,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: _kLuxuryGold,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: _kLuxuryGold.withValues(alpha: 0.45),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.verified_rounded,
+              size: 15,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -425,47 +496,45 @@ class _ProfileStatsRow extends StatelessWidget {
   final String bloodLabel;
   final String bloodText;
 
-  static const TextStyle _labelStyle = TextStyle(
+  static const TextStyle _pillTextStyle = TextStyle(
     fontFamily: kPatientPrimaryFont,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
-    letterSpacing: 0.3,
-    color: _kBodyMuted,
-    height: 1.2,
-  );
-
-  static const TextStyle _valueStyle = TextStyle(
-    fontFamily: kPatientPrimaryFont,
-    fontSize: 14,
-    fontWeight: FontWeight.w700,
+    letterSpacing: 0.2,
     color: _kTitleNavy,
     height: 1.2,
   );
 
+  Widget _pill(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kStatPillFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: _kLuxuryGold.withValues(alpha: 0.45),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        '$label $value',
+        textAlign: TextAlign.center,
+        style: _pillTextStyle.copyWith(
+          color: _kTitleNavy.withValues(alpha: 0.88),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
       children: [
-        Text(ageLabel, style: _labelStyle),
-        const SizedBox(width: 6),
-        Text(ageText, style: _valueStyle),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text(
-            '·',
-            style: TextStyle(
-              fontSize: 14,
-              color: _kBodyMuted.withValues(alpha: 0.5),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Text(bloodLabel, style: _labelStyle),
-        const SizedBox(width: 6),
-        Text(bloodText, style: _valueStyle),
+        _pill(ageLabel, ageText),
+        _pill(bloodLabel, bloodText),
       ],
     );
   }
@@ -484,61 +553,106 @@ class _ProfileMenuTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
+  static const Color _chevronGray = Color(0xFFB0BEC5);
+
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      size: 22,
+      color: _chevronGray.withValues(alpha: 0.75),
+    );
+    final goldIcon = Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _kLuxuryGoldSoft.withValues(alpha: 0.85),
+        border: Border.all(
+          color: _kLuxuryGold.withValues(alpha: 0.22),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: _kLuxuryGold, size: 24),
+    );
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsetsDirectional.only(
-              start: 20,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: 14,
               end: 16,
-              top: 12,
-              bottom: 12,
+              top: 16,
+              bottom: 16,
             ),
-            leading: Icon(icon, color: _kLuxuryGold, size: 26),
-            title: Text(
-              title,
-              style: const TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: _kTitleNavy,
-              ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontSize: 13,
-                  color: _kBodyMuted,
-                  fontWeight: FontWeight.w500,
+            child: Row(
+              textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                if (rtl) goldIcon,
+                if (rtl) const SizedBox(width: 14),
+                if (!rtl) ...[
+                  chevron,
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: rtl
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: _kTitleNavy,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: rtl ? TextAlign.right : TextAlign.left,
+                        style: const TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontSize: 12.5,
+                          color: _kBodyMuted,
+                          fontWeight: FontWeight.w500,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            trailing: Icon(
-              rtl ? Icons.chevron_left : Icons.chevron_right,
-              size: 22,
-              color: _kBodyMuted.withValues(alpha: 0.45),
+                if (!rtl) ...[
+                  const SizedBox(width: 14),
+                  goldIcon,
+                ],
+                if (rtl) ...[
+                  const SizedBox(width: 6),
+                  chevron,
+                ],
+              ],
             ),
           ),
         ),
@@ -555,48 +669,87 @@ class _ProfileLogoutTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      size: 22,
+      color: _kLogoutRed.withValues(alpha: 0.35),
+    );
+    final logoutIcon = Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _kLogoutRed.withValues(alpha: 0.12),
+        border: Border.all(
+          color: _kLogoutRed.withValues(alpha: 0.2),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.logout_rounded,
+        color: _kLogoutRed,
+        size: 24,
+      ),
+    );
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
             color: _kLogoutBg,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _kLogoutRed.withValues(alpha: 0.12),
+            ),
             boxShadow: [
               BoxShadow(
-                color: _kLogoutRed.withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: _kLogoutRed.withValues(alpha: 0.1),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsetsDirectional.only(
-              start: 20,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: 14,
               end: 16,
-              top: 12,
-              bottom: 12,
+              top: 16,
+              bottom: 16,
             ),
-            leading: const Icon(
-              Icons.logout,
-              color: _kLogoutRed,
-              size: 26,
-            ),
-            title: const Text(
-              _kLogoutTitleKu,
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: _kLogoutRed,
-              ),
-            ),
-            trailing: Icon(
-              rtl ? Icons.chevron_left : Icons.chevron_right,
-              size: 22,
-              color: _kLogoutRed.withValues(alpha: 0.55),
+            child: Row(
+              textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                if (rtl) logoutIcon,
+                if (rtl) const SizedBox(width: 14),
+                if (!rtl) ...[
+                  chevron,
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Text(
+                    _kLogoutTitleKu,
+                    textAlign: rtl ? TextAlign.right : TextAlign.left,
+                    style: const TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: _kLogoutRed,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+                if (!rtl) ...[
+                  const SizedBox(width: 14),
+                  logoutIcon,
+                ],
+                if (rtl) ...[
+                  const SizedBox(width: 6),
+                  chevron,
+                ],
+              ],
             ),
           ),
         ),

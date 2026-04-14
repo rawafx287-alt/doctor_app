@@ -1972,6 +1972,12 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       widget.embedded ? const Color(0xFF1976D2) : kPatientDeepBlue;
   Color get _uiMuted => _onLightMuted;
 
+<<<<<<< HEAD
+=======
+  /// Monthly filter for previous appointments.
+  /// This is purely local filtering to avoid Firestore index requirements.
+  String _selectedPastMonth = 'All';
+>>>>>>> 761275fe712e611f8d6b860b479a82c403776d60
 
   Timer? _highlightTimer;
   bool _highlightActive = false;
@@ -2223,66 +2229,106 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-  _watchAppointmentsForPatientIds(Set<String> ids) {
-    final streams = <Stream<QuerySnapshot<Map<String, dynamic>>>>[];
-    for (final id in ids) {
-      streams.add(
-        FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .where(AppointmentFields.patientId, isEqualTo: id)
-            .snapshots(),
-      );
-      streams.add(
-        FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .where(AppointmentFields.userId, isEqualTo: id)
-            .snapshots(),
-      );
+  _watchAppointmentsForUserId(String userId) {
+    final id = userId.trim();
+    if (id.isEmpty) return const Stream.empty();
+    return FirebaseFirestore.instance
+        .collection(AppointmentFields.collection)
+        .where(AppointmentFields.userId, isEqualTo: id)
+        .snapshots()
+        .map((e) => e.docs);
+  }
+
+  static const List<String> _kMonthLabels = <String>[
+    'All',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  int? _monthNumberFromSelectedLabel(String label) {
+    final i = _kMonthLabels.indexOf(label);
+    if (i <= 0) return null;
+    return i; // Jan=1 ... Dec=12
+  }
+
+  int? _monthNumberFromDoc(Map<String, dynamic> data) {
+    final raw = data['month'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    if (raw is String) {
+      final s = raw.trim();
+      final asInt = int.tryParse(s);
+      if (asInt != null) return asInt;
+      final idx = _kMonthLabels.indexOf(s);
+      if (idx > 0) return idx;
     }
+    return null;
+  }
 
-    return Stream.multi((controller) {
-      final latest = List<QuerySnapshot<Map<String, dynamic>>?>.filled(
-        streams.length,
-        null,
-      );
-      void emitMerged() {
-        final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
-        for (final snap in latest) {
-          for (final d in snap?.docs ?? const []) {
-            byId[d.id] = d;
-          }
-        }
-        controller.add(byId.values.toList());
-      }
-
-      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-      for (var i = 0; i < streams.length; i++) {
-        subs.add(
-          streams[i].listen((event) {
-            latest[i] = event;
-            emitMerged();
-          }, onError: controller.addError),
-        );
-      }
-      controller.onCancel = () async {
-        for (final s in subs) {
-          await s.cancel();
-        }
-      };
-    });
+  Widget _pastMonthChipsBar(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        itemCount: _kMonthLabels.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final label = _kMonthLabels[index];
+          final selected = _selectedPastMonth == label;
+          return FilterChip(
+            label: Text(
+              label,
+              style: TextStyle(
+                fontFamily: kPatientPrimaryFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+                color: selected ? Colors.white : const Color(0xFF2B3440),
+              ),
+            ),
+            selected: selected,
+            onSelected: (_) {
+              if (!mounted) return;
+              setState(() => _selectedPastMonth = label);
+            },
+            showCheckmark: false,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: selected
+                    ? Colors.transparent
+                    : kPatientNavyText.withValues(alpha: 0.10),
+              ),
+            ),
+            selectedColor: kPatientDeepBlue,
+            backgroundColor: const Color(0xFFF1F5F9),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final listBody = FutureBuilder<Set<String>>(
-      future: _resolvePatientIds(),
-      builder: (context, idsSnap) {
-        if (idsSnap.connectionState == ConnectionState.waiting &&
-            !idsSnap.hasData) {
-          return Center(child: CircularProgressIndicator(color: _uiAccent));
-        }
-        final patientIds = idsSnap.data ?? const <String>{};
-        if (patientIds.isEmpty) {
+    final listBody = Builder(
+      builder: (context) {
+        final user = FirebaseAuth.instance.currentUser;
+        final uid = (user?.uid ?? '').trim();
+        if (uid.isEmpty) {
           return Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
@@ -2290,13 +2336,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           );
         }
+
         return StreamBuilder<DateTime>(
           stream: _patientAppointmentsUiClock(),
           initialData: DateTime.now(),
           builder: (context, clockSnap) {
             final now = clockSnap.data ?? DateTime.now();
             return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-              stream: _watchAppointmentsForPatientIds(patientIds),
+              stream: _watchAppointmentsForUserId(uid),
               builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator(color: _uiAccent));
@@ -2325,7 +2372,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               snapshot.data ?? [],
             );
             final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-            final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             for (final d in docs) {
               final data = d.data();
               final st = _normAppointmentStatus(
@@ -2333,15 +2379,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               );
               final instant = appointmentSlotDateTimeForStaffSort(data);
               if (_isPastAppointmentStatus(st)) {
-                pastDocs.add(d);
+                // handled below (past section)
               } else if (instant.isAfter(now)) {
                 activeDocs.add(d);
               } else {
-                pastDocs.add(d);
+                // handled below (past section)
               }
             }
             _sortActiveAppointmentsForDisplay(activeDocs);
-            _sortPatientAppointmentsAll(pastDocs);
             _maybeShowDoctorClosedAlert(docs);
             // Best-effort Firestore status → expired when slot time has passed.
             unawaited(_maybeExpireOutdatedAppointments(docs));
@@ -2562,27 +2607,74 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   color: kPatientNavyText.withValues(alpha: 0.14),
                 ),
               ),
-              _myBookingsSectionHeader('نۆرەکانی پێشوو'),
-              if (pastDocs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'هیچ نۆرەی پێشووت نییە',
-                    style: TextStyle(
-                      color: kPatientNavyText.withValues(alpha: 0.72),
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                )
-              else
-                for (var j = 0; j < pastDocs.length; j++)
-                  buildCardForDoc(
-                    pastDocs[j],
-                    orderIndex: j,
-                    isPastSection: true,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _myBookingsSectionHeader('نۆرەکانی پێشوو'),
+                    const SizedBox(height: 8),
+                    _pastMonthChipsBar(context),
+                  ],
+                ),
+              ),
+              Builder(
+                builder: (context) {
+                  final allPastDocs =
+                      <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                  for (final d in docs) {
+                    if (activeDocs.any((e) => e.id == d.id)) continue;
+                    final data = d.data();
+                    final st = _normAppointmentStatus(
+                      data[AppointmentFields.status],
+                    );
+                    final instant = appointmentSlotDateTimeForStaffSort(data);
+                    final isPast =
+                        _isPastAppointmentStatus(st) || !instant.isAfter(now);
+                    if (isPast) allPastDocs.add(d);
+                  }
+
+                  final selectedMonthNum =
+                      _monthNumberFromSelectedLabel(_selectedPastMonth);
+                  final filteredList = selectedMonthNum == null
+                      ? allPastDocs
+                      : allPastDocs
+                          .where(
+                            (doc) =>
+                                _monthNumberFromDoc(doc.data()) ==
+                                selectedMonthNum,
+                          )
+                          .toList();
+
+                  _sortPatientAppointmentsAll(filteredList);
+
+                  if (filteredList.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'هیچ نۆرەی پێشووت نییە',
+                        style: TextStyle(
+                          color: kPatientNavyText.withValues(alpha: 0.72),
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      for (var j = 0; j < filteredList.length; j++)
+                        buildCardForDoc(
+                          filteredList[j],
+                          orderIndex: j,
+                          isPastSection: true,
+                        ),
+                    ],
+                  );
+                },
+              ),
             ];
 
             return ListView(
