@@ -32,6 +32,9 @@ import 'home_ad_carousel.dart';
 /// Search bar height (fixed below city selector).
 const double _kHomeSearchHeaderExtent = 44;
 
+/// Patient home: main city filter button (opens bottom sheet).
+const String _kCityPickerPromptKu = 'هەڵبژاردنی شار 📍';
+
 /// Soft tinted glass per specialty chip (distinct hue, still frosted).
 Color _categorySoftTint(String catKey) {
   switch (catKey) {
@@ -588,23 +591,146 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     );
   }
 
-  /// Horizontal filter chips (YouTube/Airbnb-style). Non-pinned [SliverToBoxAdapter] — scrolls away.
+  String _cityFilterButtonPrimaryLabel(BuildContext context) {
+    if (_selectedCity == kPatientCityFilterAll) {
+      return _kCityPickerPromptKu;
+    }
+    return _selectedCity;
+  }
+
+  String? _cityFilterButtonSecondaryLabel(BuildContext context) {
+    if (_selectedCity == kPatientCityFilterAll) return null;
+    return S.of(context).translate('patient_home_city_all');
+  }
+
+  void _showCityPickerBottomSheet(BuildContext context) {
+    final s = S.of(context);
+    HapticFeedback.lightImpact();
+    final cities = List<String>.from(kDoctorCityOptions);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        final bottom = MediaQuery.paddingOf(sheetCtx).bottom;
+        final maxH = MediaQuery.sizeOf(sheetCtx).height * 0.72;
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(14, 0, 14, bottom + 10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _kBrandLuxGold, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxH),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0E0E0),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.place_rounded,
+                            color: _kBrandLuxGold,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              s.translate('patient_home_cities_title'),
+                              style: const TextStyle(
+                                fontFamily: kPatientPrimaryFont,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                                color: _kPremiumDeepBlue,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: _kBrandLuxGold.withValues(alpha: 0.22),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+                        children: [
+                          _PatientHomeCitySheetTile(
+                            label: s.translate('patient_home_city_all'),
+                            icon: Icons.public_rounded,
+                            selected: _selectedCity == kPatientCityFilterAll,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.pop(sheetCtx);
+                              setState(
+                                () => _selectedCity = kPatientCityFilterAll,
+                              );
+                            },
+                          ),
+                          for (final c in cities)
+                            _PatientHomeCitySheetTile(
+                              label: c,
+                              icon: Icons.location_city_rounded,
+                              selected: _selectedCity == c,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.pop(sheetCtx);
+                                setState(() => _selectedCity = c);
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// City filter: single gold-bordered control + bottom sheet list (no horizontal chips).
   Widget _buildCitySelectorStrip(BuildContext context) {
     final s = S.of(context);
-    final entries = <(String, String)>[
-      (kPatientCityFilterAll, s.translate('patient_home_city_all')),
-      for (final c in kPatientHomeModalCityIds) (c, c),
-    ];
+    final secondary = _cityFilterButtonSecondaryLabel(context);
     return Material(
       color: kPatientSkyTop,
       child: Padding(
-        padding: const EdgeInsets.only(top: 2, bottom: 4),
+        padding: const EdgeInsets.only(top: 10, bottom: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsetsDirectional.only(start: 16, end: 16, bottom: 3),
+              padding:
+                  const EdgeInsetsDirectional.only(start: 16, end: 16, bottom: 6),
               child: Text(
                 s.translate('patient_home_cities_title'),
                 style: TextStyle(
@@ -616,78 +742,95 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 ),
               ),
             ),
-            SizedBox(
-              height: 32,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                clipBehavior: Clip.none,
-                itemCount: entries.length,
-                separatorBuilder: (context, _) => const SizedBox(width: 7),
-                itemBuilder: (context, index) {
-                  final cityId = entries[index].$1;
-                  final label = entries[index].$2;
-                  final selected = _selectedCity == cityId;
-                  return Material(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _selectedCity = cityId);
-                      },
-                      borderRadius: BorderRadius.circular(999),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 5,
-                        ),
+                      onTap: () => _showCityPickerBottomSheet(context),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Ink(
                         decoration: BoxDecoration(
-                          color: selected
-                              ? _kDarkBlue
-                              : const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(999),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selected
-                                ? _kDarkBlue
-                                : const Color(0xFFE0E4EB),
-                            width: 0.9,
+                            color: _kBrandLuxGold,
+                            width: 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _kBrandLuxGold.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (selected) ...[
-                              const Icon(
-                                Icons.location_on_rounded,
-                                size: 13,
-                                color: Colors.white,
+                            Icon(
+                              Icons.location_on_rounded,
+                              color: _kBrandLuxGold,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _cityFilterButtonPrimaryLabel(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: kPatientPrimaryFont,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14.5,
+                                      height: 1.2,
+                                      color: _kPremiumDeepBlue,
+                                    ),
+                                  ),
+                                  if (secondary != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      secondary,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11.5,
+                                        height: 1.15,
+                                        color: _kMutedGrey.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                            ],
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
-                                height: 1.05,
-                                letterSpacing: 0.1,
-                                color: selected
-                                    ? Colors.white
-                                    : _kDoctorNameNavy,
-                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: _kPremiumDeepBlue.withValues(alpha: 0.75),
+                              size: 26,
                             ),
                           ],
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ],
@@ -703,8 +846,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
-          child: HomeAdCarousel(height: homeAdBannerHeight(context)),
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+          child: const HomeAdCarousel(),
         ),
         const SizedBox(height: kHomeAdBannerGap),
       ],
@@ -1775,14 +1918,17 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Material(
-              color: kPatientSkyTop,
-              surfaceTintColor: Colors.transparent,
-              elevation: 2,
-              shadowColor: Colors.black26,
-              child: SizedBox(
-                height: _kHomeSearchHeaderExtent,
-                child: _buildThinSearchBar(context),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Material(
+                color: kPatientSkyTop,
+                surfaceTintColor: Colors.transparent,
+                elevation: 2,
+                shadowColor: Colors.black26,
+                child: SizedBox(
+                  height: _kHomeSearchHeaderExtent,
+                  child: _buildThinSearchBar(context),
+                ),
               ),
             ),
             Expanded(
@@ -2287,3 +2433,90 @@ _SpecialtyVisual _specialtyVisual(String categoryKey) {
 
 Color _categoryLabelDark(String categoryKey) => _specialtyVisual(categoryKey).darkLabel;
 bool _isAllCategory(String categoryKey) => categoryKey == kPatientSpecialtyAllKey;
+
+/// One row inside the patient home city picker bottom sheet.
+class _PatientHomeCitySheetTile extends StatelessWidget {
+  const _PatientHomeCitySheetTile({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFFFFF8E7)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? _kBrandLuxGold.withValues(alpha: 0.55)
+                    : const Color(0xFFECEFF1),
+                width: 1,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _kBrandLuxGold.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, color: _kBrandLuxGold, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: selected ? _kPremiumDeepBlue : _kDoctorNameNavy,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: _kBrandLuxGold,
+                    size: 24,
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: _kMutedGrey.withValues(alpha: 0.45),
+                    size: 22,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

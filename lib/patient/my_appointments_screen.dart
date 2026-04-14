@@ -1983,10 +1983,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       widget.embedded ? const Color(0xFF1976D2) : kPatientDeepBlue;
   Color get _uiMuted => _onLightMuted;
 
-  /// Monthly filter for previous appointments.
-  /// This is purely local filtering to avoid Firestore index requirements.
-  String _selectedPastMonth = 'All';
-
   Timer? _highlightTimer;
   bool _highlightActive = false;
 
@@ -2206,36 +2202,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     }
   }
 
-  Set<String> _patientIdsForQueries(User user) {
-    final phoneIds = <String>{};
-    final authPhone = normalizePhoneDigits((user.phoneNumber ?? '').trim());
-    if (authPhone.isNotEmpty) phoneIds.add(authPhone);
-    final email = (user.email ?? '').trim();
-    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
-      final p = normalizePhoneDigits(email.split('@').first);
-      if (p.isNotEmpty) phoneIds.add(p);
-    }
-    final ids = <String>{
-      user.uid.trim(),
-      firestoreUserDocId(user).trim(),
-      ...phoneIds,
-    };
-    ids.removeWhere((e) => e.isEmpty);
-    return ids;
-  }
-
-  Future<Set<String>> _resolvePatientIds() async {
-    final user = FirebaseAuth.instance.currentUser;
-    final ids = <String>{};
-    final cached = (await PatientSessionCache.readPatientRefId() ?? '').trim();
-    if (cached.isNotEmpty) ids.add(cached);
-    if (user != null) {
-      ids.addAll(_patientIdsForQueries(user));
-    }
-    ids.removeWhere((e) => e.isEmpty);
-    return ids;
-  }
-
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
   _watchAppointmentsForUserId(String userId) {
     final id = userId.trim();
@@ -2245,89 +2211,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         .where(AppointmentFields.userId, isEqualTo: id)
         .snapshots()
         .map((e) => e.docs);
-  }
-
-  static const List<String> _kMonthLabels = <String>[
-    'All',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  int? _monthNumberFromSelectedLabel(String label) {
-    final i = _kMonthLabels.indexOf(label);
-    if (i <= 0) return null;
-    return i; // Jan=1 ... Dec=12
-  }
-
-  int? _monthNumberFromDoc(Map<String, dynamic> data) {
-    final raw = data['month'];
-    if (raw is int) return raw;
-    if (raw is num) return raw.toInt();
-    if (raw is String) {
-      final s = raw.trim();
-      final asInt = int.tryParse(s);
-      if (asInt != null) return asInt;
-      final idx = _kMonthLabels.indexOf(s);
-      if (idx > 0) return idx;
-    }
-    return null;
-  }
-
-  Widget _pastMonthChipsBar(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        itemCount: _kMonthLabels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final label = _kMonthLabels[index];
-          final selected = _selectedPastMonth == label;
-          return FilterChip(
-            label: Text(
-              label,
-              style: TextStyle(
-                fontFamily: kPatientPrimaryFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 12.5,
-                color: selected ? Colors.white : const Color(0xFF2B3440),
-              ),
-            ),
-            selected: selected,
-            onSelected: (_) {
-              if (!mounted) return;
-              setState(() => _selectedPastMonth = label);
-            },
-            showCheckmark: false,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: selected
-                    ? Colors.transparent
-                    : kPatientNavyText.withValues(alpha: 0.10),
-              ),
-            ),
-            selectedColor: kPatientDeepBlue,
-            backgroundColor: const Color(0xFFF1F5F9),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-          );
-        },
-      ),
-    );
   }
 
   @override
@@ -2588,6 +2471,21 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   );
                 }
 
+                final pastDocs =
+                    <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                for (final d in docs) {
+                  if (activeDocs.any((e) => e.id == d.id)) continue;
+                  final data = d.data();
+                  final st = _normAppointmentStatus(
+                    data[AppointmentFields.status],
+                  );
+                  final instant = appointmentSlotDateTimeForStaffSort(data);
+                  final isPast = _isPastAppointmentStatus(st) ||
+                      !instant.isAfter(now);
+                  if (isPast) pastDocs.add(d);
+                }
+                _sortPatientAppointmentsAll(pastDocs);
+
                 final children = <Widget>[
                   _myBookingsSectionHeader('نۆرەی چالاک'),
                   const SizedBox(height: 10),
@@ -2631,77 +2529,30 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _myBookingsSectionHeader('نۆرەکانی پێشوو'),
-                        const SizedBox(height: 8),
-                        _pastMonthChipsBar(context),
-                      ],
-                    ),
+                    padding: const EdgeInsets.fromLTRB(2, 10, 2, 0),
+                    child: _myBookingsSectionHeader('نۆرەکانی پێشوو'),
                   ),
-                  Builder(
-                    builder: (context) {
-                      final allPastDocs =
-                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                      for (final d in docs) {
-                        if (activeDocs.any((e) => e.id == d.id)) continue;
-                        final data = d.data();
-                        final st = _normAppointmentStatus(
-                          data[AppointmentFields.status],
-                        );
-                        final instant = appointmentSlotDateTimeForStaffSort(
-                          data,
-                        );
-                        final isPast =
-                            _isPastAppointmentStatus(st) ||
-                            !instant.isAfter(now);
-                        if (isPast) allPastDocs.add(d);
-                      }
-
-                      final selectedMonthNum = _monthNumberFromSelectedLabel(
-                        _selectedPastMonth,
-                      );
-                      final filteredList = selectedMonthNum == null
-                          ? allPastDocs
-                          : allPastDocs
-                                .where(
-                                  (doc) =>
-                                      _monthNumberFromDoc(doc.data()) ==
-                                      selectedMonthNum,
-                                )
-                                .toList();
-
-                      _sortPatientAppointmentsAll(filteredList);
-
-                      if (filteredList.isEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'هیچ نۆرەی پێشووت نییە',
-                            style: TextStyle(
-                              color: kPatientNavyText.withValues(alpha: 0.72),
-                              fontFamily: kPatientPrimaryFont,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        );
-                      }
-
-                      return Column(
-                        children: [
-                          for (var j = 0; j < filteredList.length; j++)
-                            buildCardForDoc(
-                              filteredList[j],
-                              orderIndex: j,
-                              isPastSection: true,
-                            ),
-                        ],
-                      );
-                    },
-                  ),
+                  const SizedBox(height: 12),
+                  if (pastDocs.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'هیچ نۆرەی پێشووت نییە',
+                        style: TextStyle(
+                          color: kPatientNavyText.withValues(alpha: 0.72),
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    )
+                  else
+                    for (var j = 0; j < pastDocs.length; j++)
+                      buildCardForDoc(
+                        pastDocs[j],
+                        orderIndex: j,
+                        isPastSection: true,
+                      ),
                 ];
 
                 return ListView(

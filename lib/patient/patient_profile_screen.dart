@@ -16,8 +16,6 @@ const Color _kLuxuryGold = Color(0xFFD4AF37);
 const Color _kLuxuryGoldSoft = Color(0xFFFFF8E7);
 const Color _kTitleNavy = Color(0xFF1A237E);
 const Color _kBodyMuted = Color(0xFF546E7A);
-const Color _kLogoutRed = Color(0xFFC62828);
-const Color _kLogoutBg = Color(0xFFFFEBEE);
 const Color _kAvatarFill = Color(0xFFF5F5F5);
 const Color _kStatPillFill = Color(0xFFE3F2FD);
 const String _kEmptyStat = '--';
@@ -176,11 +174,19 @@ class PatientProfileScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: h),
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(22, 16, 22, 20 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      10,
+                      20,
+                      12 +
+                          bottomPad +
+                          kBottomNavigationBarHeight +
+                          12,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -192,7 +198,7 @@ class PatientProfileScreen extends StatelessWidget {
                           ageLabel: loc.translate('profile_stat_age'),
                           bloodLabel: loc.translate('profile_stat_blood'),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 14),
                         _ProfileMenuTile(
                           icon: Icons.badge_outlined,
                           title: loc.translate('profile_personal_info'),
@@ -207,7 +213,7 @@ class PatientProfileScreen extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 10),
                         _ProfileMenuTile(
                           icon: Icons.language_rounded,
                           title: loc.translate('language'),
@@ -216,16 +222,49 @@ class PatientProfileScreen extends StatelessWidget {
                               _kEmptyStat,
                           onTap: () => showHrNoraLanguagePicker(context),
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 10),
                         _ProfileMenuTile(
                           icon: Icons.auto_awesome_outlined,
                           title: loc.translate('about_app'),
                           subtitle: loc.translate('about_app_subtitle'),
                           onTap: () => showHrNoraAboutDialog(context),
                         ),
-                        const SizedBox(height: 22),
-                        _ProfileLogoutTile(
-                          onTap: () => performAppLogout(context),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: TextButton(
+                            onPressed: () =>
+                                confirmAndPerformAppLogout(context),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.logout,
+                                  size: 17,
+                                  color: Colors.redAccent,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  _kLogoutTitleKu,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -374,7 +413,7 @@ class _ProfileHeaderCard extends StatelessWidget {
       padding: const EdgeInsets.all(1),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(24, 30, 24, 26),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(_radius),
@@ -382,7 +421,7 @@ class _ProfileHeaderCard extends StatelessWidget {
         child: Column(
           children: [
             _ProfileAvatar(imageUrl: imageUrl),
-            const SizedBox(height: 22),
+            const SizedBox(height: 12),
             Text(
               name,
               textAlign: TextAlign.center,
@@ -390,14 +429,14 @@ class _ProfileHeaderCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: kPatientPrimaryFont,
-                fontSize: 23,
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
                 height: 1.25,
                 color: _kTitleNavy,
-                letterSpacing: 0.2,
+                letterSpacing: 0.15,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             _ProfileStatsRow(
               ageLabel: ageLabel,
               ageText: ageText,
@@ -418,8 +457,8 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double ring = 4.5;
-    const double r = 50;
+    const double ring = 3.5;
+    const double r = 44;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -448,7 +487,7 @@ class _ProfileAvatar extends StatelessWidget {
             child: imageUrl.isEmpty
                 ? Icon(
                     Icons.person_rounded,
-                    size: 52,
+                    size: 46,
                     color: _kBodyMuted.withValues(alpha: 0.65),
                   )
                 : null,
@@ -473,7 +512,7 @@ class _ProfileAvatar extends StatelessWidget {
             ),
             child: const Icon(
               Icons.verified_rounded,
-              size: 15,
+              size: 13,
               color: Colors.white,
             ),
           ),
@@ -498,7 +537,7 @@ class _ProfileStatsRow extends StatelessWidget {
 
   static const TextStyle _pillTextStyle = TextStyle(
     fontFamily: kPatientPrimaryFont,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.2,
     color: _kTitleNavy,
@@ -531,7 +570,7 @@ class _ProfileStatsRow extends StatelessWidget {
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 10,
-      runSpacing: 10,
+      runSpacing: 8,
       children: [
         _pill(ageLabel, ageText),
         _pill(bloodLabel, bloodText),
@@ -560,12 +599,12 @@ class _ProfileMenuTile extends StatelessWidget {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final chevron = Icon(
       Icons.chevron_right_rounded,
-      size: 22,
+      size: 18,
       color: _chevronGray.withValues(alpha: 0.75),
     );
     final goldIcon = Container(
-      width: 46,
-      height: 46,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: _kLuxuryGoldSoft.withValues(alpha: 0.85),
@@ -574,41 +613,41 @@ class _ProfileMenuTile extends StatelessWidget {
         ),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: _kLuxuryGold, size: 24),
+      child: Icon(icon, color: _kLuxuryGold, size: 20),
     );
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Padding(
             padding: const EdgeInsetsDirectional.only(
-              start: 14,
-              end: 16,
-              top: 16,
-              bottom: 16,
+              start: 12,
+              end: 12,
+              top: 10,
+              bottom: 10,
             ),
             child: Row(
               textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
               children: [
                 if (rtl) goldIcon,
-                if (rtl) const SizedBox(width: 14),
+                if (rtl) const SizedBox(width: 10),
                 if (!rtl) ...[
                   chevron,
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                 ],
                 Expanded(
                   child: Column(
@@ -622,12 +661,12 @@ class _ProfileMenuTile extends StatelessWidget {
                         style: const TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
+                          fontSize: 14.5,
                           color: _kTitleNavy,
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 3),
                       Text(
                         subtitle,
                         maxLines: 1,
@@ -635,21 +674,21 @@ class _ProfileMenuTile extends StatelessWidget {
                         textAlign: rtl ? TextAlign.right : TextAlign.left,
                         style: const TextStyle(
                           fontFamily: kPatientPrimaryFont,
-                          fontSize: 12.5,
+                          fontSize: 11.5,
                           color: _kBodyMuted,
                           fontWeight: FontWeight.w500,
-                          height: 1.25,
+                          height: 1.2,
                         ),
                       ),
                     ],
                   ),
                 ),
                 if (!rtl) ...[
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   goldIcon,
                 ],
                 if (rtl) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   chevron,
                 ],
               ],
@@ -661,99 +700,3 @@ class _ProfileMenuTile extends StatelessWidget {
   }
 }
 
-class _ProfileLogoutTile extends StatelessWidget {
-  const _ProfileLogoutTile({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    final chevron = Icon(
-      Icons.chevron_right_rounded,
-      size: 22,
-      color: _kLogoutRed.withValues(alpha: 0.35),
-    );
-    final logoutIcon = Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _kLogoutRed.withValues(alpha: 0.12),
-        border: Border.all(
-          color: _kLogoutRed.withValues(alpha: 0.2),
-        ),
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.logout_rounded,
-        color: _kLogoutRed,
-        size: 24,
-      ),
-    );
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: _kLogoutBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: _kLogoutRed.withValues(alpha: 0.12),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _kLogoutRed.withValues(alpha: 0.1),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.only(
-              start: 14,
-              end: 16,
-              top: 16,
-              bottom: 16,
-            ),
-            child: Row(
-              textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                if (rtl) logoutIcon,
-                if (rtl) const SizedBox(width: 14),
-                if (!rtl) ...[
-                  chevron,
-                  const SizedBox(width: 6),
-                ],
-                Expanded(
-                  child: Text(
-                    _kLogoutTitleKu,
-                    textAlign: rtl ? TextAlign.right : TextAlign.left,
-                    style: const TextStyle(
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                      color: _kLogoutRed,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-                if (!rtl) ...[
-                  const SizedBox(width: 14),
-                  logoutIcon,
-                ],
-                if (rtl) ...[
-                  const SizedBox(width: 6),
-                  chevron,
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

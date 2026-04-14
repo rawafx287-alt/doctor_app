@@ -8,22 +8,20 @@ const String kDefaultHomeAdImageUrl =
     'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=85';
 
 /// Vertical gap between the ad strip and the specialties block.
-const double kHomeAdBannerGap = 8;
+const double kHomeAdBannerGap = 12;
 
 /// Height reserved for specialty title + chip row (includes small safety margin).
 const double kHomeSpecialtiesBlockExtent = 140;
 
-/// Hero ad height — targets ~200–220px for a professional banner.
-double homeAdBannerHeight(BuildContext context) {
-  final h = MediaQuery.sizeOf(context).height;
-  return (h * 0.265).clamp(200.0, 220.0);
-}
+const Color _kAdGold = Color(0xFFD4AF37);
+const Color _kAdGoldBorderSoft = Color(0x4DD4AF37);
+
+/// Width ÷ height for the ad strip (16:9 standard for all promo images).
+const double kHomeAdCarouselAspectRatio = 16 / 9;
 
 /// Firestore-backed promo carousel for patient home (collection: `ads`).
 class HomeAdCarousel extends StatelessWidget {
-  const HomeAdCarousel({super.key, required this.height});
-
-  final double height;
+  const HomeAdCarousel({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -52,22 +50,15 @@ class HomeAdCarousel extends StatelessWidget {
         }
         final slides = urls.isEmpty ? <String>[kDefaultHomeAdImageUrl] : urls;
 
-        return _HomeAdCarouselBody(
-          height: height,
-          slides: slides,
-        );
+        return _HomeAdCarouselBody(slides: slides);
       },
     );
   }
 }
 
 class _HomeAdCarouselBody extends StatefulWidget {
-  const _HomeAdCarouselBody({
-    required this.height,
-    required this.slides,
-  });
+  const _HomeAdCarouselBody({required this.slides});
 
-  final double height;
   final List<String> slides;
 
   @override
@@ -93,167 +84,189 @@ class _HomeAdCarouselBodyState extends State<_HomeAdCarouselBody> {
   @override
   Widget build(BuildContext context) {
     final slides = widget.slides;
-    final h = widget.height;
     final n = slides.length;
     final multi = n > 1;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
+    const radius = 20.0;
 
     return RepaintBoundary(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
-              blurRadius: 18,
-              offset: const Offset(0, 7),
-              spreadRadius: -2,
-            ),
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.45),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: h,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackW = constraints.maxWidth;
+          final bannerH = trackW / kHomeAdCarouselAspectRatio;
+          final memW = (trackW * dpr).round().clamp(480, 1600);
+
+          Widget slideImage(String url) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
               clipBehavior: Clip.hardEdge,
-              children: [
-                CarouselSlider(
-                    carouselController: _carouselController,
-                    items: slides
-                        .map(
-                          (url) => SizedBox(
-                            width: double.infinity,
-                            height: h,
-                            child: CachedNetworkImage(
-                              imageUrl: url,
-                              fit: BoxFit.cover,
-                              alignment: Alignment.center,
-                              width: double.infinity,
-                              height: h,
-                              memCacheWidth: 1200,
-                              fadeInDuration:
-                                  const Duration(milliseconds: 380),
-                              placeholder: (c, _) => Container(
-                                color: Colors.white.withValues(alpha: 0.45),
-                                alignment: Alignment.center,
-                                child: const SizedBox(
-                                  width: 30,
-                                  height: 30,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: Color(0xFF1565C0),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (c, url, _) => ColoredBox(
-                                color: const Color(0xFFE3F2FD),
-                                child: Icon(
-                                  Icons.medical_services_rounded,
-                                  color: Colors.blueGrey.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  size: 40,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    options: CarouselOptions(
-                      height: h,
-                      viewportFraction: 1,
-                      autoPlay: multi,
-                      autoPlayInterval: const Duration(seconds: 7),
-                      autoPlayAnimationDuration:
-                          const Duration(milliseconds: 1250),
-                      autoPlayCurve: Curves.easeInOutCubic,
-                      enlargeCenterPage: false,
-                      enableInfiniteScroll: multi,
-                      pauseAutoPlayOnTouch: true,
-                      scrollPhysics: multi
-                          ? const BouncingScrollPhysics()
-                          : const NeverScrollableScrollPhysics(),
-                      onPageChanged: (index, reason) {
-                        setState(() => _currentPage = index);
-                      },
-                    ),
-                  ),
-                  // Inner vignette + premium edge treatment
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.52),
-                            width: 1.1,
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.10),
-                              Colors.transparent,
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.14),
-                            ],
-                            stops: const [0.0, 0.22, 0.72, 1.0],
-                          ),
+              child: SizedBox(
+                width: double.infinity,
+                height: bannerH,
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  width: double.infinity,
+                  height: bannerH,
+                  memCacheWidth: memW,
+                  fadeInDuration: const Duration(milliseconds: 380),
+                  placeholder: (c, _) => ColoredBox(
+                    color: const Color(0xFF1565C0).withValues(alpha: 0.08),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF1565C0),
                         ),
                       ),
                     ),
                   ),
-                  // Subtle page indicators (bottom center)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 8,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List<Widget>.generate(
-                        n,
-                        (i) => GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: multi
-                              ? () {
-                                  _carouselController.animateToPage(i);
-                                }
-                              : null,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 240),
-                            curve: Curves.easeOutCubic,
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: i == _currentPage ? 14 : 5,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: Colors.white.withValues(
-                                  alpha: i == _currentPage ? 0.35 : 0.2,
-                                ),
-                                width: 0.6,
-                              ),
-                              color: i == _currentPage
-                                  ? Colors.white.withValues(alpha: 0.58)
-                                  : Colors.white.withValues(alpha: 0.22),
-                            ),
-                          ),
-                        ),
-                      ),
+                  errorWidget: (c, _, _) => ColoredBox(
+                    color: const Color(0xFF1565C0).withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.medical_services_rounded,
+                      color: Colors.blueGrey.withValues(alpha: 0.75),
+                      size: 36,
                     ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return AspectRatio(
+            aspectRatio: kHomeAdCarouselAspectRatio,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(color: _kAdGoldBorderSoft, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.07),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                    spreadRadius: -4,
+                  ),
+                  BoxShadow(
+                    color: _kAdGold.withValues(alpha: 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(radius),
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      CarouselSlider(
+                        carouselController: _carouselController,
+                        items: slides.map(slideImage).toList(),
+                        options: CarouselOptions(
+                          height: bannerH,
+                          viewportFraction: 1.0,
+                          enlargeCenterPage: false,
+                          autoPlay: multi,
+                          autoPlayInterval: const Duration(seconds: 4),
+                          autoPlayAnimationDuration:
+                              const Duration(milliseconds: 850),
+                          autoPlayCurve: Curves.easeInOut,
+                          enableInfiniteScroll: multi,
+                          pauseAutoPlayOnTouch: true,
+                          scrollPhysics: multi
+                              ? const BouncingScrollPhysics()
+                              : const NeverScrollableScrollPhysics(),
+                          onPageChanged: (index, reason) {
+                            setState(() => _currentPage = index);
+                          },
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(radius),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.08),
+                                  Colors.transparent,
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.12),
+                                ],
+                                stops: const [0.0, 0.2, 0.7, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 22,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List<Widget>.generate(
+                            n,
+                            (i) {
+                              final active = i == _currentPage;
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: multi
+                                    ? () {
+                                        _carouselController.animateToPage(i);
+                                      }
+                                    : null,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 280),
+                                  curve: Curves.easeOutCubic,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  width: active ? 22 : 7,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(999),
+                                    color: active
+                                        ? _kAdGold
+                                        : const Color(0xFFB3E5FC)
+                                            .withValues(alpha: 0.85),
+                                    boxShadow: active
+                                        ? [
+                                            BoxShadow(
+                                              color: _kAdGold.withValues(
+                                                alpha: 0.45,
+                                              ),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
+      ),
     );
   }
 }

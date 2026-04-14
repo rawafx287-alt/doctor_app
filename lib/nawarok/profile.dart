@@ -224,7 +224,10 @@ class ProfileScreen extends StatelessWidget {
                               20,
                               8,
                               20,
-                              24 + bottomPad,
+                              24 +
+                                  bottomPad +
+                                  kBottomNavigationBarHeight +
+                                  16,
                             ),
                             children: [
                               Center(
@@ -240,7 +243,7 @@ class ProfileScreen extends StatelessWidget {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 14),
                               Text(
                                 name,
                                 textAlign: TextAlign.center,
@@ -252,7 +255,7 @@ class ProfileScreen extends StatelessWidget {
                                   color: _kProfileTextPrimary,
                                 ),
                               ),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: 12),
                               _StatsRow(
                                 ageLabel: s.translate('profile_stat_age'),
                                 ageDisplay: age != null ? '$age' : null,
@@ -264,7 +267,7 @@ class ProfileScreen extends StatelessWidget {
                                     s.translate('profile_stat_appointments'),
                                 apptValue: '$apptCount',
                               ),
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 16),
                               _ProfileMenuCard(
                                 icon: Icons.badge_rounded,
                                 iconColor: const Color(0xFF2563EB),
@@ -279,7 +282,7 @@ class ProfileScreen extends StatelessWidget {
                                   );
                                 },
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               _ProfileMenuCard(
                                 icon: Icons.translate_rounded,
                                 iconColor: const Color(0xFF059669),
@@ -291,7 +294,7 @@ class ProfileScreen extends StatelessWidget {
                                     s.translate('profile_stat_not_set'),
                                 onTap: () => showHrNoraLanguagePicker(context),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               _ProfileMenuCard(
                                 icon: Icons.auto_awesome_rounded,
                                 iconColor: const Color(0xFF7C3AED),
@@ -301,14 +304,43 @@ class ProfileScreen extends StatelessWidget {
                                     s.translate('about_app_subtitle'),
                                 onTap: () => showHrNoraAboutDialog(context),
                               ),
-                              const SizedBox(height: 20),
-                              _ProfileMenuCard(
-                                icon: Icons.logout_rounded,
-                                iconColor: const Color(0xFFDC2626),
-                                iconBg: const Color(0xFFFEF2F2),
-                                title: s.translate('profile_logout'),
-                                showChevron: false,
-                                onTap: () => performAppLogout(context),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: TextButton(
+                                  onPressed: () =>
+                                      confirmAndPerformAppLogout(context),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.redAccent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.logout,
+                                        size: 17,
+                                        color: Colors.redAccent,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'چوونەدەرەوە',
+                                        style: TextStyle(
+                                          fontFamily: _kProfileFont,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13.5,
+                                          color: Colors.redAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           );
@@ -454,7 +486,7 @@ class _StatsRow extends StatelessWidget {
     final s = S.of(context);
     final ageText = ageDisplay ?? s.translate('profile_stat_not_set');
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
         color: _kProfileCard,
         borderRadius: BorderRadius.circular(16),
@@ -567,7 +599,6 @@ class _ProfileMenuCard extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.subtitle,
-    this.showChevron = true,
   });
 
   final IconData icon;
@@ -576,7 +607,6 @@ class _ProfileMenuCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
-  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -584,11 +614,11 @@ class _ProfileMenuCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
             color: _kProfileCard,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: _kProfileBorder.withValues(alpha: 0.65)),
             boxShadow: [
               BoxShadow(
@@ -599,19 +629,19 @@ class _ProfileMenuCard extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: iconBg,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: iconColor, size: 24),
+                  child: Icon(icon, color: iconColor, size: 21),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,38 +650,38 @@ class _ProfileMenuCard extends StatelessWidget {
                         title,
                         style: const TextStyle(
                           fontFamily: _kProfileFont,
-                          fontSize: 16,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                           color: _kProfileTextPrimary,
+                          height: 1.2,
                         ),
                       ),
                       if (subtitle != null && subtitle!.isNotEmpty) ...[
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           subtitle!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: _kProfileFont,
-                            fontSize: 13,
+                            fontSize: 12,
                             color: _kProfileTextMuted,
                             fontWeight: FontWeight.w500,
+                            height: 1.2,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                if (showChevron) ...[
-                  const SizedBox(width: 6),
-                  Icon(
-                    Directionality.of(context) == TextDirection.rtl
-                        ? Icons.chevron_left_rounded
-                        : Icons.chevron_right_rounded,
-                    size: 22,
-                    color: _kProfileTextMuted.withValues(alpha: 0.55),
-                  ),
-                ],
+                const SizedBox(width: 4),
+                Icon(
+                  Directionality.of(context) == TextDirection.rtl
+                      ? Icons.chevron_left_rounded
+                      : Icons.chevron_right_rounded,
+                  size: 18,
+                  color: _kProfileTextMuted.withValues(alpha: 0.55),
+                ),
               ],
             ),
           ),
