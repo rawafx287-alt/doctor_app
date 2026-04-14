@@ -417,6 +417,48 @@ int _appointmentTimeSortMinutes(dynamic timeVal) {
   return 1 << 20;
 }
 
+final DateFormat _appointmentTime12h = DateFormat.jm('en_US');
+
+/// Formats [AppointmentFields.time] for cards: **12-hour with AM/PM** (e.g. `7:00 PM`).
+///
+/// Supports common Firestore values like `19:00` / `09:30` / `9:30:00`. If the string
+/// already includes AM/PM, it is normalized via [DateFormat.jm]. Unrecognized values
+/// are returned unchanged.
+String _formatAppointmentTimeForDisplay(dynamic timeVal) {
+  final raw = (timeVal ?? '').toString().trim();
+  if (raw.isEmpty || raw == '—') return '—';
+
+  final lower = raw.toLowerCase();
+  if (lower.contains('am') || lower.contains('pm')) {
+    for (final pattern in <DateFormat>[
+      DateFormat('h:mm a', 'en_US'),
+      DateFormat('hh:mm a', 'en_US'),
+      DateFormat('h:mm:ss a', 'en_US'),
+    ]) {
+      try {
+        final parsed = pattern.parse(raw);
+        return _appointmentTime12h.format(
+          DateTime(2000, 1, 1, parsed.hour, parsed.minute),
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+  }
+
+  final m24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?').firstMatch(raw);
+  if (m24 != null) {
+    final rest = raw.substring(m24.end).trim();
+    if (rest.isEmpty) {
+      final h = int.parse(m24.group(1)!).clamp(0, 23);
+      final min = int.parse(m24.group(2)!);
+      return _appointmentTime12h.format(DateTime(2000, 1, 1, h, min));
+    }
+  }
+
+  return raw;
+}
+
 String _appointmentQueueLabel(Map<String, dynamic> data, int fallbackIndex) {
   final q = data[AppointmentFields.queueNumber];
   if (q is int && q > 0) {
@@ -1919,12 +1961,17 @@ class PatientAppointmentsScreen extends StatefulWidget {
 
 class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   static const Color _onLightMuted = Color(0xFF546E7A);
+  static const Color _historyTitleNavy = Color(0xFF1A237E);
+  static const Color _historyChipSelectedBg = Color(0xFF1A237E);
+  static const Color _historyChipUnselectedBorder = Color(0xFFEEEEEE);
+  static const Color _historyChipUnselectedText = Color(0xFF607D8B);
 
   /// Matches light sky background so ticket hero perforation blends with the page.
   Color get _holeColor => kPatientSkyTop;
   Color get _uiAccent =>
       widget.embedded ? const Color(0xFF1976D2) : kPatientDeepBlue;
   Color get _uiMuted => _onLightMuted;
+
 
   Timer? _highlightTimer;
   bool _highlightActive = false;
@@ -2369,7 +2416,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               final displayStatus =
                   _effectivePatientAppointmentStatusForUi(data, now);
               final stNorm = _normAppointmentStatus(displayStatus);
-              final timeStr = (data[AppointmentFields.time] ?? '—').toString();
+              final timeStr =
+                  _formatAppointmentTimeForDisplay(data[AppointmentFields.time]);
               final rawDate = data[AppointmentFields.date];
               final parsedDay = _parseAppointmentDate(rawDate);
               String dateStr = '—';
@@ -2474,6 +2522,18 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
             final children = <Widget>[
               _myBookingsSectionHeader('نۆرەی چالاک'),
+              const SizedBox(height: 10),
+              _MonthlyHistoryEntryButton(
+                onTap: () {
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const MonthlyHistoryPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
               if (activeDocs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
@@ -2614,6 +2674,499 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         body: DecoratedBox(
           decoration: patientSkyGradientDecoration(),
           child: body,
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthlyHistoryEntryButton extends StatelessWidget {
+  const _MonthlyHistoryEntryButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.calendar_month_rounded,
+                color: _PatientAppointmentsScreenState._historyTitleNavy,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'مێژووی مانگانە',
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: _PatientAppointmentsScreenState._historyTitleNavy,
+                  ),
+                ),
+              ),
+              Icon(
+                Directionality.of(context) == ui.TextDirection.rtl
+                    ? Icons.chevron_left
+                    : Icons.chevron_right,
+                color: _PatientAppointmentsScreenState._onLightMuted
+                    .withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple month key (local calendar month).
+class _MonthKey {
+  const _MonthKey(this.year, this.month);
+  final int year;
+  final int month; // 1..12
+
+  DateTime get startLocal => DateTime(year, month, 1);
+  DateTime get endLocalExclusive => DateTime(year, month + 1, 1);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _MonthKey && other.year == year && other.month == month;
+
+  @override
+  int get hashCode => Object.hash(year, month);
+}
+
+String _monthChipLabelKu(_MonthKey key) => 'مانگی ${key.month}';
+
+class MonthlyHistoryPage extends StatefulWidget {
+  const MonthlyHistoryPage({super.key});
+
+  @override
+  State<MonthlyHistoryPage> createState() => _MonthlyHistoryPageState();
+}
+
+class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
+  static const Color _titleNavy = _PatientAppointmentsScreenState._historyTitleNavy;
+  static const Color _chipSelectedBg =
+      _PatientAppointmentsScreenState._historyChipSelectedBg;
+  static const Color _chipUnselectedBorder =
+      _PatientAppointmentsScreenState._historyChipUnselectedBorder;
+  static const Color _chipUnselectedText =
+      _PatientAppointmentsScreenState._historyChipUnselectedText;
+
+  _MonthKey _selected = _MonthKey(DateTime.now().year, DateTime.now().month);
+
+  Set<String> _patientIdsForQueries(User user) {
+    final phoneIds = <String>{};
+    final authPhone = normalizePhoneDigits((user.phoneNumber ?? '').trim());
+    if (authPhone.isNotEmpty) phoneIds.add(authPhone);
+    final email = (user.email ?? '').trim();
+    if (email.endsWith('@$kPhoneAuthEmailDomain')) {
+      final p = normalizePhoneDigits(email.split('@').first);
+      if (p.isNotEmpty) phoneIds.add(p);
+    }
+    final ids = <String>{
+      user.uid.trim(),
+      firestoreUserDocId(user).trim(),
+      ...phoneIds,
+    };
+    ids.removeWhere((e) => e.isEmpty);
+    return ids;
+  }
+
+  Future<Set<String>> _resolvePatientIds() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final ids = <String>{};
+    final cached = (await PatientSessionCache.readPatientRefId() ?? '').trim();
+    if (cached.isNotEmpty) ids.add(cached);
+    if (user != null) ids.addAll(_patientIdsForQueries(user));
+    ids.removeWhere((e) => e.isEmpty);
+    return ids;
+  }
+
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _watchAppointments(
+    Set<String> ids,
+  ) {
+    final streams = <Stream<QuerySnapshot<Map<String, dynamic>>>>[];
+    for (final id in ids) {
+      streams.add(
+        FirebaseFirestore.instance
+            .collection(AppointmentFields.collection)
+            .where(AppointmentFields.patientId, isEqualTo: id)
+            .snapshots(),
+      );
+      streams.add(
+        FirebaseFirestore.instance
+            .collection(AppointmentFields.collection)
+            .where(AppointmentFields.userId, isEqualTo: id)
+            .snapshots(),
+      );
+    }
+
+    return Stream.multi((controller) {
+      final latest = List<QuerySnapshot<Map<String, dynamic>>?>.filled(
+        streams.length,
+        null,
+      );
+      void emitMerged() {
+        final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+        for (final snap in latest) {
+          for (final d in snap?.docs ?? const []) {
+            byId[d.id] = d;
+          }
+        }
+        controller.add(byId.values.toList());
+      }
+
+      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (var i = 0; i < streams.length; i++) {
+        subs.add(
+          streams[i].listen((event) {
+            latest[i] = event;
+            emitMerged();
+          }, onError: controller.addError),
+        );
+      }
+      controller.onCancel = () async {
+        for (final s in subs) {
+          await s.cancel();
+        }
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pageDir = AppLocaleScope.of(context).textDirection;
+    final pageRtl = pageDir == ui.TextDirection.rtl;
+
+    final months = List<_MonthKey>.generate(
+      12,
+      (i) => _MonthKey(_selected.year, i + 1),
+    );
+
+    final selectedStart = _selected.startLocal;
+    final selectedEnd = _selected.endLocalExclusive;
+
+    return Directionality(
+      textDirection: pageDir,
+      child: Scaffold(
+        backgroundColor: kPatientSkyTop,
+        appBar: AppBar(
+          backgroundColor: kPatientSkyTop,
+          foregroundColor: kPatientNavyText,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              pageRtl
+                  ? Icons.arrow_forward_ios_rounded
+                  : Icons.arrow_back_ios_new_rounded,
+            ),
+            onPressed: () => Navigator.pop(context),
+            tooltip: S.of(context).translate('back'),
+          ),
+          title: const Text(
+            'مێژووی مانگانە',
+            style: TextStyle(
+              fontFamily: kPatientPrimaryFont,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              color: _titleNavy,
+            ),
+          ),
+        ),
+        body: DecoratedBox(
+          decoration: patientSkyGradientDecoration(),
+          child: FutureBuilder<Set<String>>(
+            future: _resolvePatientIds(),
+            builder: (context, idsSnap) {
+              if (idsSnap.connectionState == ConnectionState.waiting &&
+                  !idsSnap.hasData) {
+                return const Center(
+                  child: CircularProgressIndicator(color: _titleNavy),
+                );
+              }
+              final ids = idsSnap.data ?? const <String>{};
+              if (ids.isEmpty) {
+                return Center(
+                  child: Text(
+                    S.of(context).translate('appointments_need_login'),
+                    style: TextStyle(
+                      fontFamily: kPatientPrimaryFont,
+                      color: kPatientNavyText.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }
+
+              return StreamBuilder<DateTime>(
+                stream: _patientAppointmentsUiClock(),
+                initialData: DateTime.now(),
+                builder: (context, clockSnap) {
+                  final now = clockSnap.data ?? DateTime.now();
+                  return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+                    stream: _watchAppointments(ids),
+                    builder: (context, snap) {
+                      if (snap.connectionState == ConnectionState.waiting &&
+                          !snap.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: _titleNavy),
+                        );
+                      }
+                      if (snap.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              S.of(context).translate(
+                                'error_with_details',
+                                params: {'detail': '${snap.error}'},
+                              ),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontFamily: kPatientPrimaryFont,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                        snap.data ?? const [],
+                      );
+
+                      final inMonth = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                      for (final d in docs) {
+                        final data = d.data();
+                        final st = _normAppointmentStatus(
+                          data[AppointmentFields.status],
+                        );
+                        // Monthly history focuses on past/terminal appointments.
+                        if (!_isPastAppointmentStatus(st)) continue;
+                        final day = _parseAppointmentDate(
+                          data[AppointmentFields.date],
+                        );
+                        if (day == null) continue;
+                        if (!day.isBefore(selectedStart) && day.isBefore(selectedEnd)) {
+                          inMonth.add(d);
+                        }
+                      }
+                      _sortPatientAppointmentsAll(inMonth);
+
+                      return ListView(
+                        padding: EdgeInsets.fromLTRB(
+                          14,
+                          12,
+                          14,
+                          24 + MediaQuery.paddingOf(context).bottom,
+                        ),
+                        children: [
+                          SizedBox(
+                            height: 44,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              itemCount: months.length,
+                              separatorBuilder: (_, unused) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, i) {
+                                final key = months[i];
+                                final isSelected = key.month == _selected.month;
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () => setState(() => _selected = key),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 220),
+                                    curve: Curves.easeOutCubic,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 9,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? _chipSelectedBg
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.transparent
+                                            : _chipUnselectedBorder,
+                                        width: 1,
+                                      ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.14,
+                                                ),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 6),
+                                              ),
+                                            ]
+                                          : const [],
+                                    ),
+                                    child: Text(
+                                      _monthChipLabelKu(key),
+                                      style: TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w800,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : _chipUnselectedText,
+                                        fontSize: 12.5,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (inMonth.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Text(
+                                'هیچ نۆرەیەک لەم مانگەدا نییە',
+                                style: TextStyle(
+                                  fontFamily: kPatientPrimaryFont,
+                                  color: kPatientNavyText.withValues(alpha: 0.78),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
+                          else
+                            for (var i = 0; i < inMonth.length; i++)
+                              _MonthlyHistoryAppointmentCard(
+                                docSnap: inMonth[i],
+                                index: i,
+                                now: now,
+                                holeColor: kPatientSkyTop,
+                              ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthlyHistoryAppointmentCard extends StatelessWidget {
+  const _MonthlyHistoryAppointmentCard({
+    required this.docSnap,
+    required this.index,
+    required this.now,
+    required this.holeColor,
+  });
+
+  final QueryDocumentSnapshot<Map<String, dynamic>> docSnap;
+  final int index;
+  final DateTime now;
+  final Color holeColor;
+
+  DateTime? _parseCreatedAt(dynamic raw) {
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = docSnap.data();
+    final doctorName = (data[AppointmentFields.doctorName] ??
+            data[AppointmentFields.doctorId] ??
+            '—')
+        .toString();
+    final patientName = (data[AppointmentFields.patientName] ?? '—').toString();
+    final specialty = (data['doctorSpecialty'] ?? '—').toString();
+    final displayStatus = _effectivePatientAppointmentStatusForUi(data, now);
+    final stNorm = _normAppointmentStatus(displayStatus);
+    final timeStr =
+        _formatAppointmentTimeForDisplay(data[AppointmentFields.time]);
+    final rawDate = data[AppointmentFields.date];
+    final parsedDay = _parseAppointmentDate(rawDate);
+    String dateStr = '—';
+    if (parsedDay != null) {
+      dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
+    } else if (rawDate != null) {
+      dateStr = rawDate.toString();
+    }
+    final daysStyle = parsedDay != null
+        ? _DaysRemainingStyle.fromAppointmentDay(context, parsedDay)
+        : null;
+    final queueLabel = _appointmentQueueLabel(data, index);
+    final cancelReason =
+        (data[AppointmentFields.cancellationReason] ?? '').toString().trim();
+    final createdAt = _parseCreatedAt(data[AppointmentFields.createdAt]);
+    final docId = docSnap.id;
+    final heroTag = 'monthly_history_$docId';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GestureDetector(
+        onTap: () => _openTicketPreview(
+          context,
+          heroTag: heroTag,
+          doctorName: doctorName,
+          patientName: patientName,
+          dateStr: dateStr,
+          timeStr: timeStr,
+          status: displayStatus,
+          cancellationReason: cancelReason,
+          queueLabel: queueLabel,
+          daysStyle: daysStyle,
+          holeColor: holeColor,
+          isPastBooking: _isPastAppointmentStatus(stNorm),
+        ),
+        behavior: HitTestBehavior.opaque,
+        child: Hero(
+          tag: heroTag,
+          child: Material(
+            color: Colors.transparent,
+            child: _PremiumBookingCard(
+              queueLabel: queueLabel,
+              doctorName: doctorName,
+              specialty: specialty,
+              patientName: patientName,
+              dateStr: dateStr,
+              timeStr: timeStr,
+              status: displayStatus,
+              createdAt: createdAt,
+              now: now,
+              onCancel: null,
+              cancellationReason: cancelReason,
+              isPast: true,
+            ),
+          ),
         ),
       ),
     );
