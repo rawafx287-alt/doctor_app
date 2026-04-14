@@ -94,169 +94,172 @@ class _ModernConfirmDialog extends StatelessWidget {
                         final remaining = deadline == null
                             ? Duration.zero
                             : deadline.difference(now);
-                        final expired = deadline != null && remaining.inSeconds <= 0;
+                        final expired =
+                            deadline != null && remaining.inSeconds <= 0;
 
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                        Center(
-                          child: Container(
-                            width: 58,
-                            height: 58,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.06),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: confirmColor.withValues(alpha: 0.25),
-                                  blurRadius: 18,
+                            Center(
+                              child: Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.06),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: confirmColor.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      blurRadius: 18,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Icon(
-                              icon,
-                              size: 30,
-                              color: confirmColor.withValues(alpha: 0.92),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            height: 1.25,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          message,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: kPatientPrimaryFont,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13.5,
-                            height: 1.45,
-                            color: Colors.white.withValues(alpha: 0.86),
-                          ),
-                        ),
-                        if (deadline != null) ...[
-                          const SizedBox(height: 14),
-                          Directionality(
-                            textDirection: ui.TextDirection.ltr,
-                            child: Text(
-                              tr.translate(
-                                'patient_cancel_countdown_remaining',
-                                params: {
-                                  'time': _formatHhMmSs(remaining),
-                                },
+                                child: Icon(
+                                  icon,
+                                  size: 30,
+                                  color: confirmColor.withValues(alpha: 0.92),
+                                ),
                               ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              title,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontFamily: kPatientPrimaryFont,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                height: 1.2,
-                                color: const Color(0xFFFBBF24).withValues(
-                                  alpha: expired ? 0.55 : 0.92,
-                                ),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                                height: 1.25,
+                                color: Colors.white,
                               ),
                             ),
-                          ),
-                          if (expired) ...[
                             const SizedBox(height: 10),
                             Text(
-                              tr.translate(
-                                'patient_cancel_countdown_expired_inline',
-                              ),
+                              message,
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontFamily: kPatientPrimaryFont,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12.5,
-                                height: 1.35,
-                                color: Colors.white.withValues(alpha: 0.78),
+                                fontSize: 13.5,
+                                height: 1.45,
+                                color: Colors.white.withValues(alpha: 0.86),
                               ),
                             ),
-                          ],
-                        ],
-                        const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                style: OutlinedButton.styleFrom(
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  minimumSize: const Size(0, 42),
-                                  foregroundColor:
-                                      Colors.white.withValues(alpha: 0.85),
-                                  side: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    width: 1,
-                                  ),
-                                  backgroundColor:
-                                      Colors.white.withValues(alpha: 0.04),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
+                            if (deadline != null) ...[
+                              const SizedBox(height: 14),
+                              Directionality(
+                                textDirection: ui.TextDirection.ltr,
                                 child: Text(
-                                  cancelText,
-                                  style: const TextStyle(
+                                  tr.translate(
+                                    'patient_cancel_countdown_remaining',
+                                    params: {'time': _formatHhMmSs(remaining)},
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
                                     fontFamily: kPatientPrimaryFont,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
+                                    height: 1.2,
+                                    color: const Color(
+                                      0xFFFBBF24,
+                                    ).withValues(alpha: expired ? 0.55 : 0.92),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: expired
-                                    ? null
-                                    : () =>
-                                    Navigator.of(context).pop(true),
-                                style: FilledButton.styleFrom(
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  minimumSize: const Size(0, 42),
-                                  backgroundColor:
-                                      confirmColor.withValues(
+                              if (expired) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  tr.translate(
+                                    'patient_cancel_countdown_expired_inline',
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: kPatientPrimaryFont,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12.5,
+                                    height: 1.35,
+                                    color: Colors.white.withValues(alpha: 0.78),
+                                  ),
+                                ),
+                              ],
+                            ],
+                            const SizedBox(height: 18),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
+                                    style: OutlinedButton.styleFrom(
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                      minimumSize: const Size(0, 42),
+                                      foregroundColor: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                      side: BorderSide(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.18,
+                                        ),
+                                        width: 1,
+                                      ),
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.04,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      cancelText,
+                                      style: const TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: expired
+                                        ? null
+                                        : () => Navigator.of(context).pop(true),
+                                    style: FilledButton.styleFrom(
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                      minimumSize: const Size(0, 42),
+                                      backgroundColor: confirmColor.withValues(
                                         alpha: expired ? 0.35 : 0.92,
                                       ),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      confirmText,
+                                      style: const TextStyle(
+                                        fontFamily: kPatientPrimaryFont,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  confirmText,
-                                  style: const TextStyle(
-                                    fontFamily: kPatientPrimaryFont,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
+                              ],
                             ),
                           ],
-                        ),
-                      ],
                         );
                       },
                     ),
@@ -877,28 +880,32 @@ class _PremiumBookingCard extends StatelessWidget {
     final isExpired = stNorm == 'expired';
 
     final muted = isPast;
-    final subColor = muted
-        ? const Color(0xFF78909C)
-        : const Color(0xFF78909C);
+    final subColor = muted ? const Color(0xFF78909C) : const Color(0xFF78909C);
+
     /// Doctor name in header — primary emphasis (top row with queue badge).
     final doctorHeaderColor = muted
         ? const Color(0xFF455A64)
         : kPatientNavyText;
+
     /// Patient name — centered below date/time (separate from doctor header).
     final patientCenterColor = muted
         ? const Color(0xFF455A64)
         : const Color(0xFF0D2137);
+
     /// Date/time row — darker & bolder than secondary meta labels.
-    final dateTimeTextColor =
-        muted ? const Color(0xFF455A64) : const Color(0xFF263238);
-    final dateTimeIconColor =
-        muted ? const Color(0xFF607D8B) : const Color(0xFF455A64);
+    final dateTimeTextColor = muted
+        ? const Color(0xFF455A64)
+        : const Color(0xFF263238);
+    final dateTimeIconColor = muted
+        ? const Color(0xFF607D8B)
+        : const Color(0xFF455A64);
     final metaGrey = const Color(0xFF90A4AE);
     final chipSurface = _modernChipSurface(stNorm);
     final statusIcon = _statusIconFor(stNorm);
 
-    final surfaceColor =
-        muted ? _kBookingCardPastSurface : _kBookingCardActiveTint;
+    final surfaceColor = muted
+        ? _kBookingCardPastSurface
+        : _kBookingCardActiveTint;
     final barColor = muted ? const Color(0xFFB0BEC5) : _kBookingCardPrimaryBlue;
 
     final statusChip = Container(
@@ -931,9 +938,11 @@ class _PremiumBookingCard extends StatelessWidget {
       ),
     );
 
-    final bool cancelWindowOk = createdAt != null &&
+    final bool cancelWindowOk =
+        createdAt != null &&
         now.difference(createdAt!) < const Duration(hours: 2);
-    final bool canShowCancelAction = onCancel != null &&
+    final bool canShowCancelAction =
+        onCancel != null &&
         !isPast &&
         !isExpired &&
         stNorm != 'completed' &&
@@ -951,9 +960,7 @@ class _PremiumBookingCard extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: muted
-            ? const Color(0xFFECEFF1)
-            : const Color(0xFFE8F4FC),
+        color: muted ? const Color(0xFFECEFF1) : const Color(0xFFE8F4FC),
         border: Border.all(
           color: muted
               ? const Color(0xFFCFD8DC)
@@ -1011,8 +1018,9 @@ class _PremiumBookingCard extends StatelessWidget {
                         decoration: lineThroughDoctor
                             ? TextDecoration.lineThrough
                             : null,
-                        decorationColor:
-                            doctorHeaderColor.withValues(alpha: 0.5),
+                        decorationColor: doctorHeaderColor.withValues(
+                          alpha: 0.5,
+                        ),
                         decorationThickness: 1.1,
                       ),
                     ),
@@ -1110,8 +1118,10 @@ class _PremiumBookingCard extends StatelessWidget {
                 children: [
                   ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxWidth: (MediaQuery.sizeOf(context).width * 0.58)
-                          .clamp(120.0, 300.0),
+                      maxWidth: (MediaQuery.sizeOf(context).width * 0.58).clamp(
+                        120.0,
+                        300.0,
+                      ),
                     ),
                     child: Text(
                       patientName,
@@ -1138,10 +1148,7 @@ class _PremiumBookingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: statusChip,
-          ),
+          Align(alignment: Alignment.centerRight, child: statusChip),
           const SizedBox(height: 10),
           if (canShowCancelAction && cancelWindowOk)
             Align(
@@ -1151,9 +1158,9 @@ class _PremiumBookingCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: onCancel,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFB91C1C).withValues(
-                      alpha: 0.88,
-                    ),
+                    backgroundColor: const Color(
+                      0xFFB91C1C,
+                    ).withValues(alpha: 0.88),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -1167,9 +1174,9 @@ class _PremiumBookingCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    S.of(context).translate(
-                      'schedule_slot_cancel_appointment_short',
-                    ),
+                    S
+                        .of(context)
+                        .translate('schedule_slot_cancel_appointment_short'),
                     style: const TextStyle(
                       fontFamily: kPatientPrimaryFont,
                       fontWeight: FontWeight.w800,
@@ -1182,9 +1189,9 @@ class _PremiumBookingCard extends StatelessWidget {
             )
           else if (canShowCancelAction && !cancelWindowOk)
             Text(
-              S.of(context).translate(
-                'patient_cancel_window_expired_contact_secretary',
-              ),
+              S
+                  .of(context)
+                  .translate('patient_cancel_window_expired_contact_secretary'),
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontFamily: kPatientPrimaryFont,
@@ -1228,15 +1235,9 @@ class _PremiumBookingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: ColoredBox(
-                  color: surfaceColor,
-                  child: inner,
-                ),
+                child: ColoredBox(color: surfaceColor, child: inner),
               ),
-              Container(
-                width: 5,
-                color: barColor,
-              ),
+              Container(width: 5, color: barColor),
             ],
           ),
         ),
@@ -1244,28 +1245,38 @@ class _PremiumBookingCard extends StatelessWidget {
     );
 
     const greyscale = ColorFilter.matrix(<double>[
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0, 0, 0, 1, 0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
     ]);
 
     if (isExpired) {
       return ColorFiltered(
         colorFilter: greyscale,
-        child: Opacity(
-          opacity: 0.6,
-          child: card,
-        ),
+        child: Opacity(opacity: 0.6, child: card),
       );
     }
     if (isPast) {
       return ColorFiltered(
         colorFilter: greyscale,
-        child: Opacity(
-          opacity: _kArchivedBookingOpacity,
-          child: card,
-        ),
+        child: Opacity(opacity: _kArchivedBookingOpacity, child: card),
       );
     }
     return card;
@@ -1972,12 +1983,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       widget.embedded ? const Color(0xFF1976D2) : kPatientDeepBlue;
   Color get _uiMuted => _onLightMuted;
 
-<<<<<<< HEAD
-=======
   /// Monthly filter for previous appointments.
   /// This is purely local filtering to avoid Firestore index requirements.
   String _selectedPastMonth = 'All';
->>>>>>> 761275fe712e611f8d6b860b479a82c403776d60
 
   Timer? _highlightTimer;
   bool _highlightActive = false;
@@ -2004,7 +2012,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   }) async {
     final tr = S.of(context);
     final createdAt = _parseCreatedAt(priorData[AppointmentFields.createdAt]);
-    final withinWindow = createdAt != null &&
+    final withinWindow =
+        createdAt != null &&
         now.difference(createdAt) < const Duration(hours: 2);
     if (!withinWindow) {
       if (!context.mounted) return;
@@ -2022,8 +2031,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     final ok = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierLabel:
-          MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black.withValues(alpha: 0.55),
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (ctx, anim, sec) {
@@ -2342,345 +2350,364 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           initialData: DateTime.now(),
           builder: (context, clockSnap) {
             final now = clockSnap.data ?? DateTime.now();
-            return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            return StreamBuilder<
+              List<QueryDocumentSnapshot<Map<String, dynamic>>>
+            >(
               stream: _watchAppointmentsForUserId(uid),
               builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator(color: _uiAccent));
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    S
-                        .of(context)
-                        .translate(
-                          'error_with_details',
-                          params: {'detail': '${snapshot.error}'},
-                        ),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontFamily: kPatientPrimaryFont,
-                    ),
-                  ),
-                ),
-              );
-            }
-            var docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-              snapshot.data ?? [],
-            );
-            final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-            for (final d in docs) {
-              final data = d.data();
-              final st = _normAppointmentStatus(
-                data[AppointmentFields.status],
-              );
-              final instant = appointmentSlotDateTimeForStaffSort(data);
-              if (_isPastAppointmentStatus(st)) {
-                // handled below (past section)
-              } else if (instant.isAfter(now)) {
-                activeDocs.add(d);
-              } else {
-                // handled below (past section)
-              }
-            }
-            _sortActiveAppointmentsForDisplay(activeDocs);
-            _maybeShowDoctorClosedAlert(docs);
-            // Best-effort Firestore status → expired when slot time has passed.
-            unawaited(_maybeExpireOutdatedAppointments(docs));
-
-            if (docs.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 110,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF1E1E1E),
-                          border: Border.all(
-                            color: _kBookingsRoseSolid,
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _kBookingsRoseTop.withValues(alpha: 0.22),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(color: _uiAccent),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        S
+                            .of(context)
+                            .translate(
+                              'error_with_details',
+                              params: {'detail': '${snapshot.error}'},
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.event_note_rounded,
-                          size: 52,
-                          color: _kBookingsRoseTop,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'هیچ نۆرەیەکت تۆمار نەکردووە',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: kPatientNavyText.withValues(alpha: 0.92),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
                           fontFamily: kPatientPrimaryFont,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }
+                    ),
+                  );
+                }
+                var docs =
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                      snapshot.data ?? [],
+                    );
+                final activeDocs =
+                    <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                for (final d in docs) {
+                  final data = d.data();
+                  final st = _normAppointmentStatus(
+                    data[AppointmentFields.status],
+                  );
+                  final instant = appointmentSlotDateTimeForStaffSort(data);
+                  if (_isPastAppointmentStatus(st)) {
+                    // handled below (past section)
+                  } else if (instant.isAfter(now)) {
+                    activeDocs.add(d);
+                  } else {
+                    // handled below (past section)
+                  }
+                }
+                _sortActiveAppointmentsForDisplay(activeDocs);
+                _maybeShowDoctorClosedAlert(docs);
+                // Best-effort Firestore status → expired when slot time has passed.
+                unawaited(_maybeExpireOutdatedAppointments(docs));
 
-            final padBottom =
-                24 +
-                MediaQuery.paddingOf(context).bottom +
-                (widget.embedded ? 8 : 0);
-
-            Widget buildCardForDoc(
-              QueryDocumentSnapshot<Map<String, dynamic>> docSnap, {
-              required int orderIndex,
-              required bool isPastSection,
-            }) {
-              final data = docSnap.data();
-              final doctorName =
-                  (data[AppointmentFields.doctorName] ??
-                          data[AppointmentFields.doctorId] ??
-                          '—')
-                      .toString();
-              final patientName = (data[AppointmentFields.patientName] ?? '—')
-                  .toString();
-              final specialty = (data['doctorSpecialty'] ?? '—').toString();
-              final displayStatus =
-                  _effectivePatientAppointmentStatusForUi(data, now);
-              final stNorm = _normAppointmentStatus(displayStatus);
-              final timeStr =
-                  _formatAppointmentTimeForDisplay(data[AppointmentFields.time]);
-              final rawDate = data[AppointmentFields.date];
-              final parsedDay = _parseAppointmentDate(rawDate);
-              String dateStr = '—';
-              if (parsedDay != null) {
-                dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
-              } else if (rawDate != null) {
-                dateStr = rawDate.toString();
-              }
-              final daysStyle = parsedDay != null
-                  ? _DaysRemainingStyle.fromAppointmentDay(context, parsedDay)
-                  : null;
-              final queueLabel = _appointmentQueueLabel(data, orderIndex);
-              final cancelReason =
-                  (data[AppointmentFields.cancellationReason] ?? '')
-                      .toString()
-                      .trim();
-              final createdAt =
-                  _parseCreatedAt(data[AppointmentFields.createdAt]);
-              final docId = docSnap.id;
-              final heroTag = 'appointment_ticket_$docId';
-              final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
-              final isHighlighted =
-                  _highlightActive &&
-                  hlId.isNotEmpty &&
-                  ((data[AppointmentFields.availableDayDocId] ?? '')
-                          .toString()
-                          .trim() ==
-                      hlId);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: GestureDetector(
-                  onTap: () => _openTicketPreview(
-                    context,
-                    heroTag: heroTag,
-                    doctorName: doctorName,
-                    patientName: patientName,
-                    dateStr: dateStr,
-                    timeStr: timeStr,
-                    status: displayStatus,
-                    cancellationReason: cancelReason,
-                    queueLabel: queueLabel,
-                    daysStyle: daysStyle,
-                    holeColor: _holeColor,
-                    isPastBooking:
-                        isPastSection || _isPastAppointmentStatus(stNorm),
-                  ),
-                  behavior: HitTestBehavior.opaque,
-                  child: Hero(
-                    tag: heroTag,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          _kPremiumBookingCardRadius,
-                        ),
-                        border: isHighlighted
-                            ? Border.all(
-                                color: const Color(0xFFD4A373),
-                                width: 1.4,
-                              )
-                            : null,
-                        boxShadow: isHighlighted
-                            ? [
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF1E1E1E),
+                              border: Border.all(
+                                color: _kBookingsRoseSolid,
+                                width: 1,
+                              ),
+                              boxShadow: [
                                 BoxShadow(
-                                  color: const Color(
-                                    0xFFA98467,
-                                  ).withValues(alpha: 0.38),
-                                  blurRadius: 16,
+                                  color: _kBookingsRoseTop.withValues(
+                                    alpha: 0.22,
+                                  ),
+                                  blurRadius: 14,
                                   offset: const Offset(0, 5),
                                 ),
-                              ]
-                            : null,
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: _PremiumBookingCard(
-                          queueLabel: queueLabel,
-                          doctorName: doctorName,
-                          specialty: specialty,
-                          patientName: patientName,
-                          dateStr: dateStr,
-                          timeStr: timeStr,
-                          status: displayStatus,
-                          createdAt: createdAt,
-                          now: now,
-                          onCancel: () => _cancelAppointmentIfAllowed(
-                            context: context,
-                            appointmentDocId: docId,
-                            priorData: Map<String, dynamic>.from(data),
-                            now: now,
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.event_note_rounded,
+                              size: 52,
+                              color: _kBookingsRoseTop,
+                            ),
                           ),
-                          cancellationReason: cancelReason,
-                          isPast: isPastSection,
+                          const SizedBox(height: 14),
+                          Text(
+                            'هیچ نۆرەیەکت تۆمار نەکردووە',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: kPatientNavyText.withValues(alpha: 0.92),
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final padBottom =
+                    24 +
+                    MediaQuery.paddingOf(context).bottom +
+                    (widget.embedded ? 8 : 0);
+
+                Widget buildCardForDoc(
+                  QueryDocumentSnapshot<Map<String, dynamic>> docSnap, {
+                  required int orderIndex,
+                  required bool isPastSection,
+                }) {
+                  final data = docSnap.data();
+                  final doctorName =
+                      (data[AppointmentFields.doctorName] ??
+                              data[AppointmentFields.doctorId] ??
+                              '—')
+                          .toString();
+                  final patientName =
+                      (data[AppointmentFields.patientName] ?? '—').toString();
+                  final specialty = (data['doctorSpecialty'] ?? '—').toString();
+                  final displayStatus = _effectivePatientAppointmentStatusForUi(
+                    data,
+                    now,
+                  );
+                  final stNorm = _normAppointmentStatus(displayStatus);
+                  final timeStr = _formatAppointmentTimeForDisplay(
+                    data[AppointmentFields.time],
+                  );
+                  final rawDate = data[AppointmentFields.date];
+                  final parsedDay = _parseAppointmentDate(rawDate);
+                  String dateStr = '—';
+                  if (parsedDay != null) {
+                    dateStr = DateFormat('yyyy/MM/dd').format(parsedDay);
+                  } else if (rawDate != null) {
+                    dateStr = rawDate.toString();
+                  }
+                  final daysStyle = parsedDay != null
+                      ? _DaysRemainingStyle.fromAppointmentDay(
+                          context,
+                          parsedDay,
+                        )
+                      : null;
+                  final queueLabel = _appointmentQueueLabel(data, orderIndex);
+                  final cancelReason =
+                      (data[AppointmentFields.cancellationReason] ?? '')
+                          .toString()
+                          .trim();
+                  final createdAt = _parseCreatedAt(
+                    data[AppointmentFields.createdAt],
+                  );
+                  final docId = docSnap.id;
+                  final heroTag = 'appointment_ticket_$docId';
+                  final hlId = (widget.highlightAvailableDayDocId ?? '').trim();
+                  final isHighlighted =
+                      _highlightActive &&
+                      hlId.isNotEmpty &&
+                      ((data[AppointmentFields.availableDayDocId] ?? '')
+                              .toString()
+                              .trim() ==
+                          hlId);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: GestureDetector(
+                      onTap: () => _openTicketPreview(
+                        context,
+                        heroTag: heroTag,
+                        doctorName: doctorName,
+                        patientName: patientName,
+                        dateStr: dateStr,
+                        timeStr: timeStr,
+                        status: displayStatus,
+                        cancellationReason: cancelReason,
+                        queueLabel: queueLabel,
+                        daysStyle: daysStyle,
+                        holeColor: _holeColor,
+                        isPastBooking:
+                            isPastSection || _isPastAppointmentStatus(stNorm),
+                      ),
+                      behavior: HitTestBehavior.opaque,
+                      child: Hero(
+                        tag: heroTag,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 320),
+                          curve: Curves.easeOutCubic,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              _kPremiumBookingCardRadius,
+                            ),
+                            border: isHighlighted
+                                ? Border.all(
+                                    color: const Color(0xFFD4A373),
+                                    width: 1.4,
+                                  )
+                                : null,
+                            boxShadow: isHighlighted
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFA98467,
+                                      ).withValues(alpha: 0.38),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: _PremiumBookingCard(
+                              queueLabel: queueLabel,
+                              doctorName: doctorName,
+                              specialty: specialty,
+                              patientName: patientName,
+                              dateStr: dateStr,
+                              timeStr: timeStr,
+                              status: displayStatus,
+                              createdAt: createdAt,
+                              now: now,
+                              onCancel: () => _cancelAppointmentIfAllowed(
+                                context: context,
+                                appointmentDocId: docId,
+                                priorData: Map<String, dynamic>.from(data),
+                                now: now,
+                              ),
+                              cancellationReason: cancelReason,
+                              isPast: isPastSection,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              );
-            }
-
-            final children = <Widget>[
-              _myBookingsSectionHeader('نۆرەی چالاک'),
-              const SizedBox(height: 10),
-              _MonthlyHistoryEntryButton(
-                onTap: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MonthlyHistoryPage(),
-                    ),
                   );
-                },
-              ),
-              const SizedBox(height: 18),
-              if (activeDocs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: Text(
-                    'هیچ نۆرەی چالاکت نییە',
-                    style: TextStyle(
-                      color: kPatientNavyText.withValues(alpha: 0.78),
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                    ),
+                }
+
+                final children = <Widget>[
+                  _myBookingsSectionHeader('نۆرەی چالاک'),
+                  const SizedBox(height: 10),
+                  _MonthlyHistoryEntryButton(
+                    onTap: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => const MonthlyHistoryPage(),
+                        ),
+                      );
+                    },
                   ),
-                )
-              else
-                for (var i = 0; i < activeDocs.length; i++)
-                  buildCardForDoc(
-                    activeDocs[i],
-                    orderIndex: i,
-                    isPastSection: false,
-                  ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Divider(
-                  height: 1,
-                  thickness: 0.6,
-                  color: kPatientNavyText.withValues(alpha: 0.14),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _myBookingsSectionHeader('نۆرەکانی پێشوو'),
-                    const SizedBox(height: 8),
-                    _pastMonthChipsBar(context),
-                  ],
-                ),
-              ),
-              Builder(
-                builder: (context) {
-                  final allPastDocs =
-                      <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-                  for (final d in docs) {
-                    if (activeDocs.any((e) => e.id == d.id)) continue;
-                    final data = d.data();
-                    final st = _normAppointmentStatus(
-                      data[AppointmentFields.status],
-                    );
-                    final instant = appointmentSlotDateTimeForStaffSort(data);
-                    final isPast =
-                        _isPastAppointmentStatus(st) || !instant.isAfter(now);
-                    if (isPast) allPastDocs.add(d);
-                  }
-
-                  final selectedMonthNum =
-                      _monthNumberFromSelectedLabel(_selectedPastMonth);
-                  final filteredList = selectedMonthNum == null
-                      ? allPastDocs
-                      : allPastDocs
-                          .where(
-                            (doc) =>
-                                _monthNumberFromDoc(doc.data()) ==
-                                selectedMonthNum,
-                          )
-                          .toList();
-
-                  _sortPatientAppointmentsAll(filteredList);
-
-                  if (filteredList.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                  const SizedBox(height: 18),
+                  if (activeDocs.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
                       child: Text(
-                        'هیچ نۆرەی پێشووت نییە',
+                        'هیچ نۆرەی چالاکت نییە',
                         style: TextStyle(
-                          color: kPatientNavyText.withValues(alpha: 0.72),
+                          color: kPatientNavyText.withValues(alpha: 0.78),
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: 13.5,
                         ),
                       ),
-                    );
-                  }
+                    )
+                  else
+                    for (var i = 0; i < activeDocs.length; i++)
+                      buildCardForDoc(
+                        activeDocs[i],
+                        orderIndex: i,
+                        isPastSection: false,
+                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(
+                      height: 1,
+                      thickness: 0.6,
+                      color: kPatientNavyText.withValues(alpha: 0.14),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _myBookingsSectionHeader('نۆرەکانی پێشوو'),
+                        const SizedBox(height: 8),
+                        _pastMonthChipsBar(context),
+                      ],
+                    ),
+                  ),
+                  Builder(
+                    builder: (context) {
+                      final allPastDocs =
+                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                      for (final d in docs) {
+                        if (activeDocs.any((e) => e.id == d.id)) continue;
+                        final data = d.data();
+                        final st = _normAppointmentStatus(
+                          data[AppointmentFields.status],
+                        );
+                        final instant = appointmentSlotDateTimeForStaffSort(
+                          data,
+                        );
+                        final isPast =
+                            _isPastAppointmentStatus(st) ||
+                            !instant.isAfter(now);
+                        if (isPast) allPastDocs.add(d);
+                      }
 
-                  return Column(
-                    children: [
-                      for (var j = 0; j < filteredList.length; j++)
-                        buildCardForDoc(
-                          filteredList[j],
-                          orderIndex: j,
-                          isPastSection: true,
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ];
+                      final selectedMonthNum = _monthNumberFromSelectedLabel(
+                        _selectedPastMonth,
+                      );
+                      final filteredList = selectedMonthNum == null
+                          ? allPastDocs
+                          : allPastDocs
+                                .where(
+                                  (doc) =>
+                                      _monthNumberFromDoc(doc.data()) ==
+                                      selectedMonthNum,
+                                )
+                                .toList();
 
-            return ListView(
-              padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
-              children: children,
-            );
+                      _sortPatientAppointmentsAll(filteredList);
+
+                      if (filteredList.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'هیچ نۆرەی پێشووت نییە',
+                            style: TextStyle(
+                              color: kPatientNavyText.withValues(alpha: 0.72),
+                              fontFamily: kPatientPrimaryFont,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        children: [
+                          for (var j = 0; j < filteredList.length; j++)
+                            buildCardForDoc(
+                              filteredList[j],
+                              orderIndex: j,
+                              isPastSection: true,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ];
+
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(14, 12, 14, padBottom),
+                  children: children,
+                );
               },
             );
           },
@@ -2820,8 +2847,9 @@ class _MonthlyHistoryEntryButton extends StatelessWidget {
                 Directionality.of(context) == ui.TextDirection.rtl
                     ? Icons.chevron_left
                     : Icons.chevron_right,
-                color: _PatientAppointmentsScreenState._onLightMuted
-                    .withValues(alpha: 0.6),
+                color: _PatientAppointmentsScreenState._onLightMuted.withValues(
+                  alpha: 0.6,
+                ),
               ),
             ],
           ),
@@ -2858,7 +2886,8 @@ class MonthlyHistoryPage extends StatefulWidget {
 }
 
 class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
-  static const Color _titleNavy = _PatientAppointmentsScreenState._historyTitleNavy;
+  static const Color _titleNavy =
+      _PatientAppointmentsScreenState._historyTitleNavy;
   static const Color _chipSelectedBg =
       _PatientAppointmentsScreenState._historyChipSelectedBg;
   static const Color _chipUnselectedBorder =
@@ -3018,7 +3047,9 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                 initialData: DateTime.now(),
                 builder: (context, clockSnap) {
                   final now = clockSnap.data ?? DateTime.now();
-                  return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+                  return StreamBuilder<
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
+                  >(
                     stream: _watchAppointments(ids),
                     builder: (context, snap) {
                       if (snap.connectionState == ConnectionState.waiting &&
@@ -3032,10 +3063,12 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
-                              S.of(context).translate(
-                                'error_with_details',
-                                params: {'detail': '${snap.error}'},
-                              ),
+                              S
+                                  .of(context)
+                                  .translate(
+                                    'error_with_details',
+                                    params: {'detail': '${snap.error}'},
+                                  ),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.redAccent,
@@ -3046,11 +3079,13 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                         );
                       }
 
-                      final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-                        snap.data ?? const [],
-                      );
+                      final docs =
+                          List<
+                            QueryDocumentSnapshot<Map<String, dynamic>>
+                          >.from(snap.data ?? const []);
 
-                      final inMonth = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                      final inMonth =
+                          <QueryDocumentSnapshot<Map<String, dynamic>>>[];
                       for (final d in docs) {
                         final data = d.data();
                         final st = _normAppointmentStatus(
@@ -3062,7 +3097,8 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                           data[AppointmentFields.date],
                         );
                         if (day == null) continue;
-                        if (!day.isBefore(selectedStart) && day.isBefore(selectedEnd)) {
+                        if (!day.isBefore(selectedStart) &&
+                            day.isBefore(selectedEnd)) {
                           inMonth.add(d);
                         }
                       }
@@ -3080,7 +3116,9 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                             height: 44,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
                               itemCount: months.length,
                               separatorBuilder: (_, unused) =>
                                   const SizedBox(width: 10),
@@ -3145,7 +3183,9 @@ class _MonthlyHistoryPageState extends State<MonthlyHistoryPage> {
                                 'هیچ نۆرەیەک لەم مانگەدا نییە',
                                 style: TextStyle(
                                   fontFamily: kPatientPrimaryFont,
-                                  color: kPatientNavyText.withValues(alpha: 0.78),
+                                  color: kPatientNavyText.withValues(
+                                    alpha: 0.78,
+                                  ),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -3194,16 +3234,18 @@ class _MonthlyHistoryAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = docSnap.data();
-    final doctorName = (data[AppointmentFields.doctorName] ??
-            data[AppointmentFields.doctorId] ??
-            '—')
-        .toString();
+    final doctorName =
+        (data[AppointmentFields.doctorName] ??
+                data[AppointmentFields.doctorId] ??
+                '—')
+            .toString();
     final patientName = (data[AppointmentFields.patientName] ?? '—').toString();
     final specialty = (data['doctorSpecialty'] ?? '—').toString();
     final displayStatus = _effectivePatientAppointmentStatusForUi(data, now);
     final stNorm = _normAppointmentStatus(displayStatus);
-    final timeStr =
-        _formatAppointmentTimeForDisplay(data[AppointmentFields.time]);
+    final timeStr = _formatAppointmentTimeForDisplay(
+      data[AppointmentFields.time],
+    );
     final rawDate = data[AppointmentFields.date];
     final parsedDay = _parseAppointmentDate(rawDate);
     String dateStr = '—';
@@ -3216,8 +3258,9 @@ class _MonthlyHistoryAppointmentCard extends StatelessWidget {
         ? _DaysRemainingStyle.fromAppointmentDay(context, parsedDay)
         : null;
     final queueLabel = _appointmentQueueLabel(data, index);
-    final cancelReason =
-        (data[AppointmentFields.cancellationReason] ?? '').toString().trim();
+    final cancelReason = (data[AppointmentFields.cancellationReason] ?? '')
+        .toString()
+        .trim();
     final createdAt = _parseCreatedAt(data[AppointmentFields.createdAt]);
     final docId = docSnap.id;
     final heroTag = 'monthly_history_$docId';
