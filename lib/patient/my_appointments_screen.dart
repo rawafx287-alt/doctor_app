@@ -2176,66 +2176,23 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-  _watchAppointmentsForPatientIds(Set<String> ids) {
-    final streams = <Stream<QuerySnapshot<Map<String, dynamic>>>>[];
-    for (final id in ids) {
-      streams.add(
-        FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .where(AppointmentFields.patientId, isEqualTo: id)
-            .snapshots(),
-      );
-      streams.add(
-        FirebaseFirestore.instance
-            .collection(AppointmentFields.collection)
-            .where(AppointmentFields.userId, isEqualTo: id)
-            .snapshots(),
-      );
-    }
-
-    return Stream.multi((controller) {
-      final latest = List<QuerySnapshot<Map<String, dynamic>>?>.filled(
-        streams.length,
-        null,
-      );
-      void emitMerged() {
-        final byId = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
-        for (final snap in latest) {
-          for (final d in snap?.docs ?? const []) {
-            byId[d.id] = d;
-          }
-        }
-        controller.add(byId.values.toList());
-      }
-
-      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-      for (var i = 0; i < streams.length; i++) {
-        subs.add(
-          streams[i].listen((event) {
-            latest[i] = event;
-            emitMerged();
-          }, onError: controller.addError),
-        );
-      }
-      controller.onCancel = () async {
-        for (final s in subs) {
-          await s.cancel();
-        }
-      };
-    });
+  _watchAppointmentsForUserId(String userId) {
+    final id = userId.trim();
+    if (id.isEmpty) return const Stream.empty();
+    return FirebaseFirestore.instance
+        .collection(AppointmentFields.collection)
+        .where(AppointmentFields.patientId, isEqualTo: id)
+        .snapshots()
+        .map((e) => e.docs);
   }
 
   @override
   Widget build(BuildContext context) {
-    final listBody = FutureBuilder<Set<String>>(
-      future: _resolvePatientIds(),
-      builder: (context, idsSnap) {
-        if (idsSnap.connectionState == ConnectionState.waiting &&
-            !idsSnap.hasData) {
-          return Center(child: CircularProgressIndicator(color: _uiAccent));
-        }
-        final patientIds = idsSnap.data ?? const <String>{};
-        if (patientIds.isEmpty) {
+    final listBody = Builder(
+      builder: (context) {
+        final user = FirebaseAuth.instance.currentUser;
+        final uid = (user?.uid ?? '').trim();
+        if (uid.isEmpty) {
           return Center(
             child: Text(
               S.of(context).translate('appointments_need_login'),
@@ -2243,13 +2200,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           );
         }
+
         return StreamBuilder<DateTime>(
           stream: _patientAppointmentsUiClock(),
           initialData: DateTime.now(),
           builder: (context, clockSnap) {
             final now = clockSnap.data ?? DateTime.now();
             return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-              stream: _watchAppointmentsForPatientIds(patientIds),
+              stream: _watchAppointmentsForUserId(uid),
               builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator(color: _uiAccent));
@@ -2278,7 +2236,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               snapshot.data ?? [],
             );
             final activeDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-            final pastDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             for (final d in docs) {
               final data = d.data();
               final st = _normAppointmentStatus(
@@ -2286,15 +2243,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
               );
               final instant = appointmentSlotDateTimeForStaffSort(data);
               if (_isPastAppointmentStatus(st)) {
-                pastDocs.add(d);
+                // handled below (past section)
               } else if (instant.isAfter(now)) {
                 activeDocs.add(d);
               } else {
-                pastDocs.add(d);
+                // handled below (past section)
               }
             }
             _sortActiveAppointmentsForDisplay(activeDocs);
-            _sortPatientAppointmentsAll(pastDocs);
             _maybeShowDoctorClosedAlert(docs);
             // Best-effort Firestore status → expired when slot time has passed.
             unawaited(_maybeExpireOutdatedAppointments(docs));
@@ -2503,26 +2459,51 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                 ),
               ),
               _myBookingsSectionHeader('نۆرەکانی پێشوو'),
-              if (pastDocs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'هیچ نۆرەی پێشووت نییە',
-                    style: TextStyle(
-                      color: kPatientNavyText.withValues(alpha: 0.72),
-                      fontFamily: kPatientPrimaryFont,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                )
-              else
-                for (var j = 0; j < pastDocs.length; j++)
-                  buildCardForDoc(
-                    pastDocs[j],
-                    orderIndex: j,
-                    isPastSection: true,
-                  ),
+              Builder(
+                builder: (context) {
+                  final allPastDocs =
+                      <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                  for (final d in docs) {
+                    if (activeDocs.any((e) => e.id == d.id)) continue;
+                    final data = d.data();
+                    final st = _normAppointmentStatus(
+                      data[AppointmentFields.status],
+                    );
+                    final instant = appointmentSlotDateTimeForStaffSort(data);
+                    final isPast =
+                        _isPastAppointmentStatus(st) || !instant.isAfter(now);
+                    if (isPast) allPastDocs.add(d);
+                  }
+
+                  _sortPatientAppointmentsAll(allPastDocs);
+
+                  if (allPastDocs.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'هیچ نۆرەی پێشووت نییە',
+                        style: TextStyle(
+                          color: kPatientNavyText.withValues(alpha: 0.72),
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      for (var j = 0; j < allPastDocs.length; j++)
+                        buildCardForDoc(
+                          allPastDocs[j],
+                          orderIndex: j,
+                          isPastSection: true,
+                        ),
+                    ],
+                  );
+                },
+              ),
             ];
 
             return ListView(
