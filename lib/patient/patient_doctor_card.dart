@@ -92,8 +92,8 @@ class PatientDoctorCard extends StatefulWidget {
 
   static const double _radius = 20;
 
-  /// Card row height — image strip matches; chip + name + rating + CTA.
-  static const double _kCardContentHeight = 156;
+  /// Fixed image height — keeps the card from stretching vertically.
+  static const double _kImageHeight = 130;
   static const double _kImageStripWidth = 96;
   static const double _kImageCornerRadius = 16;
 
@@ -150,23 +150,21 @@ class _PatientDoctorCardState extends State<PatientDoctorCard> {
           ),
           boxShadow: _kFloatingCardShadows,
         ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
-        child: SizedBox(
-          height: PatientDoctorCard._kCardContentHeight,
-          child: Stack(
+        padding: const EdgeInsets.all(12),
+        child: Stack(
             clipBehavior: Clip.none,
             children: [
               Row(
                 textDirection: TextDirection.ltr,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(
-                        40,
-                        8,
+                        38,
+                        0,
                         6,
-                        8,
+                        4,
                       ),
                       child: LayoutBuilder(
                                     builder: (context, constraints) {
@@ -177,72 +175,65 @@ class _PatientDoctorCardState extends State<PatientDoctorCard> {
                                       );
                                       return Padding(
                                         padding: const EdgeInsets.fromLTRB(
-                                          8,
-                                          1,
-                                          8,
-                                          4,
+                                          6,
+                                          0,
+                                          6,
+                                          2,
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            Align(
-                                              alignment:
-                                                  Alignment.centerRight,
-                                              child:
-                                                  _PatientDoctorSpecialtyBadge(
-                                                label: specialtyLabel,
-                                                specialty: widget.specialty,
-                                                maxWidth: innerW,
+                                        child: SizedBox(
+                                          height: PatientDoctorCard._kImageHeight,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const SizedBox(height: 4),
+                                              Align(
+                                                alignment:
+                                                    AlignmentDirectional.centerStart,
+                                                child: _PatientDoctorSpecialtyBadge(
+                                                  label: specialtyLabel,
+                                                  specialty: widget.specialty,
+                                                  maxWidth: innerW,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Expanded(
-                                              child: Center(
+                                              const SizedBox(height: 8),
+                                              Expanded(
                                                 child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.stretch,
                                                   children: [
                                                     Padding(
                                                       padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                        horizontal: 4,
+                                                          const EdgeInsets.symmetric(
+                                                        horizontal: 2,
                                                       ),
                                                       child: SizedBox(
                                                         width: innerW,
                                                         child: FittedBox(
-                                                          fit: BoxFit
-                                                              .scaleDown,
-                                                          alignment:
-                                                              Alignment
-                                                                  .center,
-                                                          child:
-                                                              Directionality(
+                                                          fit: BoxFit.scaleDown,
+                                                          alignment: Alignment.center,
+                                                          child: Directionality(
                                                             textDirection:
                                                                 nameDirection,
                                                             child: Text(
                                                               widget.name.trim(),
                                                               textAlign:
-                                                                  TextAlign
-                                                                      .center,
+                                                                  TextAlign.center,
                                                               maxLines: 1,
                                                               softWrap: false,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              style:
-                                                                  const TextStyle(
+                                                              overflow: TextOverflow
+                                                                  .ellipsis,
+                                                              style: const TextStyle(
                                                                 fontFamily:
                                                                     kPatientPrimaryFont,
-                                                                fontSize:
-                                                                    18.25,
+                                                                fontSize: 17.5,
                                                                 fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                                height: 1.15,
+                                                                    FontWeight.w600,
+                                                                height: 1.12,
                                                                 letterSpacing:
-                                                                    -0.12,
+                                                                    -0.1,
                                                                 color: Color(
                                                                   0xFF0A1628,
                                                                 ),
@@ -252,110 +243,125 @@ class _PatientDoctorCardState extends State<PatientDoctorCard> {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 10),
-                                                    // Use [Wrap] instead of [Row] so small
-                                                    // widths never overflow (rating + CTA can
-                                                    // wrap to 2 lines when needed).
-                                                    Wrap(
-                                                      alignment:
-                                                          WrapAlignment.center,
-                                                      crossAxisAlignment:
-                                                          WrapCrossAlignment
-                                                              .center,
-                                                      spacing: 10,
-                                                      runSpacing: 8,
-                                                      children: [
-                                                        if (widget.ratingCount > 0)
-                                                          _PatientDoctorCardRatingLine(
-                                                            average:
-                                                                widget.ratingAverage,
-                                                            count: widget.ratingCount,
-                                                            compact: true,
-                                                          ),
-                                                        _DoctorCardPressableButton(
-                                                          onTap: widget.onBook,
-                                                          child:
-                                                              _BookNowPrimaryButton(
-                                                            bookCtaText: S
-                                                                .of(context)
-                                                                .translate(
-                                                              'patient_doctor_card_book_cta',
-                                                            ),
-                                                          ),
+                                                    const SizedBox(height: 14),
+                                                    Align(
+                                                      alignment: Alignment.center,
+                                                      child: ConstrainedBox(
+                                                        constraints: BoxConstraints(
+                                                          maxWidth: innerW * 0.92,
                                                         ),
-                                                      ],
+                                                        child: Row(
+                                                          children: [
+                                                            if (widget.ratingCount > 0)
+                                                              _DoctorCardInlineRating(
+                                                                average:
+                                                                    widget.ratingAverage,
+                                                                count: widget.ratingCount,
+                                                              ),
+                                                            if (widget.ratingCount > 0)
+                                                              const SizedBox(width: 10),
+                                                            Expanded(
+                                                              child: SizedBox(
+                                                                width: double.infinity,
+                                                                child:
+                                                                    _DoctorCardPressableButton(
+                                                                  onTap:
+                                                                      widget.onBook,
+                                                                  child:
+                                                                      _BookNowPrimaryButton(
+                                                                    bookCtaText: S
+                                                                        .of(context)
+                                                                        .translate(
+                                                                      'patient_doctor_card_book_cta',
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       );
                                     },
                                   ),
                                 ),
                               ),
-                              Container(
+                              SizedBox(
                                 width: PatientDoctorCard._kImageStripWidth,
-                                height: PatientDoctorCard._kCardContentHeight,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(
-                                    PatientDoctorCard._kImageCornerRadius,
-                                  ),
-                                  border: Border.all(
-                                    color: const Color(0xFFE5E1D9),
-                                    width: 1,
-                                  ),
-                                  boxShadow: _kDoctorImageShadows,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    PatientDoctorCard._kImageCornerRadius - 0.5,
-                                  ),
-                                  child: CachedNetworkImage(
-                                    imageUrl: avatarUrl,
-                                    fit: BoxFit.cover,
-                                    alignment: Alignment.center,
-                                    memCacheWidth: 256,
-                                    memCacheHeight: 384,
-                                    fadeInDuration: Duration.zero,
-                                    fadeOutDuration: Duration.zero,
-                                    placeholder: (context, url) => Container(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: PatientDoctorCard._deepBlue,
+                                height: PatientDoctorCard._kImageHeight,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            PatientDoctorCard._kImageCornerRadius,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFE5E1D9),
+                                            width: 1,
+                                          ),
+                                          boxShadow: _kDoctorImageShadows,
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            PatientDoctorCard._kImageCornerRadius - 0.5,
+                                          ),
+                                          child: CachedNetworkImage(
+                                            imageUrl: avatarUrl,
+                                            fit: BoxFit.cover,
+                                            alignment: Alignment.center,
+                                            memCacheWidth: 256,
+                                            memCacheHeight: 312,
+                                            fadeInDuration: Duration.zero,
+                                            fadeOutDuration: Duration.zero,
+                                            placeholder: (context, url) => Container(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.9,
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: PatientDoctorCard._deepBlue,
+                                                ),
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) =>
+                                                Container(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.9,
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.medical_services_rounded,
+                                                color: PatientDoctorCard._deepBlue,
+                                                size: 24,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                    errorWidget: (context, url, error) =>
-                                        Container(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.medical_services_rounded,
-                                        color: PatientDoctorCard._deepBlue,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                           Positioned(
                             left: 0,
-                            top: -4,
+                            top: 0,
                             child: Material(
                               color: Colors.transparent,
                               child: Row(
@@ -406,63 +412,41 @@ class _PatientDoctorCardState extends State<PatientDoctorCard> {
                           ),
             ],
           ),
-        ),
       ),
     );
   }
 }
 
-/// Compact ⭐ average (count) under the doctor name.
-class _PatientDoctorCardRatingLine extends StatelessWidget {
-  const _PatientDoctorCardRatingLine({
+/// Simple inline rating shown left of the booking button.
+class _DoctorCardInlineRating extends StatelessWidget {
+  const _DoctorCardInlineRating({
     required this.average,
     required this.count,
-    this.compact = false,
   });
 
   final double average;
   final int count;
-  final bool compact;
 
   static const Color _goldStar = Color(0xFFD4AF37);
 
   @override
   Widget build(BuildContext context) {
-    if (count <= 0) {
-      return Center(
-        child: Text(
-          S.of(context).translate('doctor_card_rating_none'),
-          style: TextStyle(
-            fontFamily: kPatientPrimaryFont,
-            fontSize: compact ? 11 : 11.5,
-            fontWeight: FontWeight.w600,
-            color: kPatientNavyText.withValues(alpha: 0.48),
-            height: 1.1,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }
+    if (count <= 0) return const SizedBox.shrink();
     return Row(
       mainAxisSize: MainAxisSize.min,
       textDirection: TextDirection.ltr,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(
-          Icons.star_rounded,
-          size: compact ? 15 : 16,
-          color: _goldStar,
-        ),
+        const Icon(Icons.star_rounded, size: 16, color: _goldStar),
         const SizedBox(width: 4),
         Text(
           average.clamp(0, 5).toStringAsFixed(1),
           style: TextStyle(
             fontFamily: kPatientPrimaryFont,
-            fontSize: compact ? 12.25 : 12.5,
+            fontSize: 12.25,
             fontWeight: FontWeight.w900,
-            color: const Color(0xFF0A1628).withValues(alpha: 0.92),
-            height: 1.1,
+            height: 1.0,
+            color: const Color(0xFF0A1628).withValues(alpha: 0.88),
           ),
         ),
       ],
@@ -664,9 +648,9 @@ class _BookNowPrimaryButton extends StatelessWidget {
 
   final String bookCtaText;
 
-  static const double _r = 10;
-  static const double _buttonHeight = 28;
-  static const double _maxButtonWidth = 152;
+  static const double _r = 12;
+  static const double _buttonHeight = 36;
+  static const double _maxButtonWidth = 340;
 
   @override
   Widget build(BuildContext context) {
@@ -714,8 +698,8 @@ class _BookNowPrimaryButton extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 2,
+                horizontal: 14,
+                vertical: 6,
               ),
               child: Center(
                 child: Text(
@@ -726,9 +710,9 @@ class _BookNowPrimaryButton extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
                     fontWeight: FontWeight.bold,
-                    fontSize: 11.5,
+                    fontSize: 13,
                     height: 1.1,
-                    letterSpacing: 0.04,
+                    letterSpacing: 0.03,
                     color: Colors.black.withValues(alpha: 0.9),
                   ),
                 ),

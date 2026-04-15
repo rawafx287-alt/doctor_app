@@ -1,6 +1,12 @@
 /// Firestore field on `users` documents for doctor profiles (`city`).
 const String kDoctorCityField = 'city';
 
+/// Firestore field: clinic address (entered by secretary/admin).
+const String kDoctorClinicAddressField = 'clinicAddress';
+
+/// Firestore field: Google Maps URL for the clinic location.
+const String kDoctorGoogleMapsUrlField = 'googleMapsUrl';
+
 /// Patient home: no city filter (show doctors from every city).
 const String kPatientCityFilterAll = 'All';
 

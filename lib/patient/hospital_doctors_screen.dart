@@ -8,6 +8,7 @@ import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
 import '../models/hospital_localized_content.dart';
 import '../specialty_categories.dart';
+import '../models/doctor_profile_fields.dart';
 import 'doctor_details_screen.dart';
 import 'patient_doctor_booking_screen.dart';
 import 'doctor_rating_service.dart';
@@ -251,6 +252,10 @@ class HospitalDoctorsScreen extends StatelessWidget {
                                       (data['profileImageUrl'] ?? '').toString(),
                                   ratingAverage: doctorRatingAverageFromData(data),
                                   ratingCount: doctorRatingCountFromData(data),
+                                  clinicAddress:
+                                      (data[kDoctorClinicAddressField] ?? '').toString(),
+                                  googleMapsUrl:
+                                      (data[kDoctorGoogleMapsUrlField] ?? '').toString(),
                                 ),
                                 fav,
                               );

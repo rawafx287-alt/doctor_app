@@ -1223,6 +1223,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'اسم العيادة أو المستشفى',
     'en': 'Clinic or hospital name',
   },
+  /// Doctor profile: Google Maps URL for clinic location.
+  'doctor_field_google_maps_link': {
+    'ckb': 'لینکی Google Maps',
+    'ar': 'رابط Google Maps',
+    'en': 'Google Maps link',
+  },
   'doctor_field_experience': {
     'ckb': 'ئەزموون (دەق)',
     'ar': 'الخبرة (نص)',

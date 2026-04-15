@@ -5,11 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../auth/patient_doc_resolver.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../models/doctor_localized_content.dart';
+import '../models/doctor_profile_fields.dart';
 import '../specialty_categories.dart';
 import '../theme/patient_premium_theme.dart';
 import 'doctor_rate_doctor_panel.dart';
@@ -85,6 +87,59 @@ class DoctorDetailsScreen extends StatefulWidget {
 }
 
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
+  Future<void> _openDoctorGoogleMaps(BuildContext context, String raw) async {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null ||
+        !(uri.isScheme('http') || uri.isScheme('https'))) {
+      return;
+    }
+    HapticFeedback.lightImpact();
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Gold / deep-blue styled map CTA for the location card.
+  Widget _doctorProfileViewOnMapButton(BuildContext context, String mapsUrl) {
+    final uri = Uri.tryParse(mapsUrl.trim());
+    final enabled = uri != null &&
+        (uri.isScheme('http') || uri.isScheme('https'));
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: enabled
+            ? () => _openDoctorGoogleMaps(context, mapsUrl)
+            : null,
+        icon: Icon(
+          Icons.map_rounded,
+          size: 18,
+          color: enabled ? _kGoldLight : _kGoldLight.withValues(alpha: 0.35),
+        ),
+        label: Text(
+          'بینین لەسەر نەخشە',
+          style: TextStyle(
+            fontFamily: kPatientPrimaryFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            height: 1.2,
+            color: enabled ? _kGoldLight : _kGoldLight.withValues(alpha: 0.35),
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          backgroundColor: _kPremiumDeepBlue.withValues(alpha: 0.42),
+          side: BorderSide(
+            color: enabled
+                ? _kGoldMid.withValues(alpha: 0.95)
+                : _kGoldMid.withValues(alpha: 0.28),
+            width: 1.15,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
 
@@ -663,6 +718,10 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           baseKey: 'address',
                           legacyKeys: const ['clinicAddress'],
                         );
+                        final mapsUrl =
+                            (merged[kDoctorGoogleMapsUrlField] ?? '')
+                                .toString()
+                                .trim();
                         var experienceText = localizedDoctorField(
                           merged,
                           lang,
@@ -770,7 +829,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                       ),
                                     ],
                                     if (hospital.isNotEmpty ||
-                                        address.isNotEmpty) ...[
+                                        address.isNotEmpty ||
+                                        mapsUrl.isNotEmpty) ...[
                                       const SizedBox(height: 16),
                                       _glassInfoCard(
                                         icon: Icons.location_on_rounded,
@@ -837,6 +897,18 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 fontWeight: FontWeight.w500,
                                                 height: 1.45,
                                               ),
+                                            ),
+                                          ],
+                                          if (mapsUrl.isNotEmpty) ...[
+                                            SizedBox(
+                                              height: hospital.isNotEmpty ||
+                                                      address.isNotEmpty
+                                                  ? 14
+                                                  : 4,
+                                            ),
+                                            _doctorProfileViewOnMapButton(
+                                              context,
+                                              mapsUrl,
                                             ),
                                           ],
                                         ],

@@ -1186,6 +1186,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                               (data['profileImageUrl'] ?? '').toString(),
                           ratingAverage: doctorRatingAverageFromData(data),
                           ratingCount: doctorRatingCountFromData(data),
+                          clinicAddress:
+                              (data[kDoctorClinicAddressField] ?? '').toString(),
+                          googleMapsUrl:
+                              (data[kDoctorGoogleMapsUrlField] ?? '').toString(),
                         ),
                         fav,
                       );

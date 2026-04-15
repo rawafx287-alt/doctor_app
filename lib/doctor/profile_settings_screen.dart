@@ -32,9 +32,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _yearsExperienceController =
       TextEditingController();
-  final TextEditingController _fibNumberController = TextEditingController();
-  final TextEditingController _fastPayNumberController =
-      TextEditingController();
 
   final TextEditingController _bioKuController = TextEditingController();
 
@@ -42,6 +39,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   /// Shown on patient home doctor cards (`users.hospitalName`).
   final TextEditingController _hospitalNameCardController =
+      TextEditingController();
+
+  /// Google Maps link for clinic (`users.googleMapsUrl`).
+  final TextEditingController _googleMapsUrlController =
       TextEditingController();
 
   final TextEditingController _experienceKuController = TextEditingController();
@@ -144,11 +145,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _consultationFeeController.dispose();
     _phoneController.dispose();
     _yearsExperienceController.dispose();
-    _fibNumberController.dispose();
-    _fastPayNumberController.dispose();
     _bioKuController.dispose();
     _addressKuController.dispose();
     _hospitalNameCardController.dispose();
+    _googleMapsUrlController.dispose();
     _experienceKuController.dispose();
     super.dispose();
   }
@@ -177,9 +177,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _consultationFeeController.text = (data['consultationFee'] ?? '')
           .toString();
       _phoneController.text = (data['phone'] ?? '').toString();
-      _fibNumberController.text = (data['payment_fib_number'] ?? '').toString();
-      _fastPayNumberController.text = (data['payment_fastpay_number'] ?? '')
-          .toString();
 
       _bioKuController.text = _firstOf(data, ['bio_ku', 'biography', 'about']);
 
@@ -193,6 +190,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'hospital_name_ku',
         'clinicName',
       ]);
+
+      _googleMapsUrlController.text =
+          (data[kDoctorGoogleMapsUrlField] ?? '').toString();
 
       _experienceKuController.text = (data['experience_ku'] ?? '').toString();
 
@@ -240,8 +240,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'specialty': (_selectedSpecialty ?? '').trim(),
         'consultationFee': _consultationFeeController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'payment_fib_number': _fibNumberController.text.trim(),
-        'payment_fastpay_number': _fastPayNumberController.text.trim(),
+        'payment_fib_number': FieldValue.delete(),
+        'payment_fastpay_number': FieldValue.delete(),
         'bio_ku': bioKu,
         'address_ku': addressKu,
         'hospital_name_ku': hospitalDisplay,
@@ -249,6 +249,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         'experience_ku': _experienceKuController.text.trim(),
         'biography': bioKu,
         'clinicAddress': addressKu,
+        kDoctorGoogleMapsUrlField: _googleMapsUrlController.text.trim(),
         kDoctorCityField: (_selectedCity ?? '').trim(),
       };
 
@@ -535,7 +536,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           KurdishDoctorSpecialtyDropdown(
                             dense: true,
                             accentColor: _kDoctorProfileGold,
@@ -546,7 +547,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                 ? s.translate('validation_specialty_required')
                                 : null,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           DoctorCityDropdown(
                             dense: true,
                             accentColor: _kDoctorProfileGold,
@@ -557,7 +558,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                                 ? s.translate('validation_city_required')
                                 : null,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _hospitalNameCardController,
                             label: s.translate(
@@ -565,69 +566,70 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             ),
                             icon: Icons.local_hospital_rounded,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
+                          _field(
+                            controller: _googleMapsUrlController,
+                            label: s.translate(
+                              'doctor_field_google_maps_link',
+                            ),
+                            hintText:
+                                'لینکی لۆکەیشنی کلینیک (Google Maps)',
+                            icon: Icons.link_rounded,
+                            keyboardType: TextInputType.url,
+                            suffixIcon: Icon(
+                              Icons.location_on_rounded,
+                              color: _kDoctorProfileGold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _consultationFeeController,
                             label: s.translate('doctor_consultation_fee_label'),
                             icon: Icons.payments_rounded,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _phoneController,
                             label: s.translate('doctor_phone_label'),
                             icon: Icons.phone_rounded,
                             keyboardType: TextInputType.phone,
                           ),
-                          const SizedBox(height: 8),
-                          _field(
-                            controller: _fibNumberController,
-                            label: 'FIB Number',
-                            icon: Icons.account_balance_wallet_rounded,
-                            keyboardType: TextInputType.phone,
-                          ),
-                          const SizedBox(height: 8),
-                          _field(
-                            controller: _fastPayNumberController,
-                            label: 'FastPay Number',
-                            icon: Icons.phone_android_rounded,
-                            keyboardType: TextInputType.phone,
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _fullNameKuController,
                             label: s.translate('doctor_field_full_name'),
                             icon: Icons.person_rounded,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _bioKuController,
                             label: s.translate('doctor_field_bio'),
                             icon: Icons.info_outline_rounded,
                             maxLines: 4,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _addressKuController,
                             label: s.translate('doctor_field_address'),
                             icon: Icons.location_on_rounded,
                             maxLines: 2,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _experienceKuController,
                             label: s.translate('doctor_field_experience'),
                             icon: Icons.work_history_rounded,
                             maxLines: 3,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _field(
                             controller: _yearsExperienceController,
                             label: s.translate('doctor_field_years_numeric'),
                             icon: Icons.numbers_rounded,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           StaffGoldGradientButton(
                             label: s.translate('profile_save_changes'),
                             onPressed: _isSaving ? null : _saveChanges,
@@ -654,8 +656,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    String? hintText,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -677,12 +681,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
-          hintText: label,
+          hintText: hintText ?? label,
           hintStyle: const TextStyle(
             color: Color(0xFF829AB1),
             fontFamily: kPatientPrimaryFont,
           ),
           prefixIcon: Icon(icon, color: _kDoctorProfileGold),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,

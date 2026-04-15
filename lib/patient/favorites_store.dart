@@ -10,6 +10,8 @@ class FavoriteDoctor {
     required this.profileImageUrl,
     required this.ratingAverage,
     required this.ratingCount,
+    required this.clinicAddress,
+    required this.googleMapsUrl,
   });
 
   final String doctorId;
@@ -18,6 +20,8 @@ class FavoriteDoctor {
   final String profileImageUrl;
   final double ratingAverage;
   final int ratingCount;
+  final String clinicAddress;
+  final String googleMapsUrl;
 }
 
 /// Simple global favorites store (UI-only).
