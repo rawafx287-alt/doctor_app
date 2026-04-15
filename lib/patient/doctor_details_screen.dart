@@ -97,21 +97,22 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  /// Gold / deep-blue styled map CTA for the location card.
+  /// High-visibility maps CTA for the location card.
   Widget _doctorProfileViewOnMapButton(BuildContext context, String mapsUrl) {
     final uri = Uri.tryParse(mapsUrl.trim());
     final enabled = uri != null &&
         (uri.isScheme('http') || uri.isScheme('https'));
+    const deepBlue = Color(0xFF0D47A1);
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
+      child: ElevatedButton.icon(
         onPressed: enabled
             ? () => _openDoctorGoogleMaps(context, mapsUrl)
             : null,
         icon: Icon(
           Icons.map_rounded,
           size: 18,
-          color: enabled ? _kGoldLight : _kGoldLight.withValues(alpha: 0.35),
+          color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.4),
         ),
         label: Text(
           'بینین لەسەر نەخشە',
@@ -120,18 +121,17 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             fontWeight: FontWeight.w800,
             fontSize: 14,
             height: 1.2,
-            color: enabled ? _kGoldLight : _kGoldLight.withValues(alpha: 0.35),
+            color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.4),
           ),
         ),
-        style: OutlinedButton.styleFrom(
+        style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          backgroundColor: _kPremiumDeepBlue.withValues(alpha: 0.42),
-          side: BorderSide(
-            color: enabled
-                ? _kGoldMid.withValues(alpha: 0.95)
-                : _kGoldMid.withValues(alpha: 0.28),
-            width: 1.15,
-          ),
+          backgroundColor: enabled
+              ? deepBlue
+              : deepBlue.withValues(alpha: 0.35),
+          disabledBackgroundColor: deepBlue.withValues(alpha: 0.28),
+          elevation: enabled ? 4 : 0,
+          shadowColor: deepBlue.withValues(alpha: 0.35),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -772,38 +772,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                       profileImageUrl: profileImageUrl,
                                       context: context,
                                     ),
-                                    if (pid.isNotEmpty) ...[
-                                      const SizedBox(height: 18),
-                                      DoctorRateDoctorPanel(
-                                        doctorId: _doctorUid,
-                                        patientDocId: pid,
-                                        authUid: user.uid,
-                                      ),
-                                    ],
-                                    if (bio.isNotEmpty) ...[
-                                      const SizedBox(height: 18),
-                                      _glassInfoCard(
-                                        icon: Icons.health_and_safety_rounded,
-                                        title: s.translate(
-                                          'doctor_profile_about',
-                                        ),
-                                        children: [
-                                          Text(
-                                            bio,
-                                            textAlign: TextAlign.start,
-                                            style: TextStyle(
-                                              color: _kBodyGrey.withValues(
-                                                alpha: 0.95,
-                                              ),
-                                              fontSize: 15,
-                                              fontFamily: 'NRT',
-                                              fontWeight: FontWeight.w500,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
                                     if (experienceText.isNotEmpty) ...[
                                       const SizedBox(height: 16),
                                       _glassInfoCard(
@@ -911,6 +879,38 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                               mapsUrl,
                                             ),
                                           ],
+                                        ],
+                                      ),
+                                    ],
+                                    if (pid.isNotEmpty) ...[
+                                      const SizedBox(height: 16),
+                                      DoctorRateDoctorPanel(
+                                        doctorId: _doctorUid,
+                                        patientDocId: pid,
+                                        authUid: user.uid,
+                                      ),
+                                    ],
+                                    if (bio.isNotEmpty) ...[
+                                      const SizedBox(height: 16),
+                                      _glassInfoCard(
+                                        icon: Icons.health_and_safety_rounded,
+                                        title: s.translate(
+                                          'doctor_profile_about',
+                                        ),
+                                        children: [
+                                          Text(
+                                            bio,
+                                            textAlign: TextAlign.start,
+                                            style: TextStyle(
+                                              color: _kBodyGrey.withValues(
+                                                alpha: 0.95,
+                                              ),
+                                              fontSize: 15,
+                                              fontFamily: 'NRT',
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.5,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ],

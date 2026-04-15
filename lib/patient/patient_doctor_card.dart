@@ -243,42 +243,36 @@ class _PatientDoctorCardState extends State<PatientDoctorCard> {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 14),
+                                                    const SizedBox(height: 8),
+                                                    if (widget.ratingCount > 0) ...[
+                                                      Align(
+                                                        alignment: Alignment.center,
+                                                        child: _DoctorCardInlineRating(
+                                                          average: widget.ratingAverage,
+                                                          count: widget.ratingCount,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                    ] else
+                                                      const SizedBox(height: 8),
                                                     Align(
                                                       alignment: Alignment.center,
                                                       child: ConstrainedBox(
                                                         constraints: BoxConstraints(
                                                           maxWidth: innerW * 0.92,
                                                         ),
-                                                        child: Row(
-                                                          children: [
-                                                            if (widget.ratingCount > 0)
-                                                              _DoctorCardInlineRating(
-                                                                average:
-                                                                    widget.ratingAverage,
-                                                                count: widget.ratingCount,
-                                                              ),
-                                                            if (widget.ratingCount > 0)
-                                                              const SizedBox(width: 10),
-                                                            Expanded(
-                                                              child: SizedBox(
-                                                                width: double.infinity,
-                                                                child:
-                                                                    _DoctorCardPressableButton(
-                                                                  onTap:
-                                                                      widget.onBook,
-                                                                  child:
-                                                                      _BookNowPrimaryButton(
-                                                                    bookCtaText: S
-                                                                        .of(context)
-                                                                        .translate(
-                                                                      'patient_doctor_card_book_cta',
-                                                                    ),
-                                                                  ),
-                                                                ),
+                                                        child: SizedBox(
+                                                          width: double.infinity,
+                                                          child: _DoctorCardPressableButton(
+                                                            onTap: widget.onBook,
+                                                            child: _BookNowPrimaryButton(
+                                                              bookCtaText: S
+                                                                  .of(context)
+                                                                  .translate(
+                                                                'patient_doctor_card_book_cta',
                                                               ),
                                                             ),
-                                                          ],
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
