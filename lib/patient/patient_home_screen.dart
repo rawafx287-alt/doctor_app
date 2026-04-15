@@ -26,6 +26,8 @@ import 'patient_scroll_physics.dart';
 import 'my_appointments_screen.dart';
 import 'patient_notifications_screen.dart';
 import 'patient_recipient_keys.dart';
+import 'favorites_screen.dart';
+import 'favorites_store.dart';
 import '../firestore/root_notifications_firestore.dart';
 import 'home_ad_carousel.dart';
 
@@ -186,6 +188,80 @@ class _PatientNotificationBellButton extends StatefulWidget {
   @override
   State<_PatientNotificationBellButton> createState() =>
       _PatientNotificationBellButtonState();
+}
+
+/// Favorites icon next to the notification bell (navigates to [FavoritesScreen]).
+class _PatientFavoritesHeartButton extends StatefulWidget {
+  const _PatientFavoritesHeartButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_PatientFavoritesHeartButton> createState() =>
+      _PatientFavoritesHeartButtonState();
+}
+
+class _PatientFavoritesHeartButtonState extends State<_PatientFavoritesHeartButton> {
+  bool _pressed = false;
+
+  static const double _diameter = 42;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: widget.onTap,
+        child: Listener(
+          onPointerDown: (_) => setState(() => _pressed = true),
+          onPointerUp: (_) => setState(() => _pressed = false),
+          onPointerCancel: (_) => setState(() => _pressed = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            width: _diameter,
+            height: _diameter,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.82),
+              border: Border.all(
+                color: const Color(0xFFE8EEF4).withValues(alpha: 0.95),
+                width: 0.75,
+              ),
+              boxShadow: _pressed
+                  ? [
+                      BoxShadow(
+                        color: _kBrandLuxGold.withValues(alpha: 0.42),
+                        blurRadius: 14,
+                        spreadRadius: 0.6,
+                      ),
+                      BoxShadow(
+                        color: _kBrandLuxGoldLight.withValues(alpha: 0.30),
+                        blurRadius: 10,
+                        spreadRadius: -1,
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.favorite_outline,
+                size: 23,
+                color: _kPremiumDeepBlue,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PatientNotificationBellButtonState
@@ -1099,6 +1175,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                         (data['profileImageUrl'] ?? '').toString(),
                     ratingAverage: doctorRatingAverageFromData(data),
                     ratingCount: doctorRatingCountFromData(data),
+                    initiallyFavorite: favoritesStore.isFavorite(doc.id),
+                    onFavoriteChanged: (fav) {
+                      favoritesStore.setFavorite(
+                        FavoriteDoctor(
+                          doctorId: doc.id,
+                          name: name,
+                          specialty: specialty,
+                          profileImageUrl:
+                              (data['profileImageUrl'] ?? '').toString(),
+                          ratingAverage: doctorRatingAverageFromData(data),
+                          ratingCount: doctorRatingCountFromData(data),
+                        ),
+                        fav,
+                      );
+                    },
                     onBook: () {
                       Navigator.push<void>(
                         context,
@@ -1327,6 +1418,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
                 context,
                 MaterialPageRoute<void>(
                   builder: (context) => const PatientNotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          _PatientFavoritesHeartButton(
+            onTap: () async {
+              HapticFeedback.lightImpact();
+              if (!context.mounted) return;
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const FavoritesScreen(),
                 ),
               );
             },

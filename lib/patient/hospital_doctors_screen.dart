@@ -13,6 +13,7 @@ import 'patient_doctor_booking_screen.dart';
 import 'doctor_rating_service.dart';
 import 'patient_doctor_card.dart';
 import 'patient_scroll_physics.dart';
+import 'favorites_store.dart';
 
 /// Hospital header + doctors with `users.hospitalId` == [hospitalId].
 class HospitalDoctorsScreen extends StatelessWidget {
@@ -239,6 +240,21 @@ class HospitalDoctorsScreen extends StatelessWidget {
                                 (data['profileImageUrl'] ?? '').toString(),
                             ratingAverage: doctorRatingAverageFromData(data),
                             ratingCount: doctorRatingCountFromData(data),
+                            initiallyFavorite: favoritesStore.isFavorite(doc.id),
+                            onFavoriteChanged: (fav) {
+                              favoritesStore.setFavorite(
+                                FavoriteDoctor(
+                                  doctorId: doc.id,
+                                  name: dname,
+                                  specialty: specialty,
+                                  profileImageUrl:
+                                      (data['profileImageUrl'] ?? '').toString(),
+                                  ratingAverage: doctorRatingAverageFromData(data),
+                                  ratingCount: doctorRatingCountFromData(data),
+                                ),
+                                fav,
+                              );
+                            },
                             onBook: () {
                               Navigator.push<void>(
                                 context,

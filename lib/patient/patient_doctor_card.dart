@@ -51,7 +51,7 @@ const List<BoxShadow> _kDoctorImageShadows = [
 
 /// Compact doctor row: vertical image on the end side, specialty + centered name
 /// and book CTA; ⋮ opens details (no dropdown).
-class PatientDoctorCard extends StatelessWidget {
+class PatientDoctorCard extends StatefulWidget {
   const PatientDoctorCard({
     super.key,
     required this.name,
@@ -61,6 +61,8 @@ class PatientDoctorCard extends StatelessWidget {
     this.profileImageUrl,
     this.ratingAverage = 0,
     this.ratingCount = 0,
+    this.initiallyFavorite = false,
+    this.onFavoriteChanged,
   });
 
   final String name;
@@ -73,6 +75,10 @@ class PatientDoctorCard extends StatelessWidget {
   /// From `users/{doctor}` aggregate [ratingAverage] / [ratingCount].
   final double ratingAverage;
   final int ratingCount;
+
+  /// UI-only favorite toggle (until you wire persistence).
+  final bool initiallyFavorite;
+  final ValueChanged<bool>? onFavoriteChanged;
 
   static const String _placeholderImageUrl =
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80';
@@ -92,15 +98,37 @@ class PatientDoctorCard extends StatelessWidget {
   static const double _kImageCornerRadius = 16;
 
   @override
+  State<PatientDoctorCard> createState() => _PatientDoctorCardState();
+}
+
+class _PatientDoctorCardState extends State<PatientDoctorCard> {
+  late bool _isFavorite = widget.initiallyFavorite;
+
+  @override
+  void didUpdateWidget(covariant PatientDoctorCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initiallyFavorite != widget.initiallyFavorite) {
+      _isFavorite = widget.initiallyFavorite;
+    }
+  }
+
+  void _toggleFavorite() {
+    HapticFeedback.selectionClick();
+    setState(() => _isFavorite = !_isFavorite);
+    widget.onFavoriteChanged?.call(_isFavorite);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final hasArabicScript = RegExp(
       r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
-    ).hasMatch(name);
+    ).hasMatch(widget.name);
     final nameDirection =
         hasArabicScript ? TextDirection.rtl : TextDirection.ltr;
-    final rawProfile = profileImageUrl?.trim() ?? '';
-    final avatarUrl =
-        rawProfile.isNotEmpty ? rawProfile : _placeholderImageUrl;
+    final rawProfile = widget.profileImageUrl?.trim() ?? '';
+    final avatarUrl = rawProfile.isNotEmpty
+        ? rawProfile
+        : PatientDoctorCard._placeholderImageUrl;
 
     return RepaintBoundary(
       child: Container(
@@ -115,16 +143,16 @@ class PatientDoctorCard extends StatelessWidget {
             ],
             stops: const [0.0, 0.52, 1.0],
           ),
-          borderRadius: BorderRadius.circular(_radius),
+          borderRadius: BorderRadius.circular(PatientDoctorCard._radius),
           border: Border.all(
-            color: _deepBlue.withValues(alpha: 0.08),
+            color: PatientDoctorCard._deepBlue.withValues(alpha: 0.08),
             width: 1,
           ),
           boxShadow: _kFloatingCardShadows,
         ),
         padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
         child: SizedBox(
-          height: _kCardContentHeight,
+          height: PatientDoctorCard._kCardContentHeight,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -164,7 +192,7 @@ class PatientDoctorCard extends StatelessWidget {
                                               child:
                                                   _PatientDoctorSpecialtyBadge(
                                                 label: specialtyLabel,
-                                                specialty: specialty,
+                                                specialty: widget.specialty,
                                                 maxWidth: innerW,
                                               ),
                                             ),
@@ -194,7 +222,7 @@ class PatientDoctorCard extends StatelessWidget {
                                                             textDirection:
                                                                 nameDirection,
                                                             child: Text(
-                                                              name.trim(),
+                                                              widget.name.trim(),
                                                               textAlign:
                                                                   TextAlign
                                                                       .center,
@@ -237,15 +265,15 @@ class PatientDoctorCard extends StatelessWidget {
                                                       spacing: 10,
                                                       runSpacing: 8,
                                                       children: [
-                                                        if (ratingCount > 0)
+                                                        if (widget.ratingCount > 0)
                                                           _PatientDoctorCardRatingLine(
                                                             average:
-                                                                ratingAverage,
-                                                            count: ratingCount,
+                                                                widget.ratingAverage,
+                                                            count: widget.ratingCount,
                                                             compact: true,
                                                           ),
                                                         _DoctorCardPressableButton(
-                                                          onTap: onBook,
+                                                          onTap: widget.onBook,
                                                           child:
                                                               _BookNowPrimaryButton(
                                                             bookCtaText: S
@@ -269,11 +297,11 @@ class PatientDoctorCard extends StatelessWidget {
                                 ),
                               ),
                               Container(
-                                width: _kImageStripWidth,
-                                height: _kCardContentHeight,
+                                width: PatientDoctorCard._kImageStripWidth,
+                                height: PatientDoctorCard._kCardContentHeight,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(
-                                    _kImageCornerRadius,
+                                    PatientDoctorCard._kImageCornerRadius,
                                   ),
                                   border: Border.all(
                                     color: const Color(0xFFE5E1D9),
@@ -284,7 +312,7 @@ class PatientDoctorCard extends StatelessWidget {
                                 clipBehavior: Clip.antiAlias,
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(
-                                    _kImageCornerRadius - 0.5,
+                                    PatientDoctorCard._kImageCornerRadius - 0.5,
                                   ),
                                   child: CachedNetworkImage(
                                     imageUrl: avatarUrl,
@@ -304,7 +332,7 @@ class PatientDoctorCard extends StatelessWidget {
                                         height: 22,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: _deepBlue,
+                                          color: PatientDoctorCard._deepBlue,
                                         ),
                                       ),
                                     ),
@@ -316,7 +344,7 @@ class PatientDoctorCard extends StatelessWidget {
                                       alignment: Alignment.center,
                                       child: const Icon(
                                         Icons.medical_services_rounded,
-                                        color: _deepBlue,
+                                        color: PatientDoctorCard._deepBlue,
                                         size: 24,
                                       ),
                                     ),
@@ -330,23 +358,49 @@ class PatientDoctorCard extends StatelessWidget {
                             top: -4,
                             child: Material(
                               color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  onOpenDetails();
-                                },
-                                splashColor: Colors.transparent,
-                                highlightColor: Colors.transparent,
-                                hoverColor: Colors.transparent,
-                                borderRadius: BorderRadius.circular(22),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(6),
-                                  child: Icon(
-                                    Icons.more_vert_rounded,
-                                    size: 21,
-                                    color: _navyText.withValues(alpha: 0.72),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 34,
+                                      minHeight: 34,
+                                    ),
+                                    padding: const EdgeInsets.all(6),
+                                    tooltip: '',
+                                    onPressed: _toggleFavorite,
+                                    icon: Icon(
+                                      _isFavorite
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      size: 21,
+                                      color: _isFavorite
+                                          ? const Color(0xFFE53935)
+                                          : PatientDoctorCard._navyText
+                                              .withValues(alpha: 0.72),
+                                    ),
                                   ),
-                                ),
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      widget.onOpenDetails();
+                                    },
+                                    splashColor: Colors.transparent,
+                                    highlightColor: Colors.transparent,
+                                    hoverColor: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(22),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6),
+                                      child: Icon(
+                                        Icons.more_vert_rounded,
+                                        size: 21,
+                                        color: PatientDoctorCard._navyText
+                                            .withValues(alpha: 0.72),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
