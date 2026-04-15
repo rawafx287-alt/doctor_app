@@ -103,9 +103,29 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final enabled = uri != null &&
         (uri.isScheme('http') || uri.isScheme('https'));
     const deepBlue = Color(0xFF0D47A1);
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: deepBlue.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  spreadRadius: 0.5,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: deepBlue.withValues(alpha: 0.14),
+                  blurRadius: 26,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 0),
+                ),
+              ]
+            : const [],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
         onPressed: enabled
             ? () => _openDoctorGoogleMaps(context, mapsUrl)
             : null,
@@ -136,6 +156,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+        ),
       ),
     );
   }
@@ -152,7 +173,18 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       fit: StackFit.expand,
       children: [
         DecoratedBox(
-          decoration: patientSkyGradientDecoration(),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFE3F2FD),
+                Color(0xFFF7FBFF),
+                Color(0xFFFFFFFF),
+              ],
+              stops: [0.0, 0.55, 1.0],
+            ),
+          ),
           child: const SizedBox.expand(),
         ),
         CustomPaint(
@@ -205,26 +237,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 ),
               ),
             ),
-            FlexibleSpaceBar(
-              centerTitle: false,
-              titlePadding: const EdgeInsetsDirectional.only(
-                start: 48,
-                bottom: 14,
-                end: 12,
-              ),
-              title: Text(
-                displayName,
-                style: const TextStyle(
-                  fontFamily: kPatientPrimaryFont,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: _kDoctorNameNavy,
-                  letterSpacing: 0.2,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            const SizedBox.expand(),
           ],
         ),
       ),
@@ -263,12 +276,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   }) {
     final s = S.of(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
+      borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(20),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -775,7 +788,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                     if (experienceText.isNotEmpty) ...[
                                       const SizedBox(height: 16),
                                       _glassInfoCard(
-                                        icon: Icons.workspace_premium_rounded,
+                                        icon: Icons.auto_graph_rounded,
                                         title: s.translate(
                                           'doctor_profile_experience',
                                         ),
@@ -787,9 +800,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                               color: _kBodyGrey.withValues(
                                                 alpha: 0.95,
                                               ),
-                                              fontSize: 15,
-                                              fontFamily: 'NRT',
-                                              fontWeight: FontWeight.w500,
+                                              fontSize: 16,
+                                              fontFamily: kPatientPrimaryFont,
+                                              fontWeight: FontWeight.w800,
                                               height: 1.5,
                                             ),
                                           ),
@@ -828,9 +841,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                 color: _kBodyGrey.withValues(
                                                   alpha: 0.95,
                                                 ),
-                                                fontSize: 15,
-                                                fontFamily: 'NRT',
-                                                fontWeight: FontWeight.w500,
+                                                fontSize: 16,
+                                                fontFamily: kPatientPrimaryFont,
+                                                fontWeight: FontWeight.w800,
                                                 height: 1.45,
                                               ),
                                             ),
@@ -861,8 +874,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                                   alpha: 0.95,
                                                 ),
                                                 fontSize: 15,
-                                                fontFamily: 'NRT',
-                                                fontWeight: FontWeight.w500,
+                                                fontFamily: kPatientPrimaryFont,
+                                                fontWeight: FontWeight.w700,
                                                 height: 1.45,
                                               ),
                                             ),
@@ -884,10 +897,57 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                     ],
                                     if (pid.isNotEmpty) ...[
                                       const SizedBox(height: 16),
-                                      DoctorRateDoctorPanel(
-                                        doctorId: _doctorUid,
-                                        patientDocId: pid,
-                                        authUid: user.uid,
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                            sigmaX: 14,
+                                            sigmaY: 14,
+                                          ),
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.36,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.7,
+                                                ),
+                                                width: 0.6,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: _kPremiumDeepBlue
+                                                      .withValues(alpha: 0.08),
+                                                  blurRadius: 24,
+                                                  offset: const Offset(0, 12),
+                                                ),
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.04),
+                                                  blurRadius: 18,
+                                                  offset: const Offset(0, 6),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                14,
+                                                14,
+                                                14,
+                                                12,
+                                              ),
+                                              child: DoctorRateDoctorPanel(
+                                                doctorId: _doctorUid,
+                                                patientDocId: pid,
+                                                authUid: user.uid,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                     if (bio.isNotEmpty) ...[
