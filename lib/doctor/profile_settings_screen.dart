@@ -537,6 +537,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          _field(
+                            controller: _fullNameKuController,
+                            label: s.translate('doctor_field_full_name'),
+                            icon: Icons.person_rounded,
+                          ),
+                          const SizedBox(height: 12),
                           KurdishDoctorSpecialtyDropdown(
                             dense: true,
                             accentColor: _kDoctorProfileGold,
@@ -583,6 +589,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           ),
                           const SizedBox(height: 12),
                           _field(
+                            controller: _addressKuController,
+                            label: s.translate('doctor_field_address'),
+                            icon: Icons.location_on_rounded,
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: 12),
+                          _field(
                             controller: _consultationFeeController,
                             label: s.translate('doctor_consultation_fee_label'),
                             icon: Icons.payments_rounded,
@@ -597,23 +610,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           ),
                           const SizedBox(height: 12),
                           _field(
-                            controller: _fullNameKuController,
-                            label: s.translate('doctor_field_full_name'),
-                            icon: Icons.person_rounded,
-                          ),
-                          const SizedBox(height: 12),
-                          _field(
                             controller: _bioKuController,
                             label: s.translate('doctor_field_bio'),
                             icon: Icons.info_outline_rounded,
                             maxLines: 4,
-                          ),
-                          const SizedBox(height: 12),
-                          _field(
-                            controller: _addressKuController,
-                            label: s.translate('doctor_field_address'),
-                            icon: Icons.location_on_rounded,
-                            maxLines: 2,
                           ),
                           const SizedBox(height: 12),
                           _field(

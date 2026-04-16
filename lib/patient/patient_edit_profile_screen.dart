@@ -42,7 +42,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   String _existingAvatarUrl = '';
 
   final _nameController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
@@ -56,13 +55,14 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   DateTime? _dob;
 
   final _nameFocus = FocusNode();
-  final _passwordFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _phoneFocus = FocusNode();
   final _addressFocus = FocusNode();
   final _dobFocus = FocusNode();
   final _ageFocus = FocusNode();
   final _bloodFocus = FocusNode();
+  final _passwordMaskController = TextEditingController(text: '••••••••');
+  final _passwordMaskFocus = FocusNode();
 
   bool _loading = true;
   bool _saving = false;
@@ -71,7 +71,14 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   /// Brief scale pulse on tap: `'male'` | `'female'`.
   String? _genderTapAnim;
 
+  bool _editingName = false;
+  bool _editingEmail = false;
+  bool _editingPhone = false;
+
   void _onFocusChanged() {
+    if (!_nameFocus.hasFocus && _editingName) _editingName = false;
+    if (!_emailFocus.hasFocus && _editingEmail) _editingEmail = false;
+    if (!_phoneFocus.hasFocus && _editingPhone) _editingPhone = false;
     if (mounted) setState(() {});
   }
 
@@ -79,7 +86,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   void initState() {
     super.initState();
     _nameFocus.addListener(_onFocusChanged);
-    _passwordFocus.addListener(_onFocusChanged);
     _emailFocus.addListener(_onFocusChanged);
     _phoneFocus.addListener(_onFocusChanged);
     _addressFocus.addListener(_onFocusChanged);
@@ -122,8 +128,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       _nameController.text = dbName.isNotEmpty
           ? dbName
           : authName;
-      // Password is never loaded from Firestore.
-      _passwordController.text = '';
       _emailController.text = dbEmail.isNotEmpty ? dbEmail : authEmail;
       _syntheticEmailDisplay = _isSyntheticAuthEmail(_emailController.text);
       _phoneController.text = _normalizePhoneForField(
@@ -167,7 +171,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
   @override
   void dispose() {
     _nameFocus.removeListener(_onFocusChanged);
-    _passwordFocus.removeListener(_onFocusChanged);
     _emailFocus.removeListener(_onFocusChanged);
     _phoneFocus.removeListener(_onFocusChanged);
     _addressFocus.removeListener(_onFocusChanged);
@@ -175,13 +178,11 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _ageFocus.removeListener(_onFocusChanged);
     _bloodFocus.removeListener(_onFocusChanged);
     _nameFocus.dispose();
-    _passwordFocus.dispose();
     _emailFocus.dispose();
     _phoneFocus.dispose();
     _addressFocus.dispose();
     _dobFocus.dispose();
     _nameController.dispose();
-    _passwordController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -189,6 +190,8 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     _dobController.dispose();
     _ageController.dispose();
     _bloodController.dispose();
+    _passwordMaskController.dispose();
+    _passwordMaskFocus.dispose();
     _ageFocus.dispose();
     _bloodFocus.dispose();
     super.dispose();
@@ -691,7 +694,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
       final email = _emailController.text.trim();
       final phone = _digitsOnly(_phoneController.text);
       final address = _addressController.text.trim();
-      final password = _passwordController.text.trim();
       final gender = (_genderValue ?? '').trim();
 
       final ageText = _ageController.text.trim();
@@ -725,24 +727,6 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
             SetOptions(merge: true),
           );
 
-      if (password.isNotEmpty && user != null) {
-        try {
-          await user.updatePassword(password);
-        } catch (_) {
-          // If re-auth is required, we still keep Firestore changes.
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'نەتوانرا وشەی نهێنی بگۆڕدرێت (پێویستە دووبارە بچیتە ژوورەوە).',
-                  style: TextStyle(fontFamily: kPatientPrimaryFont),
-                ),
-              ),
-            );
-          }
-        }
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -766,6 +750,268 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Widget _editPencilIcon({
+    required bool enabled,
+    required bool focused,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: 'Edit',
+      onPressed: enabled && !_saving ? onPressed : null,
+      icon: Icon(
+        Icons.edit_rounded,
+        size: 20,
+        color: (focused ? _kPersonalInfoGoldDeep : _kPersonalInfoGold)
+            .withValues(alpha: enabled ? 0.85 : 0.35),
+      ),
+    );
+  }
+
+  Future<void> _showPasswordChangeDialog() async {
+    if (_saving) return;
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var submitting = false;
+
+    Future<void> submit(StateSetter setLocalState) async {
+      if (submitting) return;
+      final ok = formKey.currentState?.validate() ?? false;
+      if (!ok) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final email = (user.email ?? '').trim();
+      if (email.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'نەتوانرا وشەی نهێنی بگۆڕدرێت (ئەم هەژمارە بە ئیمەیڵ/پاسوۆرد نییە).',
+              style: TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+        return;
+      }
+
+      setLocalState(() => submitting = true);
+      try {
+        final credential = EmailAuthProvider.credential(
+          email: email,
+          password: currentCtrl.text.trim(),
+        );
+        await user.reauthenticateWithCredential(credential);
+        await user.updatePassword(newCtrl.text.trim());
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'وشەی نهێنی بە سەرکەوتوویی گۆڕدرا',
+              style: TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
+        final msg = switch (e.code) {
+          'wrong-password' => 'پاسوۆردی ئێستا هەڵەیە',
+          'invalid-credential' => 'پاسوۆردی ئێستا هەڵەیە',
+          'too-many-requests' => 'هەوڵ زۆرە، تکایە دواتر هەوڵبدەرەوە',
+          _ => 'نەتوانرا وشەی نهێنی بگۆڕدرێت (${e.code})',
+        };
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              msg,
+              style: const TextStyle(fontFamily: kPatientPrimaryFont),
+            ),
+          ),
+        );
+      } finally {
+        if (mounted) setLocalState(() => submitting = false);
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !submitting,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                title: const Text(
+                  'گۆڕینی وشەی نهێنی',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontFamily: kPatientPrimaryFont,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                content: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: currentCtrl,
+                        obscureText: true,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          labelText: 'پاسوۆردی ئێستا',
+                          prefixIcon: Icon(
+                            Icons.lock_outline_rounded,
+                            color: _kPersonalInfoGold.withValues(alpha: 0.85),
+                          ),
+                          filled: true,
+                          fillColor: _kFieldFillTint,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: const Color(0xFFD6E8F5)
+                                  .withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                        validator: (v) {
+                          if ((v ?? '').trim().isEmpty) {
+                            return 'تکایە پاسوۆردی ئێستا بنووسە';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: newCtrl,
+                        obscureText: true,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          labelText: 'پاسوۆردی نوێ',
+                          prefixIcon: Icon(
+                            Icons.lock_rounded,
+                            color: _kPersonalInfoGold.withValues(alpha: 0.85),
+                          ),
+                          filled: true,
+                          fillColor: _kFieldFillTint,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: const Color(0xFFD6E8F5)
+                                  .withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                        validator: (v) {
+                          final s = (v ?? '').trim();
+                          if (s.isEmpty) return 'تکایە پاسوۆردی نوێ بنووسە';
+                          if (s.length < 6) return 'پاسوۆرد دەبێت لانیکەم ٦ پیت بێت';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: confirmCtrl,
+                        obscureText: true,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          labelText: 'دووبارەکردنەوەی پاسوۆردی نوێ',
+                          prefixIcon: Icon(
+                            Icons.verified_user_rounded,
+                            color: _kPersonalInfoGold.withValues(alpha: 0.85),
+                          ),
+                          filled: true,
+                          fillColor: _kFieldFillTint,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: const Color(0xFFD6E8F5)
+                                  .withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                        validator: (v) {
+                          final s = (v ?? '').trim();
+                          if (s.isEmpty) return 'تکایە دووبارەی بکەوە';
+                          if (s != newCtrl.text.trim()) {
+                            return 'پاسوۆردی نوێ و دووبارەکردنەوەکە یەک ناگرن';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                actionsAlignment: MainAxisAlignment.spaceBetween,
+                actions: [
+                  TextButton(
+                    onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'داخستن',
+                      style: TextStyle(
+                        fontFamily: kPatientPrimaryFont,
+                        fontWeight: FontWeight.w700,
+                        color: kPatientNavyText.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: submitting ? null : () => submit(setLocalState),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kPersonalInfoPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        const Text(
+                          'گۆڕین',
+                          style: TextStyle(
+                            fontFamily: kPatientPrimaryFont,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (submitting) ...[
+                          const SizedBox(width: 10),
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    currentCtrl.dispose();
+    newCtrl.dispose();
+    confirmCtrl.dispose();
   }
 
   @override
@@ -984,20 +1230,26 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                       focusNode: _nameFocus,
                                       label: 'ناوی تەواو',
                                       icon: Icons.person_outline_rounded,
+                                      readOnly: !_editingName,
+                                      onTap: () {
+                                        if (_editingName || _saving) return;
+                                        setState(() => _editingName = true);
+                                        _nameFocus.requestFocus();
+                                      },
+                                      suffixIcon: _editPencilIcon(
+                                        enabled: true,
+                                        focused: _nameFocus.hasFocus,
+                                        onPressed: () {
+                                          setState(() => _editingName = true);
+                                          _nameFocus.requestFocus();
+                                        },
+                                      ),
                                       validator: (v) {
                                         if ((v ?? '').trim().isEmpty) {
                                           return 'تکایە ناوی تەواوت بنووسە';
                                         }
                                         return null;
                                       },
-                                    ),
-                                    const SizedBox(height: 14),
-                                    _miniCardField(
-                                      controller: _passwordController,
-                                      focusNode: _passwordFocus,
-                                      label: 'وشەی نهێنی',
-                                      icon: Icons.lock_rounded,
-                                      obscureText: true,
                                     ),
                                     const SizedBox(height: 14),
                                     if (_syntheticEmailDisplay) ...[
@@ -1009,6 +1261,20 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                         label: 'ئیمەیڵ',
                                         icon: Icons.alternate_email_rounded,
                                         keyboardType: TextInputType.emailAddress,
+                                        readOnly: !_editingEmail,
+                                        onTap: () {
+                                          if (_editingEmail || _saving) return;
+                                          setState(() => _editingEmail = true);
+                                          _emailFocus.requestFocus();
+                                        },
+                                        suffixIcon: _editPencilIcon(
+                                          enabled: true,
+                                          focused: _emailFocus.hasFocus,
+                                          onPressed: () {
+                                            setState(() => _editingEmail = true);
+                                            _emailFocus.requestFocus();
+                                          },
+                                        ),
                                         validator: _validateEmailField,
                                       ),
                                     ],
@@ -1019,11 +1285,40 @@ class _PatientEditProfileScreenState extends State<PatientEditProfileScreen> {
                                       label: 'ژمارەی مۆبایل',
                                       icon: Icons.phone_android_rounded,
                                       keyboardType: TextInputType.phone,
+                                      readOnly: !_editingPhone,
+                                      onTap: () {
+                                        if (_editingPhone || _saving) return;
+                                        setState(() => _editingPhone = true);
+                                        _phoneFocus.requestFocus();
+                                      },
+                                      suffixIcon: _editPencilIcon(
+                                        enabled: true,
+                                        focused: _phoneFocus.hasFocus,
+                                        onPressed: () {
+                                          setState(() => _editingPhone = true);
+                                          _phoneFocus.requestFocus();
+                                        },
+                                      ),
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
                                         LengthLimitingTextInputFormatter(11),
                                       ],
                                       validator: _validatePhoneField,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _miniCardField(
+                                      controller: _passwordMaskController,
+                                      focusNode: _passwordMaskFocus,
+                                      label: 'وشەی نهێنی',
+                                      icon: Icons.lock_rounded,
+                                      readOnly: true,
+                                      obscureText: false,
+                                      onTap: _showPasswordChangeDialog,
+                                      suffixIcon: _editPencilIcon(
+                                        enabled: true,
+                                        focused: _passwordMaskFocus.hasFocus,
+                                        onPressed: _showPasswordChangeDialog,
+                                      ),
                                     ),
                                     const SizedBox(height: 14),
                                     _miniCardField(
