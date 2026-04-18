@@ -1418,6 +1418,28 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     final radius = BorderRadius.circular(_kDayBoxR);
 
     final stackChildren = <Widget>[
+      if (!isPast)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.22),
+                    Colors.white.withValues(alpha: 0.04),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.28),
+                  width: 0.85,
+                ),
+              ),
+            ),
+          ),
+        ),
       if (crystalGrad != null)
         Positioned.fill(
           child: IgnorePointer(
@@ -1443,6 +1465,13 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
                   : TextDecoration.none,
               decorationColor: const Color(0xFF94A3B8),
               decorationThickness: 1.5,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
           ),
         ),
@@ -1520,7 +1549,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
       );
     }
 
-    return Material(
+    final cell = Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -1530,6 +1559,32 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         child: dayInk(),
       ),
     );
+
+    // Soft outer glow for active (open) clinic days.
+    if (!isPast && !closedLook && !isSelected) {
+      return Padding(
+        padding: const EdgeInsets.all(2),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kDayBoxR + 3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.45),
+                blurRadius: 14,
+                spreadRadius: -1,
+              ),
+              BoxShadow(
+                color: const Color(0xFF86EFAC).withValues(alpha: 0.32),
+                blurRadius: 20,
+                spreadRadius: -2,
+              ),
+            ],
+          ),
+          child: cell,
+        ),
+      );
+    }
+    return cell;
   }
 
   double _scheduleCalendarInnerBodyHeight(double calInnerW) {

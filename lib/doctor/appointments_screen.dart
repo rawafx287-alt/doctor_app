@@ -1001,11 +1001,25 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
                 title: Text(
                   s.translate('doctor_title_appointments_list'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: kPatientPrimaryFont,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
-                    fontSize: 17,
+                    fontSize: 19,
+                    height: 1.15,
+                    letterSpacing: -0.35,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                      Shadow(
+                        color: kStaffLuxGold.withValues(alpha: 0.3),
+                        blurRadius: 14,
+                        offset: Offset.zero,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1611,7 +1625,7 @@ class _DoctorTodayScheduleSectionState extends State<_DoctorTodayScheduleSection
                           ),
                           children: [
                             for (var i = 0; i < orderedSlots.length; i++) ...[
-                              if (i > 0) const SizedBox(height: 6),
+                              if (i > 0) const SizedBox(height: 10),
                               _DoctorSlotGlassCard(
                                 key: ValueKey<String>(
                                   byKeyAll[formatTimeHhMm(orderedSlots[i])]!.id,
@@ -1757,40 +1771,13 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       final cardBorderColor = neutralFinished
           ? const Color(0xFF546E7A).withValues(alpha: 0.55)
           : (stripGold
-              ? kStaffLuxGold.withValues(alpha: 0.48)
+              ? kStaffLuxGold.withValues(alpha: 0.72)
               : kStaffSilverBorder);
 
       const vibrantGreen = Color(0xFF22C55E);
+      const vibrantGreenDeep = Color(0xFF15803D);
       const softRed = Color(0xFFFB7185);
-
-      Widget circleAction({
-        required Color fill,
-        required IconData icon,
-        required String tooltip,
-        required VoidCallback onPressed,
-      }) {
-        return Tooltip(
-          message: tooltip,
-          child: Material(
-            color: Colors.transparent,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            child: InkWell(
-              onTap: onPressed,
-              customBorder: const CircleBorder(),
-              child: Ink(
-                height: 34,
-                width: 34,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: fill,
-                ),
-                child: Icon(icon, color: Colors.white, size: 17),
-              ),
-            ),
-          ),
-        );
-      }
+      const softRedDeep = Color(0xFFB91C1C);
 
       final apptDoc = doc;
       final queueEn = booked && apptDoc != null
@@ -1799,9 +1786,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
 
       /// Name (chip) then time; ticket stays in the outer card [Row] on the end.
       Widget mainTapChild = Padding(
-        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 82),
+          constraints: const BoxConstraints(minHeight: 96),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1817,9 +1804,9 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                     ),
                     border: Border.all(
                       color: kStaffLuxGold.withValues(
-                        alpha: stripGold ? 0.42 : 0.32,
+                        alpha: stripGold ? 0.58 : 0.32,
                       ),
-                      width: 1,
+                      width: stripGold ? 1.2 : 1,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -1895,26 +1882,38 @@ class _DoctorSlotGlassCard extends StatelessWidget {
       );
 
       Widget card = ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFF0A1628).withValues(alpha: 0.52),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: cardBorderColor,
-                width: 1,
+                width: stripGold && !neutralFinished ? 1.35 : 1,
               ),
               boxShadow: stripGold && !neutralFinished
                   ? [
                       BoxShadow(
-                        color: kStaffLuxGold.withValues(alpha: 0.12),
-                        blurRadius: 10,
+                        color: kStaffLuxGold.withValues(alpha: 0.38),
+                        blurRadius: 18,
+                        spreadRadius: -1,
                         offset: const Offset(0, 2),
                       ),
+                      BoxShadow(
+                        color: kStaffLuxGold.withValues(alpha: 0.14),
+                        blurRadius: 28,
+                        spreadRadius: -4,
+                      ),
                     ]
-                  : null,
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
             ),
             child: IntrinsicHeight(
               child: Directionality(
@@ -1928,24 +1927,25 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                         gradient: leftStripGradient,
                         color: leftStripColor,
                         borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(13),
+                          left: Radius.circular(17),
                         ),
                       ),
                     ),
                     if (showActions)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
-                          start: 8,
-                          end: 4,
-                          top: 4,
-                          bottom: 4,
+                          start: 10,
+                          end: 6,
+                          top: 8,
+                          bottom: 8,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            circleAction(
-                              fill: vibrantGreen,
+                            _DoctorGate3DButton(
+                              highlight: vibrantGreen,
+                              depth: vibrantGreenDeep,
                               icon: Icons.check_rounded,
                               tooltip:
                                   s.translate('doctor_appt_action_complete'),
@@ -1955,9 +1955,10 @@ class _DoctorSlotGlassCard extends StatelessWidget {
                                 onSetStatus(context, d.id, 'completed');
                               },
                             ),
-                            const SizedBox(width: 6),
-                            circleAction(
-                              fill: softRed,
+                            const SizedBox(width: 10),
+                            _DoctorGate3DButton(
+                              highlight: softRed,
+                              depth: softRedDeep,
                               icon: Icons.close_rounded,
                               tooltip:
                                   s.translate('doctor_appt_action_decline'),
@@ -2519,31 +2520,43 @@ class _AppointmentCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: stripGold ? 0.2 : 0.12),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: stripGold
-                    ? kStaffLuxGold.withValues(alpha: 0.45)
+                    ? kStaffLuxGold.withValues(alpha: 0.68)
                     : kStaffSilverBorder,
-                width: kStaffCardOutlineWidth,
+                width: stripGold ? 1.3 : kStaffCardOutlineWidth,
               ),
               boxShadow: stripGold
                   ? [
                       BoxShadow(
-                        color: kStaffLuxGold.withValues(alpha: 0.28),
-                        blurRadius: 16,
+                        color: kStaffLuxGold.withValues(alpha: 0.34),
+                        blurRadius: 18,
+                        spreadRadius: -1,
                         offset: const Offset(0, 2),
                       ),
+                      BoxShadow(
+                        color: kStaffLuxGold.withValues(alpha: 0.12),
+                        blurRadius: 26,
+                        spreadRadius: -4,
+                      ),
                     ]
-                  : null,
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -2551,21 +2564,23 @@ class _AppointmentCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
                         start: 0,
-                        end: 4,
+                        end: 6,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _DoctorApptDoneRejectCircle(
-                            fill: const Color(0xFF16A34A),
+                          _DoctorGate3DButton(
+                            highlight: const Color(0xFF22C55E),
+                            depth: const Color(0xFF15803D),
                             icon: Icons.check_rounded,
                             tooltip:
                                 s.translate('doctor_appt_action_complete'),
                             onPressed: onComplete,
                           ),
-                          const SizedBox(width: 6),
-                          _DoctorApptDoneRejectCircle(
-                            fill: const Color(0xFFDC2626),
+                          const SizedBox(width: 10),
+                          _DoctorGate3DButton(
+                            highlight: const Color(0xFFFB7185),
+                            depth: const Color(0xFFB91C1C),
                             icon: Icons.close_rounded,
                             tooltip:
                                 s.translate('doctor_appt_action_decline'),
@@ -2611,12 +2626,12 @@ class _AppointmentCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
-                            minHeight: 82,
+                            minHeight: 96,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                              vertical: 6,
-                              horizontal: 2,
+                              vertical: 10,
+                              horizontal: 4,
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -2633,9 +2648,9 @@ class _AppointmentCard extends StatelessWidget {
                                       ),
                                       border: Border.all(
                                         color: kStaffLuxGold.withValues(
-                                          alpha: stripGold ? 0.42 : 0.32,
+                                          alpha: stripGold ? 0.55 : 0.32,
                                         ),
-                                        width: 1,
+                                        width: stripGold ? 1.15 : 1,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
@@ -2649,8 +2664,8 @@ class _AppointmentCard extends StatelessWidget {
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
+                                        horizontal: 12,
+                                        vertical: 8,
                                       ),
                                       child: Text(
                                         patientName,
@@ -2810,38 +2825,72 @@ class _DoctorQueueGoldCircle extends StatelessWidget {
   }
 }
 
-class _DoctorApptDoneRejectCircle extends StatelessWidget {
-  const _DoctorApptDoneRejectCircle({
-    required this.fill,
+/// Premium “physical” action control (complete / decline).
+class _DoctorGate3DButton extends StatelessWidget {
+  const _DoctorGate3DButton({
+    required this.highlight,
+    required this.depth,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
   });
 
-  final Color fill;
+  final Color highlight;
+  final Color depth;
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final top = Color.lerp(highlight, Colors.white, 0.14)!;
     return Tooltip(
       message: tooltip,
       child: Material(
         color: Colors.transparent,
-        elevation: 0,
-        shadowColor: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
           customBorder: const CircleBorder(),
+          splashColor: Colors.white.withValues(alpha: 0.22),
+          highlightColor: Colors.white.withValues(alpha: 0.08),
           child: Ink(
-            height: 34,
-            width: 34,
+            height: 40,
+            width: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: fill,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  top,
+                  highlight,
+                  depth,
+                ],
+                stops: const [0.0, 0.42, 1.0],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.38),
+                width: 1.1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.48),
+                  blurRadius: 8,
+                  offset: const Offset(0, 5),
+                ),
+                BoxShadow(
+                  color: highlight.withValues(alpha: 0.42),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  blurRadius: 2,
+                  offset: const Offset(-1, -2),
+                ),
+              ],
             ),
-            child: Icon(icon, color: Colors.white, size: 17),
+            child: Icon(icon, color: Colors.white, size: 19),
           ),
         ),
       ),
