@@ -3,28 +3,17 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../theme/patient_premium_theme.dart';
+import '../theme/staff_premium_theme.dart';
 import 'app_locale.dart';
 import 'app_localizations.dart';
 
-/// Same silver rim as patient premium cards ([PatientDoctorCard] spec).
-const LinearGradient _kLanguageSheetSilverBorderGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFFF0F0F0),
-    Color(0xFFD1D1D1),
-    Color(0xFFE0E0E0),
-  ],
-  stops: [0.0, 0.48, 1.0],
-);
+/// Doctor profile sheets / panels ([DoctorProfileScreen] security bottom sheet).
+const Color _kDoctorSheetPanelFill = Color(0xE8121827);
 
 const Color _kMatteGoldBorder = Color(0xFFC9A227);
 const Color _kLightGoldCardFill = Color(0xFFFFF4E0);
-const Color _kTitleNavy = Color(0xFF0D2137);
-/// Outline globe (subtle gold-grey via [ColorFilter]).
-const Color _kGlobeIconTint = Color(0xFF9A8B73);
-const Color _kHandleGrey = Color(0xFFB0BEC5);
+/// Same handle treatment as doctor profile bottom sheets.
+final Color _kSheetHandle = Colors.white.withValues(alpha: 0.22);
 
 /// Outline globe — Feather/Lucide-style strokes (tint via [ColorFilter]).
 const String _kSvgGlobeOutline = '''
@@ -35,11 +24,11 @@ const String _kSvgGlobeOutline = '''
 </svg>
 ''';
 
-/// Solid circular check (bronze disc + light check).
+/// Solid circular check — gold disc + high-contrast check ([kStaffLuxGold]).
 const String _kSvgCheckCircleSolid = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <circle cx="12" cy="12" r="10" fill="#7A5C3A"/>
-  <path d="M8 12.2l2.4 2.4L16 9" fill="none" stroke="#FFF8ED" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="10" fill="#D4AF37"/>
+  <path d="M8 12.2l2.4 2.4L16 9" fill="none" stroke="#FFFFFF" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 ''';
 
@@ -51,7 +40,7 @@ const double _kLanguageScrimBlurSigma = 5;
 /// Scrim dim at full open; scales with the same animation as blur.
 const double _kLanguageScrimDimAlpha = 0.12;
 
-/// Profile (and elsewhere): premium bottom sheet — sky/gold theme, blur scrim.
+/// Profile (and elsewhere): dark navy / gold — aligned with doctor premium shell.
 Future<void> showHrNoraLanguagePicker(BuildContext context) async {
   final controller = AppLocaleScope.of(context);
   final sheetDir = controller.textDirection;
@@ -179,96 +168,95 @@ class _LanguageSheetBodyState extends State<_LanguageSheetBody> {
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(_kSheetTopRadius),
             ),
-            gradient: _kLanguageSheetSilverBorderGradient,
             boxShadow: [
               BoxShadow(
-                color: kPatientDeepBlue.withValues(alpha: 0.14),
-                blurRadius: 24,
-                offset: const Offset(0, -4),
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 28,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(0.8),
           child: ClipRRect(
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(_kSheetTopRadius - 0.8),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(_kSheetTopRadius),
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.98),
-                    const Color(0xFFE8F4FC).withValues(alpha: 0.94),
-                    kPatientSkyTop.withValues(alpha: 0.55),
-                  ],
-                  stops: const [0.0, 0.45, 1.0],
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _kDoctorSheetPanelFill,
+                  border: Border.all(
+                    color: kStaffSilverBorder.withValues(alpha: 0.5),
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(_kSheetTopRadius),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 6, 20, 20 + bottom),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onVerticalDragUpdate: (d) {
-                        final next = _dragDy + d.delta.dy;
-                        if (next >= 0) setState(() => _dragDy = next);
-                      },
-                      onVerticalDragEnd: _onHandleDragEnd,
-                      child: SizedBox(
-                        height: 36,
-                        child: Center(
-                          child: Container(
-                            width: 42,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: _kHandleGrey,
-                              borderRadius: BorderRadius.circular(2),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 6, 20, 20 + bottom),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (d) {
+                          final next = _dragDy + d.delta.dy;
+                          if (next >= 0) setState(() => _dragDy = next);
+                        },
+                        onVerticalDragEnd: _onHandleDragEnd,
+                        child: SizedBox(
+                          height: 36,
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: _kSheetHandle,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      S.of(context).translate('language'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: kPatientPrimaryFont,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        color: _kTitleNavy,
-                        letterSpacing: 0.2,
+                      const SizedBox(height: 10),
+                      Text(
+                        S.of(context).translate('language'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: kPatientPrimaryFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...HrNoraLanguage.values.map((lang) {
+                      const SizedBox(height: 10),
+                      ...HrNoraLanguage.values.map((lang) {
                       final selected =
                           widget.controller.selectedLanguage == lang;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: _LanguageOptionCard(
-                          lang: lang,
-                          selected: selected,
-                          onTap: () async {
-                            await widget.controller.setLanguage(lang);
-                            if (context.mounted) {
-                              Navigator.of(context).maybePop();
-                            }
-                          },
-                        ),
-                      );
-                    }),
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: _LanguageOptionCard(
+                            lang: lang,
+                            selected: selected,
+                            onTap: () async {
+                              await widget.controller.setLanguage(lang);
+                              if (context.mounted) {
+                                Navigator.of(context).maybePop();
+                              }
+                            },
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -306,37 +294,37 @@ class _LanguageOptionCard extends StatelessWidget {
             height: 26,
             fit: BoxFit.contain,
             colorFilter: const ColorFilter.mode(
-              _kGlobeIconTint,
+              kStaffLuxGold,
               BlendMode.srcIn,
             ),
           );
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        splashColor: _kMatteGoldBorder.withValues(alpha: 0.12),
-        highlightColor: _kMatteGoldBorder.withValues(alpha: 0.06),
+        splashColor: kStaffLuxGold.withValues(alpha: 0.14),
+        highlightColor: kStaffLuxGold.withValues(alpha: 0.08),
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: selected
                 ? _kLightGoldCardFill.withValues(alpha: 0.92)
-                : Colors.white.withValues(alpha: 0.88),
+                : Colors.black.withValues(alpha: 0.2),
             border: Border.all(
               color: selected
-                  ? _kMatteGoldBorder.withValues(alpha: 0.75)
-                  : const Color(0xFFCFD8DC).withValues(alpha: 0.65),
-              width: selected ? 1.25 : 0.9,
+                  ? _kMatteGoldBorder.withValues(alpha: 0.85)
+                  : kStaffSilverBorder,
+              width: selected ? 1.25 : kStaffCardOutlineWidth,
             ),
             boxShadow: [
               BoxShadow(
-                color: kPatientDeepBlue.withValues(
-                  alpha: selected ? 0.07 : 0.04,
+                color: Colors.black.withValues(
+                  alpha: selected ? 0.35 : 0.22,
                 ),
-                blurRadius: selected ? 12 : 8,
-                offset: const Offset(0, 2),
+                blurRadius: selected ? 14 : 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -363,13 +351,22 @@ class _LanguageOptionCard extends StatelessWidget {
                         textAlign: textAlign,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: kPatientPrimaryFont,
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           height: 1.2,
                           letterSpacing: 0.15,
-                          color: _kTitleNavy,
+                          color: Colors.white,
+                          shadows: selected
+                              ? const [
+                                  Shadow(
+                                    color: Color(0x66000000),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ]
+                              : null,
                         ),
                       ),
                     ),

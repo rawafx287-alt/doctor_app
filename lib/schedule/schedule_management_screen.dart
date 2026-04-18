@@ -1,3 +1,4 @@
+import 'dart:async' show Timer, unawaited;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -2071,9 +2072,43 @@ class ScheduleDayPanelController extends ChangeNotifier {
   late int _durationMin;
   TextEditingController? _durationController;
   var _saving = false;
+  /// Hides the save-button spinner after [Duration(seconds: 2)] while work continues.
+  Timer? _saveUiSlowHintTimer;
+  bool _saveHideButtonSpinner = false;
   String? _pendingSavedStartHhMm;
   String? _pendingSavedEndHhMm;
   int? _pendingSavedDurationMin;
+
+  /// Baseline when [openTimeSettingsSheet] opens — restored if the sheet is
+  /// dismissed without a successful save (Cancel, X, barrier tap, back).
+  bool _timeSettingsSheetSnapshotCaptured = false;
+  late bool _snapIsOpen;
+  late TimeOfDay _snapStart;
+  late TimeOfDay _snapEnd;
+  late int _snapDurationMin;
+  String _snapDurationText = '';
+
+  void _captureTimeSettingsSheetSnapshot() {
+    _snapIsOpen = _isOpen;
+    _snapStart = _start;
+    _snapEnd = _end;
+    _snapDurationMin = _durationMin;
+    _snapDurationText =
+        (_durationController?.text ?? '').trim().isEmpty
+            ? '$_durationMin'
+            : _durationController!.text.trim();
+    _timeSettingsSheetSnapshotCaptured = true;
+  }
+
+  void _restoreTimeSettingsSheetSnapshot() {
+    if (!_timeSettingsSheetSnapshotCaptured) return;
+    _isOpen = _snapIsOpen;
+    _start = _snapStart;
+    _end = _snapEnd;
+    _durationMin = _snapDurationMin;
+    _durationController?.text = _snapDurationText;
+    notifyListeners();
+  }
 
   void _applyRowSnapshot() {
     final row = _dayRow;
@@ -2124,9 +2159,67 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _saveUiSlowHintTimer?.cancel();
     _modalSlotsScrollController?.dispose();
     _durationController?.dispose();
     super.dispose();
+  }
+
+  void _armSaveUiSlowHintTimer(BuildContext context, AppLocalizations s) {
+    _saveUiSlowHintTimer?.cancel();
+    _saveHideButtonSpinner = false;
+    _saveUiSlowHintTimer = Timer(const Duration(seconds: 2), () {
+      if (!_saving) return;
+      _saveHideButtonSpinner = true;
+      notifyListeners();
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            s.translate('schedule_save_timeout'),
+            style: const TextStyle(fontFamily: kPatientPrimaryFont),
+          ),
+        ),
+      );
+    });
+  }
+
+  void _disarmSaveUiSlowHintTimer() {
+    _saveUiSlowHintTimer?.cancel();
+    _saveUiSlowHintTimer = null;
+    _saveHideButtonSpinner = false;
+  }
+
+  /// Slot grid sync is slow (many appointment docs); never block sheet dismissal.
+  void _deferPostSaveSlotGridSync({
+    required String startHhMm,
+    required String closingHhMm,
+    required int durationMinutes,
+    required String availableDayDocId,
+  }) {
+    unawaited(() async {
+      try {
+        await regenerateAvailableSlotsForDoctorLocalDay(
+          doctorUserId: _doctorUserId,
+          dayLocal: _dateLocal,
+          startTimeHhMm: startHhMm,
+          closingTimeHhMm: closingHhMm,
+          durationMinutes: durationMinutes,
+        );
+      } catch (_) {
+        return;
+      }
+      try {
+        final fresh = await FirebaseFirestore.instance
+            .collection(AvailableDayFields.collection)
+            .doc(availableDayDocId)
+            .get(const GetOptions(source: Source.server));
+        _dayRow = fresh.data();
+        _applyRowSnapshot();
+      } catch (_) {}
+      notifyListeners();
+    }());
   }
 
   TimeOfDay? _parseHhMm(String s) {
@@ -2164,6 +2257,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
   }
 
   /// Bulk-cancel active appointments, close [available_days], refresh local row, success snack.
+  /// Used from [_save] after the doctor confirms in the warning dialog.
   Future<void> _executeCloseClinicDayAfterConfirm(
     BuildContext context,
     AppLocalizations s,
@@ -2199,187 +2293,61 @@ class ScheduleDayPanelController extends ChangeNotifier {
     }
   }
 
-  /// Clinic toggle → closed: confirm, cancel bookings, notify patients, close day in Firestore.
-  Future<void> confirmAndCloseClinicFromSheet(BuildContext context) async {
-    if (_isPast || _saving) return;
+  /// Persists schedule + clinic open state. Returns whether the save completed
+  /// successfully (caller may close the sheet only when `true`).
+  ///
+  /// Slot regeneration runs in the background so the UI is not blocked; the save
+  /// button spinner is capped at ~2s with [schedule_save_timeout] if work runs long.
+  Future<bool> _save(BuildContext context) async {
+    if (_isPast) return false;
     final s = S.of(context);
-    if (_dayRow == null) {
+
+    final id = _existingDocId;
+    final hasDoc = _dayRow != null;
+    final wasOpen = hasDoc && availableDayIsOpen(_dayRow!);
+
+    final raw = (_durationController?.text ?? '').trim();
+    final durEffective = int.tryParse(raw);
+    if (_isOpen && (durEffective == null || durEffective <= 0)) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              s.translate('schedule_close_day_toggle_needs_save'),
+              s.translate('schedule_custom_duration_required'),
               style: const TextStyle(fontFamily: kPatientPrimaryFont),
             ),
           ),
         );
       }
-      return;
+      return false;
     }
-    if (!availableDayIsOpen(_dayRow!)) {
-      _isOpen = false;
-      notifyListeners();
-      return;
-    }
-    final proceed = await _showScheduleCloseDayWarningDialog(context, s);
-    if (proceed != true || !context.mounted) return;
+    final dur = (durEffective ?? 15).clamp(1, 24 * 60);
+    _markPendingSavedValues(
+      startHhMm: _fmt(_start),
+      endHhMm: _fmt(_end),
+      durationMin: dur,
+    );
 
+    if (!_isOpen && hasDoc && wasOpen) {
+      if (!context.mounted) return false;
+      final proceed =
+          await _showScheduleCloseDayWarningDialog(context, s);
+      if (!context.mounted) return false;
+      if (proceed != true) return false;
+    }
+
+    _armSaveUiSlowHintTimer(context, s);
     _saving = true;
     notifyListeners();
-    try {
-      await _executeCloseClinicDayAfterConfirm(context, s);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate('schedule_save_error_generic'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-    } finally {
-      _saving = false;
-      notifyListeners();
-    }
-  }
+    await Future<void>.value();
 
-  /// Clinic toggle → open: clear all appointments for the day, mark day open, regenerate slots, toast.
-  Future<void> openClinicAndResetDayFromSheet(BuildContext context) async {
-    if (_isPast || _saving) return;
-    final s = S.of(context);
-    if (_dayRow == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate('schedule_close_day_toggle_needs_save'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    if (availableDayIsOpen(_dayRow!)) {
-      _isOpen = true;
-      notifyListeners();
-      return;
-    }
-
-    _saving = true;
-    notifyListeners();
-    try {
-      // 1) Clear all old appointment docs (so list becomes clean immediately).
-      await resetAllAppointmentsForDoctorLocalDayToAvailable(
-        doctorUserId: _doctorUserId,
-        dayLocal: _dateLocal,
-      );
-
-      // 2) Mark day open and keep current settings.
-      final durEffective = int.tryParse((_durationController?.text ?? '').trim());
-      final dur = (durEffective ?? _durationMin).clamp(1, 24 * 60);
-      await setAvailableDayOpenState(
-        availableDayDocId: _existingDocId,
-        isOpen: true,
-      );
-      await updateAvailableDayTimeSettings(
-        availableDayDocId: _existingDocId,
-        startTimeHhMm: _fmt(_start),
-        closingTimeHhMm: _fmt(_end),
-        appointmentDurationMinutes: dur,
-      );
-
-      // 3) Regenerate `available` placeholders from current settings.
-      await regenerateAvailableSlotsForDoctorLocalDay(
-        doctorUserId: _doctorUserId,
-        dayLocal: _dateLocal,
-        startTimeHhMm: _fmt(_start),
-        closingTimeHhMm: _fmt(_end),
-        durationMinutes: dur,
-      );
-
-      await _refreshDayRowFromServer();
-      _applyRowSnapshot();
-      _isOpen = true;
-      notifyListeners();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate('schedule_day_reopened_toast'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              s.translate('schedule_save_error_generic'),
-              style: const TextStyle(fontFamily: kPatientPrimaryFont),
-            ),
-          ),
-        );
-      }
-    } finally {
-      _saving = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _save(BuildContext context) async {
-    if (_isPast) return;
-    final s = S.of(context);
-    _saving = true;
-    notifyListeners();
     var suppressDefaultSaveSnack = false;
     try {
-      final id = _existingDocId;
-      final hasDoc = _dayRow != null;
-      final wasOpen = hasDoc && availableDayIsOpen(_dayRow!);
-
-      final raw = (_durationController?.text ?? '').trim();
-      final durEffective = int.tryParse(raw);
-      if (_isOpen && (durEffective == null || durEffective <= 0)) {
-        if (context.mounted) {
-          _saving = false;
-          notifyListeners();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                s.translate('schedule_custom_duration_required'),
-                style: const TextStyle(fontFamily: kPatientPrimaryFont),
-              ),
-            ),
-          );
-        }
-        return;
-      }
-      final dur = (durEffective ?? 15).clamp(1, 24 * 60);
-      _markPendingSavedValues(
-        startHhMm: _fmt(_start),
-        endHhMm: _fmt(_end),
-        durationMin: dur,
-      );
-
       if (!_isOpen) {
         if (hasDoc) {
           if (wasOpen) {
-            if (!context.mounted) return;
-            _saving = false;
-            notifyListeners();
-            final proceed =
-                await _showScheduleCloseDayWarningDialog(context, s);
-            if (!context.mounted) return;
-            if (proceed != true) return;
-            _saving = true;
-            notifyListeners();
             try {
+              if (!context.mounted) return false;
               await _executeCloseClinicDayAfterConfirm(context, s);
             } catch (_) {
               if (context.mounted) {
@@ -2392,7 +2360,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                   ),
                 );
               }
-              return;
+              return false;
             }
             suppressDefaultSaveSnack = true;
           } else {
@@ -2426,24 +2394,13 @@ class ScheduleDayPanelController extends ChangeNotifier {
             appointmentDurationMinutes: dur,
           );
         }
-
-        await regenerateAvailableSlotsForDoctorLocalDay(
-          doctorUserId: _doctorUserId,
-          dayLocal: _dateLocal,
-          startTimeHhMm: _fmt(_start),
-          closingTimeHhMm: _fmt(_end),
-          durationMinutes: dur,
-        );
-
-        try {
-          final fresh = await FirebaseFirestore.instance
-              .collection(AvailableDayFields.collection)
-              .doc(id)
-              .get(const GetOptions(source: Source.server));
-          _dayRow = fresh.data();
-          _applyRowSnapshot();
-        } catch (_) {}
         notifyListeners();
+        _deferPostSaveSlotGridSync(
+          startHhMm: _fmt(_start),
+          closingHhMm: _fmt(_end),
+          durationMinutes: dur,
+          availableDayDocId: id,
+        );
       }
       if (context.mounted && !suppressDefaultSaveSnack) {
         showScheduleSaveSuccessSnackBar(
@@ -2451,6 +2408,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
           s.translate('schedule_save_ok'),
         );
       }
+      return true;
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2462,7 +2420,9 @@ class ScheduleDayPanelController extends ChangeNotifier {
           ),
         );
       }
+      return false;
     } finally {
+      _disarmSaveUiSlowHintTimer();
       if (context.mounted) {
         _saving = false;
         notifyListeners();
@@ -2472,8 +2432,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
 
   /// Glass time-settings modal (opened from the summary card).
   void openTimeSettingsSheet(BuildContext context) {
+    _captureTimeSettingsSheetSnapshot();
     final loc = S.of(context);
     final rootMedia = MediaQuery.of(context);
+    var dismissedWithSuccessfulSave = false;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2490,7 +2452,10 @@ class ScheduleDayPanelController extends ChangeNotifier {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(sheetCtx).pop(),
+                  onTap: () {
+                    if (_saving) return;
+                    Navigator.of(sheetCtx).pop();
+                  },
                   child: BackdropFilter(
                     filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
                     child: ColoredBox(
@@ -2590,8 +2555,9 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                       ),
                                       onPressed: _saving
                                           ? null
-                                          : () =>
-                                              Navigator.of(sheetCtx).pop(),
+                                          : () {
+                                              Navigator.of(sheetCtx).pop();
+                                            },
                                     ),
                                   ),
                                 ],
@@ -2606,15 +2572,16 @@ class ScheduleDayPanelController extends ChangeNotifier {
                               child: ListenableBuilder(
                                 listenable: this,
                                 builder: (context, _) {
-                                  final enabled = !_isPast;
+                                  final enabled = !_isPast && !_saving;
                                   final compact =
                                       MediaQuery.sizeOf(sheetCtx).width < 440;
-                                  final durUi = _durationMin.clamp(5, 60);
-                                  _durationMin = durUi;
                                   _durationController ??=
-                                      TextEditingController(text: '$durUi');
-                                  _durationController!.text = '$durUi';
-                                  final sliderVal = durUi.toDouble();
+                                      TextEditingController(
+                                    text: '${_durationMin.clamp(5, 60)}',
+                                  );
+                                  final durForSlider =
+                                      _durationMin.clamp(5, 60);
+                                  final sliderVal = durForSlider.toDouble();
 
                                   return Padding(
                                     padding: const EdgeInsets.fromLTRB(
@@ -2687,12 +2654,8 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   value: _isOpen,
                                                   onChanged: enabled
                                                       ? (v) {
-                                                          if (v) {
-                                                            openClinicAndResetDayFromSheet(sheetCtx);
-                                                            return;
-                                                          }
-                                                          confirmAndCloseClinicFromSheet(
-                                                              sheetCtx);
+                                                          _isOpen = v;
+                                                          notifyListeners();
                                                         }
                                                       : null,
                                                   activeTrackColor:
@@ -2828,7 +2791,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                   textDirection:
                                                       ui.TextDirection.ltr,
                                                   child: Text(
-                                                    '$_durationMin min',
+                                                    '$durForSlider min',
                                                     textAlign: TextAlign.center,
                                                     style: TextStyle(
                                                       fontFamily:
@@ -2874,8 +2837,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                     min: 5,
                                                     max: 60,
                                                     divisions: 11,
-                                                    label:
-                                                        '$_durationMin',
+                                                    label: '$durForSlider',
                                                     onChanged: enabled
                                                         ? (v) {
                                                             final stepped =
@@ -2910,7 +2872,7 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                                 const SizedBox(height: 5),
                                                 _schedDurationQuickChips(
                                                   enabled: enabled,
-                                                  currentMinutes: _durationMin,
+                                                  currentMinutes: durForSlider,
                                                   onSelect: (m) {
                                                     _durationMin = m;
                                                     _durationController?.text =
@@ -2957,12 +2919,17 @@ class ScheduleDayPanelController extends ChangeNotifier {
                                               _schedPremiumBluePurpleSaveButton(
                                             label: loc.translate(
                                                 'schedule_save_button'),
-                                            isLoading: _saving,
+                                            isLoading:
+                                                _saving && !_saveHideButtonSpinner,
                                             onPressed: (!enabled || _saving)
                                                 ? null
                                                 : () async {
-                                                    await _save(sheetCtx);
-                                                    if (sheetCtx.mounted) {
+                                                    final ok =
+                                                        await _save(sheetCtx);
+                                                    if (sheetCtx.mounted &&
+                                                        ok) {
+                                                      dismissedWithSuccessfulSave =
+                                                          true;
                                                       Navigator.of(sheetCtx)
                                                           .pop();
                                                     }
@@ -2977,31 +2944,6 @@ class ScheduleDayPanelController extends ChangeNotifier {
                             ),
                                   ],
                                 ),
-                                if (_saving)
-                                  Positioned.fill(
-                                    child: ClipRRect(
-                                      borderRadius:
-                                          const BorderRadius.vertical(
-                                        top: Radius.circular(26),
-                                      ),
-                                      child: AbsorbPointer(
-                                        child: ColoredBox(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.44),
-                                          child: const Center(
-                                            child: SizedBox(
-                                              width: 42,
-                                              height: 42,
-                                              child: CircularProgressIndicator(
-                                                color: kStaffLuxGold,
-                                                strokeWidth: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                               ],
                             );
                           },
@@ -3015,7 +2957,14 @@ class ScheduleDayPanelController extends ChangeNotifier {
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      if (_timeSettingsSheetSnapshotCaptured) {
+        if (!dismissedWithSuccessfulSave) {
+          _restoreTimeSettingsSheetSnapshot();
+        }
+        _timeSettingsSheetSnapshotCaptured = false;
+      }
+    });
   }
 
   Stream<DateTime> _scheduleSlotListClockStream() async* {

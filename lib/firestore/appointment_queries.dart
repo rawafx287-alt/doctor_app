@@ -193,20 +193,38 @@ Future<void> regenerateAvailableSlotsForDoctorLocalDay({
 
   final desired = desiredKeys.toSet();
 
-  // Delete old placeholders outside the new grid.
+  // Batched deletes/creates (was one await per doc — very slow on large grids).
+  const maxBatchOps = 450;
+  final toDelete = <DocumentReference<Map<String, dynamic>>>[];
   for (final e in availableDocsByKey.entries) {
-    final k = e.key;
-    if (!desired.contains(k)) {
-      await e.value.reference.delete();
+    if (!desired.contains(e.key)) {
+      toDelete.add(e.value.reference);
     }
   }
+  var batch = FirebaseFirestore.instance.batch();
+  var opCount = 0;
+  Future<void> flushBatch() async {
+    if (opCount == 0) return;
+    await batch.commit();
+    batch = FirebaseFirestore.instance.batch();
+    opCount = 0;
+  }
 
-  // Create missing placeholders for free desired keys.
+  for (final ref in toDelete) {
+    batch.delete(ref);
+    opCount++;
+    if (opCount >= maxBatchOps) {
+      await flushBatch();
+    }
+  }
+  await flushBatch();
+
   final col = FirebaseFirestore.instance.collection(AppointmentFields.collection);
   for (final k in desiredKeys) {
     if (occupiedKeys.contains(k)) continue;
     if (availableDocsByKey.containsKey(k)) continue;
-    await col.add({
+    final ref = col.doc();
+    batch.set(ref, {
       AppointmentFields.doctorId: did,
       AppointmentFields.date: Timestamp.fromDate(dayStart),
       AppointmentFields.time: k,
@@ -216,7 +234,12 @@ Future<void> regenerateAvailableSlotsForDoctorLocalDay({
       AppointmentFields.createdAt: FieldValue.serverTimestamp(),
       AppointmentFields.updatedAt: FieldValue.serverTimestamp(),
     });
+    opCount++;
+    if (opCount >= maxBatchOps) {
+      await flushBatch();
+    }
   }
+  await flushBatch();
 }
 
 /// Archives the prior appointment payload, then frees the live [appointments] doc for re-booking.

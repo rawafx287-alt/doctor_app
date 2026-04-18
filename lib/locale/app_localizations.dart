@@ -1913,6 +1913,12 @@ const Map<String, Map<String, String>> kAppStrings = {
     'ar': 'خطأ في حفظ الجدول',
     'en': 'Could not save schedule',
   },
+  /// Shown when schedule save exceeds ~2s — work may still finish in background.
+  'schedule_save_timeout': {
+    'ckb': 'پاشکەوتکردن درێژتر دەخایەنێت؛ لە پشتەوە بەردەوام دەبێت',
+    'ar': 'الحفظ يستغرق وقتاً أطول؛ ما زال يُكمَل في الخلفية',
+    'en': 'Save is taking longer. It will keep finishing in the background.',
+  },
   'schedule_day_enabled': {
     'ckb': 'چالاک',
     'ar': 'مفعّل',
