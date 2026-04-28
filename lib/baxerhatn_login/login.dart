@@ -11,6 +11,7 @@ import '../auth/phone_normalization.dart';
 import '../auth/phone_auth_config.dart';
 import '../auth/doctor_session_cache.dart';
 import '../auth/patient_session_cache.dart';
+import '../firestore/firestore_cache_helpers.dart';
 import '../locale/app_localizations.dart';
 import '../patient/patient_home_screen.dart';
 import '../secretary/secretary_home_screen.dart';
@@ -168,11 +169,14 @@ class _LoginScreenState extends State<LoginScreen>
       final passwordText = _passwordController.text.trim();
 
       // Direct Firestore verification: phone + password.
-      final snap = await FirebaseFirestore.instance
+      // کەمکردنەوەی "Read": سەرەتا کاش، ئەگەر نەبوو سێرڤەر.
+      final q = FirebaseFirestore.instance
           .collection('users')
           .where('phone', isEqualTo: phoneText)
           .where('password', isEqualTo: passwordText)
-          .get(const GetOptions(source: Source.server));
+          // کورتکردنەوەی لیست: بۆ لۆگین ١ دۆک پێویستە؛ لەسەر یەکسانی-داتا بەردەوام نابێت.
+          .limit(10);
+      final snap = await getQueryCacheFirst(q);
 
       if (snap.docs.isEmpty) {
         _showLoginCredentialError();

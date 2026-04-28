@@ -18,6 +18,7 @@ import '../locale/app_localizations.dart';
 import '../models/appointment_booking_details.dart';
 import '../models/patient_profile_read.dart';
 import '../auth/firestore_user_doc_id.dart';
+import '../firestore/firestore_cache_helpers.dart';
 import '../theme/staff_premium_theme.dart';
 import '../widgets/appointment_action_confirm_dialog.dart';
 import 'doctor_premium_shell.dart';
@@ -607,11 +608,11 @@ class AppointmentsScreen extends StatefulWidget {
           return sheetContent(null, false);
         }
 
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(patientId)
-              .snapshots(),
+        // کەمکردنەوەی "Read": لەم پەنجەرەدا ریل‌تایم پێویست نییە.
+        // سەرەتا کاش، ئەگەر نەبوو سێرڤەر (cache-first).
+        final ref = FirebaseFirestore.instance.collection('users').doc(patientId);
+        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: getDocCacheFirst(ref),
           builder: (context, snap) {
             final loading = snap.connectionState == ConnectionState.waiting &&
                 !snap.hasData;
@@ -625,6 +626,29 @@ class AppointmentsScreen extends StatefulWidget {
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
+  // کەمکردنەوەی "Read": پروفایلی نەخۆش لە لیستدا بە StreamBuilder مەهێڵە،
+  // چونکە هەر کارتێک دەبێتە `snapshots()` و خوێندنەوەی زۆر دەکات.
+  // لە جیاتی ئەوە cache-first Future دابنێ و Futureەکان لە میمۆریدا هەڵبگرە.
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
+      _userProfileFutureById = {};
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _userProfileFuture(
+    String userDocId,
+  ) {
+    final id = userDocId.trim();
+    if (id.isEmpty) return Future.error('empty-user-doc-id');
+    return _userProfileFutureById.putIfAbsent(id, () {
+      final ref = FirebaseFirestore.instance.collection('users').doc(id);
+      return getDocCacheFirst(ref);
+    });
+  }
+
+  @override
+  void dispose() {
+    _userProfileFutureById.clear();
+    super.dispose();
+  }
+
   Set<String> _doctorIdsForQueries() {
     final fromTab = widget.doctorUserId?.trim() ?? '';
     if (fromTab.isNotEmpty) {
@@ -965,11 +989,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     return cardForProfile(null, patientLoading: false);
                   }
 
-                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(patientId)
-                        .snapshots(),
+                  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    future: _userProfileFuture(patientId),
                     builder: (context, patientSnap) {
                       final loading =
                           patientSnap.connectionState ==

@@ -12,6 +12,7 @@ import '../models/doctor_localized_content.dart';
 import '../auth/app_logout.dart';
 import '../auth/firestore_user_doc_id.dart';
 import '../auth/doctor_session_cache.dart';
+import '../firestore/firestore_cache_helpers.dart';
 import '../specialty_categories.dart';
 import '../theme/staff_premium_theme.dart';
 import 'profile_settings_screen.dart';
@@ -361,11 +362,11 @@ class DoctorProfileScreen extends StatelessWidget {
               child: CircularProgressIndicator(color: kStaffLuxGold),
             );
           }
-          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .snapshots(),
+          // کەمکردنەوەی "Read": پروفایل/ڕێکخستن زۆرجار پێویست بە ریل‌تایم ناکات.
+          // سەرەتا cache-first `.get()` بەکاربهێنە.
+          final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+          return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future: getDocCacheFirst(ref),
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting &&
                   !snap.hasData) {

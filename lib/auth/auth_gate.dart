@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../locale/app_locale.dart';
 import '../locale/app_localizations.dart';
 import '../baxerhatn_login/login.dart';
+import '../firestore/firestore_cache_helpers.dart';
 import 'auth_navigation.dart';
 import 'firestore_user_doc_id.dart';
 import 'phone_auth_config.dart';
@@ -60,33 +61,29 @@ class _AuthenticatedShell extends StatelessWidget {
     // Phone-auth style account: try phone-keyed doc and phone field queries.
     if (email.endsWith('@$kPhoneAuthEmailDomain')) {
       final phone = email.split('@').first.trim();
-      final byPhoneDoc = await users
-          .doc(phone)
-          .get(const GetOptions(source: Source.server));
+      // کەمکردنەوەی خوێندنەوە: کاش→سێرڤەر.
+      final byPhoneDoc = await getDocCacheFirst(users.doc(phone));
       if (byPhoneDoc.exists && byPhoneDoc.data() != null) {
         return byPhoneDoc.data();
       }
-      final byPhoneStr = await users
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get(const GetOptions(source: Source.server));
+      final byPhoneStr = await getQueryCacheFirst(
+        users.where('phone', isEqualTo: phone).limit(1),
+      );
       if (byPhoneStr.docs.isNotEmpty) return byPhoneStr.docs.first.data();
       final phoneInt = int.tryParse(phone);
       if (phoneInt != null) {
-        final byPhoneInt = await users
-            .where('phone', isEqualTo: phoneInt)
-            .limit(1)
-            .get(const GetOptions(source: Source.server));
+        final byPhoneInt = await getQueryCacheFirst(
+          users.where('phone', isEqualTo: phoneInt).limit(1),
+        );
         if (byPhoneInt.docs.isNotEmpty) return byPhoneInt.docs.first.data();
       }
     }
 
     // Email-keyed fallback for legacy doc IDs.
     if (email.isNotEmpty) {
-      final byEmail = await users
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get(const GetOptions(source: Source.server));
+      final byEmail = await getQueryCacheFirst(
+        users.where('email', isEqualTo: email).limit(1),
+      );
       if (byEmail.docs.isNotEmpty) return byEmail.docs.first.data();
     }
 
@@ -109,11 +106,11 @@ class _AuthenticatedShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final docId = firestoreUserDocId(user);
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(docId)
-          .snapshots(),
+    // کەمکردنەوەی "Read": دەستکاریکردنی ڕۆڵ/ستاتوس زۆرجار پێویست بە ریل‌تایم ناکات.
+    // بۆیە سەرەتا cache-first `.get()` دەکەین؛ ئەگەر داتا نەبوو دواتر بە fallback دەچین.
+    final ref = FirebaseFirestore.instance.collection('users').doc(docId);
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: getDocCacheFirst(ref),
       builder: (context, docSnapshot) {
         if (docSnapshot.connectionState == ConnectionState.waiting &&
             !docSnapshot.hasData) {

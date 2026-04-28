@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../firestore/firestore_cache_helpers.dart';
 import 'firestore_user_doc_id.dart';
 import 'phone_auth_config.dart';
 import 'phone_normalization.dart';
@@ -28,23 +29,23 @@ Future<String?> resolvePatientUserDocId(User? user) async {
   }..removeWhere((e) => e.isEmpty);
 
   for (final id in idCandidates) {
-    final doc = await users.doc(id).get(const GetOptions(source: Source.server));
+    // کەمکردنەوەی خوێندنەوەکان: سەرەتا لە کاش بخوێنەوە، ئەگەر نەبوو لە سێرڤەر.
+    final doc = await getDocCacheFirst(users.doc(id));
     if (doc.exists) return id;
   }
 
   for (final phone in phoneCandidates) {
-    final byStr = await users
-        .where('phone', isEqualTo: phone)
-        .limit(1)
-        .get(const GetOptions(source: Source.server));
+    // لەم شوێنەدا ریل‌تایم پێویست نییە؛ کاش→سێرڤەر بۆ کەمکردنەوەی "Read".
+    final byStr = await getQueryCacheFirst(
+      users.where('phone', isEqualTo: phone).limit(1),
+    );
     if (byStr.docs.isNotEmpty) return byStr.docs.first.id;
 
     final asInt = int.tryParse(phone);
     if (asInt != null) {
-      final byInt = await users
-          .where('phone', isEqualTo: asInt)
-          .limit(1)
-          .get(const GetOptions(source: Source.server));
+      final byInt = await getQueryCacheFirst(
+        users.where('phone', isEqualTo: asInt).limit(1),
+      );
       if (byInt.docs.isNotEmpty) return byInt.docs.first.id;
     }
   }

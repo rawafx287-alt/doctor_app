@@ -1351,14 +1351,20 @@ class _TicketVisual extends StatelessWidget {
   /// Muted ticket in detail dialog (past / archived bookings).
   final bool archivedAppearance;
 
-  static const Color _ticketBg = Color(0xFF1E1E2C);
-  static const Color _ticketBorder = Color(0xFF3D3D52);
   static const Color _doctorAccent = _kBookingsRoseTop;
   static const Color _labelDim = Color(0xFF8B95A8);
   static const Color _bodyLight = Color(0xFFECEFF4);
   static const Color _bodyMuted = Color(0xFFC5CBD6);
-  static const Color _queueLight = Color(0xFF81D4FA);
   static const Color _dashSubtle = Color(0xFF4A4A5E);
+  static const LinearGradient _ticketGlassGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF1A1F3D),
+      Color(0xFF0B1224),
+    ],
+    stops: [0.0, 1.0],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1378,7 +1384,7 @@ class _TicketVisual extends StatelessWidget {
 
     final double doctorSize = isPreview ? 20 : 13;
     final int doctorMaxLines = isPreview ? 3 : 1;
-    final double queueSize = isPreview ? 40 : 30;
+    final double queueSize = isPreview ? 56 : 44;
     final double labelSize = isPreview ? 12 : 10;
     final double bodyMutedSize = isPreview ? 15 : 12.5;
     final double patientSize = isPreview ? 16 : 13;
@@ -1389,7 +1395,7 @@ class _TicketVisual extends StatelessWidget {
     final EdgeInsets footerPad = isPreview
         ? const EdgeInsets.fromLTRB(13, 7, 13, 11)
         : const EdgeInsets.fromLTRB(12, 6, 12, 12);
-    final double queueVPad = isPreview ? 7 : 6;
+    final double queueVPad = isPreview ? 10 : 8;
     final double daysChipFont = isPreview ? 12 : 10;
 
     final effectiveHole = isPreview ? _kPastTicketDialogHoleBlend : holeColor;
@@ -1399,6 +1405,55 @@ class _TicketVisual extends StatelessWidget {
     final labelMuted = isPreview
         ? _kPastBookingTextBrown.withValues(alpha: 0.78)
         : _labelDim;
+
+    final st = status.trim().toLowerCase();
+    final isExpired = st == 'expired';
+    final badgeBg = isExpired
+        ? const Color(0xFFFFEBEE).withValues(alpha: 0.92)
+        : badge.$1;
+    final badgeFg = isExpired ? const Color(0xFFB91C1C) : badge.$2;
+    final badgeLabel = badge.$3;
+
+    Widget infoRow({
+      required IconData icon,
+      required String label,
+      required String value,
+      bool emphasizeValue = false,
+    }) {
+      final iconColor = isPreview
+          ? _kPastBookingTextBrown.withValues(alpha: 0.78)
+          : _bodyMuted.withValues(alpha: 0.82);
+      final textColor = isPreview
+          ? _kPastBookingTextBrown.withValues(alpha: 0.88)
+          : (emphasizeValue ? _bodyLight : _bodyMuted);
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          textDirection: rowDir,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$label: $value',
+                textAlign: textEnd,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor,
+                  fontFamily: ticketFont,
+                  fontSize: emphasizeValue ? patientSize : bodyMutedSize,
+                  fontWeight: emphasizeValue ? FontWeight.w800 : FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final ticketColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -1503,28 +1558,42 @@ class _TicketVisual extends StatelessWidget {
               SizedBox(width: isPreview ? 7 : 6),
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isPreview ? 6 : 6,
-                  vertical: isPreview ? 3 : 2,
+                  horizontal: isPreview ? 10 : 10,
+                  vertical: isPreview ? 5 : 4,
                 ),
                 decoration: BoxDecoration(
-                  color: badge.$1,
-                  borderRadius: BorderRadius.circular(isPreview ? 8 : 6),
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                     color: isPreview
                         ? _kPastBookingTextBrown.withValues(alpha: 0.35)
-                        : badge.$2.withValues(alpha: 0.35),
-                    width: isPreview ? 0.85 : 0.7,
+                        : badgeFg.withValues(alpha: 0.28),
+                    width: isPreview ? 0.9 : 0.85,
                   ),
                 ),
-                child: Text(
-                  badge.$3,
-                  style: TextStyle(
-                    color: badge.$2,
-                    fontFamily: ticketFont,
-                    fontSize: badgeFont,
-                    fontWeight: FontWeight.w700,
-                    height: 1.1,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isExpired) ...[
+                      Icon(
+                        Icons.access_time_filled_rounded,
+                        size: 14,
+                        color: badgeFg.withValues(alpha: 0.95),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      badgeLabel,
+                      style: TextStyle(
+                        color: badgeFg,
+                        fontFamily: ticketFont,
+                        fontSize: badgeFont,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1544,11 +1613,26 @@ class _TicketVisual extends StatelessWidget {
               queueLabel,
               style: TextStyle(
                 fontFamily: ticketFont,
-                color: isPreview ? _kPastBookingNumberInk : _queueLight,
+                color: isPreview
+                    ? _kPastBookingNumberInk
+                    : const Color(0xFFEAF2FF),
                 fontSize: queueSize,
-                fontWeight: FontWeight.w700,
-                letterSpacing: isPreview ? 1.2 : 0.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: isPreview ? 1.6 : 1.2,
                 height: 1,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                  if (!isPreview)
+                    Shadow(
+                      color: const Color(0xFF64B5F6).withValues(alpha: 0.22),
+                      blurRadius: 16,
+                      offset: const Offset(0, 0),
+                    ),
+                ],
               ),
             ),
           ),
@@ -1642,40 +1726,21 @@ class _TicketVisual extends StatelessWidget {
                   ),
                 ),
               ] else ...[
-                Text(
-                  '${S.of(context).translate('ticket_date')}: $dateStr',
-                  textAlign: textEnd,
-                  style: TextStyle(
-                    color: _bodyMuted,
-                    fontFamily: ticketFont,
-                    fontSize: bodyMutedSize,
-                    fontWeight: FontWeight.w500,
-                    height: 1.25,
-                  ),
+                infoRow(
+                  icon: Icons.calendar_month_rounded,
+                  label: S.of(context).translate('ticket_date'),
+                  value: dateStr,
                 ),
-                SizedBox(height: isPreview ? 5 : 3),
-                Text(
-                  '${S.of(context).translate('ticket_time')}: $timeStr',
-                  textAlign: textEnd,
-                  style: TextStyle(
-                    color: _bodyMuted,
-                    fontFamily: ticketFont,
-                    fontSize: bodyMutedSize,
-                    fontWeight: FontWeight.w500,
-                    height: 1.25,
-                  ),
+                infoRow(
+                  icon: Icons.access_time_rounded,
+                  label: S.of(context).translate('ticket_time'),
+                  value: timeStr,
                 ),
-                SizedBox(height: isPreview ? 5 : 3),
-                Text(
-                  '${S.of(context).translate('ticket_patient')}: $patientName',
-                  textAlign: textEnd,
-                  style: TextStyle(
-                    color: _bodyLight,
-                    fontFamily: ticketFont,
-                    fontSize: patientSize,
-                    fontWeight: FontWeight.bold,
-                    height: 1.25,
-                  ),
+                infoRow(
+                  icon: Icons.person_rounded,
+                  label: S.of(context).translate('ticket_patient'),
+                  value: patientName,
+                  emphasizeValue: true,
                 ),
               ],
               if (daysStyle != null) ...[
@@ -1726,24 +1791,35 @@ class _TicketVisual extends StatelessWidget {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
-          color: _ticketBg,
           borderRadius: r,
-          border: Border.all(color: _ticketBorder, width: 1),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 18,
+              blurRadius: 22,
               offset: const Offset(0, 8),
               spreadRadius: -6,
             ),
             BoxShadow(
-              color: const Color(0xFF64B5F6).withValues(alpha: 0.06),
-              blurRadius: 14,
-              offset: const Offset(0, 2),
+              color: const Color(0xFF64B5F6).withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(borderRadius: innerR, child: ticketColumn),
+        child: ClipRRect(
+          borderRadius: innerR,
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: _ticketGlassGradient,
+                borderRadius: innerR,
+              ),
+              child: ticketColumn,
+            ),
+          ),
+        ),
       );
     }
 
